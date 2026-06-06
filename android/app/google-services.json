@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "300244677091",
+    "project_id": "hunter-ascend",
+    "storage_bucket": "hunter-ascend.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:300244677091:android:4085279b8537a08da5b0d6",
+        "android_client_info": {
+          "package_name": "com.hunterascend.hunter_ascend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBkFh_q5WfrlxTeiRA325BpJMXBO-GnDc4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

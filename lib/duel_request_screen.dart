@@ -1,10 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
-class DuelRequestScreen extends StatelessWidget {
+class DuelRequestScreen extends StatefulWidget {
   const DuelRequestScreen({super.key});
 
+  @override
+  State<DuelRequestScreen> createState() =>
+      _DuelRequestScreenState();
+}
+
+class _DuelRequestScreenState
+    extends State<DuelRequestScreen> {
+  BannerAd? bannerAd;
+  bool isBannerReady = false;
+  void loadBannerAd() {
+
+    bannerAd = BannerAd(
+      adUnitId: 'ca-app-pub-5435480116436845/4699186117',
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          setState(() {
+            isBannerReady = true;
+          });
+        },
+      ),
+    );
+
+    bannerAd!.load();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    loadBannerAd();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -205,6 +238,18 @@ class DuelRequestScreen extends StatelessWidget {
 
                   ],
                 ),
+                const SizedBox(height: 20),
+
+                if (isBannerReady)
+                  Center(
+                    child: SizedBox(
+                      width: bannerAd!.size.width.toDouble(),
+                      height: bannerAd!.size.height.toDouble(),
+                      child: AdWidget(
+                        ad: bannerAd!,
+                      ),
+                    ),
+                  ),
 
               ],
             ),
@@ -212,5 +257,10 @@ class DuelRequestScreen extends StatelessWidget {
         },
       ),
     );
+  }
+  @override
+  void dispose() {
+    bannerAd?.dispose();
+    super.dispose();
   }
 }

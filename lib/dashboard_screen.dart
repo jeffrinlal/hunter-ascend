@@ -296,6 +296,15 @@ class _DashboardScreenState
 
       } else {
 
+        await FirebaseFirestore.instance
+            .collection('hunters')
+            .doc(user.uid)
+            .update({
+
+          'previousStreak': streak,
+
+        });
+
         streak = 1;
 
       }

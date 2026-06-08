@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
+
+import 'duel_history_screen.dart';
 
 class CreateDuelScreen extends StatefulWidget {
 const CreateDuelScreen({super.key});
@@ -84,12 +87,34 @@ Widget build(BuildContext context) {
 return Scaffold(
 backgroundColor: Colors.black,
 
-appBar: AppBar(
-title: const Text(
-"⚔️ Create Duel",
-),
-backgroundColor: Colors.black,
-),
+  appBar: AppBar(
+    title: const Text(
+      "⚔️ Create Duel",
+    ),
+    backgroundColor: Colors.black,
+
+    actions: [
+
+      IconButton(
+        icon: const Icon(
+          Icons.history,
+          color: Colors.cyanAccent,
+        ),
+        onPressed: () {
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+              const DuelHistoryScreen(),
+            ),
+          );
+
+        },
+      ),
+
+    ],
+  ),
 
   body: Padding(
     padding: const EdgeInsets.all(20),
@@ -149,6 +174,67 @@ backgroundColor: Colors.black,
         ),
 
         const SizedBox(height: 25),
+
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            "Your Hunter ID",
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        SelectableText(
+          FirebaseAuth.instance.currentUser?.uid ?? "",
+          style: const TextStyle(
+            color: Colors.cyanAccent,
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        ElevatedButton.icon(
+          onPressed: () async {
+
+            await Clipboard.setData(
+              ClipboardData(
+                text: FirebaseAuth.instance.currentUser?.uid ?? "",
+              ),
+            );
+
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Hunter ID copied!"),
+                ),
+              );
+            }
+          },
+          icon: const Icon(Icons.copy),
+          label: const Text("COPY ID"),
+        ),
+
+        const SizedBox(height: 20),
+
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            "Opponent Hunter ID",
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        const SizedBox(height: 8),
+
 
 TextField(
 controller: hunterIdController,
@@ -305,6 +391,15 @@ onPressed: () async {
 
 // Firestore logic next step
   if (hunterIdController.text.trim().isEmpty) {
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          "Enter a Hunter ID",
+        ),
+      ),
+    );
+
     return;
   }
 
@@ -322,6 +417,27 @@ onPressed: () async {
   }
 
   final user = FirebaseAuth.instance.currentUser;
+  final targetHunter =
+  await FirebaseFirestore.instance
+      .collection('hunters')
+      .doc(
+    hunterIdController.text.trim(),
+  )
+      .get();
+
+  if (!targetHunter.exists) {
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          "Hunter not found",
+        ),
+      ),
+    );
+
+    return;
+  }
+
   final duelSnapshot = await FirebaseFirestore.instance
       .collection('duels')
       .get();
@@ -361,6 +477,24 @@ onPressed: () async {
   }
 
   if (user == null) return;
+
+
+
+  if (hunterIdController.text.trim() == user.uid) {
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          "You cannot challenge yourself",
+        ),
+      ),
+    );
+
+    return;
+  }
+
+
+
 
   if (targetHasActiveDuel) {
 

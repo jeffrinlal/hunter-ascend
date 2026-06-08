@@ -11,6 +11,7 @@ import 'duel_screen.dart';
 import 'settings_screen.dart';
 import 'create_duel_screen.dart';
 import 'duel_request_screen.dart';
+import 'package:health/health.dart';
 
 class DashboardScreen extends StatefulWidget {
 
@@ -38,6 +39,8 @@ class _DashboardScreenState
     extends State<DashboardScreen> {
 
 
+
+
   String getStreakTitle(int streak) {
     if (streak >= 100) return "👑 Shadow Monarch";
     if (streak >= 60) return "⚔️ S-Rank Hunter";
@@ -49,6 +52,9 @@ class _DashboardScreenState
   }
   int xp = 0;
   int level = 1;
+  final Health health = Health();
+
+  int todaySteps = 0;
     // StreamSubscription? duelSubscription;
     // bool duelDialogShowing = false;
   BannerAd? bannerAd;
@@ -210,6 +216,33 @@ class _DashboardScreenState
 
     loadRewardedAd();
   }
+
+  Future<void> loadSteps() async {
+
+    bool granted = await health.requestAuthorization(
+      [HealthDataType.STEPS],
+    );
+
+    if (!granted) return;
+
+    final now = DateTime.now();
+
+    final midnight = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+
+    final steps =
+    await health.getTotalStepsInInterval(
+      midnight,
+      now,
+    );
+
+    setState(() {
+      todaySteps = steps ?? 0;
+    });
+  }
   Future<void> checkBrokenStreak() async {
 
     final user =
@@ -320,6 +353,7 @@ class _DashboardScreenState
     loadProgress();
     loadBannerAd();
     loadRewardedAd();
+    loadSteps();
 
     WidgetsBinding.instance
         .addPostFrameCallback((_) {
@@ -1010,7 +1044,7 @@ Navigator.pop(context);
                         );
                       },
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
 
                     Text(
                       "$xp / 500 XP",
@@ -1019,6 +1053,69 @@ Navigator.pop(context);
                         fontSize: 14,
                       ),
                     ),
+                    const SizedBox(height: 20),
+
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.greenAccent,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+
+                          const Text(
+                            "👣 TODAY'S STEPS",
+                            style: TextStyle(
+                              color: Colors.greenAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Text(
+                            "$todaySteps",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
+                          LinearProgressIndicator(
+                            value: todaySteps / 10000 > 1
+                                ? 1
+                                : todaySteps / 10000,
+                            minHeight: 10,
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Text(
+                            "$todaySteps / 10000",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+
+                          const SizedBox(height: 5),
+
+                          const Text(
+                            "🎯 Daily Goal: 10000 Steps",
+                            style: TextStyle(
+                              color: Colors.greenAccent,
+                            ),
+                          ),
+
+                        ],
+                      ),
+                    ),
+
 
 
                   ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class GlobalRankingsScreen extends StatelessWidget {
   const GlobalRankingsScreen({super.key});
@@ -51,6 +52,22 @@ class GlobalRankingsScreen extends StatelessWidget {
           }
 
           final hunters = snapshot.data!.docs;
+          final currentUid =
+              FirebaseAuth.instance.currentUser?.uid;
+
+          Map<String, dynamic>? myHunter;
+
+          for (var hunterDoc in hunters) {
+
+            if (hunterDoc.id == currentUid) {
+
+              myHunter =
+              hunterDoc.data()
+              as Map<String, dynamic>;
+
+              break;
+            }
+          }
 
           return Column(
               children: [
@@ -87,9 +104,9 @@ class GlobalRankingsScreen extends StatelessWidget {
           const SizedBox(height: 10),
 
           Text(
-          hunters.isNotEmpty
-          ? hunters[0]['hunterName']
-              : "Unknown Hunter",
+            myHunter != null
+                ? myHunter['hunterName']
+                : "Unknown Hunter",
           style: const TextStyle(
           color: Colors.white,
           fontSize: 20,
@@ -100,9 +117,9 @@ class GlobalRankingsScreen extends StatelessWidget {
           const SizedBox(height: 6),
 
           Text(
-          hunters.isNotEmpty
-          ? "${getRankTitle(hunters[0]['level'])} • Level ${hunters[0]['level']}"
-              : "",
+            myHunter != null
+                ? "${getRankTitle(myHunter['level'])} • Level ${myHunter['level']}"
+                : "",
           style: const TextStyle(
           color: Colors.white70,
           ),
@@ -111,14 +128,25 @@ class GlobalRankingsScreen extends StatelessWidget {
           const SizedBox(height: 6),
 
           Text(
-          hunters.isNotEmpty
-          ? "${hunters[0]['xp']} XP"
-              : "",
+            myHunter != null
+                ? "${myHunter['xp']} XP"
+                : "",
           style: const TextStyle(
           color: Colors.greenAccent,
           fontWeight: FontWeight.bold,
           ),
           ),
+            const SizedBox(height: 6),
+
+            Text(
+              "⭐ Rank #${hunters.indexWhere(
+                    (h) => h.id == currentUid,
+              ) + 1}",
+              style: const TextStyle(
+                color: Colors.amber,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
           ),
           ),

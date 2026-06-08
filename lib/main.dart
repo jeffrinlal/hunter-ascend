@@ -348,6 +348,18 @@ children: [
                         'hunterName':
                         'Hunter_${nameController.text.trim()}',
 
+                        'age':
+                        int.parse(ageController.text),
+
+                        'height':
+                        double.parse(heightController.text),
+
+                        'weight':
+                        double.parse(weightController.text),
+
+                        'startingWeight':
+                        double.parse(weightController.text),
+
                     });
                 }
 

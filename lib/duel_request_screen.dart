@@ -192,6 +192,10 @@ class _DuelRequestScreenState
                           await FirebaseFirestore.instance
                               .collection('duels')
                               .add({
+                            'participants': [
+                              duelData['fromUid'],
+                              user.uid,
+                            ],
 
                             'player1': duelData['fromUid'],
                             'player2': user.uid,

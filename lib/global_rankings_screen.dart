@@ -26,6 +26,7 @@ class GlobalRankingsScreen extends StatelessWidget {
             .collection('hunters')
             .orderBy('level', descending: true)
             .orderBy('xp', descending: true)
+            .limit(100)
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {

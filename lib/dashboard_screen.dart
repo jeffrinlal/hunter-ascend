@@ -750,6 +750,11 @@ Navigator.pop(context);
 
               final duelSnapshot = await FirebaseFirestore.instance
                   .collection('duels')
+                  .where(
+                'participants',
+                arrayContains: user.uid,
+              )
+                  .limit(1)
                   .get();
 
               print(
@@ -758,7 +763,10 @@ Navigator.pop(context);
               bool hasActiveDuel = false;
               String? duelId;
 
-              for (var doc in duelSnapshot.docs) {
+              if (duelSnapshot.docs.isNotEmpty) {
+
+                final doc = duelSnapshot.docs.first;
+
                 final data = doc.data();
 
                 bool isPlayer1 =
@@ -771,17 +779,13 @@ Navigator.pop(context);
                             (!isPlayer1 &&
                                 data['player2ViewedResult'] == false));
 
-                if ((data['player1'] == user.uid ||
-                    data['player2'] == user.uid) &&
-                    (data['status'] == 'active' ||
-                        shouldShowResult)) {
+                if (data['status'] == 'active' ||
+                    shouldShowResult) {
+
                   hasActiveDuel = true;
                   duelId = doc.id;
-
-                  break;
                 }
               }
-
               if (hasActiveDuel) {
                 Navigator.push(
                   context,
@@ -942,17 +946,17 @@ Navigator.pop(context);
                         letterSpacing: 2,
                       ),
                     ),
-                    FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance
+                    StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance
                           .collection('hunters')
                           .doc(FirebaseAuth.instance.currentUser?.uid)
-                          .get(),
+                          .snapshots(),
                       builder: (context, snapshot) {
 
-                        if (!snapshot.hasData) {
+                        if (!snapshot.hasData ||
+                            !snapshot.data!.exists) {
                           return const SizedBox();
                         }
-
                         final data =
                         snapshot.data!.data()
                         as Map<String, dynamic>;

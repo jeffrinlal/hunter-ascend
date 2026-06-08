@@ -32,6 +32,7 @@ Future<void> createHunterProfile() async {
             'level': 1,
             'xp': 0,
             'streak': 0,
+            'lastQuestDate': '',
         });
     }
 }
@@ -73,7 +74,7 @@ title: 'Hunter Ascend',
 theme: ThemeData.dark(),
     home: hasCompletedSetup
         ? DashboardScreen(
-        fatLoss: true,
+        fatLoss: false,
         discipline: false,
         muscleGain: false,
         selfImprovement: false,
@@ -194,7 +195,7 @@ children: [
                         color: Colors.white,
                     ),
                     decoration: InputDecoration(
-                        labelText: "Hunter ID",
+                        labelText: "Hunter Name",
                         labelStyle: const TextStyle(
                             color: Colors.cyanAccent,
                         ),
@@ -316,7 +317,7 @@ children: [
                     borderRadius: BorderRadius.circular(15),
                 ),
             ),
-            onPressed: () {
+            onPressed: () async {
 
                 if (nameController.text.trim().isEmpty ||
                     ageController.text.trim().isEmpty ||
@@ -333,6 +334,21 @@ children: [
                     );
 
                     return;
+                }
+                final user =
+                    FirebaseAuth.instance.currentUser;
+
+                if (user != null) {
+
+                    await FirebaseFirestore.instance
+                        .collection('hunters')
+                        .doc(user.uid)
+                        .update({
+
+                        'hunterName':
+                        'Hunter_${nameController.text.trim()}',
+
+                    });
                 }
 
                 Navigator.push(

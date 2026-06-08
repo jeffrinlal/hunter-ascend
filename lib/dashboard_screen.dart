@@ -1,9 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'global_rankings_screen.dart';
+import 'profile_screen.dart';
+import 'duel_screen.dart';
+import 'settings_screen.dart';
+import 'create_duel_screen.dart';
+import 'duel_request_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
 
@@ -23,15 +30,31 @@ class DashboardScreen extends StatefulWidget {
   @override
   State<DashboardScreen> createState() =>
       _DashboardScreenState();
+
 }
 
 class _DashboardScreenState
 
     extends State<DashboardScreen> {
+  String getStreakTitle(int streak) {
+    if (streak >= 100) return "👑 Shadow Monarch";
+    if (streak >= 60) return "⚔️ S-Rank Hunter";
+    if (streak >= 30) return "🏅 Elite Hunter";
+    if (streak >= 14) return "🎯 Dedicated Hunter";
+    if (streak >= 7) return "🔥 Consistent Hunter";
+    if (streak >= 1) return "🛡️ New Hunter";
+    return "";
+  }
   int xp = 0;
   int level = 1;
+    // StreamSubscription? duelSubscription;
+    // bool duelDialogShowing = false;
   BannerAd? bannerAd;
   bool isBannerReady = false;
+  int selectedCustomQuestXp = 10;
+  final TextEditingController customQuestController =
+  TextEditingController();
+
   String get hunterRank {
     if (level >= 30) return "S RANK";
     if (level >= 20) return "A RANK";
@@ -95,6 +118,8 @@ class _DashboardScreenState
     super.initState();
     loadProgress();
     loadBannerAd();
+
+
 
     if (widget.fatLoss) {
       generatedQuests.addAll([
@@ -217,7 +242,77 @@ class _DashboardScreenState
         ],
       ),
     );
-  }void completeQuest() {
+
+  }
+  Future<void> updateStreak() async {
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) return;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(user.uid)
+        .get();
+
+    final data =
+    doc.data() as Map<String, dynamic>;
+
+    int streak = data['streak'] ?? 0;
+
+    String lastQuestDate =
+        data['lastQuestDate'] ?? '';
+
+    final today = DateTime.now();
+
+    final todayString =
+        "${today.year}-${today.month}-${today.day}";
+
+    if (lastQuestDate.isEmpty) {
+
+      streak = 1;
+
+    } else {
+
+      final parts =
+      lastQuestDate.split('-');
+
+      final lastDate = DateTime(
+        int.parse(parts[0]),
+        int.parse(parts[1]),
+        int.parse(parts[2]),
+      );
+
+      final difference =
+          today.difference(lastDate).inDays;
+
+      if (difference == 0) {
+
+        return;
+
+      } else if (difference == 1) {
+
+        streak++;
+
+      } else {
+
+        streak = 1;
+
+      }
+    }
+
+    await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(user.uid)
+        .update({
+
+      'streak': streak,
+      'lastQuestDate': todayString,
+
+    });
+  }
+
+  void completeQuest() {
     bool leveledUp = false;
 
     setState(() {
@@ -234,6 +329,7 @@ class _DashboardScreenState
 
     saveProgress();
     updateHunterOnline();
+    updateStreak();
 
     showDialog(
       context: context,
@@ -243,9 +339,11 @@ class _DashboardScreenState
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+content: StatefulBuilder(
+builder: (context, setDialogState) {
+return Column(
+mainAxisSize: MainAxisSize.min,
+children: [
             const Icon(
               Icons.emoji_events,
               color: Colors.amber,
@@ -269,8 +367,10 @@ class _DashboardScreenState
                 fontWeight: FontWeight.bold,
               ),
             ),
-          ],
-        ),
+],
+);
+},
+),
       ),
     );
 
@@ -350,11 +450,18 @@ Navigator.pop(context);
       'xp': xp,
     });
   }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
+        title: const Text("Hunter Dashboard"),
+        backgroundColor: Colors.black,
         actions: [
           IconButton(
             icon: const Icon(Icons.leaderboard),
@@ -367,10 +474,163 @@ Navigator.pop(context);
               );
             },
           ),
+
+          IconButton(
+            icon: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('duel_requests')
+                  .where(
+                'toUid',
+                isEqualTo:
+                FirebaseAuth.instance.currentUser?.uid,
+              )
+                  .where(
+                'status',
+                isEqualTo: 'pending',
+              )
+                  .snapshots(),
+              builder: (context, snapshot) {
+
+                final hasPending =
+                    snapshot.hasData &&
+                        snapshot.data!.docs.isNotEmpty;
+
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+
+                    const Icon(
+                      Icons.sports_kabaddi,
+                    ),
+
+                    if (hasPending)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ), // ⚔️ Duel
+            onPressed: () async {
+              final user = FirebaseAuth.instance.currentUser;
+
+              if (user == null) return;
+
+              final stopwatch = Stopwatch()..start();
+
+              final duelSnapshot = await FirebaseFirestore.instance
+                  .collection('duels')
+                  .get();
+
+              print(
+                "DUEL QUERY TIME: ${stopwatch.elapsedMilliseconds} ms",
+              );
+              bool hasActiveDuel = false;
+              String? duelId;
+
+              for (var doc in duelSnapshot.docs) {
+                final data = doc.data();
+
+                bool isPlayer1 =
+                    data['player1'] == user.uid;
+
+                bool shouldShowResult =
+                    data['status'] == 'completed' &&
+                        ((isPlayer1 &&
+                            data['player1ViewedResult'] == false) ||
+                            (!isPlayer1 &&
+                                data['player2ViewedResult'] == false));
+
+                if ((data['player1'] == user.uid ||
+                    data['player2'] == user.uid) &&
+                    (data['status'] == 'active' ||
+                        shouldShowResult)) {
+                  hasActiveDuel = true;
+                  duelId = doc.id;
+
+                  break;
+                }
+              }
+
+              if (hasActiveDuel) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DuelScreen(
+                      duelId: duelId!,
+                    ),
+                  ),
+                );
+                return;
+              }
+              final pendingRequest = await FirebaseFirestore.instance
+                  .collection('duel_requests')
+                  .where(
+                'toUid',
+                isEqualTo: user.uid,
+              )
+                  .where(
+                'status',
+                isEqualTo: 'pending',
+              )
+                  .limit(1)
+                  .get();
+
+              if (pendingRequest.docs.isNotEmpty) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const DuelRequestScreen(),
+                  ),
+                );
+                return;
+              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CreateDuelScreen(),
+                ),
+              );
+            },
+          ),
+
+          IconButton(
+            icon: const Icon(Icons.person),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ProfileScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SettingsScreen(),
+                ),
+              );
+            },
+          ),
+
         ],
-        title: const Text("Hunter Dashboard"),
-        backgroundColor: Colors.black,
+
       ),
+
+
       body: Padding(
         padding: const EdgeInsets.all(12),
         child: SingleChildScrollView(
@@ -453,12 +713,62 @@ Navigator.pop(context);
 
                     Text(
                       "LEVEL $level",
+
+
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         letterSpacing: 2,
                       ),
-                    ),const SizedBox(height: 15),
+                    ),
+                    FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('hunters')
+                          .doc(FirebaseAuth.instance.currentUser?.uid)
+                          .get(),
+                      builder: (context, snapshot) {
+
+                        if (!snapshot.hasData) {
+                          return const SizedBox();
+                        }
+
+                        final data =
+                        snapshot.data!.data()
+                        as Map<String, dynamic>;
+
+                        final streak =
+                            data['streak'] ?? 0;
+
+                        return Column(
+                          children: [
+
+                            const SizedBox(height: 20),
+
+                            Text(
+                              "🔥 $streak Day Streak",
+                              style: const TextStyle(
+                                color: Colors.orange,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            Text(
+                              getStreakTitle(streak),
+                              style: const TextStyle(
+                                color: Colors.amber,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 5),
 
                     TweenAnimationBuilder<double>(
                       tween: Tween(
@@ -604,28 +914,247 @@ Navigator.pop(context);
                 ),
               const SizedBox(height: 10),
 
-              const Align(
-                alignment: Alignment.center,
-                child: Text(
-                  "Daily Quests",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+              Row(
+                mainAxisAlignment:
+                MainAxisAlignment.spaceBetween,
+                children: [
+
+                  const Text(
+                    "Daily Quests",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
+
+                  IconButton(
+                    onPressed: () {
+
+                      showDialog(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: const Text(
+                            "Create Custom Quest",
+                          ),
+                          content: StatefulBuilder(
+                            builder: (context, setDialogState) {
+                              return Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+
+                                  TextField(
+                                    controller: customQuestController,
+                                    decoration: const InputDecoration(
+                                      hintText: "Quest Name",
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 20),
+
+                                  const Text("XP Reward"),
+
+                                  const SizedBox(height: 10),
+
+                                  Wrap(
+                                    spacing: 8,
+                                    children: [
+
+                                      ChoiceChip(
+                                        label: const Text("10"),
+                                        selected: selectedCustomQuestXp == 10,
+                                        onSelected: (_) {
+                                          setDialogState(() {
+                                            selectedCustomQuestXp = 10;
+                                          });
+                                        },
+                                      ),
+
+                                      ChoiceChip(
+                                        label: const Text("20"),
+                                        selected: selectedCustomQuestXp == 20,
+                                        onSelected: (_) {
+                                          setDialogState(() {
+                                            selectedCustomQuestXp = 20;
+                                          });
+                                        },
+                                      ),
+
+                                      ChoiceChip(
+                                        label: const Text("30"),
+                                        selected: selectedCustomQuestXp == 30,
+                                        onSelected: (_) {
+                                          setDialogState(() {
+                                            selectedCustomQuestXp = 30;
+                                          });
+                                        },
+                                      ),
+
+                                      ChoiceChip(
+                                        label: const Text("40"),
+                                        selected: selectedCustomQuestXp == 40,
+                                        onSelected: (_) {
+                                          setDialogState(() {
+                                            selectedCustomQuestXp = 40;
+                                          });
+                                        },
+                                      ),
+
+                                      ChoiceChip(
+                                        label: const Text("50"),
+                                        selected: selectedCustomQuestXp == 50,
+                                        onSelected: (_) {
+                                          setDialogState(() {
+                                            selectedCustomQuestXp = 50;
+                                          });
+                                        },
+                                      ),
+
+                                    ],
+                                  ),
+
+                                ],
+                              );
+                            },
+                          ),
+                          actions: [
+
+                            TextButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                              },
+                              child: const Text("CANCEL"),
+                            ),
+
+                            ElevatedButton(
+                              onPressed: () async {
+
+                                if (customQuestController.text
+                                    .trim()
+                                    .isEmpty) {
+                                  return;
+                                }
+
+                                final user =
+                                    FirebaseAuth.instance.currentUser;
+
+                                if (user == null) return;
+
+                                await FirebaseFirestore.instance
+                                    .collection('custom_quests')
+                                    .add({
+
+                                  'uid': user.uid,
+                                  'name': customQuestController.text.trim(),
+                                  'xp': selectedCustomQuestXp,
+                                  'createdAt': Timestamp.now(),
+
+                                });
+
+                                customQuestController.clear();
+                                selectedCustomQuestXp = 10;
+
+                                if (mounted) {
+                                  Navigator.pop(context);
+                                }
+                              },
+                              child: const Text("ADD QUEST"),
+                            ),
+
+                          ],
+                        ),
+                      );
+
+                    },
+                    icon: const Icon(
+                      Icons.add,
+                      color: Colors.cyanAccent,
+                    ),
+                  ),
+
+                ],
               ),
 
               const SizedBox(height: 10),
 
-              ...generatedQuests.map(
-                    (quest) => GestureDetector(
-                  onTap: () {
-                    startQuest(
-                      quest["name"],
-                      quest["xp"],
+              if (generatedQuests.isEmpty)
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('custom_quests')
+                      .where(
+                    'uid',
+                    isEqualTo:
+                    FirebaseAuth.instance.currentUser?.uid,
+                  )
+                      .snapshots(),
+                  builder: (context, snapshot) {
+
+                    if (!snapshot.hasData) {
+                      return const SizedBox();
+                    }
+
+                    if (snapshot.data!.docs.isNotEmpty) {
+                      return const SizedBox();
+                    }
+
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.cyanAccent,
+                        ),
+                      ),
+                      child: const Column(
+                        children: [
+
+                          Icon(
+                            Icons.bolt,
+                            color: Colors.cyanAccent,
+                            size: 40,
+                          ),
+
+                          SizedBox(height: 10),
+
+                          Text(
+                            "No quests yet",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+
+                          SizedBox(height: 10),
+
+                          Text(
+                            "Tap + to create your first custom quest.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white70,
+                            ),
+                          ),
+
+                        ],
+                      ),
                     );
                   },
+                ),
+
+              ...generatedQuests.map(
+                    (quest) => GestureDetector(
+                      onTap: completedQuests.contains(
+                        quest["name"],
+                      )
+                          ? null
+                          : () {
+                        startQuest(
+                          quest["name"],
+                          quest["xp"],
+                        );
+                      },
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
@@ -654,17 +1183,32 @@ Navigator.pop(context);
                         ),
                       ),
                       title: Text(
-                        quest["name"],
+                        completedQuests.contains(
+                          quest["name"],
+                        )
+                            ? "✓ ${quest["name"]}"
+                            : quest["name"],
                         style: const TextStyle(color: Colors.white),
                       ),
-                      trailing: Container(
+                      trailing: completedQuests.contains(
+                        quest["name"],
+                      )
+                          ? const Text(
+                        "COMPLETED",
+                        style: TextStyle(
+                          color: Colors.greenAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                          : Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
                           color: Colors.green.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius:
+                          BorderRadius.circular(10),
                         ),
                         child: Text(
                           "+${quest["xp"]} XP",
@@ -673,11 +1217,145 @@ Navigator.pop(context);
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-
                       ),
                     ),
                   ),
                 ),
+              ),
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('custom_quests')
+                    .where(
+                  'uid',
+                  isEqualTo:
+                  FirebaseAuth.instance.currentUser?.uid,
+                )
+                    .snapshots(),
+                builder: (context, snapshot) {
+
+                  if (!snapshot.hasData) {
+                    return const SizedBox();
+                  }
+
+                  return Column(
+                    children: snapshot.data!.docs.map((doc) {
+
+                      final data =
+                      doc.data() as Map<String, dynamic>;
+
+                      return GestureDetector(
+                        onTap: completedQuests.contains(
+                          data['name'],
+                        )
+                            ? null
+                            : () {
+                          startQuest(
+                            data['name'],
+                            data['xp'],
+                          );
+                        },
+                        child: Container(
+                          margin:
+                          const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            borderRadius:
+                            BorderRadius.circular(16),
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFF2A0845),
+                                Color(0xFF6441A5),
+                              ],
+                            ),
+                            border: Border.all(
+                              color: Colors.amber,
+                            ),
+                          ),
+                          child: ListTile(
+                            leading: const Icon(
+                              Icons.edit_note,
+                              color: Colors.amber,
+                            ),
+                            title: Text(
+                              completedQuests.contains(
+                                data['name'],
+                              )
+                                  ? "✓ ${data['name']}"
+                                  : data['name'],
+                              style: const TextStyle(
+                                color: Colors.white,
+                              ),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+
+                                completedQuests.contains(
+                                  data['name'],
+                                )
+                                    ? const Text(
+                                  "COMPLETED",
+                                  style: TextStyle(
+                                    color: Colors.greenAccent,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
+                                    : Text(
+                                  "+${data['xp']} XP",
+                                  style: const TextStyle(
+                                    color: Colors.greenAccent,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.redAccent,
+                                  ),
+                                  onPressed: () {
+
+                                    showDialog(
+                                      context: context,
+                                      builder: (_) => AlertDialog(
+                                        title: const Text("Delete Quest?"),
+                                        content: Text(data['name']),
+                                        actions: [
+
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.pop(context);
+                                            },
+                                            child: const Text("CANCEL"),
+                                          ),
+
+                                          ElevatedButton(
+                                            onPressed: () async {
+
+                                              await doc.reference.delete();
+
+                                              if (mounted) {
+                                                Navigator.pop(context);
+                                              }
+                                            },
+                                            child: const Text("DELETE"),
+                                          ),
+
+                                        ],
+                                      ),
+                                    );
+
+                                  },
+                                ),
+
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+
+                    }).toList(),
+                  );
+                },
               ),
               const SizedBox(height: 30),
 

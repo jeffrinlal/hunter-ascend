@@ -128,7 +128,15 @@ class GlobalRankingsScreen extends StatelessWidget {
           itemBuilder: (context, index) {
               final hunter =
               hunters[index].data() as Map<String, dynamic>;
+              Color borderColor = Colors.cyanAccent;
 
+              if (index == 0) {
+                borderColor = Colors.amber;
+              } else if (index == 1) {
+                borderColor = Colors.grey;
+              } else if (index == 2) {
+                borderColor = const Color(0xFFCD7F32); // Bronze
+              }
               return Container(
                 margin: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -144,20 +152,19 @@ class GlobalRankingsScreen extends StatelessWidget {
                     ],
                   ),
                   border: Border.all(
-                    color: index == 0
-                        ? Colors.amber
-                        : Colors.cyanAccent,
+                    color: borderColor,
+                    width: 2,
                   ),
                 ),
                 child: Row(
                   children: [
 
                     index == 0
-                        ? const Icon(
-                      Icons.workspace_premium,
-                      color: Colors.amber,
-                      size: 32,
-                    )
+                        ? const Text("👑", style: TextStyle(fontSize: 32))
+                        : index == 1
+                        ? const Text("🥈", style: TextStyle(fontSize: 32))
+                        : index == 2
+                        ? const Text("🥉", style: TextStyle(fontSize: 32))
                         : Text(
                       "#${index + 1}",
                       style: const TextStyle(

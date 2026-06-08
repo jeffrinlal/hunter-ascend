@@ -80,29 +80,76 @@ selfImprovement = value!;
 },
 ),
 
-const Spacer(),
+  const Spacer(),
 
-  ElevatedButton(
-    onPressed: () async {
+  Row(
+    children: [
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('hasCompletedSetup', true);
+      Expanded(
+        child: OutlinedButton(
+          onPressed: () async {
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => DashboardScreen(
-            fatLoss: fatLoss,
-            discipline: discipline,
-            muscleGain: muscleGain,
-            selfImprovement: selfImprovement,
+            final prefs =
+            await SharedPreferences.getInstance();
+
+            await prefs.setBool(
+              'hasCompletedSetup',
+              true,
+            );
+
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DashboardScreen(
+                  fatLoss: false,
+                  discipline: false,
+                  muscleGain: false,
+                  selfImprovement: false,
+                ),
+              ),
+                  (route) => false,
+            );
+          },
+          child: const Text(
+            "SKIP",
           ),
         ),
-      );
-    },
-  child: const Text(
-  "GENERATE MY QUESTS",
-  ),
+      ),
+
+      const SizedBox(width: 10),
+
+      Expanded(
+        child: ElevatedButton(
+          onPressed: () async {
+
+            final prefs =
+            await SharedPreferences.getInstance();
+
+            await prefs.setBool(
+              'hasCompletedSetup',
+              true,
+            );
+
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DashboardScreen(
+                  fatLoss: fatLoss,
+                  discipline: discipline,
+                  muscleGain: muscleGain,
+                  selfImprovement: selfImprovement,
+                ),
+              ),
+                  (route) => false,
+            );
+          },
+          child: const Text(
+            "GENERATE MY QUESTS",
+          ),
+        ),
+      ),
+
+    ],
   ),
   ],
   ),

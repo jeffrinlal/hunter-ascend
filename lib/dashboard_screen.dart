@@ -36,6 +36,8 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState
 
     extends State<DashboardScreen> {
+
+
   String getStreakTitle(int streak) {
     if (streak >= 100) return "👑 Shadow Monarch";
     if (streak >= 60) return "⚔️ S-Rank Hunter";
@@ -51,6 +53,8 @@ class _DashboardScreenState
     // bool duelDialogShowing = false;
   BannerAd? bannerAd;
   bool isBannerReady = false;
+  RewardedAd? rewardedAd;
+  bool isRewardedAdReady = false;
   int selectedCustomQuestXp = 10;
   final TextEditingController customQuestController =
   TextEditingController();
@@ -113,11 +117,102 @@ class _DashboardScreenState
 
     bannerAd!.load();
   }
+  void loadRewardedAd() {
+
+    RewardedAd.load(
+      adUnitId:
+      'ca-app-pub-5435480116436845/4406856317',
+      request: const AdRequest(),
+      rewardedAdLoadCallback:
+      RewardedAdLoadCallback(
+
+        onAdLoaded: (ad) {
+
+          rewardedAd = ad;
+
+          setState(() {
+            isRewardedAdReady = true;
+          });
+
+          print("REWARDED LOADED");
+        },
+
+        onAdFailedToLoad: (error) {
+
+          print(
+            "REWARDED FAILED: $error",
+          );
+
+          isRewardedAdReady = false;
+        },
+      ),
+    );
+  }
+  void showStreakRecoveryAd() {
+
+    if (!isRewardedAdReady ||
+        rewardedAd == null) {
+      return;
+    }
+
+    rewardedAd!.show(
+
+      onUserEarnedReward:
+          (ad, reward) async {
+
+        final user =
+            FirebaseAuth.instance.currentUser;
+
+        if (user == null) return;
+
+        final doc =
+        await FirebaseFirestore.instance
+            .collection('hunters')
+            .doc(user.uid)
+            .get();
+
+        final data =
+        doc.data() as Map<String, dynamic>;
+
+        final previousStreak =
+            data['previousStreak'] ?? 0;
+
+        await FirebaseFirestore.instance
+            .collection('hunters')
+            .doc(user.uid)
+            .update({
+
+          'streak': previousStreak,
+          'previousStreak': 0,
+
+        });
+
+        if (mounted) {
+
+          ScaffoldMessenger.of(context)
+              .showSnackBar(
+
+            SnackBar(
+              content: Text(
+                "🔥 Streak Restored ($previousStreak Days)",
+              ),
+            ),
+          );
+        }
+      },
+    );
+
+    rewardedAd = null;
+    isRewardedAdReady = false;
+
+    loadRewardedAd();
+  }
   @override
   void initState() {
     super.initState();
     loadProgress();
     loadBannerAd();
+    loadRewardedAd();
 
 
 
@@ -462,6 +557,9 @@ Navigator.pop(context);
 
   @override
   void dispose() {
+
+    rewardedAd?.dispose();
+
     super.dispose();
   }
   @override

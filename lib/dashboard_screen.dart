@@ -185,6 +185,9 @@ class _DashboardScreenState
           'streak': previousStreak,
           'previousStreak': 0,
 
+          'lastRecoveryDate':
+          Timestamp.now(),
+
         });
 
         if (mounted) {
@@ -207,12 +210,123 @@ class _DashboardScreenState
 
     loadRewardedAd();
   }
+  Future<void> checkBrokenStreak() async {
+
+    final user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) return;
+
+    final doc =
+    await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(user.uid)
+        .get();
+
+    if (!doc.exists) return;
+
+    final data =
+    doc.data() as Map<String, dynamic>;
+    final lastRecoveryDate =
+    data['lastRecoveryDate'];
+
+    if (lastRecoveryDate != null) {
+
+      final recoveryDate =
+      (lastRecoveryDate as Timestamp)
+          .toDate();
+
+      final daysSinceRecovery =
+          DateTime.now()
+              .difference(recoveryDate)
+              .inDays;
+
+      if (daysSinceRecovery < 3) {
+        return;
+      }
+    }
+
+    final streak =
+        data['streak'] ?? 0;
+
+    final lastQuestDate =
+        data['lastQuestDate'] ?? '';
+
+    if (streak == 0 ||
+        lastQuestDate.isEmpty) {
+      return;
+    }
+
+    final parts =
+    lastQuestDate.split('-');
+
+    final lastDate = DateTime(
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+      int.parse(parts[2]),
+    );
+
+    final difference =
+        DateTime.now()
+            .difference(lastDate)
+            .inDays;
+
+    if (difference <= 1) {
+      return;
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text(
+          "🔥 STREAK BROKEN",
+        ),
+        content: Text(
+          "Previous Streak: $streak Days\n\nWatch an ad to restore it?",
+        ),
+        actions: [
+
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text(
+              "ACCEPT LOSS",
+            ),
+          ),
+
+          ElevatedButton(
+            onPressed: () {
+
+              Navigator.pop(context);
+
+              showStreakRecoveryAd();
+            },
+            child: const Text(
+              "WATCH AD",
+            ),
+          ),
+
+        ],
+      ),
+    );
+  }
   @override
   void initState() {
     super.initState();
     loadProgress();
     loadBannerAd();
     loadRewardedAd();
+
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) {
+
+      checkBrokenStreak();
+
+    });
 
 
 

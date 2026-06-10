@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'login_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -39,6 +43,38 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ],
               );
+            },
+          ),
+          ListTile(
+            leading: const Icon(
+              Icons.logout,
+              color: Colors.red,
+            ),
+            title: const Text(
+              "Logout",
+              style: TextStyle(
+                color: Colors.red,
+              ),
+            ),
+            onTap: () async {
+              final user = FirebaseAuth.instance.currentUser;
+
+              if (user != null && user.isAnonymous) {
+                await FirebaseFirestore.instance
+                    .collection('hunters')
+                    .doc(user.uid)
+                    .delete();
+                await user.delete();
+              } else {
+                await GoogleSignIn().signOut();
+                await FirebaseAuth.instance.signOut();
+              }
+
+              // ✅ No Navigator needed — StreamBuilder in main.dart
+              // will detect signout and route to LoginScreen automatically
+if (context.mounted) {
+Navigator.of(context).popUntil((route) => route.isFirst);
+}
             },
           ),
         ],

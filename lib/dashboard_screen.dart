@@ -11,6 +11,7 @@ import 'settings_screen.dart';
 import 'create_duel_screen.dart';
 import 'duel_request_screen.dart';
 import 'package:health/health.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class DashboardScreen extends StatefulWidget {
 
@@ -81,6 +82,7 @@ class _DashboardScreenState
   int vitality = 10;
 
   bool questStarted = false;
+  Timer? stepTimer;
 
   String activeQuest = "";
   int questReward = 0;
@@ -244,6 +246,17 @@ class _DashboardScreenState
   }
 
   Future<void> loadSteps() async {
+
+    final activityPermission =
+    await Permission.activityRecognition.request();
+
+    print(
+      "ACTIVITY PERMISSION: $activityPermission",
+    );
+
+    if (!activityPermission.isGranted) {
+      return;
+    }
 
     bool granted = await health.requestAuthorization(
       [HealthDataType.STEPS],
@@ -611,10 +624,12 @@ class _DashboardScreenState
     if (!mounted) return;
 
     Future.delayed(
-      const Duration(milliseconds: 500),
+      const Duration(seconds: 1),
           () {
 
-        showDisciplineModeDialog();
+        if (mounted) {
+          showDisciplineModeDialog();
+        }
 
       },
     );
@@ -629,6 +644,12 @@ class _DashboardScreenState
     loadRewardedAd();
     loadPunishmentAd();
     loadSteps();
+    stepTimer = Timer.periodic(
+      const Duration(seconds: 30),
+          (_) {
+        loadSteps();
+      },
+    );
 
 
     WidgetsBinding.instance
@@ -998,8 +1019,8 @@ Navigator.pop(context);
       );
 
     });
-    await checkDailyReset();
     await checkDisciplineMode();
+    await checkDailyReset();
   }
   Future<void> checkDailyReset() async {
 
@@ -1097,6 +1118,8 @@ Navigator.pop(context);
 
   @override
   void dispose() {
+
+    stepTimer?.cancel();
 
     rewardedAd?.dispose();
     punishmentAd?.dispose();

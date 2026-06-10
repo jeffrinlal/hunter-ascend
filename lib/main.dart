@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'awakening_screen.dart';
 import 'scanning_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -41,18 +42,20 @@ void main() async {
 
     await Firebase.initializeApp();
 
+    print("USER ON STARTUP: ${FirebaseAuth.instance.currentUser?.uid}");
+
+
+
+
+    // Create hunter profile if not already created
+    await createHunterProfile();
 
     await MobileAds.instance.initialize();
 
     final prefs = await SharedPreferences.getInstance();
-    final hasCompletedSetup =
-        prefs.getBool('hasCompletedSetup') ?? false;
+    final hasCompletedSetup = prefs.getBool('hasCompletedSetup') ?? false;
 
-    runApp(
-        HunterAscendApp(
-            hasCompletedSetup: hasCompletedSetup,
-        ),
-    );
+    runApp(HunterAscendApp(hasCompletedSetup: hasCompletedSetup));
 }
 
 class HunterAscendApp extends StatelessWidget {
@@ -77,6 +80,9 @@ Widget build(BuildContext context) {
             FirebaseAuth.instance.authStateChanges(),
 
             builder: (context, snapshot) {
+                print(
+                    "AUTH USER: ${snapshot.data?.uid}",
+                );
                 if (snapshot.connectionState ==
                     ConnectionState.waiting) {
                     return const Scaffold(
@@ -87,11 +93,46 @@ Widget build(BuildContext context) {
                 }
 
                 if (snapshot.hasData) {
-                    return DashboardScreen(
-                        fatLoss: false,
-                        discipline: false,
-                        muscleGain: false,
-                        selfImprovement: false,
+
+                    return FutureBuilder<DocumentSnapshot>(
+                        future: FirebaseFirestore.instance
+                            .collection('hunters')
+                            .doc(snapshot.data!.uid)
+                            .get(),
+
+                        builder: (context, hunterSnapshot) {
+
+                            if (!hunterSnapshot.hasData) {
+                                return const Scaffold(
+                                    body: Center(
+                                        child: CircularProgressIndicator(),
+                                    ),
+                                );
+                            }
+
+                            final data =
+                            hunterSnapshot.data!.data()
+                            as Map<String, dynamic>?;
+
+                            final onboardingComplete =
+                                data?['onboardingComplete'] ??
+                                    (data?['height'] != null &&
+                                        data?['weight'] != null &&
+                                        data?['age'] != null);
+
+                            if (onboardingComplete) {
+
+                                return DashboardScreen(
+                                    fatLoss: false,
+                                    discipline: false,
+                                    muscleGain: false,
+                                    selfImprovement: false,
+                                );
+
+                            }
+
+                            return const AwakeningScreen();
+                        },
                     );
                 }
 
@@ -363,6 +404,7 @@ children: [
                         .doc(user.uid)
                         .update({
 
+
                         'hunterName':
                         'Hunter_${nameController.text.trim()}',
 
@@ -377,6 +419,8 @@ children: [
 
                         'startingWeight':
                         double.parse(weightController.text),
+
+                        'onboardingComplete': true,
 
                     });
                 }

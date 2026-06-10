@@ -9,79 +9,59 @@ import 'dashboard_screen.dart';
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
-  Future<void> signInGuest(
-      BuildContext context) async {
+  Future<void> signInGuest(BuildContext context) async {
 
-    final credential =
-    await FirebaseAuth.instance
-        .signInAnonymously();
+    // If already signed in, don't create a new account!
+    User? user = FirebaseAuth.instance.currentUser;
 
-    final user = credential.user;
+    if (user == null) {
+      final credential = await FirebaseAuth.instance.signInAnonymously();
+      user = credential.user;
+    }
 
-    if (user != null) {
+    if (user == null) return;
 
-      final docRef = FirebaseFirestore.instance
-          .collection('hunters')
-          .doc(user.uid);
+    final docRef = FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(user.uid);
 
-      final doc = await docRef.get();
+    final doc = await docRef.get();
 
-      if (!doc.exists) {
+    if (!doc.exists) {
+      print("NEW GUEST ACCOUNT");
 
-        await docRef.set({
+      await docRef.set({
+        'hunterName': 'Hunter_${user.uid.substring(0, 6)}',
+        'level': 1,
+        'xp': 0,
+        'streak': 0,
+        'lastQuestDate': '',
+        'onboardingComplete': false,
+      });
 
-          'hunterName':
-          'Hunter_${user.uid.substring(0, 6)}',
-
-          'level': 1,
-          'xp': 0,
-          'streak': 0,
-          'lastQuestDate': '',
-
-        });
-
-        if (context.mounted) {
-
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-              const AwakeningScreen(),
+      if (context.mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AwakeningScreen()),
+        );
+      }
+    } else {
+      if (context.mounted) {
+        print("EXISTING GUEST ACCOUNT");
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DashboardScreen(
+              fatLoss: false,
+              discipline: false,
+              muscleGain: false,
+              selfImprovement: false,
             ),
-          );
-        }
-
-      } else {
-
-        if (context.mounted) {
-
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  DashboardScreen(
-                    fatLoss: false,
-                    discipline: false,
-                    muscleGain: false,
-                    selfImprovement: false,
-                  ),
-            ),
-          );
-        }
+          ),
+        );
       }
     }
-    if (context.mounted) {
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-          const AwakeningScreen(),
-        ),
-      );
-    }
-  }
-  Future<void> signInWithGoogle(
+  }Future<void> signInWithGoogle(
       BuildContext context) async {
 
     final GoogleSignInAccount? googleUser =
@@ -126,6 +106,7 @@ class LoginScreen extends StatelessWidget {
           'xp': 0,
           'streak': 0,
           'lastQuestDate': '',
+          'onboardingComplete': false,
 
         });
 

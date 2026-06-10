@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -61,6 +60,8 @@ class _DashboardScreenState
   bool isBannerReady = false;
   RewardedAd? rewardedAd;
   bool isRewardedAdReady = false;
+  RewardedAd? punishmentAd;
+  bool isPunishmentAdReady = false;
   int selectedCustomQuestXp = 10;
   final TextEditingController customQuestController =
   TextEditingController();
@@ -85,20 +86,7 @@ class _DashboardScreenState
   int questReward = 0;
   List<Map<String, dynamic>> generatedQuests = [];
   List<String> completedQuests = [];
-  Future<void> saveProgress() async {
-    final prefs = await SharedPreferences.getInstance();
 
-    await prefs.setInt('xp', xp);
-    await prefs.setInt('level', level);
-  }
-  Future<void> loadProgress() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    setState(() {
-      xp = prefs.getInt('xp') ?? 0;
-      level = prefs.getInt('level') ?? 1;
-    });
-  }
   void loadBannerAd() {
 
     bannerAd = BannerAd(
@@ -123,6 +111,7 @@ class _DashboardScreenState
 
     bannerAd!.load();
   }
+
   void loadRewardedAd() {
 
     RewardedAd.load(
@@ -154,6 +143,39 @@ class _DashboardScreenState
       ),
     );
   }
+  void loadPunishmentAd() {
+
+    RewardedAd.load(
+      adUnitId:
+      'ca-app-pub-5435480116436845/7002658082',
+
+      request: const AdRequest(),
+
+      rewardedAdLoadCallback:
+      RewardedAdLoadCallback(
+
+        onAdLoaded: (ad) {
+
+          punishmentAd = ad;
+
+          setState(() {
+            isPunishmentAdReady = true;
+          });
+
+          print("PUNISHMENT AD LOADED");
+        },
+
+        onAdFailedToLoad: (error) {
+
+          print(
+            "PUNISHMENT AD FAILED: $error",
+          );
+
+          isPunishmentAdReady = false;
+        },
+      ),
+    );
+  }
   void showStreakRecoveryAd() {
 
     if (!isRewardedAdReady ||
@@ -177,6 +199,7 @@ class _DashboardScreenState
             .doc(user.uid)
             .get();
 
+
         final data =
         doc.data() as Map<String, dynamic>;
 
@@ -188,11 +211,14 @@ class _DashboardScreenState
             .doc(user.uid)
             .update({
 
+
           'streak': previousStreak,
           'previousStreak': 0,
 
           'lastRecoveryDate':
           Timestamp.now(),
+
+
 
         });
 
@@ -221,7 +247,13 @@ class _DashboardScreenState
 
     bool granted = await health.requestAuthorization(
       [HealthDataType.STEPS],
+      permissions: [
+        HealthDataAccess.READ,
+      ],
     );
+
+    print("STEP PERMISSION: $granted");
+
 
     if (!granted) return;
 
@@ -238,6 +270,49 @@ class _DashboardScreenState
       midnight,
       now,
     );
+    print("CURRENT STEPS: $steps");
+    final user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user != null && (steps ?? 0) >= 10000) {
+
+      final hunterDoc =
+      await FirebaseFirestore.instance
+          .collection('hunters')
+          .doc(user.uid)
+          .get();
+
+      final data =
+          hunterDoc.data() ?? {};
+
+      final today =
+      DateTime.now()
+          .toString()
+          .substring(0, 10);
+
+      if (data['lastStepRewardDate'] != today) {
+
+        await FirebaseFirestore.instance
+            .collection('hunters')
+            .doc(user.uid)
+            .update({
+
+          'xp': (data['xp'] ?? 0) + 25,
+          'lastStepRewardDate': today,
+
+        });
+
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+
+          const SnackBar(
+            content: Text(
+              "🏆 Daily Step Goal Complete! +25 XP",
+            ),
+          ),
+        );
+      }
+    }
 
     setState(() {
       todaySteps = steps ?? 0;
@@ -347,18 +422,221 @@ class _DashboardScreenState
       ),
     );
   }
+  Future<void> checkDisciplinePunishment() async {
+    final user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) return;
+
+    final doc =
+    await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(user.uid)
+        .get();
+
+    if (!doc.exists) return;
+
+    final data = doc.data()!;
+
+    final today =
+    DateTime.now()
+        .toString()
+        .substring(0, 10);
+
+    if (data['lastPunishmentDate'] == today) {
+      return;
+    }
+
+    final mode =
+        data['disciplineMode'] ?? 'casual';
+
+
+    final lastReset =
+    data['lastQuestResetDate'];
+
+    if (lastReset == null ||
+        lastReset.toString().isEmpty) {
+      return;
+    }
+
+    final completed =
+        data['yesterdayCompletedCount'] ?? 0;
+
+    final total =
+        data['yesterdayTotalQuests'] ?? 0;
+
+    bool punish = false;
+
+    if (mode == 'casual') {
+      punish = completed == 0;
+    } else {
+      punish = completed < total;
+    }
+
+    if (!punish) return;
+
+
+    if (isPunishmentAdReady &&
+        punishmentAd != null) {
+
+
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) =>
+            AlertDialog(
+              title: const Text(
+                "⚠️ DISCIPLINE FAILURE",
+              ),
+              content: const Text(
+                "You failed yesterday's mission.\n\nWatch an ad to repay your debt.",
+              ),
+              actions: [
+
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+
+                    punishmentAd!.show(
+                      onUserEarnedReward:
+                          (ad, reward) async {
+
+                        await FirebaseFirestore.instance
+                            .collection('hunters')
+                            .doc(user.uid)
+                            .update({
+
+                          'lastPunishmentDate': today,
+
+                        });
+
+                      },
+                    );
+
+                    punishmentAd = null;
+                    isPunishmentAdReady = false;
+
+                    loadPunishmentAd();
+                  },
+                  child: const Text(
+                    "WATCH AD",
+                  ),
+                ),
+
+              ],
+            ),
+      );
+    }
+
+    // XP LOSS CODE HERE
+    else {
+      int currentXp =
+          data['xp'] ?? 0;
+
+      int penalty =
+      mode == 'strict'
+          ? 100
+          : 25;
+
+      currentXp -= penalty;
+
+      if (currentXp < 0) {
+        currentXp = 0;
+      }
+
+      await FirebaseFirestore.instance
+          .collection('hunters')
+          .doc(user.uid)
+          .update({
+
+        'xp': currentXp,
+        'lastPunishmentDate': today,
+
+      });
+
+      await loadHunterData();
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) =>
+            AlertDialog(
+              title: const Text(
+                "⚠️ DISCIPLINE FAILURE",
+              ),
+              content: Text(
+                "No ad available.\n\n-$penalty XP",
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text("ACCEPT"),
+                ),
+              ],
+            ),
+      );
+    }
+  }
+  Future<void> checkDisciplineMode() async {
+
+    final user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) return;
+
+    final doc =
+    await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(user.uid)
+        .get();
+
+    if (!doc.exists) return;
+
+    final data = doc.data()!;
+
+    final mode = data['disciplineMode'];
+
+    if (mode != null &&
+        mode.toString().isNotEmpty) {
+      return;
+    }
+
+    if (!mounted) return;
+
+    Future.delayed(
+      const Duration(milliseconds: 500),
+          () {
+
+        showDisciplineModeDialog();
+
+      },
+    );
+  }
+
+
   @override
   void initState() {
     super.initState();
-    loadProgress();
+
     loadBannerAd();
     loadRewardedAd();
+    loadPunishmentAd();
     loadSteps();
+
 
     WidgetsBinding.instance
         .addPostFrameCallback((_) {
 
       checkBrokenStreak();
+      checkDisciplinePunishment();
+
 
     });
 
@@ -448,7 +726,9 @@ class _DashboardScreenState
         },
       ]);
     }
+    loadHunterData();
   }
+
 
   void startQuest(String questName, int reward) {
     showDialog(
@@ -564,7 +844,7 @@ class _DashboardScreenState
     });
   }
 
-  void completeQuest() {
+  Future<void> completeQuest() async {
     bool leveledUp = false;
 
     setState(() {
@@ -579,9 +859,9 @@ class _DashboardScreenState
       }
     });
 
-    saveProgress();
-    updateHunterOnline();
-    updateStreak();
+    await updateHunterOnline();
+    await updateStreak();
+    await saveCompletedQuest(activeQuest);
 
     showDialog(
       context: context,
@@ -689,6 +969,98 @@ Navigator.pop(context);
 );
 }
 }
+  Future<void> loadHunterData() async {
+
+    final user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) return;
+
+    final doc =
+    await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(user.uid)
+        .get();
+
+    if (!doc.exists) return;
+
+    final data = doc.data()!;
+
+    setState(() {
+
+      xp = data['xp'] ?? 0;
+
+      level = data['level'] ?? 1;
+
+      completedQuests =
+      List<String>.from(
+        data['completedQuests'] ?? [],
+      );
+
+    });
+    await checkDailyReset();
+    await checkDisciplineMode();
+  }
+  Future<void> checkDailyReset() async {
+
+    final user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) return;
+
+    final doc =
+    await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(user.uid)
+        .get();
+
+    if (!doc.exists) return;
+
+    final data = doc.data()!;
+
+    final today =
+    DateTime.now()
+        .toString()
+        .substring(0, 10);
+
+    final lastReset =
+        data['lastQuestResetDate'] ?? '';
+
+    if (lastReset == today) {
+      return;
+    }
+
+    await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(user.uid)
+        .update({
+
+      'yesterdayCompletedCount':
+      completedQuests.length,
+
+      'yesterdayTotalQuests':
+      generatedQuests.length +
+          (await FirebaseFirestore.instance
+              .collection('custom_quests')
+              .where(
+            'uid',
+            isEqualTo: user.uid,
+          )
+              .get())
+              .docs
+              .length,
+
+      'completedQuests': [],
+
+      'lastQuestResetDate': today,
+
+    });
+
+    setState(() {
+      completedQuests.clear();
+    });
+  }
+
   Future<void> updateHunterOnline() async {
     final user = FirebaseAuth.instance.currentUser;
 
@@ -702,13 +1074,139 @@ Navigator.pop(context);
       'xp': xp,
     });
   }
+  Future<void> saveCompletedQuest(
+      String questName) async {
+
+    final user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) return;
+
+    await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(user.uid)
+        .update({
+
+      'completedQuests':
+      FieldValue.arrayUnion(
+        [questName],
+      ),
+
+    });
+  }
 
   @override
   void dispose() {
 
     rewardedAd?.dispose();
+    punishmentAd?.dispose();
 
     super.dispose();
+  }
+  Future<void> showDisciplineModeDialog() async {
+
+    final user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) return;
+
+    final doc =
+    await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(user.uid)
+        .get();
+
+    final data = doc.data()!;
+
+    final mode =
+        data['disciplineMode'] ?? '';
+    final changedAt =
+    data['disciplineModeChangedAt']
+    as Timestamp?;
+
+bool locked = false;
+int remainingDays = 0;
+
+if (changedAt != null) {
+      final daysPassed =
+          DateTime
+              .now()
+              .difference(
+            changedAt.toDate(),
+          )
+              .inDays;
+
+      locked = daysPassed < 30;
+      if (locked) {
+        remainingDays = 30 - daysPassed;
+      }
+    }
+
+
+
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+
+        title: Text(
+          "⚔️ Current Mode: ${mode.toUpperCase()}",
+        ),
+
+        content: Text(
+          locked
+              ? "🔒 Mode Locked\n\n$remainingDays Days Remaining"
+              : "You can change your discipline mode.",
+        ),
+
+        actions: [
+
+          TextButton(
+            onPressed: locked
+                ? null
+                : () async {
+
+              await FirebaseFirestore.instance
+                  .collection('hunters')
+                  .doc(user.uid)
+                  .update({
+
+                'disciplineMode': 'casual',
+                'disciplineModeChangedAt':
+                Timestamp.now(),
+
+              });
+
+              Navigator.pop(context);
+            },
+            child: const Text("CASUAL"),
+          ),
+
+          ElevatedButton(
+            onPressed: locked
+                ? null
+                : () async {
+
+              await FirebaseFirestore.instance
+                  .collection('hunters')
+                  .doc(user.uid)
+                  .update({
+
+                'disciplineMode': 'strict',
+                'disciplineModeChangedAt':
+                Timestamp.now(),
+
+              });
+
+              Navigator.pop(context);
+            },
+            child: const Text("STRICT"),
+          ),
+
+        ],
+      ),
+    );
   }
   @override
   Widget build(BuildContext context) {
@@ -1105,12 +1603,34 @@ Navigator.pop(context);
 
                           const SizedBox(height: 5),
 
-                          const Text(
-                            "🎯 Daily Goal: 10000 Steps",
+                          Text(
+                            todaySteps >= 10000
+                                ? "🏆 Goal Completed"
+                                : "🎯 Goal: 10000 Steps",
                             style: TextStyle(
-                              color: Colors.greenAccent,
+                              color: todaySteps >= 10000
+                                  ? Colors.amber
+                                  : Colors.greenAccent,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
+
+                          const SizedBox(height: 5),
+
+                          if (todaySteps >= 10000)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 8),
+                              child: Text(
+                                "+25 XP Reward Unlocked",
+                                style: TextStyle(
+                                  color: Colors.amber,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+
+                          const SizedBox(height: 10),
+
 
                         ],
                       ),
@@ -1210,7 +1730,72 @@ Navigator.pop(context);
                               vertical: 14,
                             ),
                           ),
-                          onPressed: completeQuest,
+                          onPressed: () {
+
+                            showDialog(
+                              context: context,
+                              builder: (_) {
+
+                                final messages = [
+
+                                  "⚔️ Only you know whether this mission is complete.",
+
+                                  "🔥 Shortcuts create weak Hunters.",
+
+                                  "🏆 Discipline is what separates Hunters from legends.",
+
+                                  "⚡ Every completed quest should represent real effort.",
+
+                                ];
+
+                                messages.shuffle();
+
+                                return AlertDialog(
+                                  backgroundColor: Colors.black,
+
+                                  title: const Text(
+                                    "Hunter Verification",
+                                    style: TextStyle(
+                                      color: Colors.amber,
+                                    ),
+                                  ),
+
+                                  content: Text(
+                                    "Are you sure you completed this mission honestly?\n\n"
+                                        "Only you know the truth.\n\n"
+                                        "${messages.first}",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                    ),
+                                  ),
+
+                                  actions: [
+
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                      },
+                                      child: const Text(
+                                        "CONTINUE QUEST",
+                                      ),
+                                    ),
+
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                        completeQuest();
+                                      },
+                                      child: const Text(
+                                        "COMPLETE",
+                                      ),
+                                    ),
+
+                                  ],
+                                );
+                              },
+                            );
+                          },
+
                           child: const Text(
                             "COMPLETE QUEST",
                             style: TextStyle(
@@ -1237,8 +1822,6 @@ Navigator.pop(context);
               const SizedBox(height: 10),
 
               Row(
-                mainAxisAlignment:
-                MainAxisAlignment.spaceBetween,
                 children: [
 
                   const Text(
@@ -1249,6 +1832,54 @@ Navigator.pop(context);
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+
+                  const Spacer(),
+
+                  StreamBuilder<DocumentSnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('hunters')
+                        .doc(
+                      FirebaseAuth.instance.currentUser?.uid,
+                    )
+                        .snapshots(),
+                    builder: (context, snapshot) {
+
+                      String mode = "SELECT MODE";
+
+                      if (snapshot.hasData &&
+                          snapshot.data!.exists) {
+
+                        final data =
+                        snapshot.data!.data()
+                        as Map<String, dynamic>;
+
+                        if (data['disciplineMode'] != null) {
+                          mode =
+                              data['disciplineMode']
+                                  .toString()
+                                  .toUpperCase();
+                        }
+                      }
+
+                      return ElevatedButton.icon(
+                        onPressed: () {
+                          showDisciplineModeDialog();
+                        },
+                        icon: const Icon(
+                          Icons.shield,
+                          size: 16,
+                        ),
+                        label: Text(
+                          mode,
+                          style: const TextStyle(
+                            fontSize: 12,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(width: 8),
 
                   IconButton(
                     onPressed: () {
@@ -1386,7 +2017,6 @@ Navigator.pop(context);
                           ],
                         ),
                       );
-
                     },
                     icon: const Icon(
                       Icons.add,

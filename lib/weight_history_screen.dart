@@ -27,12 +27,11 @@ class WeightHistoryScreen extends StatelessWidget {
           'uid',
           isEqualTo: user!.uid,
         )
-        //     .orderBy(
-        //   'date',
-        //   descending: true,
-        // )
+            .orderBy(
+          'date',
+          descending: true,
+        )
             .snapshots(),
-
         builder: (context, snapshot) {
 
           if (snapshot.hasError) {
@@ -50,6 +49,16 @@ class WeightHistoryScreen extends StatelessWidget {
             );
           }
           final docs = snapshot.data!.docs;
+          if (docs.isEmpty) {
+            return const Center(
+              child: Text(
+                "No weight history yet",
+                style: TextStyle(
+                  color: Colors.white,
+                ),
+              ),
+            );
+          }
           final currentWeight =
           (docs.first['weight'] as num).toDouble();
 

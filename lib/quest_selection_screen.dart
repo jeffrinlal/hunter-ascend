@@ -19,6 +19,7 @@ bool discipline = false;
 bool muscleGain = false;
 bool selfImprovement = false;
 
+
 @override
 Widget build(BuildContext context) {
 return Scaffold(

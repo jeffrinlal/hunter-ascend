@@ -1,14 +1,13 @@
 
 import 'package:flutter/material.dart';
-import 'awakening_screen.dart';
-import 'dashboard_screen.dart';
-import 'quest_selection_screen.dart';
 import 'scanning_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'login_screen.dart';
+import 'dashboard_screen.dart';
 
 Future<void> signInAnonymously() async {
     if (FirebaseAuth.instance.currentUser == null) {
@@ -41,8 +40,7 @@ void main() async {
     WidgetsFlutterBinding.ensureInitialized();
 
     await Firebase.initializeApp();
-    await signInAnonymously();
-    await createHunterProfile();
+
 
     await MobileAds.instance.initialize();
 
@@ -66,21 +64,41 @@ class HunterAscendApp extends StatelessWidget {
         required this.hasCompletedSetup,
     });
 
+
 @override
 Widget build(BuildContext context) {
-return MaterialApp(
-debugShowCheckedModeBanner: false,
-title: 'Hunter Ascend',
-theme: ThemeData.dark(),
-    home: hasCompletedSetup
-        ? DashboardScreen(
-        fatLoss: false,
-        discipline: false,
-        muscleGain: false,
-        selfImprovement: false,
-    )
-        : const AwakeningScreen(),
-);
+    return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Hunter Ascend',
+        theme: ThemeData.dark(),
+
+        home: StreamBuilder<User?>(
+            stream:
+            FirebaseAuth.instance.authStateChanges(),
+
+            builder: (context, snapshot) {
+                if (snapshot.connectionState ==
+                    ConnectionState.waiting) {
+                    return const Scaffold(
+                        body: Center(
+                            child: CircularProgressIndicator(),
+                        ),
+                    );
+                }
+
+                if (snapshot.hasData) {
+                    return DashboardScreen(
+                        fatLoss: false,
+                        discipline: false,
+                        muscleGain: false,
+                        selfImprovement: false,
+                    );
+                }
+
+                return const LoginScreen();
+            },
+        ),
+    );
 }
 }
 

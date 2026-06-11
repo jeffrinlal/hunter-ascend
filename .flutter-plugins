@@ -1,7 +1,6 @@
 # This is a generated file; do not edit or check into version control.
 cloud_firestore=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\cloud_firestore-5.6.12\\
 cloud_firestore_web=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\cloud_firestore_web-4.4.12\\
-device_info_plus=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\device_info_plus-10.1.2\\
 firebase_auth=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\firebase_auth-5.7.0\\
 firebase_auth_web=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\firebase_auth_web-5.15.3\\
 firebase_core=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\firebase_core-3.15.2\\
@@ -11,9 +10,9 @@ google_sign_in=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\go
 google_sign_in_android=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\google_sign_in_android-6.2.1\\
 google_sign_in_ios=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\google_sign_in_ios-5.9.0\\
 google_sign_in_web=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\google_sign_in_web-0.12.4+4\\
-health=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\health-11.1.1\\
 path_provider_linux=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\path_provider_linux-2.2.1\\
 path_provider_windows=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\path_provider_windows-2.3.0\\
+pedometer=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\pedometer-4.1.1\\
 permission_handler=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\permission_handler-11.4.0\\
 permission_handler_android=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\permission_handler_android-12.1.0\\
 permission_handler_apple=C:\\Users\\jeffe\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\permission_handler_apple-9.4.9\\

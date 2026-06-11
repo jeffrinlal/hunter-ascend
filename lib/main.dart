@@ -1,4 +1,4 @@
-
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'awakening_screen.dart';
 import 'scanning_screen.dart';
@@ -15,15 +15,13 @@ Future<void> signInAnonymously() async {
         await FirebaseAuth.instance.signInAnonymously();
     }
 }
+
 Future<void> createHunterProfile() async {
     final user = FirebaseAuth.instance.currentUser;
-
     if (user == null) return;
 
-    final docRef = FirebaseFirestore.instance
-        .collection('hunters')
-        .doc(user.uid);
-
+    final docRef =
+    FirebaseFirestore.instance.collection('hunters').doc(user.uid);
     final doc = await docRef.get();
 
     if (!doc.exists) {
@@ -39,17 +37,12 @@ Future<void> createHunterProfile() async {
 
 void main() async {
     WidgetsFlutterBinding.ensureInitialized();
-
     await Firebase.initializeApp();
+
 
     print("USER ON STARTUP: ${FirebaseAuth.instance.currentUser?.uid}");
 
-
-
-
-    // Create hunter profile if not already created
     await createHunterProfile();
-
     await MobileAds.instance.initialize();
 
     final prefs = await SharedPreferences.getInstance();
@@ -58,393 +51,698 @@ void main() async {
     runApp(HunterAscendApp(hasCompletedSetup: hasCompletedSetup));
 }
 
-class HunterAscendApp extends StatelessWidget {
+// ── App root ─────────────────────────────────────────────────────────────────
 
+class HunterAscendApp extends StatelessWidget {
     final bool hasCompletedSetup;
 
-    const HunterAscendApp({
-        super.key,
-        required this.hasCompletedSetup,
-    });
+    const HunterAscendApp({super.key, required this.hasCompletedSetup});
 
+    @override
+    Widget build(BuildContext context) {
+        return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: 'Hunter Ascend',
+            theme: ThemeData.dark(),
+            home: StreamBuilder<User?>(
+                stream: FirebaseAuth.instance.authStateChanges(),
+                builder: (context, snapshot) {
+                    print("AUTH USER: ${snapshot.data?.uid}");
 
-@override
-Widget build(BuildContext context) {
-    return MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'Hunter Ascend',
-        theme: ThemeData.dark(),
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const _LoadingScreen();
+                    }
 
-        home: StreamBuilder<User?>(
-            stream:
-            FirebaseAuth.instance.authStateChanges(),
+                    if (snapshot.hasData) {
+                        return FutureBuilder<DocumentSnapshot>(
+                            future: FirebaseFirestore.instance
+                                .collection('hunters')
+                                .doc(snapshot.data!.uid)
+                                .get(),
+                            builder: (context, hunterSnapshot) {
+                                if (!hunterSnapshot.hasData) {
+                                    return const _LoadingScreen();
+                                }
 
-            builder: (context, snapshot) {
-                print(
-                    "AUTH USER: ${snapshot.data?.uid}",
-                );
-                if (snapshot.connectionState ==
-                    ConnectionState.waiting) {
-                    return const Scaffold(
-                        body: Center(
-                            child: CircularProgressIndicator(),
-                        ),
-                    );
-                }
+                                final data =
+                                hunterSnapshot.data!.data() as Map<String, dynamic>?;
 
-                if (snapshot.hasData) {
-
-                    return FutureBuilder<DocumentSnapshot>(
-                        future: FirebaseFirestore.instance
-                            .collection('hunters')
-                            .doc(snapshot.data!.uid)
-                            .get(),
-
-                        builder: (context, hunterSnapshot) {
-
-                            if (!hunterSnapshot.hasData) {
-                                return const Scaffold(
-                                    body: Center(
-                                        child: CircularProgressIndicator(),
-                                    ),
-                                );
-                            }
-
-                            final data =
-                            hunterSnapshot.data!.data()
-                            as Map<String, dynamic>?;
-
-                            final onboardingComplete =
-                                data?['onboardingComplete'] ??
+                                final onboardingComplete = data?['onboardingComplete'] ??
                                     (data?['height'] != null &&
                                         data?['weight'] != null &&
                                         data?['age'] != null);
 
-                            if (onboardingComplete) {
+                                if (onboardingComplete) {
+                                    return DashboardScreen(
+                                        fatLoss: false,
+                                        discipline: false,
+                                        muscleGain: false,
+                                        selfImprovement: false,
+                                    );
+                                }
 
-                                return DashboardScreen(
-                                    fatLoss: false,
-                                    discipline: false,
-                                    muscleGain: false,
-                                    selfImprovement: false,
-                                );
+                                return const AwakeningScreen();
+                            },
+                        );
+                    }
 
-                            }
-
-                            return const AwakeningScreen();
-                        },
-                    );
-                }
-
-                return const LoginScreen();
-            },
-        ),
-    );
+                    return const LoginScreen();
+                },
+            ),
+        );
+    }
 }
+
+// ── Styled loading screen ─────────────────────────────────────────────────────
+
+class _LoadingScreen extends StatelessWidget {
+    const _LoadingScreen();
+
+    @override
+    Widget build(BuildContext context) {
+        return const Scaffold(
+            backgroundColor: Color(0xFF080C14),
+            body: Center(
+                child: CircularProgressIndicator(
+                    color: Color(0xFF00E5FF),
+                    strokeWidth: 1.5,
+                ),
+            ),
+        );
+    }
 }
+
+// ── Welcome screen (unchanged logic, restyled) ────────────────────────────────
 
 class WelcomeScreen extends StatelessWidget {
-const WelcomeScreen({super.key});
+    const WelcomeScreen({super.key});
 
-@override
-Widget build(BuildContext context) {
-return Scaffold(
-backgroundColor: Colors.black,
-body: Center(
-child: Padding(
-padding: const EdgeInsets.all(24),
-child: Column(
-mainAxisAlignment: MainAxisAlignment.center,
-children: [
-const Icon(
-Icons.flash_on,
-size: 100,
-color: Colors.purple,
-),
-const SizedBox(height: 20),
-const Text(
-'HUNTER ASCEND',
-style: TextStyle(
-fontSize: 32,
-fontWeight: FontWeight.bold,
-),
-),
-const SizedBox(height: 10),
-const Text(
-'Level Up Your Real Life',
-style: TextStyle(
-color: Colors.grey,
-fontSize: 18,
-),
-),
-const SizedBox(height: 40),
-ElevatedButton(
-onPressed: () {
-Navigator.push(
-context,
-MaterialPageRoute(
-builder: (context) => const AssessmentScreen(),
-),
-);
-},
-child: const Text(
-'BEGIN HUNTER ASSESSMENT',
-),
-),
-],
-),
-),
-),
-);
+    @override
+    Widget build(BuildContext context) {
+        return Scaffold(
+            backgroundColor: const Color(0xFF080C14),
+            body: Stack(
+                children: [
+                    CustomPaint(
+                        size: MediaQuery.of(context).size,
+                        painter: _GridPainter(),
+                    ),
+                    Center(
+                        child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                    Container(
+                                        width: 96,
+                                        height: 96,
+                                        decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: const Color(0xFF00E5FF).withOpacity(0.07),
+                                            border: Border.all(
+                                                color: const Color(0xFF00E5FF).withOpacity(0.5),
+                                                width: 1.5,
+                                            ),
+                                            boxShadow: [
+                                                BoxShadow(
+                                                    color: const Color(0xFF00E5FF).withOpacity(0.3),
+                                                    blurRadius: 28,
+                                                    spreadRadius: 4,
+                                                ),
+                                            ],
+                                        ),
+                                        child: const Icon(
+                                            Icons.flash_on,
+                                            size: 48,
+                                            color: Color(0xFF00E5FF),
+                                        ),
+                                    ),
+                                    const SizedBox(height: 28),
+                                    RichText(
+                                        text: const TextSpan(
+                                            children: [
+                                                TextSpan(
+                                                    text: 'HUNTER ',
+                                                    style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 28,
+                                                        fontWeight: FontWeight.w800,
+                                                        letterSpacing: 4,
+                                                    ),
+                                                ),
+                                                TextSpan(
+                                                    text: 'ASCEND',
+                                                    style: TextStyle(
+                                                        color: Color(0xFF00E5FF),
+                                                        fontSize: 28,
+                                                        fontWeight: FontWeight.w800,
+                                                        letterSpacing: 4,
+                                                    ),
+                                                ),
+                                            ],
+                                        ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                        'Level Up Your Real Life',
+                                        style: TextStyle(
+                                            color: Colors.white.withOpacity(0.35),
+                                            fontSize: 14,
+                                            letterSpacing: 1,
+                                        ),
+                                    ),
+                                    const SizedBox(height: 48),
+                                    GestureDetector(
+                                        onTap: () {
+                                            Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                    builder: (context) => const AssessmentScreen(),
+                                                ),
+                                            );
+                                        },
+                                        child: Container(
+                                            width: double.infinity,
+                                            height: 54,
+                                            decoration: BoxDecoration(
+                                                color: const Color(0xFF00E5FF),
+                                                borderRadius: BorderRadius.circular(6),
+                                                boxShadow: [
+                                                    BoxShadow(
+                                                        color: const Color(0xFF00E5FF).withOpacity(0.4),
+                                                        blurRadius: 22,
+                                                        spreadRadius: 2,
+                                                    ),
+                                                ],
+                                            ),
+                                            child: const Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                    Icon(Icons.flash_on,
+                                                        color: Color(0xFF080C14), size: 18),
+                                                    SizedBox(width: 8),
+                                                    Text(
+                                                        'BEGIN HUNTER ASSESSMENT',
+                                                        style: TextStyle(
+                                                            color: Color(0xFF080C14),
+                                                            fontWeight: FontWeight.w800,
+                                                            fontSize: 13,
+                                                            letterSpacing: 2,
+                                                        ),
+                                                    ),
+                                                ],
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+        );
+    }
 }
-}
+
+// ── Assessment screen ─────────────────────────────────────────────────────────
 
 class AssessmentScreen extends StatefulWidget {
-const AssessmentScreen({super.key});
+    const AssessmentScreen({super.key});
 
-@override
-State<AssessmentScreen> createState() => _AssessmentScreenState();
+    @override
+    State<AssessmentScreen> createState() => _AssessmentScreenState();
 }
 
-class _AssessmentScreenState extends State<AssessmentScreen> {
-final nameController = TextEditingController();
-final ageController = TextEditingController();
-final heightController = TextEditingController();
-final weightController = TextEditingController();
+class _AssessmentScreenState extends State<AssessmentScreen>
+    with TickerProviderStateMixin {
+    final nameController = TextEditingController();
+    final ageController = TextEditingController();
+    final heightController = TextEditingController();
+    final weightController = TextEditingController();
 
-@override
-Widget build(BuildContext context) {
-return Scaffold(
-appBar: AppBar(
-title: const Text("Hunter Assessment"),
-),
-body: SingleChildScrollView(
-padding: const EdgeInsets.all(20),
-child: Column(
-children: [
-    const Text(
-        "[ SYSTEM ANALYSIS ]",
-        style: TextStyle(
-            color: Colors.cyanAccent,
-            fontSize: 18,
-            letterSpacing: 3,
-            fontWeight: FontWeight.bold,
-        ),
-    ),
+    late AnimationController _fadeController;
+    late AnimationController _pulseController;
+    late Animation<double> _fadeAnim;
+    late Animation<double> _pulseAnim;
 
-    const SizedBox(height: 20),
-    const SizedBox(height: 20),
+    @override
+    void initState() {
+        super.initState();
 
-    Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E),
-            border: Border.all(
-                color: Colors.cyanAccent,
-                width: 1.5,
+        _fadeController = AnimationController(
+            vsync: this,
+            duration: const Duration(milliseconds: 700),
+        )..forward();
+
+        _pulseController = AnimationController(
+            vsync: this,
+            duration: const Duration(seconds: 2),
+        )..repeat(reverse: true);
+
+        _fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
+            CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
+        );
+
+        _pulseAnim = Tween<double>(begin: 0.4, end: 1.0).animate(
+            CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+        );
+    }
+
+    @override
+    void dispose() {
+        _fadeController.dispose();
+        _pulseController.dispose();
+        nameController.dispose();
+        ageController.dispose();
+        heightController.dispose();
+        weightController.dispose();
+        super.dispose();
+    }
+
+    @override
+    Widget build(BuildContext context) {
+        final size = MediaQuery.of(context).size;
+
+        return Scaffold(
+            backgroundColor: const Color(0xFF080C14),
+            body: Stack(
+                children: [
+                    CustomPaint(
+                        size: Size(size.width, size.height),
+                        painter: _GridPainter(),
+                    ),
+                    Positioned(
+                        top: -60,
+                        left: 0,
+                        right: 0,
+                        child: AnimatedBuilder(
+                            animation: _pulseAnim,
+                            builder: (context, _) => Center(
+                                child: Container(
+                                    width: 260,
+                                    height: 260,
+                                    decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        gradient: RadialGradient(
+                                            colors: [
+                                                const Color(0xFF00E5FF)
+                                                    .withOpacity(0.1 * _pulseAnim.value),
+                                                Colors.transparent,
+                                            ],
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    SafeArea(
+                        child: FadeTransition(
+                            opacity: _fadeAnim,
+                            child: SingleChildScrollView(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 20),
+                                child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                        const SizedBox(height: 12),
+
+                                        // Header dots + title
+                                        Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                                AnimatedBuilder(
+                                                    animation: _pulseAnim,
+                                                    builder: (context, _) => _dot(_pulseAnim.value),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                const Text(
+                                                    '[ SYSTEM ANALYSIS ]',
+                                                    style: TextStyle(
+                                                        color: Color(0xFF00E5FF),
+                                                        fontSize: 13,
+                                                        letterSpacing: 3,
+                                                        fontWeight: FontWeight.w700,
+                                                    ),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                AnimatedBuilder(
+                                                    animation: _pulseAnim,
+                                                    builder: (context, _) => _dot(_pulseAnim.value),
+                                                ),
+                                            ],
+                                        ),
+
+                                        const SizedBox(height: 10),
+
+                                        const Text(
+                                            'HUNTER ASSESSMENT',
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: 3,
+                                            ),
+                                        ),
+
+                                        const SizedBox(height: 6),
+
+                                        Container(
+                                            width: 80,
+                                            height: 1,
+                                            decoration: BoxDecoration(
+                                                gradient: const LinearGradient(
+                                                    colors: [
+                                                        Colors.transparent,
+                                                        Color(0xFF00E5FF),
+                                                        Colors.transparent,
+                                                    ],
+                                                ),
+                                                boxShadow: [
+                                                    BoxShadow(
+                                                        color: const Color(0xFF00E5FF).withOpacity(0.5),
+                                                        blurRadius: 6,
+                                                    ),
+                                                ],
+                                            ),
+                                        ),
+
+                                        const SizedBox(height: 8),
+
+                                        Text(
+                                            'Enter your hunter data to begin profiling',
+                                            style: TextStyle(
+                                                color: Colors.white.withOpacity(0.3),
+                                                fontSize: 11,
+                                                letterSpacing: 1,
+                                            ),
+                                        ),
+
+                                        const SizedBox(height: 28),
+
+                                        // Form card
+                                        Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.all(20),
+                                            decoration: BoxDecoration(
+                                                color: const Color(0xFF0D1620),
+                                                borderRadius: BorderRadius.circular(10),
+                                                border: Border.all(
+                                                    color: const Color(0xFF00E5FF).withOpacity(0.25),
+                                                    width: 1,
+                                                ),
+                                            ),
+                                            child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                    _sectionLabel('IDENTITY'),
+                                                    const SizedBox(height: 12),
+                                                    _HunterTextField(
+                                                        controller: nameController,
+                                                        label: 'Hunter Name',
+                                                        icon: Icons.person_outline,
+                                                        keyboardType: TextInputType.text,
+                                                    ),
+                                                    const SizedBox(height: 14),
+                                                    _HunterTextField(
+                                                        controller: ageController,
+                                                        label: 'Age',
+                                                        icon: Icons.calendar_today_outlined,
+                                                        keyboardType: TextInputType.number,
+                                                    ),
+                                                    const SizedBox(height: 22),
+                                                    _sectionLabel('PHYSICAL DATA'),
+                                                    const SizedBox(height: 12),
+                                                    Row(
+                                                        children: [
+                                                            Expanded(
+                                                                child: _HunterTextField(
+                                                                    controller: heightController,
+                                                                    label: 'Height (cm)',
+                                                                    icon: Icons.height,
+                                                                    keyboardType: TextInputType.number,
+                                                                ),
+                                                            ),
+                                                            const SizedBox(width: 12),
+                                                            Expanded(
+                                                                child: _HunterTextField(
+                                                                    controller: weightController,
+                                                                    label: 'Weight (kg)',
+                                                                    icon: Icons.monitor_weight_outlined,
+                                                                    keyboardType: TextInputType.number,
+                                                                ),
+                                                            ),
+                                                        ],
+                                                    ),
+                                                ],
+                                            ),
+                                        ),
+
+                                        const SizedBox(height: 28),
+
+                                        // Initiate scan button
+                                        GestureDetector(
+                                            onTap: () async {
+                                                if (nameController.text.trim().isEmpty ||
+                                                    ageController.text.trim().isEmpty ||
+                                                    heightController.text.trim().isEmpty ||
+                                                    weightController.text.trim().isEmpty) {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                        SnackBar(
+                                                            backgroundColor: const Color(0xFF0D1620),
+                                                            shape: RoundedRectangleBorder(
+                                                                side: const BorderSide(
+                                                                    color: Colors.redAccent, width: 1),
+                                                                borderRadius: BorderRadius.circular(6),
+                                                            ),
+                                                            content: const Text(
+                                                                '[ ERROR ] Please complete all Hunter data.',
+                                                                style: TextStyle(
+                                                                    color: Colors.redAccent,
+                                                                    letterSpacing: 0.5,
+                                                                    fontWeight: FontWeight.w600,
+                                                                ),
+                                                            ),
+                                                        ),
+                                                    );
+                                                    return;
+                                                }
+
+                                                final user = FirebaseAuth.instance.currentUser;
+                                                if (user != null) {
+                                                    await FirebaseFirestore.instance
+                                                        .collection('hunters')
+                                                        .doc(user.uid)
+                                                        .update({
+                                                        'hunterName':
+                                                        'Hunter_${nameController.text.trim()}',
+                                                        'age': int.parse(ageController.text),
+                                                        'height': double.parse(heightController.text),
+                                                        'weight': double.parse(weightController.text),
+                                                        'startingWeight':
+                                                        double.parse(weightController.text),
+                                                        'onboardingComplete': true,
+                                                    });
+                                                }
+
+                                                Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                        builder: (context) => const ScanningScreen(),
+                                                    ),
+                                                );
+                                            },
+                                            child: Container(
+                                                width: double.infinity,
+                                                height: 54,
+                                                decoration: BoxDecoration(
+                                                    color: const Color(0xFF00E5FF),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    boxShadow: [
+                                                        BoxShadow(
+                                                            color: const Color(0xFF00E5FF).withOpacity(0.4),
+                                                            blurRadius: 22,
+                                                            spreadRadius: 2,
+                                                        ),
+                                                    ],
+                                                ),
+                                                child: const Row(
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    children: [
+                                                        Icon(Icons.radar,
+                                                            color: Color(0xFF080C14), size: 18),
+                                                        SizedBox(width: 10),
+                                                        Text(
+                                                            'INITIATE SCAN',
+                                                            style: TextStyle(
+                                                                color: Color(0xFF080C14),
+                                                                fontWeight: FontWeight.w800,
+                                                                fontSize: 14,
+                                                                letterSpacing: 2,
+                                                            ),
+                                                        ),
+                                                    ],
+                                                ),
+                                            ),
+                                        ),
+
+                                        const SizedBox(height: 32),
+                                    ],
+                                ),
+                            ),
+                        ),
+                    ),
+                ],
             ),
-            borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
+        );
+    }
+
+    Widget _dot(double opacity) {
+        return Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF00E5FF).withOpacity(opacity),
+                boxShadow: [
+                    BoxShadow(
+                        color: const Color(0xFF00E5FF).withOpacity(0.8),
+                        blurRadius: 6,
+                    ),
+                ],
+            ),
+        );
+    }
+
+    Widget _sectionLabel(String label) {
+        return Row(
             children: [
-
-                TextField(
-                    controller: nameController,
-                    style: const TextStyle(
-                        color: Colors.white,
-                    ),
-                    decoration: InputDecoration(
-                        labelText: "Hunter Name",
-                        labelStyle: const TextStyle(
-                            color: Colors.cyanAccent,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                                color: Colors.cyanAccent,
+                Container(
+                    width: 3,
+                    height: 12,
+                    decoration: BoxDecoration(
+                        color: const Color(0xFF00E5FF),
+                        borderRadius: BorderRadius.circular(2),
+                        boxShadow: [
+                            BoxShadow(
+                                color: const Color(0xFF00E5FF).withOpacity(0.6),
+                                blurRadius: 6,
                             ),
-                            borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                                color: Colors.cyanAccent,
-                                width: 2,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                        ),
+                        ],
                     ),
                 ),
-
-                const SizedBox(height: 20),
-
-                TextField(
-                    controller: ageController,
-                    style: const TextStyle(
-                        color: Colors.white,
-                    ),
-                    decoration: InputDecoration(
-                        labelText: "Age",
-                        labelStyle: const TextStyle(
-                            color: Colors.cyanAccent,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                                color: Colors.cyanAccent,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                                color: Colors.cyanAccent,
-                                width: 2,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                        ),
-                    ),
-                ),
-
-                const SizedBox(height: 20),
-
-                TextField(
-                    controller: heightController,
-                    style: const TextStyle(
-                        color: Colors.white,
-                    ),
-                    decoration: InputDecoration(
-                        labelText: "Height (cm)",
-                        labelStyle: const TextStyle(
-                            color: Colors.cyanAccent,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                                color: Colors.cyanAccent,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                                color: Colors.cyanAccent,
-                                width: 2,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                        ),
-                    ),
-                ),
-
-                const SizedBox(height: 20),
-
-                TextField(
-                    controller: weightController,
-                    style: const TextStyle(
-                        color: Colors.white,
-                    ),
-                    decoration: InputDecoration(
-                        labelText: "Weight (kg)",
-                        labelStyle: const TextStyle(
-                            color: Colors.cyanAccent,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                                color: Colors.cyanAccent,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                                color: Colors.cyanAccent,
-                                width: 2,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                        ),
+                const SizedBox(width: 8),
+                Text(
+                    label,
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.4),
+                        fontSize: 10,
+                        letterSpacing: 2.5,
+                        fontWeight: FontWeight.w600,
                     ),
                 ),
             ],
-        ),
-    ),
-
-    const SizedBox(height: 25),
-
-    SizedBox(
-        width: double.infinity,
-        height: 60,
-        child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.cyanAccent,
-                foregroundColor: Colors.black,
-                elevation: 12,
-                shadowColor: Colors.cyanAccent,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                ),
-            ),
-            onPressed: () async {
-
-                if (nameController.text.trim().isEmpty ||
-                    ageController.text.trim().isEmpty ||
-                    heightController.text.trim().isEmpty ||
-                    weightController.text.trim().isEmpty) {
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            backgroundColor: Colors.red,
-                            content: Text(
-                                "Please complete all Hunter data.",
-                            ),
-                        ),
-                    );
-
-                    return;
-                }
-                final user =
-                    FirebaseAuth.instance.currentUser;
-
-                if (user != null) {
-
-                    await FirebaseFirestore.instance
-                        .collection('hunters')
-                        .doc(user.uid)
-                        .update({
-
-
-                        'hunterName':
-                        'Hunter_${nameController.text.trim()}',
-
-                        'age':
-                        int.parse(ageController.text),
-
-                        'height':
-                        double.parse(heightController.text),
-
-                        'weight':
-                        double.parse(weightController.text),
-
-                        'startingWeight':
-                        double.parse(weightController.text),
-
-                        'onboardingComplete': true,
-
-                    });
-                }
-
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const ScanningScreen(),
-                    ),
-                );
-            },
-            child: const Text(
-                "INITIATE SCAN",
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 2,
-                ),
-            ),
-        ),
-    ),
-],
-),
-),
-);
+        );
+    }
 }
+
+// ── Custom text field ─────────────────────────────────────────────────────────
+
+class _HunterTextField extends StatefulWidget {
+    final TextEditingController controller;
+    final String label;
+    final IconData icon;
+    final TextInputType keyboardType;
+
+    const _HunterTextField({
+        required this.controller,
+        required this.label,
+        required this.icon,
+        required this.keyboardType,
+    });
+
+    @override
+    State<_HunterTextField> createState() => _HunterTextFieldState();
+}
+
+class _HunterTextFieldState extends State<_HunterTextField> {
+    bool _focused = false;
+
+    @override
+    Widget build(BuildContext context) {
+        return Focus(
+            onFocusChange: (focused) => setState(() => _focused = focused),
+            child: TextField(
+                controller: widget.controller,
+                keyboardType: widget.keyboardType,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                ),
+                cursorColor: const Color(0xFF00E5FF),
+                decoration: InputDecoration(
+                    labelText: widget.label,
+                    labelStyle: TextStyle(
+                        color: _focused
+                            ? const Color(0xFF00E5FF)
+                            : Colors.white.withOpacity(0.35),
+                        fontSize: 12,
+                        letterSpacing: 1,
+                        fontWeight: FontWeight.w600,
+                    ),
+                    prefixIcon: Icon(
+                        widget.icon,
+                        color: _focused
+                            ? const Color(0xFF00E5FF)
+                            : Colors.white.withOpacity(0.25),
+                        size: 16,
+                    ),
+                    filled: true,
+                    fillColor: _focused
+                        ? const Color(0xFF00E5FF).withOpacity(0.05)
+                        : const Color(0xFF080C14),
+                    enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                            color: const Color(0xFF00E5FF).withOpacity(0.2),
+                            width: 1,
+                        ),
+                        borderRadius: BorderRadius.circular(6),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(
+                            color: Color(0xFF00E5FF),
+                            width: 1.5,
+                        ),
+                        borderRadius: BorderRadius.circular(6),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 14,
+                    ),
+                ),
+            ),
+        );
+    }
+}
+
+// ── Grid background ───────────────────────────────────────────────────────────
+
+class _GridPainter extends CustomPainter {
+    @override
+    void paint(Canvas canvas, Size size) {
+        final paint = Paint()
+            ..color = const Color(0xFF00E5FF).withOpacity(0.03)
+            ..strokeWidth = 0.5;
+
+        const spacing = 40.0;
+        for (double x = 0; x <= size.width; x += spacing) {
+            canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+        }
+        for (double y = 0; y <= size.height; y += spacing) {
+            canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+        }
+    }
+
+    @override
+    bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

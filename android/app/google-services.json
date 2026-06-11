@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "300244677091-2c4k3lodh1rm5v3iinqv853mkn0v8mcm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hunterascend.hunter_ascend",
+            "certificate_hash": "6011224c7c901c91b46ab56150184912d8ea8b30"
+          }
+        },
+        {
           "client_id": "300244677091-5q96tpd5i8h0ioccgfh5btc7annf4j04.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

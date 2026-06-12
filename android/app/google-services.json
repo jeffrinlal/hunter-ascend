@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "300244677091-41nedqcmaia0govejhtrkig5vmvhnitn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hunterascend.hunter_ascend",
+            "certificate_hash": "136f9658259a49d132c60f29b33222383e2c7df4"
+          }
+        },
+        {
           "client_id": "300244677091-5q96tpd5i8h0ioccgfh5btc7annf4j04.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

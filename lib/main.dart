@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'awakening_screen.dart';
 import 'scanning_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -37,8 +38,15 @@ Future<void> createHunterProfile() async {
 
 void main() async {
     WidgetsFlutterBinding.ensureInitialized();
-    await Firebase.initializeApp();
 
+    // Edge-to-edge support for phones with navigation buttons
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarDividerColor: Colors.transparent,
+    ));
+
+    await Firebase.initializeApp();
 
     print("USER ON STARTUP: ${FirebaseAuth.instance.currentUser?.uid}");
 
@@ -132,7 +140,7 @@ class _LoadingScreen extends StatelessWidget {
     }
 }
 
-// ── Welcome screen (unchanged logic, restyled) ────────────────────────────────
+// ── Welcome screen ────────────────────────────────────────────────────────────
 
 class WelcomeScreen extends StatelessWidget {
     const WelcomeScreen({super.key});
@@ -365,8 +373,6 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                     crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
                                         const SizedBox(height: 12),
-
-                                        // Header dots + title
                                         Row(
                                             mainAxisAlignment: MainAxisAlignment.center,
                                             children: [
@@ -391,9 +397,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                 ),
                                             ],
                                         ),
-
                                         const SizedBox(height: 10),
-
                                         const Text(
                                             'HUNTER ASSESSMENT',
                                             style: TextStyle(
@@ -403,9 +407,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                 letterSpacing: 3,
                                             ),
                                         ),
-
                                         const SizedBox(height: 6),
-
                                         Container(
                                             width: 80,
                                             height: 1,
@@ -425,9 +427,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                 ],
                                             ),
                                         ),
-
                                         const SizedBox(height: 8),
-
                                         Text(
                                             'Enter your hunter data to begin profiling',
                                             style: TextStyle(
@@ -436,10 +436,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                 letterSpacing: 1,
                                             ),
                                         ),
-
                                         const SizedBox(height: 28),
-
-                                        // Form card
                                         Container(
                                             width: double.infinity,
                                             padding: const EdgeInsets.all(20),
@@ -496,10 +493,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                 ],
                                             ),
                                         ),
-
                                         const SizedBox(height: 28),
-
-                                        // Initiate scan button
                                         GestureDetector(
                                             onTap: () async {
                                                 if (nameController.text.trim().isEmpty ||
@@ -584,7 +578,6 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                 ),
                                             ),
                                         ),
-
                                         const SizedBox(height: 32),
                                     ],
                                 ),

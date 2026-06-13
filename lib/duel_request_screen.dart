@@ -117,9 +117,10 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
             );
           }
 
-          final duel     = snapshot.data!.docs.first;
-          final duelData = duel.data() as Map<String, dynamic>;
-          final quests   = duelData['duelQuests'] as List;
+          final duel      = snapshot.data!.docs.first;
+          final duelData  = duel.data() as Map<String, dynamic>;
+          final quests    = duelData['duelQuests'] as List;
+          final int days  = duelData['durationDays'] ?? 6;
 
           return Column(
             children: [
@@ -164,10 +165,10 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            const Text(
-                              "A hunter has challenged you to battle.\nAccept to begin the 6-day duel.",
+                            Text(
+                              "A hunter has challenged you to battle.\nAccept to begin the $days-day duel.",
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.white54, fontSize: 13, height: 1.5),
+                              style: const TextStyle(color: Colors.white54, fontSize: 13, height: 1.5),
                             ),
                             const SizedBox(height: 16),
                             Container(
@@ -180,9 +181,9 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                               child: Row(mainAxisSize: MainAxisSize.min, children: [
                                 const Icon(Icons.timer_outlined, color: _blue, size: 16),
                                 const SizedBox(width: 6),
-                                const Text(
-                                  "6 DAY DUEL",
-                                  style: TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1),
+                                Text(
+                                  "$days DAY DUEL",
+                                  style: const TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1),
                                 ),
                               ]),
                             ),
@@ -308,23 +309,23 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                             final user = FirebaseAuth.instance.currentUser;
                             if (user == null) return;
                             await FirebaseFirestore.instance.collection('duels').add({
-                              'participants':            [duelData['fromUid'], user.uid],
-                              'player1':                 duelData['fromUid'],
-                              'player2':                 user.uid,
-                              'player1Score':            0,
-                              'player2Score':            0,
-                              'player1CompletedToday':   [],
-                              'player2CompletedToday':   [],
-                              'status':                  'active',
-                              'winner':                  '',
-                              'cancelRequestedBy':       '',
-                              'cancelStatus':            '',
-                              'player1ViewedResult':     false,
-                              'player2ViewedResult':     false,
-                              'durationDays':            6,
-                              'startDate':               Timestamp.now(),
-                              'duelQuests':              duelData['duelQuests'],
-                              'createdAt':               Timestamp.now(),
+                              'participants':          [duelData['fromUid'], user.uid],
+                              'player1':               duelData['fromUid'],
+                              'player2':               user.uid,
+                              'player1Score':          0,
+                              'player2Score':          0,
+                              'player1CompletedToday': [],
+                              'player2CompletedToday': [],
+                              'status':                'active',
+                              'winner':                '',
+                              'cancelRequestedBy':     '',
+                              'cancelStatus':          '',
+                              'player1ViewedResult':   false,
+                              'player2ViewedResult':   false,
+                              'durationDays':          duelData['durationDays'] ?? 6,
+                              'startDate':             Timestamp.now(),
+                              'duelQuests':            duelData['duelQuests'],
+                              'createdAt':             Timestamp.now(),
                             });
                             await duel.reference.update({'status': 'accepted'});
                             if (context.mounted) Navigator.pop(context);

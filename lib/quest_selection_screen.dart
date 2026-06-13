@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class QuestSelectionScreen extends StatefulWidget {
   const QuestSelectionScreen({super.key});
@@ -16,6 +18,10 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
   bool muscleGain = false;
   bool selfImprovement = false;
 
+  double _weight = 0;
+  double _height = 0;
+  int _age = 0;
+
   late AnimationController _fadeController;
   late AnimationController _pulseController;
   late Animation<double> _fadeAnim;
@@ -24,6 +30,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
   @override
   void initState() {
     super.initState();
+    _loadHunterData();
 
     _fadeController = AnimationController(
       vsync: this,
@@ -51,7 +58,27 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
     super.dispose();
   }
 
-  // Path data: icon, title, subtitle, getter, setter
+  Future<void> _loadHunterData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(user.uid)
+        .get();
+
+    if (!doc.exists) return;
+
+    final data = doc.data()!;
+
+    setState(() {
+      _weight = (data['weight'] ?? 70).toDouble();
+      _height = (data['height'] ?? 170).toDouble();
+      _age = data['age'] ?? 25;
+    });
+  }
+
+// Path data: icon, title, subtitle, getter, setter
   List<Map<String, dynamic>> get _paths => [
     {
       'icon': Icons.local_fire_department_outlined,
@@ -87,6 +114,81 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
       [fatLoss, discipline, muscleGain, selfImprovement]
           .where((v) => v)
           .length;
+
+  List<Map<String, dynamic>> _generateBioQuests() {
+    if (_height <= 0) return [];
+
+    final bmi =
+        _weight / ((_height / 100) * (_height / 100));
+
+    final List<Map<String, dynamic>> quests = [];
+
+    if (bmi >= 30) {
+      quests.addAll([
+        {"name": "Walk 3000 Steps", "xp": 30, "icon": Icons.directions_walk},
+        {"name": "Drink 2.5L Water", "xp": 40, "icon": Icons.water_drop},
+        {"name": "No Sugary Drinks Today", "xp": 50, "icon": Icons.no_drinks},
+        {"name": "Eat Vegetables Today", "xp": 40, "icon": Icons.eco},
+        {"name": "Sleep Before 11 PM", "xp": 30, "icon": Icons.bedtime},
+        {"name": "Skip Junk Food Today", "xp": 50, "icon": Icons.no_food},
+      ]);
+    } else if (bmi >= 25) {
+      quests.addAll([
+        {"name": "Walk 5000 Steps", "xp": 40, "icon": Icons.directions_walk},
+        {"name": "Drink 3L Water", "xp": 40, "icon": Icons.water_drop},
+        {"name": "No Junk Food Today", "xp": 50, "icon": Icons.no_food},
+        {"name": "Eat High Protein Meal", "xp": 50, "icon": Icons.restaurant},
+        {"name": "Sleep 7+ Hours", "xp": 30, "icon": Icons.bedtime},
+        {"name": "Avoid Late Night Snacks", "xp": 40, "icon": Icons.nights_stay},
+      ]);
+    } else if (bmi >= 18.5) {
+      quests.addAll([
+        {"name": "Walk 7000 Steps", "xp": 50, "icon": Icons.directions_walk},
+        {"name": "Drink 3L Water", "xp": 40, "icon": Icons.water_drop},
+        {"name": "Workout 30 Minutes", "xp": 75, "icon": Icons.fitness_center},
+        {"name": "Eat 100g Protein", "xp": 50, "icon": Icons.restaurant},
+        {"name": "Sleep 8 Hours", "xp": 40, "icon": Icons.bedtime},
+        {"name": "No Screen 1hr Before Bed", "xp": 30, "icon": Icons.phone_android},
+      ]);
+    } else {
+      quests.addAll([
+        {"name": "Eat 3 Full Meals Today", "xp": 60, "icon": Icons.restaurant},
+        {"name": "Drink 3L Water", "xp": 40, "icon": Icons.water_drop},
+        {"name": "Eat 120g Protein", "xp": 75, "icon": Icons.fitness_center},
+        {"name": "Sleep 8 Hours", "xp": 50, "icon": Icons.bedtime},
+        {"name": "Strength Train Today", "xp": 80, "icon": Icons.fitness_center},
+        {"name": "Eat Healthy Fats Today", "xp": 40, "icon": Icons.egg_alt},
+      ]);
+    }
+
+    if (_age >= 40) {
+      quests.removeWhere(
+            (q) => q['name'] == 'Walk 7000 Steps',
+      );
+
+      quests.add({
+        "name": "Walk 4000 Steps",
+        "xp": 40,
+        "icon": Icons.directions_walk,
+      });
+
+      quests.add({
+        "name": "Stretch 10 Minutes",
+        "xp": 25,
+        "icon": Icons.self_improvement,
+      });
+    }
+
+    if (_age >= 50) {
+      quests.add({
+        "name": "Light Yoga 15 Minutes",
+        "xp": 30,
+        "icon": Icons.self_improvement,
+      });
+    }
+
+    return quests;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -271,6 +373,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                                     discipline: false,
                                     muscleGain: false,
                                     selfImprovement: false,
+                                    bioQuests: [],
                                   ),
                                 ),
                                     (route) => false,
@@ -322,6 +425,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                                     discipline: discipline,
                                     muscleGain: muscleGain,
                                     selfImprovement: selfImprovement,
+                                    bioQuests: _generateBioQuests(),
                                   ),
                                 ),
                                     (route) => false,

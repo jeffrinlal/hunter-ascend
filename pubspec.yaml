@@ -3,7 +3,7 @@ description: "A new Flutter project."
 
 publish_to: 'none'
 
-version: 1.0.0+6
+version: 1.0.0+8
 
 environment:
   sdk: ">=3.7.0 <4.0.0"
@@ -21,6 +21,9 @@ dependencies:
   pedometer: ^4.0.0
   google_sign_in: ^6.3.0
   permission_handler: ^11.3.1
+  flutter_local_notifications: ^18.0.1
+  workmanager: ^0.6.0
+
 
 
 dev_dependencies:

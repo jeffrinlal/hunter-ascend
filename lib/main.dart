@@ -10,6 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import 'dashboard_screen.dart';
+import 'notification_service.dart';
 
 Future<void> signInAnonymously() async {
     if (FirebaseAuth.instance.currentUser == null) {
@@ -39,7 +40,6 @@ Future<void> createHunterProfile() async {
 void main() async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    // Edge-to-edge support for phones with navigation buttons
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
         systemNavigationBarColor: Colors.transparent,
@@ -47,6 +47,8 @@ void main() async {
     ));
 
     await Firebase.initializeApp();
+    await NotificationService().init();
+    await NotificationService().scheduleAllNotifications();
 
     print("USER ON STARTUP: ${FirebaseAuth.instance.currentUser?.uid}");
 
@@ -58,8 +60,6 @@ void main() async {
 
     runApp(HunterAscendApp(hasCompletedSetup: hasCompletedSetup));
 }
-
-// ── App root ─────────────────────────────────────────────────────────────────
 
 class HunterAscendApp extends StatelessWidget {
     final bool hasCompletedSetup;
@@ -106,6 +106,7 @@ class HunterAscendApp extends StatelessWidget {
                                         discipline: false,
                                         muscleGain: false,
                                         selfImprovement: false,
+                                        bioQuests: [],
                                     );
                                 }
 
@@ -120,8 +121,6 @@ class HunterAscendApp extends StatelessWidget {
         );
     }
 }
-
-// ── Styled loading screen ─────────────────────────────────────────────────────
 
 class _LoadingScreen extends StatelessWidget {
     const _LoadingScreen();
@@ -139,8 +138,6 @@ class _LoadingScreen extends StatelessWidget {
         );
     }
 }
-
-// ── Welcome screen ────────────────────────────────────────────────────────────
 
 class WelcomeScreen extends StatelessWidget {
     const WelcomeScreen({super.key});
@@ -271,8 +268,6 @@ class WelcomeScreen extends StatelessWidget {
         );
     }
 }
-
-// ── Assessment screen ─────────────────────────────────────────────────────────
 
 class AssessmentScreen extends StatefulWidget {
     const AssessmentScreen({super.key});
@@ -638,8 +633,6 @@ class _AssessmentScreenState extends State<AssessmentScreen>
     }
 }
 
-// ── Custom text field ─────────────────────────────────────────────────────────
-
 class _HunterTextField extends StatefulWidget {
     final TextEditingController controller;
     final String label;
@@ -717,8 +710,6 @@ class _HunterTextFieldState extends State<_HunterTextField> {
         );
     }
 }
-
-// ── Grid background ───────────────────────────────────────────────────────────
 
 class _GridPainter extends CustomPainter {
     @override

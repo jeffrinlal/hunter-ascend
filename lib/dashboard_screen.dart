@@ -257,6 +257,7 @@ class DashboardScreen extends StatefulWidget {
   final bool discipline;
   final bool muscleGain;
   final bool selfImprovement;
+  final List<Map<String, dynamic>> bioQuests;
 
   const DashboardScreen({
     super.key,
@@ -264,6 +265,7 @@ class DashboardScreen extends StatefulWidget {
     required this.discipline,
     required this.muscleGain,
     required this.selfImprovement,
+    this.bioQuests = const [],
   });
 
   @override
@@ -286,9 +288,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool questStarted = false;
   String activeQuest = "";
   int questReward = 0;
+  DateTime? questEndTime;
+  Timer? _questCountdownTimer;
+  Duration questRemaining = Duration.zero;
   List<Map<String, dynamic>> generatedQuests = [];
   List<String> completedQuests = [];
-  int selectedCustomQuestXp = 10;
+
   final TextEditingController customQuestController = TextEditingController();
   StreamSubscription<StepCount>? _stepSubscription;
 
@@ -380,11 +385,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
         {"name": "Meditation 10 Minutes",   "xp": 25, "icon": Icons.self_improvement},
       ]);
     }
+    for (final quest in widget.bioQuests) {
+      final exists = generatedQuests.any(
+            (q) => q['name'] == quest['name'],
+      );
+
+      if (!exists) {
+        generatedQuests.add(quest);
+      }
+    }
     loadHunterData();
+    _restoreDashboardActiveQuest();
   }
 
   @override
   void dispose() {
+    _questCountdownTimer?.cancel();
     _stepSubscription?.cancel();
     rewardedAd?.dispose();
     punishmentAd?.dispose();
@@ -574,46 +590,163 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (lastReset == null || lastReset.toString().isEmpty) return;
     final completed = data['yesterdayCompletedCount'] ?? 0;
     final total = data['yesterdayTotalQuests'] ?? 0;
+
+// New user or no quests set up yet — skip punishment
+    if (total == 0) return;
+
     bool punish = mode == 'casual' ? completed == 0 : completed < total;
     if (!punish) return;
 
-    if (isPunishmentAdReady && punishmentAd != null) {
-      if (!mounted) return;
-      showDialog(
-        context: context, barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          title: const Text("⚠️ DISCIPLINE FAILURE"),
-          content: const Text("You failed yesterday's mission.\n\nWatch an ad to repay your debt."),
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                punishmentAd!.show(onUserEarnedReward: (ad, reward) async {
-                  await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({'lastPunishmentDate': today});
-                });
-                punishmentAd = null; isPunishmentAdReady = false; loadPunishmentAd();
-              },
-              child: const Text("WATCH AD"),
-            ),
-          ],
-        ),
-      );
-    } else {
+    if (!mounted) return;
+
+// ── Ad not available → deduct XP once ──
+    if (!isPunishmentAdReady || punishmentAd == null) {
       int currentXp = data['xp'] ?? 0;
       int penalty = mode == 'strict' ? 100 : 25;
       currentXp = (currentXp - penalty).clamp(0, 999999);
-      await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({'xp': currentXp, 'lastPunishmentDate': today});
+      await FirebaseFirestore.instance
+          .collection('hunters')
+          .doc(user.uid)
+          .update({'xp': currentXp, 'lastPunishmentDate': today});
       await loadHunterData();
       if (!mounted) return;
       showDialog(
         context: context, barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          title: const Text("⚠️ DISCIPLINE FAILURE"),
-          content: Text("No ad available.\n\n-$penalty XP"),
-          actions: [ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text("ACCEPT"))],
+        builder: (_) => Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D1120),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFFFF4444).withValues(alpha: 0.4), width: 1.5),
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.warning_amber_rounded, color: Color(0xFFFF4444), size: 48),
+              const SizedBox(height: 16),
+              const Text("DISCIPLINE FAILURE",
+                  style: TextStyle(color: Color(0xFFFF4444), fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+              const SizedBox(height: 10),
+              Text(
+                "You failed yesterday's mission.\n\n-${mode == 'strict' ? 100 : 25} XP has been deducted.",
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white54, fontSize: 13, height: 1.5),
+              ),
+              const SizedBox(height: 20),
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4D7CFF),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Center(
+                    child: Text("ACCEPT",
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                  ),
+                ),
+              ),
+            ]),
+          ),
         ),
       );
+      return;
     }
+
+// ── Ad available → must watch, no escape ──
+    showDialog(
+      context: context, barrierDismissible: false,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0D1120),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFFF4444).withValues(alpha: 0.5), width: 1.5),
+            boxShadow: [BoxShadow(color: const Color(0xFFFF4444).withValues(alpha: 0.1), blurRadius: 24)],
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF4444).withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFFF4444).withValues(alpha: 0.4), width: 1.5),
+              ),
+              child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFFF4444), size: 32),
+            ),
+            const SizedBox(height: 16),
+            const Text("DISCIPLINE FAILURE",
+                style: TextStyle(color: Color(0xFFFF4444), fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 2)),
+            const SizedBox(height: 10),
+            const Text(
+              "You failed yesterday's mission.\n\nWatch the full ad to repay your debt.\nThere is no other way.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white54, fontSize: 13, height: 1.5),
+            ),
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+                bool rewardEarned = false;
+                punishmentAd!.fullScreenContentCallback = FullScreenContentCallback(
+                  onAdDismissedFullScreenContent: (ad) async {
+                    ad.dispose();
+                    punishmentAd = null;
+                    isPunishmentAdReady = false;
+                    loadPunishmentAd();
+                    if (!rewardEarned) {
+                      // Closed early — show popup again
+                      await Future.delayed(const Duration(seconds: 1));
+                      if (mounted) checkDisciplinePunishment();
+                    }
+                  },
+                  onAdFailedToShowFullScreenContent: (ad, error) async {
+                    ad.dispose();
+                    punishmentAd = null;
+                    isPunishmentAdReady = false;
+                    loadPunishmentAd();
+                    // Ad failed — retry after delay
+                    await Future.delayed(const Duration(seconds: 3));
+                    if (mounted) checkDisciplinePunishment();
+                  },
+                );
+                punishmentAd!.show(onUserEarnedReward: (ad, reward) async {
+                  rewardEarned = true;
+                  await FirebaseFirestore.instance
+                      .collection('hunters')
+                      .doc(user.uid)
+                      .update({'lastPunishmentDate': today});
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("✅ Debt repaid. Continue your journey.")),
+                    );
+                  }
+                });
+                punishmentAd = null;
+                isPunishmentAdReady = false;
+                loadPunishmentAd();
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF4444),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Center(
+                  child: Text("WATCH AD TO CONTINUE",
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                ),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
   }
 
   Future<void> checkDisciplineMode() async {
@@ -989,7 +1122,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 GestureDetector(
                   onTap: () async {
                     Navigator.pop(context);
-
+                    await FirebaseFirestore.instance
+                        .collection('hunters')
+                        .doc(user.uid)
+                        .update({'notificationTime': ''});
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("🔕 Reminders turned off")),
+                      );
+                    }
                   },
                   child: Container(
                     width: double.infinity,
@@ -1028,29 +1169,161 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: _card,
-        title: const Text("QUEST START", style: TextStyle(color: _blue)),
-        content: Text("Start $questName ?", style: const TextStyle(color: Colors.white)),
+        title: const Text("START QUEST", style: TextStyle(color: _blue)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(questName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+
+            const SizedBox(height: 16),
+            const Text("Choose a time to complete this quest", style: TextStyle(color: Colors.white54, fontSize: 12)),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              children: [2, 5, 10, 15, 30, 45, 60].map((mins) => ChoiceChip(
+                label: Text("$mins min"),
+                selected: false,
+                onSelected: (_) {
+                  Navigator.pop(context);
+                  _startQuestWithTimer(questName, reward, mins);
+                },
+              )).toList(),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              ),
+              child: const Text(
+                "⚠️ You must wait for the timer before you can complete this quest.",
+                style: TextStyle(color: Colors.orange, fontSize: 11),
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL")),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() { questStarted = true; activeQuest = questName; questReward = reward; });
-            },
-            child: const Text("START"),
-          ),
         ],
       ),
     );
   }
 
+  void _startQuestWithTimer(String questName, int reward, int minutes) {
+    final endTime = DateTime.now().add(Duration(minutes: minutes));
+    int boostedReward;
+    if (minutes >= 60)      boostedReward = 50;
+    else if (minutes >= 45) boostedReward = 40;
+    else if (minutes >= 30) boostedReward = 30;
+    else if (minutes >= 15) boostedReward = 20;
+    else if (minutes >= 10) boostedReward = 15;
+    else if (minutes >= 5)  boostedReward = 10;
+    else                    boostedReward = 5;
+
+    setState(() {
+      questStarted = true;
+      activeQuest = questName;
+      questReward = boostedReward;
+      questEndTime = endTime;
+      questRemaining = Duration(minutes: minutes);
+    });
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
+        'activeDashboardQuestName': questName,
+        'activeDashboardQuestXp': questReward,
+        'activeDashboardQuestEndTime': Timestamp.fromDate(endTime),
+      });
+    }
+
+    _questCountdownTimer?.cancel();
+    _questCountdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (questEndTime == null) return;
+      final diff = questEndTime!.difference(DateTime.now());
+      setState(() => questRemaining = diff.isNegative ? Duration.zero : diff);
+    });
+  }
+
+  String _formatQuestTime(Duration d) {
+    final m = d.inMinutes.toString().padLeft(2, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return "$m:$s";
+  }
+
+
+  Future<void> _cancelActiveQuest() async {
+    _questCountdownTimer?.cancel();
+    setState(() {
+      questStarted = false;
+      activeQuest = "";
+      questReward = 0;
+      questEndTime = null;
+      questRemaining = Duration.zero;
+    });
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
+        'activeDashboardQuestName': FieldValue.delete(),
+        'activeDashboardQuestXp': FieldValue.delete(),
+        'activeDashboardQuestEndTime': FieldValue.delete(),
+      });
+    }
+  }
+  Future<void> _restoreDashboardActiveQuest() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
+    if (!doc.exists) return;
+    final data = doc.data()!;
+    final name = data['activeDashboardQuestName'];
+    final reward = data['activeDashboardQuestXp'];
+    final endTimeStamp = data['activeDashboardQuestEndTime'] as Timestamp?;
+    if (name == null) return;
+
+    final endTime = endTimeStamp?.toDate();
+
+    setState(() {
+      questStarted = true;
+      activeQuest = name;
+      questReward = reward ?? 0;
+      questEndTime = endTime;
+      questRemaining = endTime == null ? Duration.zero : (endTime.isBefore(DateTime.now()) ? Duration.zero : endTime.difference(DateTime.now()));
+    });
+
+    if (endTime != null && endTime.isAfter(DateTime.now())) {
+      _questCountdownTimer?.cancel();
+      _questCountdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (questEndTime == null) return;
+        final diff = questEndTime!.difference(DateTime.now());
+        setState(() => questRemaining = diff.isNegative ? Duration.zero : diff);
+      });
+    }
+  }
+
+
   Future<void> completeQuest() async {
     bool leveledUp = false;
+    _questCountdownTimer?.cancel();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
+        'activeDashboardQuestName': FieldValue.delete(),
+        'activeDashboardQuestXp': FieldValue.delete(),
+        'activeDashboardQuestEndTime': FieldValue.delete(),
+      });
+    }
+    final completedQuestName = activeQuest; // save before clearing
     setState(() {
       xp += questReward; questStarted = false; completedQuests.add(activeQuest);
       if (xp >= 500) { level++; xp -= 500; leveledUp = true; }
     });
-    await updateHunterOnline(); await updateStreak(); await saveCompletedQuest(activeQuest);
+    await updateHunterOnline(); await updateStreak(); await saveCompletedQuest(completedQuestName);
 
     showDialog(
       context: context, barrierDismissible: false,
@@ -1367,7 +1640,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(children: [
         const Text("⚡ ACTIVE QUEST ⚡", style: TextStyle(color: _blue, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2)),
         const SizedBox(height: 8),
-        const Text("Status: In Progress", style: TextStyle(color: Colors.orangeAccent, fontSize: 13)),
+        Text(
+          questRemaining == Duration.zero ? "Status: Ready to Complete" : "Status: In Progress",
+          style: TextStyle(color: questRemaining == Duration.zero ? const Color(0xFF44DD88) : Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 12),
         Text(activeQuest, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
@@ -1377,11 +1653,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Text("Reward: +$questReward XP", style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
         ),
         const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          decoration: BoxDecoration(
+            color: _blueDim,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: questRemaining == Duration.zero ? const Color(0xFF44DD88).withOpacity(0.5) : _blue.withOpacity(0.4)),
+          ),
+          margin: const EdgeInsets.only(bottom: 16),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(questRemaining == Duration.zero ? Icons.check_circle_outline : Icons.timer_outlined, color: questRemaining == Duration.zero ? const Color(0xFF44DD88) : _blue, size: 22),
+            const SizedBox(width: 10),
+            Text(
+              questRemaining == Duration.zero ? "TIME'S UP!" : _formatQuestTime(questRemaining),
+              style: TextStyle(color: questRemaining == Duration.zero ? const Color(0xFF44DD88) : Colors.white, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1),
+            ),
+          ]),
+        ),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: _blue, padding: const EdgeInsets.symmetric(vertical: 14)),
-            onPressed: () {
+            style: ElevatedButton.styleFrom(backgroundColor: questRemaining == Duration.zero ? _blue : _blueDim, padding: const EdgeInsets.symmetric(vertical: 14)),
+            onPressed: questRemaining != Duration.zero ? () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("⚠️ Timer not finished yet — quest cannot be completed.")),
+              );
+            } : () {
               showDialog(context: context, builder: (_) {
                 final messages = [
                   "⚔️ Only you know whether this mission is complete.",
@@ -1403,6 +1700,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             },
             child: const Text("COMPLETE QUEST", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 2)),
           ),
+        ),
+        const SizedBox(height: 10),
+        GestureDetector(
+          onTap: _cancelActiveQuest,
+          child: const Text("Cancel quest", style: TextStyle(color: Colors.white38, fontSize: 12, decoration: TextDecoration.underline)),
         ),
         if (isBannerReady) ...[
           const SizedBox(height: 12),
@@ -1562,7 +1864,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(color: Colors.green.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
-              child: Text("+$xp XP", style: const TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+              child:Text("TAP TO START", style: TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.bold)),
             ),
           if (onDelete != null)
             GestureDetector(
@@ -1582,14 +1884,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         content: StatefulBuilder(
           builder: (context, setDialogState) => Column(mainAxisSize: MainAxisSize.min, children: [
             TextField(controller: customQuestController, decoration: const InputDecoration(hintText: "Quest Name")),
-            const SizedBox(height: 20),
-            const Text("XP Reward"),
-            const SizedBox(height: 10),
-            Wrap(spacing: 8, children: [10, 20, 30, 40, 50].map((val) => ChoiceChip(
-              label: Text("$val"),
-              selected: selectedCustomQuestXp == val,
-              onSelected: (_) => setDialogState(() => selectedCustomQuestXp = val),
-            )).toList()),
+
           ]),
         ),
         actions: [
@@ -1601,9 +1896,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               if (user == null) return;
               await FirebaseFirestore.instance.collection('custom_quests').add({
                 'uid': user.uid, 'name': customQuestController.text.trim(),
-                'xp': selectedCustomQuestXp, 'createdAt': Timestamp.now(),
+                'xp': 0, 'createdAt': Timestamp.now(),
               });
-              customQuestController.clear(); selectedCustomQuestXp = 10;
+              customQuestController.clear();
               if (mounted) Navigator.pop(context);
             },
             child: const Text("ADD QUEST"),
@@ -1616,7 +1911,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ── Bottom Nav ───────────────────────────────────────────
   Widget _buildBottomNav() {
     return Container(
-      height: 68,
+      height: 68 + MediaQuery.of(context).padding.bottom,
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
       decoration: const BoxDecoration(
         color: Color(0xFF080C18),
         border: Border(top: BorderSide(color: _border, width: 1)),

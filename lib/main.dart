@@ -11,6 +11,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import 'dashboard_screen.dart';
 import 'notification_service.dart';
+import 'dart:math' as math;
 
 Future<void> signInAnonymously() async {
     if (FirebaseAuth.instance.currentUser == null) {
@@ -40,7 +41,10 @@ Future<void> createHunterProfile() async {
 void main() async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setEnabledSystemUIMode(
+        SystemUiMode.manual,
+        overlays: SystemUiOverlay.values,
+    );
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
         systemNavigationBarColor: Colors.transparent,
         systemNavigationBarDividerColor: Colors.transparent,
@@ -72,6 +76,25 @@ class HunterAscendApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             title: 'Hunter Ascend',
             theme: ThemeData.dark(),
+
+            builder: (context, child) {
+                return MediaQuery(
+                    data: MediaQuery.of(context).copyWith(
+                        padding: MediaQuery.of(context).padding.copyWith(
+                            bottom: math.max(
+                                MediaQuery.of(context).padding.bottom,
+                                MediaQuery.of(context).viewPadding.bottom,
+                            ),
+                        ),
+                    ),
+                    child: SafeArea(
+                        top: false,
+                        bottom: true,
+                        child: child!,
+                    ),
+                );
+            },
+
             home: StreamBuilder<User?>(
                 stream: FirebaseAuth.instance.authStateChanges(),
                 builder: (context, snapshot) {
@@ -518,17 +541,32 @@ class _AssessmentScreenState extends State<AssessmentScreen>
 
                                                 final user = FirebaseAuth.instance.currentUser;
                                                 if (user != null) {
+                                                    final hunterName = nameController.text.trim();
+
+                                                    final existing = await FirebaseFirestore.instance
+                                                        .collection('hunters')
+                                                        .where('hunterName', isEqualTo: hunterName)
+                                                        .limit(1)
+                                                        .get();
+
+                                                    if (existing.docs.isNotEmpty) {
+                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                            const SnackBar(
+                                                                content: Text('Hunter name already exists'),
+                                                            ),
+                                                        );
+                                                        return;
+                                                    }
+
                                                     await FirebaseFirestore.instance
                                                         .collection('hunters')
                                                         .doc(user.uid)
                                                         .update({
-                                                        'hunterName':
-                                                        'Hunter_${nameController.text.trim()}',
+                                                        'hunterName': hunterName,
                                                         'age': int.parse(ageController.text),
                                                         'height': double.parse(heightController.text),
                                                         'weight': double.parse(weightController.text),
-                                                        'startingWeight':
-                                                        double.parse(weightController.text),
+                                                        'startingWeight': double.parse(weightController.text),
                                                         'onboardingComplete': true,
                                                     });
                                                 }

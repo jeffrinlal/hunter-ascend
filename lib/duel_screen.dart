@@ -101,7 +101,10 @@ class _DuelScreenState extends State<DuelScreen> {
       request: const AdRequest(),
       size: AdSize.banner,
       listener: BannerAdListener(
-        onAdLoaded: (ad) => setState(() => isBannerReady = true),
+        onAdLoaded: (ad) {
+          if (!mounted) return;
+          setState(() => isBannerReady = true);
+        },
         onAdFailedToLoad: (ad, error) { print("BANNER FAILED: $error"); ad.dispose(); },
       ),
     );

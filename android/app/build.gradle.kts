@@ -57,6 +57,10 @@ kotlin {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    implementation("com.google.android.gms:play-services-ads:25.3.0")
+    implementation("com.unity3d.ads:unity-ads:4.18.0")
+    implementation("com.google.ads.mediation:unity:4.18.0.0")
+    implementation("com.google.ads.mediation:inmobi:10.6.7.0")
 }
 
 flutter {

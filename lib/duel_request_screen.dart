@@ -166,7 +166,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              "A hunter has challenged you to battle.\nAccept to begin the $days-day duel.",
+                              "${duelData['fromHunterName']} has challenged you to battle.\nAccept to begin the $days-day duel.",
                               textAlign: TextAlign.center,
                               style: const TextStyle(color: Colors.white54, fontSize: 13, height: 1.5),
                             ),
@@ -309,9 +309,11 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                             final user = FirebaseAuth.instance.currentUser;
                             if (user == null) return;
                             await FirebaseFirestore.instance.collection('duels').add({
+                              'player1': duelData['fromUid'],
+                              'player2': user.uid,
                               'participants':          [duelData['fromUid'], user.uid],
-                              'player1':               duelData['fromUid'],
-                              'player2':               user.uid,
+                              'player1Name': duelData['fromHunterName'] ?? '',
+                              'player2Name': duelData['toHunterName'] ?? '',
                               'player1Score':          0,
                               'player2Score':          0,
                               'player1CompletedToday': [],

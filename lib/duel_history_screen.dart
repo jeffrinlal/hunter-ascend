@@ -183,9 +183,9 @@ class DuelHistoryScreen extends StatelessWidget {
 
                   // Optional: show opponent name if available
                   final bool isPlayer1 = duel['player1'] == user?.uid;
-                  final String opponentId = isPlayer1
-                      ? (duel['player2'] ?? '')
-                      : (duel['player1'] ?? '');
+                  final String opponentName = isPlayer1
+                      ? (duel['player2Name'] ?? 'Unknown')
+                      : (duel['player1Name'] ?? 'Unknown');
 
                   // Format date
                   String dateStr = "";
@@ -227,10 +227,10 @@ class DuelHistoryScreen extends StatelessWidget {
                               letterSpacing: 1,
                             ),
                           ),
-                          if (opponentId.isNotEmpty) ...[
+                          if (opponentName.isNotEmpty) ...[
                             const SizedBox(height: 3),
                             Text(
-                              "vs ${opponentId.substring(0, opponentId.length.clamp(0, 8))}...",
+                              "vs $opponentName",
                               style: const TextStyle(color: Colors.white38, fontSize: 12),
                             ),
                           ],

@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'public_hunter_profile_screen.dart';
+import 'dart:convert';
 
 // ── Top 3 Crown Painter ────────────────────────────────────────────────────
 
@@ -153,8 +155,19 @@ class TopRankBadge extends StatelessWidget {
 
 // ── Global Rankings Screen ─────────────────────────────────────────────────
 
-class GlobalRankingsScreen extends StatelessWidget {
+class GlobalRankingsScreen extends StatefulWidget {
   const GlobalRankingsScreen({super.key});
+
+  @override
+  State<GlobalRankingsScreen> createState() =>
+      _GlobalRankingsScreenState();
+}
+
+class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
+
+  bool _searchMode = false;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchText = '';
 
   String getRankTitle(int level) {
     if (level >= 30) return 'S Rank';
@@ -189,34 +202,73 @@ class GlobalRankingsScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: const Color(0xFF0A0C14),
         elevation: 0,
+
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.search,
+              color: Colors.white70,
+            ),
+              onPressed: () {
+                setState(() {
+                  _searchMode = true;
+                });
+              },
+          ),
+        ],
+
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white70, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Row(
-          children: [
-            // Custom trophy icon using container
-            Container(
-              width: 28, height: 28,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFD700).withOpacity(0.12),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.4)),
-              ),
-              child: const Icon(Icons.military_tech, color: Color(0xFFFFD700), size: 18),
+          title: _searchMode
+              ? TextField(
+            controller: _searchController,
+            autofocus: true,
+            onChanged: (value) {
+              setState(() {
+                _searchText = value.trim();
+              });
+            },
+
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              hintText: 'Enter Hunter ID...',
+              hintStyle: TextStyle(color: Colors.white38),
+              border: InputBorder.none,
             ),
-            const SizedBox(width: 10),
-            const Text(
-              'GLOBAL RANKINGS',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
+          )
+
+              : Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFD700).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFFFFD700).withOpacity(0.4),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.military_tech,
+                  color: Color(0xFFFFD700),
+                  size: 18,
+                ),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(width: 10),
+              const Text(
+                'GLOBAL RANKINGS',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
+          ),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -252,7 +304,94 @@ class GlobalRankingsScreen extends StatelessWidget {
 
           final myRank = hunters.indexWhere((h) => h.id == currentUid) + 1;
 
-          return Column(
+          return _searchMode
+              ? (_searchText.isEmpty
+              ? Container(
+            color: const Color(0xFF0A0C14),
+          )
+              : FutureBuilder<QuerySnapshot>(
+            future: FirebaseFirestore.instance
+                .collection('hunters')
+                .where('hunterName', isEqualTo: _searchText)
+                .limit(1)
+                .get(),
+            builder: (context, snapshot) {
+
+              if (!snapshot.hasData) {
+                return const SizedBox();
+              }
+
+              if (snapshot.data!.docs.isEmpty) {
+                return Container(
+                  color: const Color(0xFF0A0C14),
+                );
+              }
+
+              final hunter =
+              snapshot.data!.docs.first.data() as Map<String, dynamic>;
+
+              return Center(
+                child: Container(
+                  margin: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF111523),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF64C8FF),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      hunter['profilePicture'] != null &&
+                          hunter['profilePicture'].toString().isNotEmpty
+                          ? CircleAvatar(
+                        radius: 30,
+                        backgroundImage: MemoryImage(
+                          base64Decode(hunter['profilePicture']),
+                        ),
+                      )
+                          : const Icon(
+                        Icons.person,
+                        color: Color(0xFF64C8FF),
+                        size: 60,
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      Text(
+                        hunter['hunterName'] ?? 'Unknown',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      Text(
+                        'Level ${hunter['level'] ?? 1}',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+
+                      Text(
+                        '${hunter['xp'] ?? 0} XP',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+
+                      Text(
+                        hunter['hunterId'] ?? '',
+                        style: const TextStyle(color: Colors.white38),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ))
+              : Column(
             children: [
               // ── My Hunter Status Card ──────────────────────────────
               Container(
@@ -437,7 +576,18 @@ class GlobalRankingsScreen extends StatelessWidget {
                     final posColor = _positionColor(index);
                     final isTop3 = index < 3;
 
-                    return Container(
+                    return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PublicHunterProfileScreen(
+                                hunterUid: hunters[index].id,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: EdgeInsets.symmetric(
                         horizontal: 14,
@@ -525,7 +675,21 @@ class GlobalRankingsScreen extends StatelessWidget {
                                   ? [BoxShadow(color: rc.withOpacity(0.2), blurRadius: 8)]
                                   : null,
                             ),
-                            child: Icon(Icons.person, color: rc, size: 20),
+                            child: hunter['profilePicture'] != null &&
+                                hunter['profilePicture'].toString().isNotEmpty
+                                ? ClipOval(
+                              child: Image.memory(
+                                base64Decode(hunter['profilePicture']),
+                                width: 38,
+                                height: 38,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                                : Icon(
+                              Icons.person,
+                              color: rc,
+                              size: 20,
+                            ),
                           ),
 
                           const SizedBox(width: 12),
@@ -616,6 +780,7 @@ class GlobalRankingsScreen extends StatelessWidget {
                           ),
                         ],
                       ),
+                        ),
                     );
                   },
                 ),

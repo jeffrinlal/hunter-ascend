@@ -1,20 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/services.dart';
 import 'duel_history_screen.dart';
 
 class CreateDuelScreen extends StatefulWidget {
-  const CreateDuelScreen({super.key});
+  final String? hunterName;
+
+  const CreateDuelScreen({
+    super.key,
+    this.hunterName,
+  });
 
   @override
   State<CreateDuelScreen> createState() => _CreateDuelScreenState();
 }
 
 class _CreateDuelScreenState extends State<CreateDuelScreen> {
-  final TextEditingController hunterIdController = TextEditingController();
+  final TextEditingController hunterNameController = TextEditingController();
   final TextEditingController questController = TextEditingController();
   List<Map<String, dynamic>> duelQuests = [];
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.hunterName != null) {
+      hunterNameController.text = widget.hunterName!;
+    }
+  }
 
   void addQuest() {
     String questName = questController.text.trim();
@@ -61,9 +73,9 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
       return;
     }
 
-    if (hunterIdController.text.trim().isEmpty) {
+    if (hunterNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Enter a Hunter ID")),
+        const SnackBar(content: Text("Enter a Hunter Name")),
       );
       return;
     }
@@ -75,27 +87,34 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
       return;
     }
 
-    if (hunterIdController.text.trim() == user.uid) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("You cannot challenge yourself")),
-      );
-      return;
-    }
 
-    final targetHunter = await FirebaseFirestore.instance
+    final targetResult = await FirebaseFirestore.instance
         .collection('hunters')
-        .doc(hunterIdController.text.trim())
+        .where(
+      'hunterName',
+      isEqualTo: hunterNameController.text.trim(),
+    )
+        .limit(1)
         .get();
 
-    if (!targetHunter.exists) {
+    if (targetResult.docs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Hunter not found")),
       );
       return;
     }
 
+    final targetHunter = targetResult.docs.first;
+    final opponentId = targetHunter.id;
+    if (opponentId == user.uid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("You cannot challenge yourself")),
+      );
+      return;
+    }
+
     // ── Optimised active-duel check (two targeted queries) ────────
-    final opponentId = hunterIdController.text.trim();
+
 
     final activeDuelAsPlayer1 = await FirebaseFirestore.instance
         .collection('duels')
@@ -135,9 +154,21 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
       return;
     }
 
+    final myHunterDoc = await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(user.uid)
+        .get();
+
+    final myHunterName =
+        myHunterDoc.data()?['hunterName'] ?? 'Unknown';
+
     await FirebaseFirestore.instance.collection('duel_requests').add({
       'fromUid': user.uid,
       'toUid': opponentId,
+
+      'fromHunterName': myHunterName,
+      'toHunterName': targetHunter['hunterName'],
+
       'status': 'pending',
       'duelQuests': duelQuests,
       'createdAt': Timestamp.now(),
@@ -269,7 +300,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── Your Hunter ID ─────────────────────────────
-                    _sectionLabel('YOUR HUNTER ID'),
+                    _sectionLabel('YOUR HUNTER NAME'),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.all(14),
@@ -284,59 +315,35 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                           const Icon(Icons.fingerprint,
                               color: Color(0xFF64C8FF), size: 20),
                           const SizedBox(width: 10),
-                          Expanded(
-                            child: SelectableText(
-                              FirebaseAuth.instance.currentUser?.uid ?? '',
-                              style: const TextStyle(
-                                color: Color(0xFF64C8FF),
-                                fontSize: 12,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () async {
-                              await Clipboard.setData(ClipboardData(
-                                text:
-                                FirebaseAuth.instance.currentUser?.uid ??
-                                    '',
-                              ));
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Hunter ID copied!')),
+                        Expanded(
+                          child: FutureBuilder<DocumentSnapshot>(
+                            future: FirebaseFirestore.instance
+                                .collection('hunters')
+                                .doc(FirebaseAuth.instance.currentUser!.uid)
+                                .get(),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData) {
+                                return const Text(
+                                  'Loading...',
+                                  style: TextStyle(color: Colors.white38),
                                 );
                               }
+
+                              final data =
+                              snapshot.data!.data() as Map<String, dynamic>?;
+
+                              return SelectableText(
+                                data?['hunterName'] ?? 'Unknown Hunter',
+                                style: const TextStyle(
+                                  color: Color(0xFF64C8FF),
+                                  fontSize: 12,
+                                  letterSpacing: 0.5,
+                                ),
+                              );
                             },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color:
-                                const Color(0xFF64C8FF).withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                    color: const Color(0xFF64C8FF)
-                                        .withOpacity(0.4)),
-                              ),
-                              child: const Row(
-                                children: [
-                                  Icon(Icons.copy,
-                                      color: Color(0xFF64C8FF), size: 14),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    'COPY',
-                                    style: TextStyle(
-                                      color: Color(0xFF64C8FF),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                           ),
+                        ),
+
                         ],
                       ),
                     ),
@@ -344,11 +351,11 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                     const SizedBox(height: 20),
 
                     // ── Opponent Hunter ID ─────────────────────────
-                    _sectionLabel('OPPONENT HUNTER ID'),
+                    _sectionLabel('OPPONENT HUNTER NAME'),
                     const SizedBox(height: 8),
                     _darkTextField(
-                      controller: hunterIdController,
-                      hint: 'Paste Hunter ID here',
+                      controller: hunterNameController,
+                      hint: 'Enter Hunter Name',
                       icon: Icons.person_search,
                     ),
 

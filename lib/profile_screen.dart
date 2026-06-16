@@ -2,6 +2,12 @@ import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'settings_screen.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'dart:convert';
+import 'dart:io';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -162,11 +168,31 @@ class _ProfileScreenState extends State<ProfileScreen>
                           children: [
                             // Back button row
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 IconButton(
                                   onPressed: () => Navigator.pop(context),
-                                  icon: const Icon(Icons.arrow_back_ios,
-                                      color: Colors.white70, size: 20),
+                                  icon: const Icon(
+                                    Icons.arrow_back_ios,
+                                    color: Colors.white70,
+                                    size: 20,
+                                  ),
+                                ),
+
+                                IconButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const SettingsScreen(),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(
+                                    Icons.settings,
+                                    color: Colors.white70,
+                                    size: 24,
+                                  ),
                                 ),
                               ],
                             ),
@@ -190,26 +216,85 @@ class _ProfileScreenState extends State<ProfileScreen>
                                         color: rankColor, width: 2.5),
                                   ),
                                 ),
-                                CircleAvatar(
-                                  radius: 53,
-                                  backgroundColor: const Color(0xFF1A1D2E),
-                                  child: Icon(Icons.person,
-                                      size: 60,
-                                      color: rankColor.withOpacity(0.9)),
+                                GestureDetector(
+                                  onTap: _uploadProfilePicture,
+                                  child: CircleAvatar(
+                                    radius: 53,
+                                    backgroundColor: const Color(0xFF1A1D2E),
+                                    backgroundImage: data['profilePicture'] != null
+                                        ? MemoryImage(base64Decode(data['profilePicture']))
+                                        : null,
+                                    child: data['profilePicture'] == null
+                                        ? Icon(Icons.person,
+                                        size: 60,
+                                        color: rankColor.withOpacity(0.9))
+                                        : null,
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: GestureDetector(
+                                    onTap: _uploadProfilePicture,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF64C8FF),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: const Color(0xFF0A0C14),
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.camera_alt,
+                                        color: Colors.black,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 14),
 
                             // ── Name — pencil icon REMOVED ──
-                            Text(
-                              hunterName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.5,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  hunterName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+
+                                const SizedBox(width: 8),
+
+                                GestureDetector(
+                                  onTap: () async {
+                                    await Clipboard.setData(
+                                      ClipboardData(text: hunterName),
+                                    );
+
+                                    if (!mounted) return;
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Hunter name copied!'),
+                                      ),
+                                    );
+                                  },
+                                  child: const Icon(
+                                    Icons.copy,
+                                    color: Color(0xFF64C8FF),
+                                    size: 18,
+                                  ),
+                                ),
+                              ],
                             ),
 
                             const SizedBox(height: 6),
@@ -795,6 +880,45 @@ class _ProfileScreenState extends State<ProfileScreen>
                 letterSpacing: 1.5)),
       ],
     );
+  }
+  Future<void> _uploadProfilePicture() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50,
+    );
+
+    if (picked == null) return;
+
+    final file = File(picked.path);
+
+    // Compress to max 15KB
+    final compressed = await FlutterImageCompress.compressWithFile(
+      file.absolute.path,
+      minWidth: 200,
+      minHeight: 200,
+      quality: 30,
+      format: CompressFormat.jpeg,
+    );
+
+    if (compressed == null) return;
+
+    // Convert to base64
+    final base64Image = base64Encode(compressed);
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(user.uid)
+        .update({'profilePicture': base64Image});
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Profile picture updated!')),
+      );
+    }
   }
 
   void showUpdateWeightDialog() {

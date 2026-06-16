@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -8,11 +9,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'global_rankings_screen.dart';
 import 'profile_screen.dart';
 import 'duel_screen.dart';
-import 'settings_screen.dart';
 import 'create_duel_screen.dart';
 import 'duel_request_screen.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'map_screen.dart';
 
 
 // ── Shield Rank Badge Painter ──────────────────────────────────────────────
@@ -342,6 +343,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (streak >= 1)   return "🛡️ New Hunter";
     return "";
   }
+  Future<String> generateUniqueHunterId() async {
+    while (true) {
+      final id = 'HA${100000 + math.Random().nextInt(900000)}';
+
+      final existing = await FirebaseFirestore.instance
+          .collection('hunters')
+          .where('hunterId', isEqualTo: id)
+          .limit(1)
+          .get();
+
+      if (existing.docs.isEmpty) {
+        return id;
+      }
+    }
+  }
 
   // ── Init ─────────────────────────────────────────────────
   @override
@@ -351,6 +367,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     loadRewardedAd();
     loadPunishmentAd();
     initStepCounter();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       checkBrokenStreak();
       checkDisciplinePunishment();
@@ -443,8 +460,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void showStreakRecoveryAd() {
-    if (!isRewardedAdReady || rewardedAd == null) return;
+  void showStreakRecoveryAd() async {
+    if (!isRewardedAdReady || rewardedAd == null) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('hunters')
+          .doc(user.uid)
+          .get();
+
+      final data = doc.data() ?? {};
+      final mode = data['disciplineMode'] ?? 'casual';
+
+      if (mode == 'strict') {
+        int currentXp = data['xp'] ?? 0;
+
+        await FirebaseFirestore.instance
+            .collection('hunters')
+            .doc(user.uid)
+            .update({
+          'xp': (currentXp - 100).clamp(0, 999999),
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "⚠️ Ad unavailable. -100 XP penalty applied.",
+              ),
+            ),
+          );
+        }
+      }
+
+      return;
+    }
     rewardedAd!.show(onUserEarnedReward: (ad, reward) async {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
@@ -512,6 +563,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             );
           }
         }
+        if (!mounted) return;
 
         setState(() => todaySteps = todayCount);
       },
@@ -538,14 +590,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final lastDate = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
     if (DateTime.now().difference(lastDate).inDays <= 1) return;
     if (!mounted) return;
+    final mode = data['disciplineMode'] ?? 'casual';
+
     showDialog(
-      context: context, barrierDismissible: false,
+      context: context,
+      barrierDismissible: false,
       builder: (_) => AlertDialog(
         title: const Text("🔥 STREAK BROKEN"),
-        content: Text("Previous Streak: $streak Days\n\nWatch an ad to restore it?"),
+        content: Text(
+          "Previous Streak: $streak Days\n\nWatch an ad to restore it?",
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("ACCEPT LOSS")),
-          ElevatedButton(onPressed: () { Navigator.pop(context); showStreakRecoveryAd(); }, child: const Text("WATCH AD")),
+          if (mode != 'strict')
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("ACCEPT LOSS"),
+            ),
+
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              showStreakRecoveryAd();
+            },
+            child: const Text("WATCH AD"),
+          ),
         ],
       ),
     );
@@ -1243,6 +1311,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     _questCountdownTimer?.cancel();
     _questCountdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
       if (questEndTime == null) return;
       final diff = questEndTime!.difference(DateTime.now());
       setState(() => questRemaining = diff.isNegative ? Duration.zero : diff);
@@ -1287,6 +1356,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (name == null) return;
 
     final endTime = endTimeStamp?.toDate();
+    if (!mounted) return;
 
     setState(() {
       questStarted = true;
@@ -1299,6 +1369,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (endTime != null && endTime.isAfter(DateTime.now())) {
       _questCountdownTimer?.cancel();
       _questCountdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) return;
         if (questEndTime == null) return;
         final diff = questEndTime!.difference(DateTime.now());
         setState(() => questRemaining = diff.isNegative ? Duration.zero : diff);
@@ -1365,6 +1436,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
     if (!doc.exists) return;
     final data = doc.data()!;
+    if (!mounted) return;
     setState(() {
       xp = data['xp'] ?? 0;
       level = data['level'] ?? 1;
@@ -1521,7 +1593,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   border: Border.all(color: _blue, width: 2),
                   boxShadow: [BoxShadow(color: _blue.withOpacity(0.4), blurRadius: 16)],
                 ),
-                child: ClipOval(child: Image.asset('assets/avatars/avatar_1.png', fit: BoxFit.cover)),
+                child: StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('hunters')
+                      .doc(FirebaseAuth.instance.currentUser?.uid)
+                      .snapshots(),
+                  builder: (context, snap) {
+                    final data = snap.data?.data() as Map<String, dynamic>?;
+                    final pic = data?['profilePicture'];
+                    if (pic != null) {
+                      return ClipOval(
+                        child: Image.memory(
+                          base64Decode(pic),
+                          fit: BoxFit.cover,
+                          width: 72,
+                          height: 72,
+                        ),
+                      );
+                    }
+                    return ClipOval(
+                      child: Image.asset(
+                        'assets/avatars/avatar_1.png',
+                        fit: BoxFit.cover,
+                      ),
+                    );
+                  },
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -1945,8 +2042,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             }, hasDuelAlert: hasPending);
           },
         ),
-        _navItem(Icons.leaderboard, false, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GlobalRankingsScreen()))),
-        _navItem(Icons.settings, false, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))),
+        _navItem(Icons.leaderboard, false, () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const GlobalRankingsScreen()),
+        )),
+
+        _navItem(Icons.map, false, () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MapScreen()),
+        )),
+
+
         _navItem(Icons.person, false, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()))),
       ]),
     );

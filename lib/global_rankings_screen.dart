@@ -331,7 +331,18 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
               snapshot.data!.docs.first.data() as Map<String, dynamic>;
 
               return Center(
-                child: Container(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PublicHunterProfileScreen(
+                            hunterUid: snapshot.data!.docs.first.id,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
                   margin: const EdgeInsets.all(20),
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -388,6 +399,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                     ],
                   ),
                 ),
+                  ),
               );
             },
           ))

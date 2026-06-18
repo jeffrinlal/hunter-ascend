@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
-
+import 'calorie_tracker_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,6 +14,7 @@ import 'duel_request_screen.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'map_screen.dart';
+import 'nutrition_screen.dart';
 
 
 // ── Shield Rank Badge Painter ──────────────────────────────────────────────
@@ -2015,7 +2016,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
         border: Border(top: BorderSide(color: _border, width: 1)),
       ),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+
+
         _navItem(Icons.home_filled, true, () {}),
+
+        _navItem(
+          Icons.restaurant_menu,
+          false,
+              () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const NutritionScreen(),
+            ),
+          ),
+        ),
+
+// Duel item continues here...
+
         StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('duel_requests')

@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import 'skeleton_loaders.dart';
@@ -24,6 +25,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _linkingGoogle = false;
 
   String _getRank(int xp) {
     if (xp < 1500) return 'E';
@@ -247,6 +249,78 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 ),
                               ],
                             ),
+                            // Guest account linking banner
+                            if (FirebaseAuth
+                                    .instance.currentUser?.isAnonymous ==
+                                true) ...[
+                              const SizedBox(height: 16),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF0E8),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                      color: const Color(0xFFFF6B2B)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      "⚠️ You're a Guest!",
+                                      style: TextStyle(
+                                        color: Color(0xFF1A1A1A),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    const Text(
+                                      "Link Google to save your progress",
+                                      style: TextStyle(
+                                        color: Color(0xFF1A1A1A),
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton.icon(
+                                        onPressed: _linkingGoogle
+                                            ? null
+                                            : _linkGoogleAccount,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              const Color(0xFFFF6B2B),
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 12),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                        ),
+                                        icon: _linkingGoogle
+                                            ? const SizedBox(
+                                                width: 18,
+                                                height: 18,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: Colors.white,
+                                                ),
+                                              )
+                                            : const Icon(Icons.link, size: 18),
+                                        label: Text(_linkingGoogle
+                                            ? "Linking..."
+                                            : "Link Google Account"),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                             // Avatar
                             Stack(
                               alignment: Alignment.center,
@@ -903,6 +977,64 @@ class _ProfileScreenState extends State<ProfileScreen>
       ],
     );
   }
+  // ── Link Google account to anonymous guest ──────────────────────────
+  // Links the signed-in Google credential to the existing anonymous account,
+  // preserving the same uid (and therefore ALL existing Firestore data).
+  Future<void> _linkGoogleAccount() async {
+    setState(() => _linkingGoogle = true);
+    try {
+      final googleSignIn = GoogleSignIn(
+        serverClientId:
+            '300244677091-a867dd5tr6dfnjtngiikjp3grfdvnsrn.apps.googleusercontent.com',
+      );
+      await googleSignIn.signOut();
+
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        if (mounted) setState(() => _linkingGoogle = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await FirebaseAuth.instance.currentUser!
+          .linkWithCredential(credential);
+      final user = userCredential.user;
+
+      if (user != null) {
+        // Update the existing hunter document with the Google email + uid.
+        // merge:true keeps all existing data (XP, level, streak, missions).
+        await FirebaseFirestore.instance
+            .collection('hunters')
+            .doc(user.uid)
+            .set({
+          'email': user.email,
+          'uid': user.uid,
+        }, SetOptions(merge: true));
+      }
+
+      if (mounted) {
+        setState(() => _linkingGoogle = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Google account linked successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _linkingGoogle = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not link account: $e')),
+        );
+      }
+    }
+  }
+
   // ── Share stats card as image ──────────────────────────────────────
   Future<void> _shareStatsCard({
     required BuildContext context,

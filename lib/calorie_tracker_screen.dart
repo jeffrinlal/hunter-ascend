@@ -617,6 +617,13 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   // ── Build ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, _, __) => _themedBuild(context),
+    );
+  }
+
+  Widget _themedBuild(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return const SizedBox();
 

@@ -22,7 +22,7 @@ class NutritionScreen extends StatelessWidget {
         elevation: 0,
         title: const Text("Nutrition"),
       ),
-      body: const SafeArea(
+      body: SafeArea(
         child: SingleChildScrollView(
           child: CalorieTrackerCard(),
         ),

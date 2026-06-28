@@ -939,8 +939,11 @@ class _ProfileScreenState extends State<ProfileScreen>
 
       await Share.shareXFiles(
         [XFile(file.path)],
-        text:
-            '$hunterName • $rank Rank Hunter • Level $level\nAscend Beyond Limits 🔥',
+        text: "🔥 I'm a $rank Rank Hunter on Hunter Ascend!\n"
+            "⚡ Level $level | $streak Day Streak\n"
+            "💪 Ascend Beyond Limits!\n\n"
+            "📲 Download Hunter Ascend FREE:\n"
+            "https://play.google.com/store/apps/details?id=com.hunterascend.hunter_ascend",
       );
     } catch (e) {
       if (mounted) {

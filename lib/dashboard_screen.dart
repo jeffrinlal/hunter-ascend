@@ -400,6 +400,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ── Ads ──────────────────────────────────────────────────
   BannerAd? bannerAd;
   bool isBannerReady = false;
+  BannerAd? weeklyBannerAd;
+  bool weeklyBannerReady = false;
   RewardedAd? rewardedAd;
   bool isRewardedAdReady = false;
   RewardedAd? punishmentAd;
@@ -488,6 +490,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!widget.questsOnly) _loadWaterIntake();
     if (widget.questsOnly) _loadWeeklyMissions();
     if (widget.questsOnly) _restoreWeeklyActiveQuest();
+    if (widget.questsOnly) loadWeeklyBannerAd();
   }
 
   @override
@@ -513,6 +516,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
     bannerAd!.load();
+  }
+
+  void loadWeeklyBannerAd() {
+    weeklyBannerAd = BannerAd(
+      adUnitId: 'ca-app-pub-5435480116436845/4995463929',
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (ad) => setState(() => weeklyBannerReady = true),
+        onAdFailedToLoad: (ad, error) {
+          print("WEEKLY BANNER FAILED: $error");
+          ad.dispose();
+        },
+      ),
+    );
+    weeklyBannerAd!.load();
   }
 
   void loadRewardedAd() {
@@ -2936,6 +2955,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             isCustom: false,
             onTap: () => startWeeklyQuest((m['title'] ?? '').toString()),
           )),
+        const SizedBox(height: 20),
+        if (weeklyBannerReady)
+          Center(
+            child: SizedBox(
+              width: weeklyBannerAd!.size.width.toDouble(),
+              height: weeklyBannerAd!.size.height.toDouble(),
+              child: AdWidget(ad: weeklyBannerAd!),
+            ),
+          ),
       ],
     );
   }

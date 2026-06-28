@@ -286,6 +286,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int todaySteps = 0;
   bool questStarted = false;
   String activeQuest = "";
+
+  // ── Water intake ─────────────────────────────────────────
+  int waterIntakeMl = 0;
+  int selectedCupSize = 250;
+  static const int _waterGoalMl = 2000;
   int questReward = 0;
   DateTime? questEndTime;
   Timer? _questCountdownTimer;
@@ -470,6 +475,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       await checkDailyReset();
     });
     _restoreDashboardActiveQuest();
+    if (!widget.questsOnly) _loadWaterIntake();
   }
 
   @override
@@ -1559,6 +1565,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 _buildStepsCard(),
                 const SizedBox(height: 16),
                 _buildQuickActions(),
+                const SizedBox(height: 16),
+                _buildWaterCard(),
                 const SizedBox(height: 30),
               ],
               // Daily missions render only in the Missions tab (questsOnly),
@@ -2094,6 +2102,216 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.delete_outline, color: Colors.redAccent, size: 20)),
             ),
         ]),
+      ),
+    );
+  }
+
+  // ── Water intake (Firestore under hunters collection) ────
+  Future<void> _loadWaterIntake() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final docRef =
+        FirebaseFirestore.instance.collection('hunters').doc(user.uid);
+    final doc = await docRef.get();
+    if (!doc.exists) return;
+    final data = doc.data() as Map<String, dynamic>;
+    final today = DateTime.now().toString().substring(0, 10);
+    final savedDate = (data['waterIntakeDate'] ?? '').toString();
+    final cup = ((data['selectedCupSize'] ?? 250) as num).toInt();
+
+    if (savedDate != today) {
+      // New day → reset intake, keep cup size.
+      await docRef.update({'waterIntakeMl': 0, 'waterIntakeDate': today});
+      if (mounted) {
+        setState(() {
+          waterIntakeMl = 0;
+          selectedCupSize = cup;
+        });
+      }
+    } else {
+      final ml = ((data['waterIntakeMl'] ?? 0) as num).toInt();
+      if (mounted) {
+        setState(() {
+          waterIntakeMl = ml;
+          selectedCupSize = cup;
+        });
+      }
+    }
+  }
+
+  Future<void> _saveWaterIntake() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final today = DateTime.now().toString().substring(0, 10);
+    await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
+      'waterIntakeMl': waterIntakeMl,
+      'waterIntakeDate': today,
+    });
+  }
+
+  void _addWater() {
+    setState(() => waterIntakeMl += selectedCupSize);
+    _saveWaterIntake();
+  }
+
+  void _removeWater() {
+    setState(() {
+      final v = waterIntakeMl - selectedCupSize;
+      waterIntakeMl = v < 0 ? 0 : v;
+    });
+    _saveWaterIntake();
+  }
+
+  void _setCupSize(int size) {
+    setState(() => selectedCupSize = size);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      FirebaseFirestore.instance
+          .collection('hunters')
+          .doc(user.uid)
+          .update({'selectedCupSize': size});
+    }
+  }
+
+  Widget _waterCircleButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: HunterTheme.primary,
+          boxShadow: [
+            BoxShadow(
+              color: HunterTheme.primary.withOpacity(0.35),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Icon(icon, color: Colors.white, size: 24),
+      ),
+    );
+  }
+
+  Widget _cupPill(int size) {
+    final selected = selectedCupSize == size;
+    return GestureDetector(
+      onTap: () => _setCupSize(size),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? HunterTheme.primary : HunterTheme.cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: HunterTheme.primary, width: 1.3),
+        ),
+        child: Text(
+          '${size}ml',
+          style: TextStyle(
+            color: selected ? Colors.white : HunterTheme.primary,
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWaterCard() {
+    final progress = (waterIntakeMl / _waterGoalMl).clamp(0.0, 1.0);
+    final filledDrops = (progress * 8).round();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: HunterTheme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: HunterTheme.primary.withOpacity(0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: HunterTheme.primary.withOpacity(0.08),
+            blurRadius: 12,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '💧 WATER INTAKE',
+                style: TextStyle(
+                  color: HunterTheme.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$waterIntakeMl ml / $_waterGoalMl ml',
+                style: TextStyle(
+                  color: HunterTheme.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: const Color(0xFFE0E0E0),
+              valueColor: AlwaysStoppedAnimation<Color>(HunterTheme.primary),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(
+              8,
+              (i) => Icon(
+                Icons.water_drop,
+                size: 22,
+                color: i < filledDrops
+                    ? HunterTheme.primary
+                    : const Color(0xFFE0E0E0),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _waterCircleButton(Icons.remove, _removeWater),
+              const SizedBox(width: 24),
+              Text(
+                '$selectedCupSize ml',
+                style: TextStyle(
+                  color: HunterTheme.primary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 24),
+              _waterCircleButton(Icons.add, _addWater),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [150, 250, 350, 500].map(_cupPill).toList(),
+          ),
+        ],
       ),
     );
   }

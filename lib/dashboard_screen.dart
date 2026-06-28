@@ -290,7 +290,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ── Water intake ─────────────────────────────────────────
   int waterIntakeMl = 0;
   int selectedCupSize = 250;
-  static const int _waterGoalMl = 2000;
+  int waterGoalMl = 2000;
   int questReward = 0;
   DateTime? questEndTime;
   Timer? _questCountdownTimer;
@@ -2118,6 +2118,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final today = DateTime.now().toString().substring(0, 10);
     final savedDate = (data['waterIntakeDate'] ?? '').toString();
     final cup = ((data['selectedCupSize'] ?? 250) as num).toInt();
+    final goal = ((data['waterGoalMl'] ?? 2000) as num).toInt();
 
     if (savedDate != today) {
       // New day → reset intake, keep cup size.
@@ -2126,6 +2127,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         setState(() {
           waterIntakeMl = 0;
           selectedCupSize = cup;
+          waterGoalMl = goal;
         });
       }
     } else {
@@ -2134,6 +2136,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         setState(() {
           waterIntakeMl = ml;
           selectedCupSize = cup;
+          waterGoalMl = goal;
         });
       }
     }
@@ -2218,9 +2221,163 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  void _showWaterGoalSheet() {
+    final controller = TextEditingController(text: '$waterGoalMl');
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: HunterTheme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Widget presetPill(int v) {
+              final selected = controller.text.trim() == '$v';
+              return GestureDetector(
+                onTap: () => setSheetState(() => controller.text = '$v'),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color:
+                        selected ? HunterTheme.primary : HunterTheme.cardColor,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: HunterTheme.primary, width: 1.3),
+                  ),
+                  child: Text(
+                    '${v}ml',
+                    style: TextStyle(
+                      color: selected ? Colors.white : HunterTheme.primary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Set Daily Water Goal',
+                    style: TextStyle(
+                      color: HunterTheme.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.number,
+                    style: TextStyle(
+                        color: HunterTheme.textPrimary, fontSize: 16),
+                    decoration: InputDecoration(
+                      hintText: 'e.g. 2000',
+                      hintStyle: TextStyle(color: HunterTheme.textTertiary),
+                      suffixText: 'ml',
+                      suffixStyle: TextStyle(color: HunterTheme.textSecondary),
+                      filled: true,
+                      fillColor: HunterTheme.surface,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                            color: HunterTheme.primary.withOpacity(0.3)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide:
+                            BorderSide(color: HunterTheme.primary, width: 1.5),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Min 500 ml · Max 5000 ml',
+                    style: TextStyle(
+                        color: HunterTheme.textTertiary, fontSize: 11),
+                  ),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [1500, 2000, 2500, 3000].map(presetPill).toList(),
+                  ),
+                  const SizedBox(height: 22),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: HunterTheme.textSecondary,
+                            side: BorderSide(
+                                color:
+                                    HunterTheme.textSecondary.withOpacity(0.5)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final entered =
+                                int.tryParse(controller.text.trim()) ??
+                                    waterGoalMl;
+                            final clamped = entered < 500
+                                ? 500
+                                : (entered > 5000 ? 5000 : entered);
+                            setState(() => waterGoalMl = clamped);
+                            final user = FirebaseAuth.instance.currentUser;
+                            if (user != null) {
+                              FirebaseFirestore.instance
+                                  .collection('hunters')
+                                  .doc(user.uid)
+                                  .update({'waterGoalMl': clamped});
+                            }
+                            Navigator.pop(sheetContext);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: HunterTheme.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Save'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildWaterCard() {
-    final progress = (waterIntakeMl / _waterGoalMl).clamp(0.0, 1.0);
-    final filledDrops = (progress * 8).round();
+    final progress = (waterIntakeMl / waterGoalMl).clamp(0.0, 1.0);
+    final dropCount = (waterGoalMl / selectedCupSize).ceil().clamp(1, 60).toInt();
+    final filledDrops =
+        (waterIntakeMl / selectedCupSize).floor().clamp(0, dropCount).toInt();
 
     return Container(
       width: double.infinity,
@@ -2255,12 +2412,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const Spacer(),
               Text(
-                '$waterIntakeMl ml / $_waterGoalMl ml',
+                '$waterIntakeMl ml / $waterGoalMl ml',
                 style: TextStyle(
                   color: HunterTheme.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: _showWaterGoalSheet,
+                child: Icon(Icons.edit, size: 16, color: HunterTheme.primary),
               ),
             ],
           ),
@@ -2275,13 +2437,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
             children: List.generate(
-              8,
+              dropCount,
               (i) => Icon(
                 Icons.water_drop,
-                size: 22,
+                size: 20,
                 color: i < filledDrops
                     ? HunterTheme.primary
                     : const Color(0xFFE0E0E0),

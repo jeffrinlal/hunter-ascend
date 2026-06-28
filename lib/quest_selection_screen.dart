@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'Theme/hunter_theme.dart';
 import 'dashboard_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -195,7 +196,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: HunterTheme.background,
       body: Stack(
         children: [
           // Grid
@@ -219,7 +220,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        const Color(0xFFFF6B2B)
+                        HunterTheme.primary
                             .withOpacity(0.1 * _pulseAnim.value),
                         Colors.transparent,
                       ],
@@ -253,7 +254,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                         const Text(
                           '[ CHOOSE YOUR PATH ]',
                           style: TextStyle(
-                            color: Color(0xFFFF6B2B),
+                            color: HunterTheme.primary,
                             fontSize: 12,
                             letterSpacing: 3,
                             fontWeight: FontWeight.w700,
@@ -272,7 +273,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                     const Text(
                       'HUNTER SPECIALIZATION',
                       style: TextStyle(
-                        color: Color(0xFF1A1A1A),
+                        color: HunterTheme.textPrimary,
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 3,
@@ -289,13 +290,13 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                         gradient: const LinearGradient(
                           colors: [
                             Colors.transparent,
-                            Color(0xFFFF6B2B),
+                            HunterTheme.primary,
                             Colors.transparent,
                           ],
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFFF6B2B).withOpacity(0.5),
+                            color: HunterTheme.primary.withOpacity(0.5),
                             blurRadius: 6,
                           ),
                         ],
@@ -307,7 +308,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                     Text(
                       'Select all paths that apply to your mission',
                       style: TextStyle(
-                        color: Color(0xFF1A1A1A).withOpacity(0.3),
+                        color: HunterTheme.textPrimary.withOpacity(0.3),
                         fontSize: 11,
                         letterSpacing: 1,
                       ),
@@ -345,7 +346,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                         child: Text(
                           '$_selectedCount PATH${_selectedCount > 1 ? 'S' : ''} SELECTED',
                           style: const TextStyle(
-                            color: Color(0xFFFF6B2B),
+                            color: HunterTheme.primary,
                             fontSize: 11,
                             letterSpacing: 2,
                             fontWeight: FontWeight.w600,
@@ -412,11 +413,11 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                             child: Container(
                               height: 50,
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFF6B2B),
+                                color: HunterTheme.primary,
                                 borderRadius: BorderRadius.circular(6),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFFFF6B2B)
+                                    color: HunterTheme.primary
                                         .withOpacity(0.4),
                                     blurRadius: 20,
                                     spreadRadius: 1,
@@ -429,14 +430,14 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                                 children: [
                                   Icon(
                                     Icons.bolt,
-                                    color: Color(0xFFFAFAFA),
+                                    color: HunterTheme.background,
                                     size: 16,
                                   ),
                                   SizedBox(width: 6),
                                   Text(
                                     'GENERATE MY QUESTS',
                                     style: TextStyle(
-                                      color: Color(0xFFFAFAFA),
+                                      color: HunterTheme.background,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w800,
                                       letterSpacing: 1.5,
@@ -467,10 +468,10 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
       height: 6,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: const Color(0xFFFF6B2B).withOpacity(opacity),
+        color: HunterTheme.primary.withOpacity(opacity),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFF6B2B).withOpacity(0.8),
+            color: HunterTheme.primary.withOpacity(0.8),
             blurRadius: 6,
           ),
         ],
@@ -542,19 +543,19 @@ class _PathCardState extends State<_PathCard>
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: widget.selected
-                ? const Color(0xFFFF6B2B).withOpacity(0.08)
-                : const Color(0xFFFFFFFF),
+                ? HunterTheme.primary.withOpacity(0.08)
+                : HunterTheme.cardColor,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: widget.selected
-                  ? const Color(0xFFFF6B2B)
-                  : const Color(0xFFFF6B2B).withOpacity(0.15),
+                  ? HunterTheme.primary
+                  : HunterTheme.primary.withOpacity(0.15),
               width: widget.selected ? 1.5 : 1,
             ),
             boxShadow: widget.selected
                 ? [
               BoxShadow(
-                color: const Color(0xFFFF6B2B).withOpacity(0.15),
+                color: HunterTheme.primary.withOpacity(0.15),
                 blurRadius: 16,
                 spreadRadius: 1,
               ),
@@ -570,21 +571,21 @@ class _PathCardState extends State<_PathCard>
                 height: 46,
                 decoration: BoxDecoration(
                   color: widget.selected
-                      ? const Color(0xFFFF6B2B).withOpacity(0.15)
-                      : Color(0xFF1A1A1A).withOpacity(0.04),
+                      ? HunterTheme.primary.withOpacity(0.15)
+                      : HunterTheme.textPrimary.withOpacity(0.04),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: widget.selected
-                        ? const Color(0xFFFF6B2B).withOpacity(0.5)
-                        : Color(0xFF1A1A1A).withOpacity(0.08),
+                        ? HunterTheme.primary.withOpacity(0.5)
+                        : HunterTheme.textPrimary.withOpacity(0.08),
                     width: 1,
                   ),
                 ),
                 child: Icon(
                   widget.icon,
                   color: widget.selected
-                      ? const Color(0xFFFF6B2B)
-                      : Color(0xFF1A1A1A).withOpacity(0.3),
+                      ? HunterTheme.primary
+                      : HunterTheme.textPrimary.withOpacity(0.3),
                   size: 22,
                 ),
               ),
@@ -600,8 +601,8 @@ class _PathCardState extends State<_PathCard>
                       widget.title,
                       style: TextStyle(
                         color: widget.selected
-                            ? const Color(0xFFFF6B2B)
-                            : Color(0xFF1A1A1A).withOpacity(0.7),
+                            ? HunterTheme.primary
+                            : HunterTheme.textPrimary.withOpacity(0.7),
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.5,
@@ -611,7 +612,7 @@ class _PathCardState extends State<_PathCard>
                     Text(
                       widget.subtitle,
                       style: TextStyle(
-                        color: Color(0xFF1A1A1A).withOpacity(0.3),
+                        color: HunterTheme.textPrimary.withOpacity(0.3),
                         fontSize: 11,
                         letterSpacing: 0.3,
                       ),
@@ -629,20 +630,20 @@ class _PathCardState extends State<_PathCard>
                 height: 22,
                 decoration: BoxDecoration(
                   color: widget.selected
-                      ? const Color(0xFFFF6B2B)
+                      ? HunterTheme.primary
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(
                     color: widget.selected
-                        ? const Color(0xFFFF6B2B)
-                        : Color(0xFF1A1A1A).withOpacity(0.2),
+                        ? HunterTheme.primary
+                        : HunterTheme.textPrimary.withOpacity(0.2),
                     width: 1.5,
                   ),
                   boxShadow: widget.selected
                       ? [
                     BoxShadow(
                       color:
-                      const Color(0xFFFF6B2B).withOpacity(0.5),
+                      HunterTheme.primary.withOpacity(0.5),
                       blurRadius: 8,
                     ),
                   ]
@@ -651,7 +652,7 @@ class _PathCardState extends State<_PathCard>
                 child: widget.selected
                     ? const Icon(
                   Icons.check,
-                  color: Color(0xFFFAFAFA),
+                  color: HunterTheme.background,
                   size: 14,
                 )
                     : null,
@@ -670,7 +671,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFFFF6B2B).withOpacity(0.03)
+      ..color = HunterTheme.primary.withOpacity(0.03)
       ..strokeWidth = 0.5;
 
     const spacing = 40.0;

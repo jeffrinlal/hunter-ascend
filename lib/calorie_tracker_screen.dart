@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'Theme/hunter_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -315,14 +316,14 @@ class CalorieTrackerCard extends StatefulWidget {
 }
 
 class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
-  static const _bg      = Color(0xFFFFF0E8); // soft surface
-  static const _card    = Color(0xFFFFFFFF); // white card
-  static const _blue    = Color(0xFFFF6B2B); // accent → orange
-  static const _blueDim = Color(0xFFFFF0E8); // light secondary surface / track
+  static const _bg      = HunterTheme.surface; // soft surface
+  static const _card    = HunterTheme.cardColor; // white card
+  static const _blue    = HunterTheme.primary; // accent → orange
+  static const _blueDim = HunterTheme.surface; // light secondary surface / track
   static const _border  = Color(0x33FF6B2B); // orange low-opacity border
   static const _green   = Color(0xFF2EAE76); // carbs
   static const _red     = Color(0xFFE5484D); // fat / over-goal
-  static const _orange  = Color(0xFFFF6B2B); // brand orange
+  static const _orange  = HunterTheme.primary; // brand orange
 
   final TextEditingController _foodController = TextEditingController();
   bool _isLoading = false;
@@ -532,7 +533,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
             const SizedBox(height: 16),
             Text(meal.name,
                 style: const TextStyle(
-                    color: Color(0xFF1A1A1A),
+                    color: HunterTheme.textPrimary,
                     fontSize: 18,
                     fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center),
@@ -557,7 +558,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                     child: const Center(
                         child: Text("CANCEL",
                             style: TextStyle(
-                                color: Color(0xFF666666),
+                                color: HunterTheme.textSecondary,
                                 fontWeight: FontWeight.bold))),
                   ),
                 ),
@@ -588,7 +589,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                     child: const Center(
                         child: Text("LOG MEAL",
                             style: TextStyle(
-                                color: Color(0xFF1A1A1A),
+                                color: HunterTheme.textPrimary,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 1))),
                   ),
@@ -609,7 +610,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
       const SizedBox(height: 2),
       Text(label,
           style: const TextStyle(
-              color: Color(0xFF666666), fontSize: 10, letterSpacing: 1)),
+              color: HunterTheme.textSecondary, fontSize: 10, letterSpacing: 1)),
     ]);
   }
 
@@ -662,13 +663,13 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                           TextSpan(
                               text: "$totalCals",
                               style: const TextStyle(
-                                  color: Color(0xFF1A1A1A),
+                                  color: HunterTheme.textPrimary,
                                   fontSize: 28,
                                   fontWeight: FontWeight.bold)),
                           TextSpan(
                               text: " / $calorieGoal kcal",
                               style: const TextStyle(
-                                  color: Color(0xFF666666), fontSize: 14)),
+                                  color: HunterTheme.textSecondary, fontSize: 14)),
                         ]),
                       ),
                       Container(
@@ -724,11 +725,11 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                     Expanded(
                       child: TextField(
                         controller: _foodController,
-                        style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 14),
+                        style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 14),
                         decoration: InputDecoration(
                           hintText: "Type food name...",
                           hintStyle:
-                          const TextStyle(color: Color(0xFF666666), fontSize: 13),
+                          const TextStyle(color: HunterTheme.textSecondary, fontSize: 13),
                           filled: true,
                           fillColor: _bg,
                           contentPadding: const EdgeInsets.symmetric(
@@ -760,9 +761,9 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
-                                color: Color(0xFF1A1A1A), strokeWidth: 2))
+                                color: HunterTheme.textPrimary, strokeWidth: 2))
                             : const Icon(Icons.search,
-                            color: Color(0xFF1A1A1A), size: 20),
+                            color: HunterTheme.textPrimary, size: 20),
                       ),
                     ),
 
@@ -809,7 +810,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                             " 3 eggs and 2 chapati •"
                             "1 bowl curd rice",
                             style: TextStyle(
-                              color: Color(0xFF666666),
+                              color: HunterTheme.textSecondary,
                               fontSize: 13,
                             ),
                           ),
@@ -817,7 +818,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                           Text(
                             "⚠️ AI estimates calories and macros. Results may vary.",
                             style: TextStyle(
-                              color: Color(0xFF999999),
+                              color: HunterTheme.textTertiary,
                               fontSize: 12,
                             ),
                           ),
@@ -834,7 +835,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                     Row(children: [
                       const Text("Today's Meals",
                           style: TextStyle(
-                              color: Color(0xFF1A1A1A),
+                              color: HunterTheme.textPrimary,
                               fontSize: 16,
                               fontWeight: FontWeight.bold)),
                       const SizedBox(width: 8),
@@ -862,14 +863,14 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                         child: const Center(
                           child: Column(children: [
                             Icon(Icons.restaurant_menu,
-                                color: Color(0xFF999999), size: 32),
+                                color: HunterTheme.textTertiary, size: 32),
                             SizedBox(height: 8),
                             Text("No meals logged yet",
                                 style: TextStyle(
-                                    color: Color(0xFF666666), fontSize: 13)),
+                                    color: HunterTheme.textSecondary, fontSize: 13)),
                             Text("Type food or take a photo!",
                                 style: TextStyle(
-                                    color: Color(0xFF999999), fontSize: 11)),
+                                    color: HunterTheme.textTertiary, fontSize: 11)),
                           ]),
                         ),
                       )
@@ -907,7 +908,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
           style: TextStyle(
               color: color, fontSize: 14, fontWeight: FontWeight.bold)),
       const SizedBox(height: 2),
-      Text(label, style: const TextStyle(color: Color(0xFF666666), fontSize: 10)),
+      Text(label, style: const TextStyle(color: HunterTheme.textSecondary, fontSize: 10)),
     ]);
   }
 
@@ -939,12 +940,12 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(meal.name,
                 style: const TextStyle(
-                    color: Color(0xFF1A1A1A),
+                    color: HunterTheme.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.w600)),
             Text(
               "${meal.protein.toStringAsFixed(0)}g P  •  ${meal.carbs.toStringAsFixed(0)}g C  •  ${meal.fat.toStringAsFixed(0)}g F",
-              style: const TextStyle(color: Color(0xFF666666), fontSize: 11),
+              style: const TextStyle(color: HunterTheme.textSecondary, fontSize: 11),
             ),
           ]),
         ),
@@ -952,7 +953,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
             style: const TextStyle(
                 color: _orange, fontSize: 15, fontWeight: FontWeight.bold)),
         const SizedBox(width: 4),
-        const Text("kcal", style: TextStyle(color: Color(0xFF666666), fontSize: 10)),
+        const Text("kcal", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 10)),
         const SizedBox(width: 8),
         GestureDetector(
           onTap: () async {
@@ -960,7 +961,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
               await _deleteMeal(meal.id!);
             }
           },
-          child: const Icon(Icons.delete_outline, color: Color(0xFF999999), size: 18),
+          child: const Icon(Icons.delete_outline, color: HunterTheme.textTertiary, size: 18),
         ),
       ]),
     );
@@ -977,7 +978,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Text("Add Food Photo",
               style: TextStyle(
-                  color: Color(0xFF1A1A1A), fontSize: 16, fontWeight: FontWeight.bold)),
+                  color: HunterTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           Row(children: [
             Expanded(

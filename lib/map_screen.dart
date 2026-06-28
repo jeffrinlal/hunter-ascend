@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'Theme/hunter_theme.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -18,10 +19,10 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  static const _bg     = Color(0xFFFAFAFA);
-  static const _card   = Color(0xFFFFFFFF);
-  static const _blue   = Color(0xFFFF6B2B);
-  static const _border = Color(0xFFFFE0D0);
+  static const _bg     = HunterTheme.background;
+  static const _card   = HunterTheme.cardColor;
+  static const _blue   = HunterTheme.primary;
+  static const _border = HunterTheme.border;
 
   // ── Map ──────────────────────────────────────────────────
   final MapController _mapController = MapController();
@@ -241,7 +242,7 @@ class _MapScreenState extends State<MapScreen> {
                     await _saveRun();
                     setState(() { _isTracking = false; _isPaused = false; });
                   },
-                  child: const Text("SAVE RUN ⚡", style: TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 2)),
+                  child: const Text("SAVE RUN ⚡", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 2)),
                 ),
               ),
 
@@ -251,7 +252,7 @@ class _MapScreenState extends State<MapScreen> {
                   Navigator.pop(context);
                   setState(() { _isTracking = false; _isPaused = false; });
                 },
-                child: const Text("DISCARD", style: TextStyle(color: Color(0xFF999999))),
+                child: const Text("DISCARD", style: TextStyle(color: HunterTheme.textTertiary)),
               ),
             ],
           ),
@@ -318,7 +319,7 @@ class _MapScreenState extends State<MapScreen> {
           border: Border.all(color: color.withOpacity(0.3)),
         ),
         child: Column(children: [
-          Text(label, style: const TextStyle(color: Color(0xFF999999), fontSize: 10, letterSpacing: 1)),
+          Text(label, style: const TextStyle(color: HunterTheme.textTertiary, fontSize: 10, letterSpacing: 1)),
           const SizedBox(height: 6),
           Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.bold)),
         ]),
@@ -334,7 +335,7 @@ class _MapScreenState extends State<MapScreen> {
       appBar: AppBar(
         backgroundColor: _bg,
         title: RichText(text: const TextSpan(children: [
-          TextSpan(text: "HUNTER ", style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1)),
+          TextSpan(text: "HUNTER ", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1)),
           TextSpan(text: "MAP", style: TextStyle(color: _blue, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1)),
         ])),
         centerTitle: true,
@@ -365,7 +366,7 @@ class _MapScreenState extends State<MapScreen> {
             color: selected ? _blue : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Text(label, textAlign: TextAlign.center, style: TextStyle(color: selected ? Colors.white : Color(0xFF999999), fontWeight: FontWeight.bold, fontSize: 13)),
+          child: Text(label, textAlign: TextAlign.center, style: TextStyle(color: selected ? Colors.white : HunterTheme.textTertiary, fontWeight: FontWeight.bold, fontSize: 13)),
         ),
       ),
     );
@@ -404,7 +405,7 @@ class _MapScreenState extends State<MapScreen> {
                 Polyline(
                   points: _routePoints,
                   strokeWidth: 5,
-                  color: const Color(0xFFFF6B2B),
+                  color: HunterTheme.primary,
                 ),
               ],
             ),
@@ -423,7 +424,7 @@ class _MapScreenState extends State<MapScreen> {
                       border: Border.all(color: Colors.white, width: 3),
                       boxShadow: [BoxShadow(color: _blue.withOpacity(0.6), blurRadius: 10, spreadRadius: 2)],
                     ),
-                    child: const Icon(Icons.navigation, color: Color(0xFF1A1A1A), size: 20),
+                    child: const Icon(Icons.navigation, color: HunterTheme.textPrimary, size: 20),
                   ),
                 ),
               ]),
@@ -504,9 +505,9 @@ class _MapScreenState extends State<MapScreen> {
               boxShadow: [BoxShadow(color: _blue.withOpacity(0.4), blurRadius: 20)],
             ),
             child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.play_arrow, color: Color(0xFF1A1A1A), size: 24),
+              Icon(Icons.play_arrow, color: HunterTheme.textPrimary, size: 24),
               SizedBox(width: 8),
-              Text("START RUN", style: TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 2)),
+              Text("START RUN", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 2)),
             ]),
           ),
         ),
@@ -518,8 +519,8 @@ class _MapScreenState extends State<MapScreen> {
     return Column(children: [
       Text(emoji, style: const TextStyle(fontSize: 16)),
       const SizedBox(height: 4),
-      Text(value, style: const TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.bold, fontSize: 14)),
-      Text(label, style: const TextStyle(color: Color(0xFF999999), fontSize: 10)),
+      Text(value, style: const TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
+      Text(label, style: const TextStyle(color: HunterTheme.textTertiary, fontSize: 10)),
     ]);
   }
 
@@ -545,7 +546,7 @@ class _MapScreenState extends State<MapScreen> {
   // ── History Tab ───────────────────────────────────────────
   Widget _buildHistoryTab() {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return const Center(child: Text("Not logged in", style: TextStyle(color: Color(0xFF1A1A1A))));
+    if (user == null) return const Center(child: Text("Not logged in", style: TextStyle(color: HunterTheme.textPrimary)));
 
     return Column(
       children: [
@@ -566,9 +567,9 @@ class _MapScreenState extends State<MapScreen> {
                   child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                     const Icon(Icons.map_outlined, color: _blue, size: 60),
                     const SizedBox(height: 16),
-                    const Text("No runs yet!", style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 20, fontWeight: FontWeight.bold)),
+                    const Text("No runs yet!", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    const Text("Start your first run to see history", style: TextStyle(color: Color(0xFF999999))),
+                    const Text("Start your first run to see history", style: TextStyle(color: HunterTheme.textTertiary)),
                   ]),
                 );
               }
@@ -636,7 +637,7 @@ class _MapScreenState extends State<MapScreen> {
                           const SizedBox(width: 8),
                           Text(
                             "${date.day}/${date.month}/${date.year}",
-                            style: const TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.bold, fontSize: 15),
+                            style: const TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 15),
                           ),
                           const Spacer(),
                           Container(
@@ -671,7 +672,7 @@ class _MapScreenState extends State<MapScreen> {
     return Column(children: [
       Text(emoji, style: const TextStyle(fontSize: 16)),
       const SizedBox(height: 4),
-      Text(value, style: const TextStyle(color: Color(0xFF666666), fontSize: 12, fontWeight: FontWeight.w600)),
+      Text(value, style: const TextStyle(color: HunterTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
     ]);
   }
 }

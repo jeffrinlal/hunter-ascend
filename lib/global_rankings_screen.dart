@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'Theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'public_hunter_profile_screen.dart';
@@ -180,11 +181,11 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
   Color _rankColor(int level) {
     if (level >= 30) return const Color(0xFFFF4444);
-    if (level >= 20) return const Color(0xFFFF6B2B);
+    if (level >= 20) return HunterTheme.primary;
     if (level >= 15) return const Color(0xFF9B59B6);
     if (level >= 10) return const Color(0xFF3498DB);
     if (level >= 5)  return const Color(0xFF2ECC71);
-    return const Color(0xFFFF6B2B);
+    return HunterTheme.primary;
   }
 
   // Position-specific colors
@@ -192,7 +193,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
     if (index == 0) return const Color(0xFFFFB300); // Gold
     if (index == 1) return const Color(0xFF9AA7B8); // Steel silver
     if (index == 2) return const Color(0xFFCD7F32); // Bronze
-    return const Color(0xFF666666);
+    return HunterTheme.textSecondary;
   }
 
   // ── Podium item (top 3) ────────────────────────────────────────────────
@@ -242,7 +243,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                 height: avatarSize,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFFFF0E8),
+                  color: HunterTheme.surface,
                   border: Border.all(
                     color: posColor,
                     width: isFirst ? 2.5 : 2,
@@ -278,7 +279,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: isMe ? const Color(0xFFFF6B2B) : const Color(0xFF1A1A1A),
+                  color: isMe ? HunterTheme.primary : HunterTheme.textPrimary,
                   fontSize: isFirst ? 15 : 13,
                   fontWeight: FontWeight.w700,
                 ),
@@ -290,7 +291,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: Color(0xFF666666),
+                  color: HunterTheme.textSecondary,
                   fontSize: 10,
                 ),
               ),
@@ -298,16 +299,16 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF6B2B).withOpacity(0.1),
+                  color: HunterTheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: const Color(0xFFFF6B2B).withOpacity(0.3),
+                    color: HunterTheme.primary.withOpacity(0.3),
                   ),
                 ),
                 child: Text(
                   '${hunter['xp'] ?? 0} XP',
                   style: const TextStyle(
-                    color: Color(0xFFFF6B2B),
+                    color: HunterTheme.primary,
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
                   ),
@@ -341,7 +342,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                   child: Text(
                     '${index + 1}',
                     style: TextStyle(
-                      color: Color(0xFF1A1A1A),
+                      color: HunterTheme.textPrimary,
                       fontSize: isFirst ? 26 : 20,
                       fontWeight: FontWeight.w900,
                     ),
@@ -358,16 +359,16 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: HunterTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFAFAFA),
+        backgroundColor: HunterTheme.background,
         elevation: 0,
 
         actions: [
           IconButton(
             icon: const Icon(
               Icons.search,
-              color: Color(0xFF666666),
+              color: HunterTheme.textSecondary,
             ),
             onPressed: () {
               setState(() {
@@ -378,7 +379,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
         ],
 
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF666666), size: 20),
+          icon: const Icon(Icons.arrow_back_ios, color: HunterTheme.textSecondary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: _searchMode
@@ -391,10 +392,10 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
             });
           },
 
-          style: const TextStyle(color: Color(0xFF1A1A1A)),
+          style: const TextStyle(color: HunterTheme.textPrimary),
           decoration: const InputDecoration(
             hintText: 'Enter Hunter ID...',
-            hintStyle: TextStyle(color: Color(0xFF666666)),
+            hintStyle: TextStyle(color: HunterTheme.textSecondary),
             border: InputBorder.none,
           ),
         )
@@ -405,15 +406,15 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: const Color(0xFFFF6B2B).withOpacity(0.12),
+                color: HunterTheme.primary.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: const Color(0xFFFF6B2B).withOpacity(0.4),
+                  color: HunterTheme.primary.withOpacity(0.4),
                 ),
               ),
               child: const Icon(
                 Icons.military_tech,
-                color: Color(0xFFFF6B2B),
+                color: HunterTheme.primary,
                 size: 18,
               ),
             ),
@@ -421,7 +422,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
             const Text(
               'GLOBAL RANKINGS',
               style: TextStyle(
-                color: Color(0xFF1A1A1A),
+                color: HunterTheme.textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 2,
@@ -443,9 +444,9 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: Color(0xFFFF6B2B)),
+                  CircularProgressIndicator(color: HunterTheme.primary),
                   SizedBox(height: 16),
-                  Text('Loading Hunters...', style: TextStyle(color: Color(0xFF666666), fontSize: 14)),
+                  Text('Loading Hunters...', style: TextStyle(color: HunterTheme.textSecondary, fontSize: 14)),
                 ],
               ),
             );
@@ -467,7 +468,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
           return _searchMode
               ? (_searchText.isEmpty
               ? Container(
-            color: const Color(0xFFFAFAFA),
+            color: HunterTheme.background,
           )
               : FutureBuilder<QuerySnapshot>(
             future: FirebaseFirestore.instance
@@ -483,7 +484,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
               if (snapshot.data!.docs.isEmpty) {
                 return Container(
-                  color: const Color(0xFFFAFAFA),
+                  color: HunterTheme.background,
                 );
               }
 
@@ -509,11 +510,11 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: const Color(0xFFFF6B2B),
+                        color: HunterTheme.primary,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFFF6B2B).withOpacity(0.12),
+                          color: HunterTheme.primary.withOpacity(0.12),
                           blurRadius: 20,
                           spreadRadius: 1,
                         ),
@@ -532,7 +533,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                         )
                             : const Icon(
                           Icons.person,
-                          color: Color(0xFFFF6B2B),
+                          color: HunterTheme.primary,
                           size: 60,
                         ),
 
@@ -541,7 +542,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                         Text(
                           hunter['hunterName'] ?? 'Unknown',
                           style: const TextStyle(
-                            color: Color(0xFF1A1A1A),
+                            color: HunterTheme.textPrimary,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
@@ -551,17 +552,17 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
                         Text(
                           'Level ${hunter['level'] ?? 1}',
-                          style: const TextStyle(color: Color(0xFF666666)),
+                          style: const TextStyle(color: HunterTheme.textSecondary),
                         ),
 
                         Text(
                           '${hunter['xp'] ?? 0} XP',
-                          style: const TextStyle(color: Color(0xFF666666)),
+                          style: const TextStyle(color: HunterTheme.textSecondary),
                         ),
 
                         Text(
                           hunter['hunterId'] ?? '',
-                          style: const TextStyle(color: Color(0xFF999999)),
+                          style: const TextStyle(color: HunterTheme.textTertiary),
                         ),
                       ],
                     ),
@@ -580,12 +581,12 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                   borderRadius: BorderRadius.circular(16),
                   color: Colors.white,
                   border: Border.all(
-                    color: const Color(0xFFFF6B2B).withOpacity(0.35),
+                    color: HunterTheme.primary.withOpacity(0.35),
                     width: 1.5,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFFF6B2B).withOpacity(0.1),
+                      color: HunterTheme.primary.withOpacity(0.1),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),
@@ -599,7 +600,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                         Container(
                           width: 4, height: 4,
                           decoration: const BoxDecoration(
-                            color: Color(0xFFFF6B2B),
+                            color: HunterTheme.primary,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -607,7 +608,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                         const Text(
                           'YOUR HUNTER STATUS',
                           style: TextStyle(
-                            color: Color(0xFFFF6B2B),
+                            color: HunterTheme.primary,
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 2.5,
@@ -617,7 +618,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                         Container(
                           width: 4, height: 4,
                           decoration: const BoxDecoration(
-                            color: Color(0xFFFF6B2B),
+                            color: HunterTheme.primary,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -631,18 +632,18 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                           width: 52, height: 52,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: const Color(0xFFFFF0E8),
+                            color: HunterTheme.surface,
                             border: Border.all(
                               color: myHunter != null
                                   ? _rankColor(myHunter['level'] ?? 1)
-                                  : const Color(0xFFFF6B2B),
+                                  : HunterTheme.primary,
                               width: 2,
                             ),
                             boxShadow: [
                               BoxShadow(
                                 color: myHunter != null
                                     ? _rankColor(myHunter['level'] ?? 1).withOpacity(0.3)
-                                    : const Color(0xFFFF6B2B).withOpacity(0.3),
+                                    : HunterTheme.primary.withOpacity(0.3),
                                 blurRadius: 12,
                               ),
                             ],
@@ -651,7 +652,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                             Icons.person,
                             color: myHunter != null
                                 ? _rankColor(myHunter['level'] ?? 1)
-                                : const Color(0xFFFF6B2B),
+                                : HunterTheme.primary,
                             size: 28,
                           ),
                         ),
@@ -663,7 +664,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                               Text(
                                 myHunter?['hunterName'] ?? 'Unknown Hunter',
                                 style: const TextStyle(
-                                  color: Color(0xFF1A1A1A),
+                                  color: HunterTheme.textPrimary,
                                   fontSize: 17,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -673,7 +674,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                 myHunter != null
                                     ? '${getRankTitle(myHunter['level'] ?? 1)}  ·  Level ${myHunter['level']}'
                                     : '',
-                                style: const TextStyle(color: Color(0xFF666666), fontSize: 12),
+                                style: const TextStyle(color: HunterTheme.textSecondary, fontSize: 12),
                               ),
                             ],
                           ),
@@ -684,7 +685,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                             Text(
                               myHunter != null ? '${myHunter['xp']} XP' : '',
                               style: const TextStyle(
-                                color: Color(0xFFFF6B2B),
+                                color: HunterTheme.primary,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
@@ -693,16 +694,16 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFF6B2B).withOpacity(0.1),
+                                color: HunterTheme.primary.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: const Color(0xFFFF6B2B).withOpacity(0.35),
+                                  color: HunterTheme.primary.withOpacity(0.35),
                                 ),
                               ),
                               child: Text(
                                 myRank > 0 ? '# $myRank' : 'UNRANKED',
                                 style: const TextStyle(
-                                  color: Color(0xFFFF6B2B),
+                                  color: HunterTheme.primary,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1.5,
@@ -736,20 +737,20 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: Row(
                   children: [
-                    Expanded(child: Container(height: 1, color: const Color(0xFF1A1A1A).withOpacity(0.08))),
+                    Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08))),
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 12),
                       child: Text(
                         'LEADERBOARD',
                         style: TextStyle(
-                          color: Color(0xFF999999),
+                          color: HunterTheme.textTertiary,
                           fontSize: 10,
                           letterSpacing: 2,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                    Expanded(child: Container(height: 1, color: const Color(0xFF1A1A1A).withOpacity(0.08))),
+                    Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08))),
                   ],
                 ),
               ),
@@ -787,18 +788,18 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: isMe
-                              ? const Color(0xFFFFF0E8)
+                              ? HunterTheme.surface
                               : Colors.white,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
                             color: isMe
-                                ? const Color(0xFFFF6B2B).withOpacity(0.4)
-                                : const Color(0xFF1A1A1A).withOpacity(0.06),
+                                ? HunterTheme.primary.withOpacity(0.4)
+                                : HunterTheme.textPrimary.withOpacity(0.06),
                             width: 1,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFFF6B2B).withOpacity(0.04),
+                              color: HunterTheme.primary.withOpacity(0.04),
                               blurRadius: 10,
                             ),
                           ],
@@ -814,12 +815,12 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: isMe
-                                        ? const Color(0xFFFF6B2B).withOpacity(0.12)
-                                        : const Color(0xFF1A1A1A).withOpacity(0.04),
+                                        ? HunterTheme.primary.withOpacity(0.12)
+                                        : HunterTheme.textPrimary.withOpacity(0.04),
                                     border: Border.all(
                                       color: isMe
-                                          ? const Color(0xFFFF6B2B).withOpacity(0.4)
-                                          : const Color(0xFF1A1A1A).withOpacity(0.08),
+                                          ? HunterTheme.primary.withOpacity(0.4)
+                                          : HunterTheme.textPrimary.withOpacity(0.08),
                                     ),
                                   ),
                                   child: Center(
@@ -827,8 +828,8 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                       '${index + 1}',
                                       style: TextStyle(
                                         color: isMe
-                                            ? const Color(0xFFFF6B2B)
-                                            : const Color(0xFF666666),
+                                            ? HunterTheme.primary
+                                            : HunterTheme.textSecondary,
                                         fontSize: index < 9 ? 13 : 11,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -883,8 +884,8 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
                                             color: isMe
-                                                ? const Color(0xFFFF6B2B)
-                                                : const Color(0xFF1A1A1A),
+                                                ? HunterTheme.primary
+                                                : HunterTheme.textPrimary,
                                             fontSize: 14,
                                             fontWeight: FontWeight.w600,
                                           ),
@@ -896,16 +897,16 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFFF6B2B).withOpacity(0.12),
+                                            color: HunterTheme.primary.withOpacity(0.12),
                                             borderRadius: BorderRadius.circular(6),
                                             border: Border.all(
-                                              color: const Color(0xFFFF6B2B).withOpacity(0.3),
+                                              color: HunterTheme.primary.withOpacity(0.3),
                                             ),
                                           ),
                                           child: const Text(
                                             'YOU',
                                             style: TextStyle(
-                                              color: Color(0xFFFF6B2B),
+                                              color: HunterTheme.primary,
                                               fontSize: 9,
                                               fontWeight: FontWeight.bold,
                                               letterSpacing: 1,
@@ -933,16 +934,16 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFF6B2B).withOpacity(0.1),
+                                color: HunterTheme.primary.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: const Color(0xFFFF6B2B).withOpacity(0.3),
+                                  color: HunterTheme.primary.withOpacity(0.3),
                                 ),
                               ),
                               child: Text(
                                 '${hunter['xp'] ?? 0} XP',
                                 style: const TextStyle(
-                                  color: Color(0xFFFF6B2B),
+                                  color: HunterTheme.primary,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
                                 ),

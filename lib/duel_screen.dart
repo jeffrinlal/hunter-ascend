@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'Theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -15,11 +16,11 @@ class DuelScreen extends StatefulWidget {
 }
 
 class _DuelScreenState extends State<DuelScreen> {
-  static const _bg      = Color(0xFFFAFAFA);
-  static const _card    = Color(0xFFFFFFFF);
-  static const _blue    = Color(0xFFFF6B2B);
-  static const _blueDim = Color(0xFFFFE0D0);
-  static const _border  = Color(0xFFFFE0D0);
+  static const _bg      = HunterTheme.background;
+  static const _card    = HunterTheme.cardColor;
+  static const _blue    = HunterTheme.primary;
+  static const _blueDim = HunterTheme.border;
+  static const _border  = HunterTheme.border;
 
   // ── Active quest timer state ──────────────────────────────
   String? activeQuestName;
@@ -216,11 +217,11 @@ class _DuelScreenState extends State<DuelScreen> {
             const SizedBox(height: 16),
             const Text("START QUEST", style: TextStyle(color: _blue, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
             const SizedBox(height: 10),
-            Text(questName, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 15, fontWeight: FontWeight.w600)),
+            Text(questName, textAlign: TextAlign.center, style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             const Text("XP based on time chosen", style: TextStyle(color: Color(0xFF44DD88), fontWeight: FontWeight.bold, fontSize: 12)),
             const SizedBox(height: 20),
-            const Text("Choose a time to complete this quest", style: TextStyle(color: Color(0xFF666666), fontSize: 12)),
+            const Text("Choose a time to complete this quest", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12)),
             const SizedBox(height: 14),
             Wrap(
               spacing: 10,
@@ -304,7 +305,7 @@ class _DuelScreenState extends State<DuelScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(12), border: Border.all(color: _border)),
-                child: const Center(child: Text("CANCEL", style: TextStyle(color: Color(0xFF666666), fontWeight: FontWeight.bold, letterSpacing: 1))),
+                child: const Center(child: Text("CANCEL", style: TextStyle(color: HunterTheme.textSecondary, fontWeight: FontWeight.bold, letterSpacing: 1))),
               ),
             ),
           ]),
@@ -361,7 +362,7 @@ class _DuelScreenState extends State<DuelScreen> {
           style: TextStyle(color: ready ? const Color(0xFF44DD88) : Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        Text(activeQuestName ?? "", textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 20, fontWeight: FontWeight.bold)),
+        Text(activeQuestName ?? "", textAlign: TextAlign.center, style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -381,7 +382,7 @@ class _DuelScreenState extends State<DuelScreen> {
             const SizedBox(width: 10),
             Text(
               ready ? "TIME'S UP!" : _formatDuration(remaining),
-              style: TextStyle(color: ready ? const Color(0xFF44DD88) : const Color(0xFF1A1A1A), fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1),
+              style: TextStyle(color: ready ? const Color(0xFF44DD88) : HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1),
             ),
           ]),
         ),
@@ -396,14 +397,14 @@ class _DuelScreenState extends State<DuelScreen> {
             onPressed: () => _completeActiveQuest(duel),
             child: Text(
               "COMPLETE QUEST",
-              style: TextStyle(color: ready ? Colors.white : Color(0xFF999999), fontWeight: FontWeight.bold, letterSpacing: 2),
+              style: TextStyle(color: ready ? Colors.white : HunterTheme.textTertiary, fontWeight: FontWeight.bold, letterSpacing: 2),
             ),
           ),
         ),
         const SizedBox(height: 10),
         GestureDetector(
           onTap: _cancelActiveQuest,
-          child: const Text("Cancel quest", style: TextStyle(color: Color(0xFF999999), fontSize: 12, decoration: TextDecoration.underline)),
+          child: const Text("Cancel quest", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12, decoration: TextDecoration.underline)),
         ),
         if (isBannerReady) ...[
           const SizedBox(height: 12),
@@ -451,7 +452,7 @@ class _DuelScreenState extends State<DuelScreen> {
         const Text(
           "Great work Hunter! Come back tomorrow\nto continue your battle.",
           textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFF999999), fontSize: 12, height: 1.5),
+          style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12, height: 1.5),
         ),
         const SizedBox(height: 16),
         Container(
@@ -462,11 +463,11 @@ class _DuelScreenState extends State<DuelScreen> {
             border: Border.all(color: _border),
           ),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            const Icon(Icons.nightlight_round, color: Color(0xFF666666), size: 18),
+            const Icon(Icons.nightlight_round, color: HunterTheme.textSecondary, size: 18),
             const SizedBox(width: 8),
             Text(
               "Next reset in $h:$m",
-              style: const TextStyle(color: Color(0xFF666666), fontSize: 14, fontWeight: FontWeight.bold),
+              style: const TextStyle(color: HunterTheme.textSecondary, fontSize: 14, fontWeight: FontWeight.bold),
             ),
           ]),
         ),
@@ -482,12 +483,12 @@ class _DuelScreenState extends State<DuelScreen> {
         backgroundColor: _bg,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF666666), size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new, color: HunterTheme.textSecondary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: RichText(
           text: const TextSpan(children: [
-            TextSpan(text: "HUNTER ", style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1)),
+            TextSpan(text: "HUNTER ", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1)),
             TextSpan(text: "RIVALRY", style: TextStyle(color: _blue, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1)),
           ]),
         ),
@@ -579,7 +580,7 @@ class _DuelScreenState extends State<DuelScreen> {
                     const SizedBox(height: 10),
                     Text(
                       won ? "You have proven your worth, Hunter." : "Train harder. Rise again.",
-                      style: const TextStyle(color: Color(0xFF999999), fontSize: 14),
+                      style: const TextStyle(color: HunterTheme.textTertiary, fontSize: 14),
                     ),
                     const SizedBox(height: 32),
                     GestureDetector(
@@ -589,7 +590,7 @@ class _DuelScreenState extends State<DuelScreen> {
                         decoration: BoxDecoration(color: _blue, borderRadius: BorderRadius.circular(14)),
                         child: const Text(
                           "RETURN TO BASE",
-                          style: TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                          style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, letterSpacing: 1.5),
                         ),
                       ),
                     ),
@@ -696,9 +697,9 @@ class _DuelScreenState extends State<DuelScreen> {
                   child: Column(children: [
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Text("CURRENT DAY", style: TextStyle(color: Color(0xFF999999), fontSize: 11, letterSpacing: 1)),
+                        const Text("CURRENT DAY", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11, letterSpacing: 1)),
                         const SizedBox(height: 4),
-                        Text("DAY $currentDay", style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 28, fontWeight: FontWeight.bold)),
+                        Text("DAY $currentDay", style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 28, fontWeight: FontWeight.bold)),
                       ]),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -727,7 +728,7 @@ class _DuelScreenState extends State<DuelScreen> {
                     const SizedBox(height: 6),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: Text("$currentDay / ${duel['durationDays']} days", style: const TextStyle(color: Color(0xFF999999), fontSize: 11)),
+                      child: Text("$currentDay / ${duel['durationDays']} days", style: const TextStyle(color: HunterTheme.textTertiary, fontSize: 11)),
                     ),
                   ]),
                 ),
@@ -754,7 +755,7 @@ class _DuelScreenState extends State<DuelScreen> {
                         child: const Text("YOU", style: TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
                       const Spacer(),
-                      Text("$myScore XP", style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text("$myScore XP", style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
                     ]),
                     const SizedBox(height: 8),
                     ClipRRect(
@@ -788,7 +789,7 @@ class _DuelScreenState extends State<DuelScreen> {
                         child: const Text("OPPONENT", style: TextStyle(color: Color(0xFFFF4444), fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
                       const Spacer(),
-                      Text("$oppScore XP", style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text("$oppScore XP", style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
                     ]),
                     const SizedBox(height: 8),
                     ClipRRect(
@@ -812,7 +813,7 @@ class _DuelScreenState extends State<DuelScreen> {
 
                 // ── Shared quests header ──
                 Row(children: [
-                  const Text("Shared Quests", style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text("Shared Quests", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(width: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -864,7 +865,7 @@ class _DuelScreenState extends State<DuelScreen> {
                           Text(
                             quest['name'],
                             style: TextStyle(
-                              color: done ? Color(0xFF999999) : const Color(0xFF1A1A1A),
+                              color: done ? HunterTheme.textTertiary : HunterTheme.textPrimary,
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               decoration: done ? TextDecoration.lineThrough : null,
@@ -890,7 +891,7 @@ class _DuelScreenState extends State<DuelScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(8)),
-                            child: const Text("TOMORROW", style: TextStyle(color: Color(0xFF999999), fontSize: 11, fontWeight: FontWeight.bold)),
+                            child: const Text("TOMORROW", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11, fontWeight: FontWeight.bold)),
                           )
                         else
                           GestureDetector(
@@ -906,7 +907,7 @@ class _DuelScreenState extends State<DuelScreen> {
                               ),
                               child: Text(
                                 "START",
-                                style: TextStyle(color: activeQuestName != null ? Color(0xFF999999) : const Color(0xFF1A1A1A), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                                style: TextStyle(color: activeQuestName != null ? HunterTheme.textTertiary : HunterTheme.textPrimary, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                               ),
                             ),
                           ),

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'Theme/hunter_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'awakening_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -182,7 +183,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: HunterTheme.background,
       body: Stack(
         children: [
           CustomPaint(
@@ -208,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen>
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
-                          const Color(0xFFFF6B2B).withOpacity(0.12 * _glowAnimation.value),
+                          HunterTheme.primary.withOpacity(0.12 * _glowAnimation.value),
                           Colors.transparent,
                         ],
                       ),
@@ -238,14 +239,14 @@ class _LoginScreenState extends State<LoginScreen>
                             height: 110,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: const Color(0xFFFFF0E8),
+                              color: HunterTheme.surface,
                               border: Border.all(
-                                color: const Color(0xFFFF6B2B).withOpacity(0.6),
+                                color: HunterTheme.primary.withOpacity(0.6),
                                 width: 1.5,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFFFF6B2B).withOpacity(0.3),
+                                  color: HunterTheme.primary.withOpacity(0.3),
                                   blurRadius: 30,
                                   spreadRadius: 4,
                                 ),
@@ -268,7 +269,7 @@ class _LoginScreenState extends State<LoginScreen>
                           TextSpan(
                             text: 'HUNTER ',
                             style: TextStyle(
-                              color: Color(0xFF1A1A1A),
+                              color: HunterTheme.textPrimary,
                               fontSize: 28,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 4,
@@ -277,7 +278,7 @@ class _LoginScreenState extends State<LoginScreen>
                           TextSpan(
                             text: 'ASCEND',
                             style: TextStyle(
-                              color: Color(0xFFFF6B2B),
+                              color: HunterTheme.primary,
                               fontSize: 28,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 4,
@@ -292,7 +293,7 @@ class _LoginScreenState extends State<LoginScreen>
                     Text(
                       'YOUR AWAKENING BEGINS',
                       style: TextStyle(
-                        color: const Color(0xFF666666),
+                        color: HunterTheme.textSecondary,
                         fontSize: 11,
                         letterSpacing: 3,
                         fontWeight: FontWeight.w500,
@@ -308,13 +309,13 @@ class _LoginScreenState extends State<LoginScreen>
                         gradient: const LinearGradient(
                           colors: [
                             Colors.transparent,
-                            Color(0xFFFF6B2B),
+                            HunterTheme.primary,
                             Colors.transparent,
                           ],
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFFF6B2B).withOpacity(0.5),
+                            color: HunterTheme.primary.withOpacity(0.5),
                             blurRadius: 6,
                           ),
                         ],
@@ -328,7 +329,7 @@ class _LoginScreenState extends State<LoginScreen>
                       const Padding(
                         padding: EdgeInsets.only(bottom: 20),
                         child: CircularProgressIndicator(
-                          color: Color(0xFFFF6B2B),
+                          color: HunterTheme.primary,
                           strokeWidth: 2,
                         ),
                       ),
@@ -348,7 +349,7 @@ class _LoginScreenState extends State<LoginScreen>
                       label: 'ENTER AS GUEST',
                       icon: const Icon(
                         Icons.bolt,
-                        color: Color(0xFF1A1A1A),
+                        color: HunterTheme.textPrimary,
                         size: 18,
                       ),
                       isPrimary: true,
@@ -361,7 +362,7 @@ class _LoginScreenState extends State<LoginScreen>
                       'By continuing you accept our Terms & Privacy Policy',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: const Color(0xFF1A1A1A).withOpacity(0.4),
+                        color: HunterTheme.textPrimary.withOpacity(0.4),
                         fontSize: 10,
                         letterSpacing: 0.5,
                       ),
@@ -422,26 +423,26 @@ class _HunterButtonState extends State<_HunterButton> {
             height: 54,
             decoration: BoxDecoration(
               color: widget.isPrimary
-                  ? const Color(0xFFFF6B2B)
+                  ? HunterTheme.primary
                   : Colors.white,
               borderRadius: BorderRadius.circular(6),
               border: widget.isPrimary
                   ? null
                   : Border.all(
-                color: const Color(0xFFFF6B2B),
+                color: HunterTheme.primary,
                 width: 1.5,
               ),
               boxShadow: widget.isPrimary
                   ? [
                 BoxShadow(
-                  color: const Color(0xFFFF6B2B).withOpacity(0.35),
+                  color: HunterTheme.primary.withOpacity(0.35),
                   blurRadius: 20,
                   spreadRadius: 1,
                 ),
               ]
                   : [
                 BoxShadow(
-                  color: const Color(0xFFFF6B2B).withOpacity(0.12),
+                  color: HunterTheme.primary.withOpacity(0.12),
                   blurRadius: 12,
                   spreadRadius: 0,
                 ),
@@ -457,7 +458,7 @@ class _HunterButtonState extends State<_HunterButton> {
                   style: TextStyle(
                     color: widget.isPrimary
                         ? Colors.white
-                        : const Color(0xFF1A1A1A),
+                        : HunterTheme.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.5,
@@ -489,7 +490,7 @@ class _ShieldCrestIcon extends StatelessWidget {
 class _ShieldPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final orangeColor = const Color(0xFFFF6B2B);
+    final orangeColor = HunterTheme.primary;
     final paint = Paint()
       ..color = orangeColor.withOpacity(0.15)
       ..style = PaintingStyle.fill;
@@ -558,7 +559,7 @@ class _GoogleIcon extends StatelessWidget {
         shape: BoxShape.circle,
         color: Colors.white,
         border: Border.all(
-          color: const Color(0xFFFF6B2B),
+          color: HunterTheme.primary,
           width: 1,
         ),
       ),
@@ -566,7 +567,7 @@ class _GoogleIcon extends StatelessWidget {
         child: Text(
           'G',
           style: TextStyle(
-            color: Color(0xFFFF6B2B),
+            color: HunterTheme.primary,
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
@@ -582,7 +583,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFFFF6B2B).withOpacity(0.06)
+      ..color = HunterTheme.primary.withOpacity(0.06)
       ..strokeWidth = 0.5;
 
     const spacing = 40.0;

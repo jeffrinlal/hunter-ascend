@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'Theme/hunter_theme.dart';
 import 'compare_hunters_screen.dart';
 import 'create_duel_screen.dart';
 
@@ -34,16 +35,16 @@ class PublicHunterProfileScreen extends StatelessWidget {
   Color _getRankColor(int level) {
     if (level >= 30) return const Color(0xFFFFD700);
     if (level >= 20) return const Color(0xFFFF4444);
-    if (level >= 15) return const Color(0xFFFF6B2B);
-    if (level >= 10) return const Color(0xFFFF6B2B);
+    if (level >= 15) return HunterTheme.primary;
+    if (level >= 10) return HunterTheme.primary;
     if (level >= 5)  return const Color(0xFF44DD88);
-    return const Color(0xFF666666);
+    return HunterTheme.textSecondary;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: HunterTheme.background,
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('hunters')
@@ -52,7 +53,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(
-              child: CircularProgressIndicator(color: Color(0xFFFF6B2B)),
+              child: CircularProgressIndicator(color: HunterTheme.primary),
             );
           }
 
@@ -84,7 +85,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                           radius: 1.2,
                           colors: [
                             rankColor.withOpacity(0.12),
-                            const Color(0xFFFAFAFA),
+                            HunterTheme.background,
                           ],
                         ),
                       ),
@@ -100,7 +101,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                                 IconButton(
                                   onPressed: () => Navigator.pop(context),
                                   icon: const Icon(Icons.arrow_back_ios,
-                                      color: Color(0xFF666666), size: 20),
+                                      color: HunterTheme.textSecondary, size: 20),
                                 ),
                                 const Spacer(),
                                 // Rank pill top right
@@ -150,7 +151,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                                 ),
                                 CircleAvatar(
                                   radius: 50,
-                                  backgroundColor: const Color(0xFFFFFFFF),
+                                  backgroundColor: HunterTheme.cardColor,
                                   backgroundImage: data['profilePicture'] != null
                                       ? MemoryImage(
                                     base64Decode(data['profilePicture']),
@@ -166,7 +167,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                                   child: Container(
                                     width: 34, height: 34,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFFAFAFA),
+                                      color: HunterTheme.background,
                                       shape: BoxShape.circle,
                                       border: Border.all(
                                           color: rankColor, width: 2),
@@ -198,7 +199,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                             Text(
                               name,
                               style: const TextStyle(
-                                color: Color(0xFF1A1A1A),
+                                color: HunterTheme.textPrimary,
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 0.5,
@@ -212,7 +213,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 _infoPill(
-                                    Icons.bolt, 'LV.$level', const Color(0xFFFF6B2B)),
+                                    Icons.bolt, 'LV.$level', HunterTheme.primary),
                                 const SizedBox(width: 10),
                                 _infoPill(Icons.local_fire_department,
                                     '$streak DAY STREAK', Colors.orange),
@@ -264,13 +265,13 @@ class PublicHunterProfileScreen extends StatelessWidget {
 
                       // Info tiles
                       _infoRow(Icons.bolt, 'Level', 'LV.$level',
-                          const Color(0xFFFF6B2B)),
+                          HunterTheme.primary),
                       _infoRow(Icons.emoji_events, 'Total XP', '$xp XP',
                           const Color(0xFF44DD88)),
                       _infoRow(Icons.local_fire_department, 'Streak',
                           '$streak Days', Colors.orange),
                       _infoRow(Icons.sports_kabaddi, 'Total Duels',
-                          '$total', const Color(0xFFFF6B2B)),
+                          '$total', HunterTheme.primary),
 
                       const SizedBox(height: 28),
 
@@ -279,7 +280,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF6B2B),
+                            backgroundColor: HunterTheme.primary,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 15),
                             shape: RoundedRectangleBorder(
@@ -386,12 +387,12 @@ class PublicHunterProfileScreen extends StatelessWidget {
     return Row(children: [
       Container(width: 3, height: 14,
           decoration: BoxDecoration(
-              color: const Color(0xFFFF6B2B),
+              color: HunterTheme.primary,
               borderRadius: BorderRadius.circular(2))),
       const SizedBox(width: 8),
       Text(text,
           style: const TextStyle(
-              color: Color(0xFF666666),
+              color: HunterTheme.textSecondary,
               fontSize: 11,
               letterSpacing: 2,
               fontWeight: FontWeight.bold)),
@@ -415,7 +416,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
         const SizedBox(height: 4),
         Text(label,
             style: const TextStyle(
-                color: Color(0xFF999999),
+                color: HunterTheme.textTertiary,
                 fontSize: 10,
                 letterSpacing: 1.5,
                 fontWeight: FontWeight.w600)),
@@ -428,9 +429,9 @@ class PublicHunterProfileScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: HunterTheme.cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFFE0D0), width: 1),
+        border: Border.all(color: HunterTheme.border, width: 1),
       ),
       child: Row(children: [
         Container(
@@ -444,11 +445,11 @@ class PublicHunterProfileScreen extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: Text(label,
-              style: const TextStyle(color: Color(0xFF666666), fontSize: 13)),
+              style: const TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
         ),
         Text(value,
             style: const TextStyle(
-                color: Color(0xFF1A1A1A),
+                color: HunterTheme.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.bold)),
       ]),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'Theme/hunter_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -41,7 +42,7 @@ class SettingsScreen extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            backgroundColor: const Color(0xFFFFFFFF),
+            backgroundColor: HunterTheme.cardColor,
             shape: RoundedRectangleBorder(
               side: const BorderSide(color: Colors.redAccent, width: 1),
               borderRadius: BorderRadius.circular(6),
@@ -64,11 +65,11 @@ class SettingsScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: const Color(0xFFFFFFFF),
+        backgroundColor: HunterTheme.cardColor,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
           side: BorderSide(
-            color: const Color(0xFFFF6B2B).withOpacity(0.25),
+            color: HunterTheme.primary.withOpacity(0.25),
             width: 1,
           ),
         ),
@@ -86,7 +87,7 @@ class SettingsScreen extends StatelessWidget {
               const Text(
                 'LOGOUT',
                 style: TextStyle(
-                  color: Color(0xFF1A1A1A),
+                  color: HunterTheme.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 2,
@@ -97,7 +98,7 @@ class SettingsScreen extends StatelessWidget {
                 'Guest accounts will be permanently deleted. Are you sure?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Color(0xFF1A1A1A).withOpacity(0.5),
+                  color: HunterTheme.textPrimary.withOpacity(0.5),
                   fontSize: 13,
                   height: 1.5,
                 ),
@@ -113,7 +114,7 @@ class SettingsScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: const Color(0xFFFF6B2B).withOpacity(0.3),
+                            color: HunterTheme.primary.withOpacity(0.3),
                             width: 1,
                           ),
                         ),
@@ -121,7 +122,7 @@ class SettingsScreen extends StatelessWidget {
                           child: Text(
                             'CANCEL',
                             style: TextStyle(
-                              color: Color(0xFF1A1A1A).withOpacity(0.5),
+                              color: HunterTheme.textPrimary.withOpacity(0.5),
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 1.5,
@@ -176,7 +177,7 @@ class SettingsScreen extends StatelessWidget {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: HunterTheme.background,
       body: Stack(
         children: [
           CustomPaint(
@@ -200,10 +201,10 @@ class SettingsScreen extends StatelessWidget {
                             height: 4,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: const Color(0xFFFF6B2B),
+                              color: HunterTheme.primary,
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFFFF6B2B)
+                                  color: HunterTheme.primary
                                       .withOpacity(0.8),
                                   blurRadius: 6,
                                 ),
@@ -214,7 +215,7 @@ class SettingsScreen extends StatelessWidget {
                           Text(
                             '[ SYSTEM ]',
                             style: TextStyle(
-                              color: const Color(0xFFFF6B2B).withOpacity(0.7),
+                              color: HunterTheme.primary.withOpacity(0.7),
                               fontSize: 11,
                               letterSpacing: 3,
                               fontWeight: FontWeight.w600,
@@ -226,7 +227,7 @@ class SettingsScreen extends StatelessWidget {
                       const Text(
                         'SETTINGS',
                         style: TextStyle(
-                          color: Color(0xFF1A1A1A),
+                          color: HunterTheme.textPrimary,
                           fontSize: 26,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 3,
@@ -239,13 +240,13 @@ class SettingsScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [
-                              Color(0xFFFF6B2B),
+                              HunterTheme.primary,
                               Colors.transparent,
                             ],
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFFF6B2B).withOpacity(0.4),
+                              color: HunterTheme.primary.withOpacity(0.4),
                               blurRadius: 4,
                             ),
                           ],
@@ -289,11 +290,11 @@ class SettingsScreen extends StatelessWidget {
                           showDialog(
                             context: context,
                             builder: (ctx) => Dialog(
-                              backgroundColor: const Color(0xFFFFFFFF),
+                              backgroundColor: HunterTheme.cardColor,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                                 side: BorderSide(
-                                  color: const Color(0xFFFF6B2B)
+                                  color: HunterTheme.primary
                                       .withOpacity(0.25),
                                   width: 1,
                                 ),
@@ -305,14 +306,14 @@ class SettingsScreen extends StatelessWidget {
                                   children: [
                                     const Icon(
                                       Icons.bolt,
-                                      color: Color(0xFFFF6B2B),
+                                      color: HunterTheme.primary,
                                       size: 36,
                                     ),
                                     const SizedBox(height: 12),
                                     const Text(
                                       'HUNTER ASCEND',
                                       style: TextStyle(
-                                        color: Color(0xFF1A1A1A),
+                                        color: HunterTheme.textPrimary,
                                         fontSize: 16,
                                         fontWeight: FontWeight.w800,
                                         letterSpacing: 2,
@@ -322,7 +323,7 @@ class SettingsScreen extends StatelessWidget {
                                     Text(
                                       'Version 1.0.0',
                                       style: TextStyle(
-                                        color: const Color(0xFFFF6B2B)
+                                        color: HunterTheme.primary
                                             .withOpacity(0.7),
                                         fontSize: 12,
                                         letterSpacing: 1,
@@ -333,7 +334,7 @@ class SettingsScreen extends StatelessWidget {
                                       'Level Up Your Real Life.',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        color: Color(0xFF1A1A1A).withOpacity(0.5),
+                                        color: HunterTheme.textPrimary.withOpacity(0.5),
                                         fontSize: 13,
                                       ),
                                     ),
@@ -344,7 +345,7 @@ class SettingsScreen extends StatelessWidget {
                                         width: double.infinity,
                                         height: 44,
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFFF6B2B),
+                                          color: HunterTheme.primary,
                                           borderRadius:
                                           BorderRadius.circular(6),
                                         ),
@@ -352,7 +353,7 @@ class SettingsScreen extends StatelessWidget {
                                           child: Text(
                                             'CLOSE',
                                             style: TextStyle(
-                                              color: Color(0xFFFAFAFA),
+                                              color: HunterTheme.background,
                                               fontWeight: FontWeight.w800,
                                               letterSpacing: 2,
                                               fontSize: 12,
@@ -398,7 +399,7 @@ class SettingsScreen extends StatelessWidget {
           width: 3,
           height: 12,
           decoration: BoxDecoration(
-            color: const Color(0xFFFF6B2B),
+            color: HunterTheme.primary,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -406,7 +407,7 @@ class SettingsScreen extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Color(0xFF1A1A1A).withOpacity(0.35),
+            color: HunterTheme.textPrimary.withOpacity(0.35),
             fontSize: 10,
             letterSpacing: 2.5,
             fontWeight: FontWeight.w600,
@@ -444,7 +445,7 @@ class _SettingsTileState extends State<_SettingsTile> {
   @override
   Widget build(BuildContext context) {
     final accent =
-    widget.isDanger ? Colors.redAccent : const Color(0xFFFF6B2B);
+    widget.isDanger ? Colors.redAccent : HunterTheme.primary;
 
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
@@ -459,7 +460,7 @@ class _SettingsTileState extends State<_SettingsTile> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFFFF),
+            color: HunterTheme.cardColor,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: accent.withOpacity(0.15),
@@ -491,7 +492,7 @@ class _SettingsTileState extends State<_SettingsTile> {
                       style: TextStyle(
                         color: widget.isDanger
                             ? Colors.redAccent
-                            : Color(0xFF1A1A1A).withOpacity(0.9),
+                            : HunterTheme.textPrimary.withOpacity(0.9),
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
@@ -501,7 +502,7 @@ class _SettingsTileState extends State<_SettingsTile> {
                     Text(
                       widget.subtitle,
                       style: TextStyle(
-                        color: Color(0xFF1A1A1A).withOpacity(0.3),
+                        color: HunterTheme.textPrimary.withOpacity(0.3),
                         fontSize: 11,
                       ),
                     ),
@@ -529,7 +530,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: HunterTheme.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -544,16 +545,16 @@ class PrivacyPolicyScreen extends StatelessWidget {
                       width: 38,
                       height: 38,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFFFFF),
+                        color: HunterTheme.cardColor,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: const Color(0xFFFF6B2B).withOpacity(0.2),
+                          color: HunterTheme.primary.withOpacity(0.2),
                           width: 1,
                         ),
                       ),
                       child: const Icon(
                         Icons.arrow_back_ios_new,
-                        color: Color(0xFFFF6B2B),
+                        color: HunterTheme.primary,
                         size: 14,
                       ),
                     ),
@@ -562,7 +563,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   const Text(
                     'PRIVACY POLICY',
                     style: TextStyle(
-                      color: Color(0xFF1A1A1A),
+                      color: HunterTheme.textPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 2,
@@ -579,10 +580,10 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFFFFF),
+                    color: HunterTheme.cardColor,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: const Color(0xFFFF6B2B).withOpacity(0.15),
+                      color: HunterTheme.primary.withOpacity(0.15),
                       width: 1,
                     ),
                   ),
@@ -631,7 +632,7 @@ CONTACT
 For questions regarding this Privacy Policy, contact:
 djdeveloper1202@gmail.com''',
                     style: TextStyle(
-                      color: Color(0xFF1A1A1A).withOpacity(0.65),
+                      color: HunterTheme.textPrimary.withOpacity(0.65),
                       fontSize: 13,
                       height: 1.8,
                       letterSpacing: 0.3,
@@ -653,7 +654,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFFFF6B2B).withOpacity(0.03)
+      ..color = HunterTheme.primary.withOpacity(0.03)
       ..strokeWidth = 0.5;
 
     const spacing = 40.0;

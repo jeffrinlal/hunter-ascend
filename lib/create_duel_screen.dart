@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'Theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'duel_history_screen.dart';
@@ -187,13 +188,13 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: HunterTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFAFAFA),
+        backgroundColor: HunterTheme.background,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios,
-              color: Color(0xFF666666), size: 20),
+              color: HunterTheme.textSecondary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -203,7 +204,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
             Text(
               'Create Duel',
               style: TextStyle(
-                color: Color(0xFF1A1A1A),
+                color: HunterTheme.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
@@ -213,7 +214,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.history, color: Color(0xFFFF6B2B)),
+            icon: const Icon(Icons.history, color: HunterTheme.primary),
             onPressed: () {
               Navigator.push(
                 context,
@@ -241,7 +242,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                   colors: [
                     Color(0xFFFCE4EC),
                     Color(0xFFFFE5EC),
-                    Color(0xFFFAFAFA),
+                    HunterTheme.background,
                   ],
                 ),
                 border: Border.all(
@@ -273,7 +274,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                   const Text(
                     'DUEL ARENA',
                     style: TextStyle(
-                      color: Color(0xFF1A1A1A),
+                      color: HunterTheme.textPrimary,
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 4,
@@ -284,7 +285,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                     'Create a rivalry and challenge another Hunter',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Color(0xFF1A1A1A).withOpacity(0.55),
+                      color: HunterTheme.textPrimary.withOpacity(0.55),
                       fontSize: 13,
                     ),
                   ),
@@ -305,15 +306,15 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFFFFF),
+                        color: HunterTheme.cardColor,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                            color: const Color(0xFFFF6B2B).withOpacity(0.2)),
+                            color: HunterTheme.primary.withOpacity(0.2)),
                       ),
                       child: Row(
                         children: [
                           const Icon(Icons.fingerprint,
-                              color: Color(0xFFFF6B2B), size: 20),
+                              color: HunterTheme.primary, size: 20),
                           const SizedBox(width: 10),
                         Expanded(
                           child: FutureBuilder<DocumentSnapshot>(
@@ -325,7 +326,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                               if (!snapshot.hasData) {
                                 return const Text(
                                   'Loading...',
-                                  style: TextStyle(color: Color(0xFF999999)),
+                                  style: TextStyle(color: HunterTheme.textTertiary),
                                 );
                               }
 
@@ -335,7 +336,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                               return SelectableText(
                                 data?['hunterName'] ?? 'Unknown Hunter',
                                 style: const TextStyle(
-                                  color: Color(0xFFFF6B2B),
+                                  color: HunterTheme.primary,
                                   fontSize: 12,
                                   letterSpacing: 0.5,
                                 ),
@@ -380,14 +381,14 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                             width: 48,
                             height: 52,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFF6B2B).withOpacity(0.12),
+                              color: HunterTheme.primary.withOpacity(0.12),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                  color: const Color(0xFFFF6B2B)
+                                  color: HunterTheme.primary
                                       .withOpacity(0.4)),
                             ),
                             child: const Icon(Icons.add,
-                                color: Color(0xFFFF6B2B)),
+                                color: HunterTheme.primary),
                           ),
                         ),
                       ],
@@ -437,10 +438,10 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFFFFF),
+                          color: HunterTheme.cardColor,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                              color: Color(0xFF1A1A1A).withOpacity(0.06)),
+                              color: HunterTheme.textPrimary.withOpacity(0.06)),
                         ),
                         child: Column(
                           children: [
@@ -450,7 +451,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                             Text(
                               'Add at least 4 quests to challenge',
                               style: TextStyle(
-                                  color: Color(0xFF999999), fontSize: 13),
+                                  color: HunterTheme.textTertiary, fontSize: 13),
                             ),
                           ],
                         ),
@@ -464,7 +465,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFFFFF),
+                          color: HunterTheme.cardColor,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: const Color(0xFFE74C3C).withOpacity(0.3),
@@ -490,7 +491,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                                   Text(
                                     quest['name'],
                                     style: const TextStyle(
-                                      color: Color(0xFF1A1A1A),
+                                      color: HunterTheme.textPrimary,
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14,
                                     ),
@@ -499,7 +500,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                                   const Text(
                                     'Mission Objective',
                                     style: TextStyle(
-                                      color: Color(0xFF999999),
+                                      color: HunterTheme.textTertiary,
                                       fontSize: 11,
                                     ),
                                   ),
@@ -560,7 +561,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: duelQuests.length >= 4
                         ? const Color(0xFFE74C3C)
-                        : const Color(0xFFFFFFFF),
+                        : HunterTheme.cardColor,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -605,7 +606,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
     return Text(
       text,
       style: const TextStyle(
-        color: Color(0xFF666666),
+        color: HunterTheme.textSecondary,
         fontSize: 11,
         fontWeight: FontWeight.w600,
         letterSpacing: 2,
@@ -620,23 +621,23 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
   }) {
     return TextField(
       controller: controller,
-      style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 14),
+      style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFF999999), fontSize: 14),
-        prefixIcon: Icon(icon, color: const Color(0xFFFF6B2B), size: 20),
+        hintStyle: const TextStyle(color: HunterTheme.textTertiary, fontSize: 14),
+        prefixIcon: Icon(icon, color: HunterTheme.primary, size: 20),
         filled: true,
-        fillColor: const Color(0xFFFFFFFF),
+        fillColor: HunterTheme.cardColor,
         contentPadding:
         const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide:
-          BorderSide(color: const Color(0xFFFF6B2B).withOpacity(0.2)),
+          BorderSide(color: HunterTheme.primary.withOpacity(0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFFF6B2B), width: 1.5),
+          borderSide: const BorderSide(color: HunterTheme.primary, width: 1.5),
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'Theme/hunter_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'settings_screen.dart';
 import 'package:flutter/services.dart';
@@ -67,11 +68,11 @@ class _ProfileScreenState extends State<ProfileScreen>
   Color _getRankColor(String rank) {
     switch (rank) {
       case 'S': return const Color(0xFFFF4444);
-      case 'A': return const Color(0xFFFF6B2B);
+      case 'A': return HunterTheme.primary;
       case 'B': return const Color(0xFF9B59B6);
       case 'C': return const Color(0xFF3498DB);
       case 'D': return const Color(0xFF2ECC71);
-      default:  return const Color(0xFFFF6B2B);
+      default:  return HunterTheme.primary;
     }
   }
 
@@ -92,7 +93,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: HunterTheme.background,
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('hunters')
@@ -101,7 +102,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(
-              child: CircularProgressIndicator(color: Color(0xFFFF6B2B)),
+              child: CircularProgressIndicator(color: HunterTheme.primary),
             );
           }
 
@@ -156,7 +157,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           radius: 1.2,
                           colors: [
                             rankColor.withOpacity(0.15),
-                            const Color(0xFFFAFAFA),
+                            HunterTheme.background,
                           ],
                         ),
                       ),
@@ -174,7 +175,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   onPressed: () => Navigator.pop(context),
                                   icon: const Icon(
                                     Icons.arrow_back_ios,
-                                    color: Color(0xFF666666),
+                                    color: HunterTheme.textSecondary,
                                     size: 20,
                                   ),
                                 ),
@@ -190,7 +191,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   },
                                   icon: const Icon(
                                     Icons.settings,
-                                    color: Color(0xFF666666),
+                                    color: HunterTheme.textSecondary,
                                     size: 24,
                                   ),
                                 ),
@@ -220,7 +221,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   onTap: _uploadProfilePicture,
                                   child: CircleAvatar(
                                     radius: 53,
-                                    backgroundColor: const Color(0xFFFFFFFF),
+                                    backgroundColor: HunterTheme.cardColor,
                                     backgroundImage: data['profilePicture'] != null
                                         ? MemoryImage(base64Decode(data['profilePicture']))
                                         : null,
@@ -239,10 +240,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     child: Container(
                                       padding: const EdgeInsets.all(6),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFFF6B2B),
+                                        color: HunterTheme.primary,
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                          color: const Color(0xFFFAFAFA),
+                                          color: HunterTheme.background,
                                           width: 2,
                                         ),
                                       ),
@@ -265,7 +266,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 Text(
                                   hunterName,
                                   style: const TextStyle(
-                                    color: Color(0xFF1A1A1A),
+                                    color: HunterTheme.textPrimary,
                                     fontSize: 24,
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: 0.5,
@@ -290,7 +291,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   },
                                   child: const Icon(
                                     Icons.copy,
-                                    color: Color(0xFFFF6B2B),
+                                    color: HunterTheme.primary,
                                     size: 18,
                                   ),
                                 ),
@@ -331,14 +332,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                                           ? 'MAX RANK'
                                           : '$xpToNext XP to Rank $nextRank',
                                       style: TextStyle(
-                                        color: Color(0xFF1A1A1A).withOpacity(0.65),
+                                        color: HunterTheme.textPrimary.withOpacity(0.65),
                                         fontSize: 13,
                                       ),
                                     ),
                                     Text(
                                       '$xp XP',
                                       style: const TextStyle(
-                                        color: Color(0xFFFF6B2B),
+                                        color: HunterTheme.primary,
                                         fontSize: 13,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -352,7 +353,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     value: xpProgress.clamp(0.0, 1.0),
                                     minHeight: 6,
                                     backgroundColor:
-                                    Color(0xFF1A1A1A).withOpacity(0.1),
+                                    HunterTheme.textPrimary.withOpacity(0.1),
                                     valueColor:
                                     AlwaysStoppedAnimation<Color>(rankColor),
                                   ),
@@ -387,14 +388,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                   decoration: BoxDecoration(
                     border: Border(
                       bottom: BorderSide(
-                          color: Color(0xFF1A1A1A).withOpacity(0.08)),
+                          color: HunterTheme.textPrimary.withOpacity(0.08)),
                     ),
                   ),
                   child: TabBar(
                     controller: _tabController,
-                    labelColor: const Color(0xFFFF6B2B),
-                    unselectedLabelColor: Color(0xFF999999),
-                    indicatorColor: const Color(0xFFFF6B2B),
+                    labelColor: HunterTheme.primary,
+                    unselectedLabelColor: HunterTheme.textTertiary,
+                    indicatorColor: HunterTheme.primary,
                     indicatorWeight: 2,
                     labelStyle: const TextStyle(
                       fontSize: 13,
@@ -425,7 +426,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           const Text(
                             'HUNTER STATS',
                             style: TextStyle(
-                              color: Color(0xFF666666),
+                              color: HunterTheme.textSecondary,
                               fontSize: 12,
                               letterSpacing: 2,
                               fontWeight: FontWeight.w600,
@@ -450,11 +451,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                             ),
                           ),
                           const SizedBox(height: 20),
-                          _statBar('STR', str,  const Color(0xFFFF6B2B)),
+                          _statBar('STR', str,  HunterTheme.primary),
                           _statBar('END', end_, const Color(0xFF9B59B6)),
-                          _statBar('AGI', agi,  const Color(0xFFFF6B2B)),
+                          _statBar('AGI', agi,  HunterTheme.primary),
                           _statBar('VIT', vit,  const Color(0xFF2ECC71)),
-                          _statBar('INT', int_, const Color(0xFFFF6B2B)),
+                          _statBar('INT', int_, HunterTheme.primary),
                           _statBar('LUK', luk,  const Color(0xFFFFD700)),
                           const SizedBox(height: 24),
                           _card(
@@ -464,7 +465,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 const Text(
                                   'DUEL RECORD',
                                   style: TextStyle(
-                                    color: Color(0xFF666666),
+                                    color: HunterTheme.textSecondary,
                                     fontSize: 12,
                                     letterSpacing: 2,
                                   ),
@@ -533,7 +534,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 16, vertical: 10),
                                   decoration: BoxDecoration(
-                                    color: Color(0xFF1A1A1A).withOpacity(0.05),
+                                    color: HunterTheme.textPrimary.withOpacity(0.05),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Row(
@@ -570,7 +571,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                             width: double.infinity,
                             child: ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFFF6B2B),
+                                backgroundColor: HunterTheme.primary,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
                                     vertical: 14),
@@ -623,7 +624,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
         if (!snapshot.hasData) {
           return const Center(
-            child: CircularProgressIndicator(color: Color(0xFFFF6B2B)),
+            child: CircularProgressIndicator(color: HunterTheme.primary),
           );
         }
 
@@ -638,7 +639,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     color: Color(0xFFBBBBBB), size: 64),
                 SizedBox(height: 16),
                 Text('No weight history yet',
-                    style: TextStyle(color: Color(0xFF999999), fontSize: 16)),
+                    style: TextStyle(color: HunterTheme.textTertiary, fontSize: 16)),
                 SizedBox(height: 8),
                 Text('Update your weight in the Physique tab',
                     style: TextStyle(color: Color(0xFFBBBBBB), fontSize: 13)),
@@ -682,9 +683,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFFFFF),
+                  color: HunterTheme.cardColor,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFFF6B2B).withOpacity(0.5)),
+                  border: Border.all(color: HunterTheme.primary.withOpacity(0.5)),
                 ),
                 child: Column(
                   children: [
@@ -709,7 +710,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     const SizedBox(height: 8),
                     Text(message,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Color(0xFF666666))),
+                        style: const TextStyle(color: HunterTheme.textSecondary)),
                   ],
                 ),
               ),
@@ -731,32 +732,32 @@ class _ProfileScreenState extends State<ProfileScreen>
                   padding: const EdgeInsets.symmetric(
                       horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFFFFF),
+                    color: HunterTheme.cardColor,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: const Color(0xFFFF6B2B).withOpacity(0.15)),
+                        color: HunterTheme.primary.withOpacity(0.15)),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFF6B2B).withOpacity(0.1),
+                          color: HunterTheme.primary.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(Icons.monitor_weight_outlined,
-                            color: Color(0xFFFF6B2B), size: 20),
+                            color: HunterTheme.primary, size: 20),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Text(dateStr,
                             style: const TextStyle(
-                                color: Color(0xFF666666), fontSize: 13)),
+                                color: HunterTheme.textSecondary, fontSize: 13)),
                       ),
                       Text(
                         '${w.toStringAsFixed(1)} kg',
                         style: const TextStyle(
-                          color: Color(0xFF1A1A1A),
+                          color: HunterTheme.textPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -779,13 +780,13 @@ class _ProfileScreenState extends State<ProfileScreen>
       children: [
         Text(value,
             style: const TextStyle(
-                color: Color(0xFF1A1A1A),
+                color: HunterTheme.textPrimary,
                 fontSize: 28,
                 fontWeight: FontWeight.w700)),
         const SizedBox(height: 2),
         Text(label,
             style: const TextStyle(
-                color: Color(0xFF999999),
+                color: HunterTheme.textTertiary,
                 fontSize: 11,
                 letterSpacing: 1.5)),
       ],
@@ -799,10 +800,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     width: double.infinity,
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
-      color: const Color(0xFFFFFFFF),
+      color: HunterTheme.cardColor,
       borderRadius: BorderRadius.circular(16),
       border: Border.all(
-          color: const Color(0xFFFF6B2B).withOpacity(0.2)),
+          color: HunterTheme.primary.withOpacity(0.2)),
     ),
     child: child,
   );
@@ -828,7 +829,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               child: LinearProgressIndicator(
                 value: value / 100.0,
                 minHeight: 8,
-                backgroundColor: Color(0xFF1A1A1A).withOpacity(0.08),
+                backgroundColor: HunterTheme.textPrimary.withOpacity(0.08),
                 valueColor: AlwaysStoppedAnimation<Color>(color),
               ),
             ),
@@ -836,7 +837,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           const SizedBox(width: 10),
           Text('$value',
               style: const TextStyle(
-                  color: Color(0xFF666666),
+                  color: HunterTheme.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.bold)),
         ],
@@ -855,7 +856,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         const SizedBox(height: 4),
         Text(label,
             style: const TextStyle(
-                color: Color(0xFF999999),
+                color: HunterTheme.textTertiary,
                 fontSize: 11,
                 letterSpacing: 1.5)),
       ],
@@ -865,17 +866,17 @@ class _ProfileScreenState extends State<ProfileScreen>
   Widget _physiqueInfo(String label, String value, IconData icon) {
     return Column(
       children: [
-        Icon(icon, color: const Color(0xFFFF6B2B), size: 22),
+        Icon(icon, color: HunterTheme.primary, size: 22),
         const SizedBox(height: 6),
         Text(value,
             style: const TextStyle(
-                color: Color(0xFF1A1A1A),
+                color: HunterTheme.textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 2),
         Text(label,
             style: const TextStyle(
-                color: Color(0xFF999999),
+                color: HunterTheme.textTertiary,
                 fontSize: 11,
                 letterSpacing: 1.5)),
       ],
@@ -928,27 +929,27 @@ class _ProfileScreenState extends State<ProfileScreen>
       context: context,
       builder: (_) {
         return AlertDialog(
-          backgroundColor: const Color(0xFFFFFFFF),
+          backgroundColor: HunterTheme.cardColor,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16)),
           title: const Text('Update Current Weight',
-              style: TextStyle(color: Color(0xFF1A1A1A))),
+              style: TextStyle(color: HunterTheme.textPrimary)),
           content: TextField(
             controller: weightController,
             keyboardType: TextInputType.number,
-            style: const TextStyle(color: Color(0xFF1A1A1A)),
+            style: const TextStyle(color: HunterTheme.textPrimary),
             decoration: InputDecoration(
               hintText: 'Weight in kg',
-              hintStyle: const TextStyle(color: Color(0xFF999999)),
+              hintStyle: const TextStyle(color: HunterTheme.textTertiary),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide:
-                const BorderSide(color: Color(0xFFFF6B2B), width: 1),
+                const BorderSide(color: HunterTheme.primary, width: 1),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide:
-                const BorderSide(color: Color(0xFFFF6B2B), width: 2),
+                const BorderSide(color: HunterTheme.primary, width: 2),
               ),
             ),
           ),
@@ -956,11 +957,11 @@ class _ProfileScreenState extends State<ProfileScreen>
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('CANCEL',
-                  style: TextStyle(color: Color(0xFF999999))),
+                  style: TextStyle(color: HunterTheme.textTertiary)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF6B2B),
+                backgroundColor: HunterTheme.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8)),
@@ -1018,7 +1019,7 @@ class HexRadarPainter extends CustomPainter {
 
     final gridPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..color = Color(0xFF1A1A1A).withOpacity(0.08)
+      ..color = HunterTheme.textPrimary.withOpacity(0.08)
       ..strokeWidth = 1;
 
     for (int ring = 1; ring <= 5; ring++) {
@@ -1048,11 +1049,11 @@ class HexRadarPainter extends CustomPainter {
     canvas.drawPath(dataPath,
         Paint()
           ..style = PaintingStyle.fill
-          ..color = const Color(0xFFFF6B2B).withOpacity(0.18));
+          ..color = HunterTheme.primary.withOpacity(0.18));
     canvas.drawPath(dataPath,
         Paint()
           ..style = PaintingStyle.stroke
-          ..color = const Color(0xFFFF6B2B).withOpacity(0.85)
+          ..color = HunterTheme.primary.withOpacity(0.85)
           ..strokeWidth = 1.5);
 
     for (int i = 0; i < 6; i++) {
@@ -1062,9 +1063,9 @@ class HexRadarPainter extends CustomPainter {
       final displayValue = (values[i] * 100).round();
 
       _drawText(canvas, _labels[i], lx, ly - 7,
-          const Color(0xFFFF6B2B), 11, FontWeight.bold);
+          HunterTheme.primary, 11, FontWeight.bold);
       _drawText(canvas, '$displayValue', lx, ly + 8,
-          Color(0xFF666666), 11, FontWeight.normal);
+          HunterTheme.textSecondary, 11, FontWeight.normal);
     }
   }
 

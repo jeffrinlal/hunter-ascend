@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'Theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
@@ -23,10 +24,10 @@ class CompareHuntersScreen extends StatelessWidget {
   Color _getRankColor(int level) {
     if (level >= 30) return const Color(0xFFFFD700);
     if (level >= 20) return const Color(0xFFFF4444);
-    if (level >= 15) return const Color(0xFFFF6B2B);
-    if (level >= 10) return const Color(0xFFFF6B2B);
+    if (level >= 15) return HunterTheme.primary;
+    if (level >= 10) return HunterTheme.primary;
     if (level >= 5)  return const Color(0xFF44DD88);
-    return const Color(0xFF666666);
+    return HunterTheme.textSecondary;
   }
 
   @override
@@ -34,12 +35,12 @@ class CompareHuntersScreen extends StatelessWidget {
     final currentUid = FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: HunterTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFAFAFA),
+        backgroundColor: HunterTheme.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF666666), size: 20),
+          icon: const Icon(Icons.arrow_back_ios, color: HunterTheme.textSecondary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -47,18 +48,18 @@ class CompareHuntersScreen extends StatelessWidget {
             Container(
               width: 28, height: 28,
               decoration: BoxDecoration(
-                color: const Color(0xFFFF6B2B).withOpacity(0.12),
+                color: HunterTheme.primary.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFFF6B2B).withOpacity(0.4)),
+                border: Border.all(color: HunterTheme.primary.withOpacity(0.4)),
               ),
               child: const Icon(Icons.compare_arrows,
-                  color: Color(0xFFFF6B2B), size: 17),
+                  color: HunterTheme.primary, size: 17),
             ),
             const SizedBox(width: 10),
             const Text(
               'HUNTER COMPARISON',
               style: TextStyle(
-                color: Color(0xFF1A1A1A),
+                color: HunterTheme.textPrimary,
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.5,
@@ -75,7 +76,7 @@ class CompareHuntersScreen extends StatelessWidget {
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(
-              child: CircularProgressIndicator(color: Color(0xFFFF6B2B)),
+              child: CircularProgressIndicator(color: HunterTheme.primary),
             );
           }
 
@@ -144,13 +145,13 @@ class CompareHuntersScreen extends StatelessWidget {
                     Container(
                       width: 44, height: 44,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFFFFF),
+                        color: HunterTheme.cardColor,
                         shape: BoxShape.circle,
                         border: Border.all(
-                            color: const Color(0xFFFFE0D0), width: 1.5),
+                            color: HunterTheme.border, width: 1.5),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFFF6B2B).withOpacity(0.2),
+                            color: HunterTheme.primary.withOpacity(0.2),
                             blurRadius: 12,
                           ),
                         ],
@@ -159,7 +160,7 @@ class CompareHuntersScreen extends StatelessWidget {
                         child: Text(
                           'VS',
                           style: TextStyle(
-                            color: Color(0xFFFF6B2B),
+                            color: HunterTheme.primary,
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1,
@@ -321,7 +322,7 @@ class CompareHuntersScreen extends StatelessWidget {
                   BoxShadow(
                       color: rankColor.withOpacity(0.35), blurRadius: 16),
                 ],
-                color: const Color(0xFFFFFFFF),
+                color: HunterTheme.cardColor,
               ),
               child: profilePicture != null &&
                   profilePicture.isNotEmpty
@@ -346,7 +347,7 @@ class CompareHuntersScreen extends StatelessWidget {
               child: Container(
                 width: 22, height: 22,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFAFAFA),
+                  color: HunterTheme.background,
                   shape: BoxShape.circle,
                   border: Border.all(color: rankColor, width: 1.5),
                 ),
@@ -368,7 +369,7 @@ class CompareHuntersScreen extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: isMe ? const Color(0xFFFF6B2B) : const Color(0xFF1A1A1A),
+            color: isMe ? HunterTheme.primary : HunterTheme.textPrimary,
             fontSize: 13,
             fontWeight: FontWeight.bold,
           ),
@@ -413,9 +414,9 @@ class CompareHuntersScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: HunterTheme.cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFFE0D0), width: 1),
+        border: Border.all(color: HunterTheme.border, width: 1),
       ),
       child: Column(
         children: [
@@ -429,7 +430,7 @@ class CompareHuntersScreen extends StatelessWidget {
                   displayMy,
                   textAlign: TextAlign.left,
                   style: TextStyle(
-                    color: myWins ? myColor : Color(0xFF666666),
+                    color: myWins ? myColor : HunterTheme.textSecondary,
                     fontSize: 14,
                     fontWeight: myWins ? FontWeight.bold : FontWeight.normal,
                   ),
@@ -441,7 +442,7 @@ class CompareHuntersScreen extends StatelessWidget {
                   label,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: Color(0xFF999999),
+                    color: HunterTheme.textTertiary,
                     fontSize: 10,
                     letterSpacing: 1.5,
                     fontWeight: FontWeight.w600,
@@ -455,7 +456,7 @@ class CompareHuntersScreen extends StatelessWidget {
                   displayTheir,
                   textAlign: TextAlign.right,
                   style: TextStyle(
-                    color: theirWins ? theirColor : Color(0xFF666666),
+                    color: theirWins ? theirColor : HunterTheme.textSecondary,
                     fontSize: 14,
                     fontWeight: theirWins ? FontWeight.bold : FontWeight.normal,
                   ),
@@ -511,7 +512,7 @@ class CompareHuntersScreen extends StatelessWidget {
   Widget _sectionLabel(String text) {
     return Row(children: [
       Expanded(child: Container(height: 1,
-          color: Color(0xFF1A1A1A).withOpacity(0.06))),
+          color: HunterTheme.textPrimary.withOpacity(0.06))),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Text(text,
@@ -522,7 +523,7 @@ class CompareHuntersScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold)),
       ),
       Expanded(child: Container(height: 1,
-          color: Color(0xFF1A1A1A).withOpacity(0.06))),
+          color: HunterTheme.textPrimary.withOpacity(0.06))),
     ]);
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'Theme/hunter_theme.dart';
 import 'calorie_tracker_screen.dart';
 
 class NutritionScreen extends StatelessWidget {
@@ -7,7 +8,7 @@ class NutritionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: HunterTheme.background,
       appBar: AppBar(
         title: const Text("Nutrition"),
       ),

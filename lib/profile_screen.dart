@@ -8,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:share_plus/share_plus.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -123,6 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           final duelLosses     = (data['duelLosses'] ?? 0) as int;
           final questsDone     = (data['questsDone'] ?? 0) as int;
           final totalDuels     = duelWins + duelLosses;
+          final streak         = (data['streak'] ?? 0) as int;
 
           final height         = (data['height'] ?? 0).toDouble();
           final weight         = (data['weight'] ?? 0).toDouble();
@@ -179,7 +182,49 @@ class _ProfileScreenState extends State<ProfileScreen>
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const SizedBox.shrink(),
+                                // Share pill button (left top corner)
+                                GestureDetector(
+                                  onTap: () => _shareStatsCard(
+                                    context: context,
+                                    hunterName: hunterName,
+                                    rank: rank,
+                                    level: level,
+                                    xp: xp,
+                                    xpProgress: xpProgress,
+                                    streak: streak,
+                                    str: str,
+                                    vit: vit,
+                                    agi: agi,
+                                    profilePicture:
+                                        data['profilePicture'] as String?,
+                                  ),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 7),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFF0E8),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                          color: const Color(0xFFFF6B2B)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: const [
+                                        Icon(Icons.share,
+                                            color: Color(0xFFFF6B2B), size: 16),
+                                        SizedBox(width: 6),
+                                        Text(
+                                          'Share',
+                                          style: TextStyle(
+                                            color: Color(0xFFFF6B2B),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
 
                                 IconButton(
                                   onPressed: () {
@@ -854,8 +899,299 @@ class _ProfileScreenState extends State<ProfileScreen>
       ],
     );
   }
-  Future<void> _uploadProfilePicture() async {
-    final picker = ImagePicker();
+  // ── Share stats card as image ──────────────────────────────────────
+  Future<void> _shareStatsCard({
+    required BuildContext context,
+    required String hunterName,
+    required String rank,
+    required int level,
+    required int xp,
+    required double xpProgress,
+    required int streak,
+    required int str,
+    required int vit,
+    required int agi,
+    String? profilePicture,
+  }) async {
+    try {
+      final controller = ScreenshotController();
+      final bytes = await controller.captureFromWidget(
+        _buildShareCard(
+          hunterName: hunterName,
+          rank: rank,
+          level: level,
+          xp: xp,
+          xpProgress: xpProgress,
+          streak: streak,
+          str: str,
+          vit: vit,
+          agi: agi,
+          profilePicture: profilePicture,
+        ),
+        context: context,
+        pixelRatio: 3.0,
+        delay: const Duration(milliseconds: 100),
+      );
+
+      final dir = await Directory.systemTemp.createTemp('hunter_share');
+      final file = File('${dir.path}/hunter_ascend_stats.png');
+      await file.writeAsBytes(bytes);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text:
+            '$hunterName • $rank Rank Hunter • Level $level\nAscend Beyond Limits 🔥',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not share stats: $e')),
+        );
+      }
+    }
+  }
+
+  // Card captured as an image (not shown as a screen) — white + orange theme.
+  Widget _buildShareCard({
+    required String hunterName,
+    required String rank,
+    required int level,
+    required int xp,
+    required double xpProgress,
+    required int streak,
+    required int str,
+    required int vit,
+    required int agi,
+    String? profilePicture,
+  }) {
+    const accent = Color(0xFFFF6B2B);
+    const dark = Color(0xFF1A1A1A);
+    const surface = Color(0xFFFFF0E8);
+    const track = Color(0xFFFFE0D0);
+
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          color: const Color(0xFFFAFAFA),
+          padding: const EdgeInsets.all(20),
+          alignment: Alignment.center,
+          child: Container(
+            width: 360,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFFFF),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: accent, width: 2),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(Icons.bolt, color: accent, size: 22),
+                    SizedBox(width: 4),
+                    Text(
+                      'HUNTER ',
+                      style: TextStyle(
+                        color: accent,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    Text(
+                      'ASCEND',
+                      style: TextStyle(
+                        color: dark,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // Avatar
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: surface,
+                    border: Border.all(color: accent, width: 2.5),
+                    image: profilePicture != null
+                        ? DecorationImage(
+                            image: MemoryImage(base64Decode(profilePicture)),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: profilePicture == null
+                      ? const Icon(Icons.person, size: 52, color: accent)
+                      : null,
+                ),
+                const SizedBox(height: 14),
+                // Name
+                Text(
+                  hunterName,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: dark,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Rank pill
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: accent),
+                  ),
+                  child: Text(
+                    '$rank RANK HUNTER',
+                    style: const TextStyle(
+                      color: accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                // Level + XP
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'LEVEL $level',
+                      style: const TextStyle(
+                        color: dark,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      '$xp XP',
+                      style: const TextStyle(
+                        color: accent,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: xpProgress.clamp(0.0, 1.0),
+                    minHeight: 8,
+                    backgroundColor: track,
+                    valueColor: const AlwaysStoppedAnimation<Color>(accent),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Streak
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('🔥', style: TextStyle(fontSize: 18)),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$streak DAY STREAK',
+                        style: const TextStyle(
+                          color: dark,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                // Top 3 stats
+                _shareStatBar('STR', str, accent, dark, track),
+                const SizedBox(height: 10),
+                _shareStatBar('VIT', vit, accent, dark, track),
+                const SizedBox(height: 10),
+                _shareStatBar('AGI', agi, accent, dark, track),
+                const SizedBox(height: 20),
+                // Footer
+                const Text(
+                  'Ascend Beyond Limits',
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _shareStatBar(
+      String label, int value, Color accent, Color dark, Color track) {
+    final pct = (value / 100).clamp(0.0, 1.0);
+    return Row(
+      children: [
+        SizedBox(
+          width: 40,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: dark,
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+              letterSpacing: 1,
+            ),
+          ),
+        ),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: pct,
+              minHeight: 7,
+              backgroundColor: track,
+              valueColor: AlwaysStoppedAnimation<Color>(accent),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          '$value',
+          style: TextStyle(
+            color: accent,
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _uploadProfilePicture() async {    final picker = ImagePicker();
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 50,

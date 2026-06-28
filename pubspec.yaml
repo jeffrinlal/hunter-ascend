@@ -30,6 +30,8 @@ dependencies:
   flutter_image_compress: ^2.3.0
   http: ^1.2.0
   flutter_svg: ^2.0.10+1
+  screenshot: ^3.0.0
+  share_plus: ^10.1.4
 
 
 

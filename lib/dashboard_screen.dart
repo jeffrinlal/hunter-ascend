@@ -2896,6 +2896,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           onTap: _cancelActiveWeeklyQuest,
           child: Text("Cancel mission", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12, decoration: TextDecoration.underline)),
         ),
+        if (weeklyBannerReady) ...[
+          const SizedBox(height: 12),
+          Center(child: SizedBox(width: weeklyBannerAd!.size.width.toDouble(), height: weeklyBannerAd!.size.height.toDouble(), child: AdWidget(ad: weeklyBannerAd!))),
+        ],
       ]),
     );
   }
@@ -2955,15 +2959,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             isCustom: false,
             onTap: () => startWeeklyQuest((m['title'] ?? '').toString()),
           )),
-        const SizedBox(height: 20),
-        if (weeklyBannerReady)
-          Center(
-            child: SizedBox(
-              width: weeklyBannerAd!.size.width.toDouble(),
-              height: weeklyBannerAd!.size.height.toDouble(),
-              child: AdWidget(ad: weeklyBannerAd!),
-            ),
-          ),
       ],
     );
   }

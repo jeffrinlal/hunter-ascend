@@ -424,7 +424,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'HUNTER STATS',
+                            'MUSCLE MAP',
                             style: TextStyle(
                               color: HunterTheme.textSecondary,
                               fontSize: 12,
@@ -432,65 +432,45 @@ class _ProfileScreenState extends State<ProfileScreen>
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Your physique, powered by hunter stats',
+                            style: TextStyle(
+                              color: HunterTheme.textTertiary,
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           Center(
                             child: SizedBox(
-                              height: 260,
+                              height: 380,
                               width: double.infinity,
                               child: CustomPaint(
                                 size: Size.infinite,
-                                painter: HexRadarPainter(values: [
-                                  str / 100.0,
-                                  int_ / 100.0,
-                                  vit / 100.0,
-                                  agi / 100.0,
-                                  luk / 100.0,
-                                  end_ / 100.0,
-                                ]),
+                                painter: MuscleMapPainter(
+                                  str: str.toDouble(),
+                                  end: end_.toDouble(),
+                                  agi: agi.toDouble(),
+                                  vit: vit.toDouble(),
+                                  intel: int_.toDouble(),
+                                  luk: luk.toDouble(),
+                                  glow: HunterTheme.primary,
+                                  silhouette:
+                                      HunterTheme.textPrimary.withOpacity(0.10),
+                                  inactive:
+                                      HunterTheme.textPrimary.withOpacity(0.20),
+                                  label: HunterTheme.textPrimary,
+                                ),
                               ),
                             ),
                           ),
                           const SizedBox(height: 20),
-                          _statBar('STR', str,  HunterTheme.primary),
-                          _statBar('END', end_, HunterTheme.purple),
-                          _statBar('AGI', agi,  HunterTheme.primary),
-                          _statBar('VIT', vit,  HunterTheme.successAlt),
-                          _statBar('INT', int_, HunterTheme.primary),
-                          _statBar('LUK', luk,  HunterTheme.gold),
-                          const SizedBox(height: 24),
-                          _card(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'DUEL RECORD',
-                                  style: TextStyle(
-                                    color: HunterTheme.textSecondary,
-                                    fontSize: 12,
-                                    letterSpacing: 2,
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-                                Row(
-                                  mainAxisAlignment:
-                                  MainAxisAlignment.spaceAround,
-                                  children: [
-                                    _duelStat('$duelWins', 'WINS',
-                                        HunterTheme.successAlt),
-                                    _duelStat('$duelLosses', 'LOSSES',
-                                        HunterTheme.dangerAlt),
-                                    _duelStat(
-                                      totalDuels == 0
-                                          ? '0%'
-                                          : '${(duelWins * 100 / totalDuels).toStringAsFixed(0)}%',
-                                      'WIN RATE',
-                                      HunterTheme.gold,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
+                          _muscleLegend('STR', 'Chest + Arms', str),
+                          _muscleLegend('VIT', 'Core / Abs', vit),
+                          _muscleLegend('AGI', 'Legs', agi),
+                          _muscleLegend('INT', 'Head', int_),
+                          _muscleLegend('END', 'Full Body', end_),
+                          _muscleLegend('LUK', 'Aura', luk),
                         ],
                       ),
                     ),
@@ -808,58 +788,65 @@ class _ProfileScreenState extends State<ProfileScreen>
     child: child,
   );
 
-  Widget _statBar(String label, int value, Color color) {
+  Widget _muscleLegend(String stat, String muscle, int value) {
+    final pct = (value / 100).clamp(0.0, 1.0);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
           SizedBox(
-            width: 36,
-            child: Text(label,
-                style: TextStyle(
-                    color: color,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1)),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: value / 100.0,
-                minHeight: 8,
-                backgroundColor: HunterTheme.textPrimary.withOpacity(0.08),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
+            width: 42,
+            child: Text(
+              stat,
+              style: TextStyle(
+                color: HunterTheme.textPrimary,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+                letterSpacing: 1,
               ),
             ),
           ),
-          const SizedBox(width: 10),
-          Text('$value',
-              style: TextStyle(
-                  color: HunterTheme.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      muscle,
+                      style: TextStyle(
+                        color: HunterTheme.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      '$value%',
+                      style: TextStyle(
+                        color: HunterTheme.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: pct,
+                    minHeight: 6,
+                    backgroundColor: HunterTheme.textPrimary.withOpacity(0.08),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      HunterTheme.primary.withOpacity(0.4 + pct * 0.6),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _duelStat(String value, String label, Color color) {
-    return Column(
-      children: [
-        Text(value,
-            style: TextStyle(
-                color: color,
-                fontSize: 24,
-                fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text(label,
-            style: TextStyle(
-                color: HunterTheme.textTertiary,
-                fontSize: 11,
-                letterSpacing: 1.5)),
-      ],
     );
   }
 
@@ -1102,4 +1089,204 @@ class HexRadarPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant HexRadarPainter old) =>
       old.values != values;
+}
+
+
+// ── AI Muscle Body Map ──────────────────────────────────────────────────
+//
+// Front-view silhouette whose muscle groups glow based on existing Firestore
+// stats (read-only). Mapping:
+//   STR -> Chest + Arms   END -> Full-body base tint   AGI -> Legs
+//   VIT -> Core/Abs       INT -> Head                  LUK -> Aura sparkles
+class MuscleMapPainter extends CustomPainter {
+  final double str, end, agi, vit, intel, luk;
+  final Color glow;       // active muscle glow (#FF6B2B in light)
+  final Color silhouette; // body base
+  final Color inactive;   // low-stat muscle
+  final Color label;      // text labels
+
+  MuscleMapPainter({
+    required this.str,
+    required this.end,
+    required this.agi,
+    required this.vit,
+    required this.intel,
+    required this.luk,
+    required this.glow,
+    required this.silhouette,
+    required this.inactive,
+    required this.label,
+  });
+
+  Color _muscle(double pct) =>
+      Color.lerp(inactive, glow, pct.clamp(0.0, 1.0))!;
+
+  void _fill(Canvas c, Path p, Color color, {double glowSigma = 0}) {
+    if (glowSigma > 0.5) {
+      c.drawPath(
+        p,
+        Paint()
+          ..color = color
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, glowSigma),
+      );
+    }
+    c.drawPath(p, Paint()..color = color..style = PaintingStyle.fill);
+  }
+
+  void _sparkle(Canvas c, Offset o, double r, Color col) {
+    final p = Paint()
+      ..color = col
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
+    final path = Path()
+      ..moveTo(o.dx, o.dy - r)
+      ..lineTo(o.dx + r * 0.25, o.dy - r * 0.25)
+      ..lineTo(o.dx + r, o.dy)
+      ..lineTo(o.dx + r * 0.25, o.dy + r * 0.25)
+      ..lineTo(o.dx, o.dy + r)
+      ..lineTo(o.dx - r * 0.25, o.dy + r * 0.25)
+      ..lineTo(o.dx - r, o.dy)
+      ..lineTo(o.dx - r * 0.25, o.dy - r * 0.25)
+      ..close();
+    c.drawPath(path, p);
+  }
+
+  void _text(Canvas c, String s, Offset o) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: s,
+        style: TextStyle(
+          color: label,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(c, o);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final cx = w / 2;
+    final strP = (str / 100).clamp(0.0, 1.0);
+    final agiP = (agi / 100).clamp(0.0, 1.0);
+    final vitP = (vit / 100).clamp(0.0, 1.0);
+    final intP = (intel / 100).clamp(0.0, 1.0);
+    final endP = (end / 100).clamp(0.0, 1.0);
+    final lukP = (luk / 100).clamp(0.0, 1.0);
+
+    // ── Body part paths ──
+    final head = Path()
+      ..addOval(Rect.fromCircle(center: Offset(cx, h * 0.085), radius: h * 0.055));
+    final neck = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+          Rect.fromCenter(
+              center: Offset(cx, h * 0.155), width: w * 0.07, height: h * 0.045),
+          const Radius.circular(4)));
+    final torso = Path()
+      ..moveTo(cx - w * 0.20, h * 0.19)
+      ..lineTo(cx + w * 0.20, h * 0.19)
+      ..lineTo(cx + w * 0.15, h * 0.50)
+      ..lineTo(cx - w * 0.15, h * 0.50)
+      ..close();
+    final leftArm = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+          Rect.fromLTWH(cx - w * 0.285, h * 0.195, w * 0.085, h * 0.30),
+          Radius.circular(w * 0.04)));
+    final rightArm = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+          Rect.fromLTWH(cx + w * 0.20, h * 0.195, w * 0.085, h * 0.30),
+          Radius.circular(w * 0.04)));
+    final leftLeg = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+          Rect.fromLTWH(cx - w * 0.145, h * 0.50, w * 0.12, h * 0.42),
+          Radius.circular(w * 0.05)));
+    final rightLeg = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+          Rect.fromLTWH(cx + w * 0.025, h * 0.50, w * 0.12, h * 0.42),
+          Radius.circular(w * 0.05)));
+    final chestL = Path()
+      ..addOval(Rect.fromCenter(
+          center: Offset(cx - w * 0.085, h * 0.255),
+          width: w * 0.16,
+          height: h * 0.085));
+    final chestR = Path()
+      ..addOval(Rect.fromCenter(
+          center: Offset(cx + w * 0.085, h * 0.255),
+          width: w * 0.16,
+          height: h * 0.085));
+    final abs = Path();
+    for (int row = 0; row < 3; row++) {
+      for (int col = 0; col < 2; col++) {
+        final ax = cx + (col == 0 ? -w * 0.055 : w * 0.005);
+        final ay = h * 0.335 + row * h * 0.052;
+        abs.addRRect(RRect.fromRectAndRadius(
+            Rect.fromLTWH(ax, ay, w * 0.05, h * 0.042),
+            const Radius.circular(3)));
+      }
+    }
+
+    // ── 1. Base silhouette (END tints the whole body) ──
+    final baseColor = Color.lerp(silhouette, glow, endP * 0.30)!;
+    for (final p in [head, neck, torso, leftArm, rightArm, leftLeg, rightLeg]) {
+      _fill(canvas, p, baseColor);
+    }
+
+    // ── 2. Muscle overlays ──
+    _fill(canvas, head, _muscle(intP).withOpacity(0.85), glowSigma: 6 * intP); // INT
+    _fill(canvas, chestL, _muscle(strP), glowSigma: 10 * strP);                // STR
+    _fill(canvas, chestR, _muscle(strP), glowSigma: 10 * strP);
+    _fill(canvas, leftArm, _muscle(strP * 0.9), glowSigma: 8 * strP);
+    _fill(canvas, rightArm, _muscle(strP * 0.9), glowSigma: 8 * strP);
+    _fill(canvas, abs, _muscle(vitP), glowSigma: 8 * vitP);                    // VIT
+    _fill(canvas, leftLeg, _muscle(agiP), glowSigma: 10 * agiP);               // AGI
+    _fill(canvas, rightLeg, _muscle(agiP), glowSigma: 10 * agiP);
+
+    // Outline for definition
+    final stroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..color = glow.withOpacity(0.25);
+    for (final p in [head, torso, leftArm, rightArm, leftLeg, rightLeg]) {
+      canvas.drawPath(p, stroke);
+    }
+
+    // ── 3. LUK aura sparkles ──
+    final sparkN = (lukP * 8).round();
+    final spots = [
+      Offset(cx - w * 0.34, h * 0.12),
+      Offset(cx + w * 0.34, h * 0.16),
+      Offset(cx - w * 0.32, h * 0.56),
+      Offset(cx + w * 0.33, h * 0.50),
+      Offset(cx - w * 0.06, h * 0.02),
+      Offset(cx + w * 0.30, h * 0.82),
+      Offset(cx - w * 0.34, h * 0.80),
+      Offset(cx + w * 0.12, h * 0.01),
+    ];
+    for (int i = 0; i < sparkN && i < spots.length; i++) {
+      _sparkle(canvas, spots[i], w * 0.02, glow.withOpacity(0.5 + lukP * 0.5));
+    }
+
+    // ── 4. Labels (percentage out of 100) ──
+    _text(canvas, 'INT ${intel.round()}%', Offset(cx + w * 0.12, h * 0.04));
+    _text(canvas, 'STR ${str.round()}%', Offset(cx - w * 0.49, h * 0.24));
+    _text(canvas, 'VIT ${vit.round()}%', Offset(cx + w * 0.17, h * 0.40));
+    _text(canvas, 'AGI ${agi.round()}%', Offset(cx - w * 0.49, h * 0.66));
+    _text(canvas, 'END ${end.round()}%', Offset(cx - w * 0.49, h * 0.04));
+    _text(canvas, 'LUK ${luk.round()}%', Offset(cx + w * 0.17, h * 0.82));
+  }
+
+  @override
+  bool shouldRepaint(covariant MuscleMapPainter old) =>
+      old.str != str ||
+      old.end != end ||
+      old.agi != agi ||
+      old.vit != vit ||
+      old.intel != intel ||
+      old.luk != luk ||
+      old.glow != glow ||
+      old.silhouette != silhouette ||
+      old.inactive != inactive ||
+      old.label != label;
 }

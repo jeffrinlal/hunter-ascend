@@ -348,7 +348,7 @@ class _LoginScreenState extends State<LoginScreen>
                       label: 'ENTER AS GUEST',
                       icon: const Icon(
                         Icons.bolt,
-                        color: Colors.white,
+                        color: Color(0xFF1A1A1A),
                         size: 18,
                       ),
                       isPrimary: true,

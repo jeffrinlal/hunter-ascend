@@ -151,10 +151,10 @@ class _LoadingScreen extends StatelessWidget {
     @override
     Widget build(BuildContext context) {
         return const Scaffold(
-            backgroundColor: Color(0xFF080C14),
+            backgroundColor: Color(0xFFFAFAFA),
             body: Center(
                 child: CircularProgressIndicator(
-                    color: Color(0xFF00E5FF),
+                    color: Color(0xFFFF6B2B),
                     strokeWidth: 1.5,
                 ),
             ),
@@ -168,7 +168,7 @@ class WelcomeScreen extends StatelessWidget {
     @override
     Widget build(BuildContext context) {
         return Scaffold(
-            backgroundColor: const Color(0xFF080C14),
+            backgroundColor: const Color(0xFFFAFAFA),
             body: Stack(
                 children: [
                     CustomPaint(
@@ -186,14 +186,14 @@ class WelcomeScreen extends StatelessWidget {
                                         height: 96,
                                         decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color: const Color(0xFF00E5FF).withOpacity(0.07),
+                                            color: const Color(0xFFFF6B2B).withOpacity(0.07),
                                             border: Border.all(
-                                                color: const Color(0xFF00E5FF).withOpacity(0.5),
+                                                color: const Color(0xFFFF6B2B).withOpacity(0.5),
                                                 width: 1.5,
                                             ),
                                             boxShadow: [
                                                 BoxShadow(
-                                                    color: const Color(0xFF00E5FF).withOpacity(0.3),
+                                                    color: const Color(0xFFFF6B2B).withOpacity(0.3),
                                                     blurRadius: 28,
                                                     spreadRadius: 4,
                                                 ),
@@ -202,7 +202,7 @@ class WelcomeScreen extends StatelessWidget {
                                         child: const Icon(
                                             Icons.flash_on,
                                             size: 48,
-                                            color: Color(0xFF00E5FF),
+                                            color: Color(0xFFFF6B2B),
                                         ),
                                     ),
                                     const SizedBox(height: 28),
@@ -212,7 +212,7 @@ class WelcomeScreen extends StatelessWidget {
                                                 TextSpan(
                                                     text: 'HUNTER ',
                                                     style: TextStyle(
-                                                        color: Colors.white,
+                                                        color: Color(0xFF1A1A1A),
                                                         fontSize: 28,
                                                         fontWeight: FontWeight.w800,
                                                         letterSpacing: 4,
@@ -221,7 +221,7 @@ class WelcomeScreen extends StatelessWidget {
                                                 TextSpan(
                                                     text: 'ASCEND',
                                                     style: TextStyle(
-                                                        color: Color(0xFF00E5FF),
+                                                        color: Color(0xFFFF6B2B),
                                                         fontSize: 28,
                                                         fontWeight: FontWeight.w800,
                                                         letterSpacing: 4,
@@ -234,7 +234,7 @@ class WelcomeScreen extends StatelessWidget {
                                     Text(
                                         'Level Up Your Real Life',
                                         style: TextStyle(
-                                            color: Colors.white.withOpacity(0.35),
+                                            color: Color(0xFF1A1A1A).withOpacity(0.35),
                                             fontSize: 14,
                                             letterSpacing: 1,
                                         ),
@@ -253,11 +253,11 @@ class WelcomeScreen extends StatelessWidget {
                                             width: double.infinity,
                                             height: 54,
                                             decoration: BoxDecoration(
-                                                color: const Color(0xFF00E5FF),
+                                                color: const Color(0xFFFF6B2B),
                                                 borderRadius: BorderRadius.circular(6),
                                                 boxShadow: [
                                                     BoxShadow(
-                                                        color: const Color(0xFF00E5FF).withOpacity(0.4),
+                                                        color: const Color(0xFFFF6B2B).withOpacity(0.4),
                                                         blurRadius: 22,
                                                         spreadRadius: 2,
                                                     ),
@@ -267,12 +267,12 @@ class WelcomeScreen extends StatelessWidget {
                                                 mainAxisAlignment: MainAxisAlignment.center,
                                                 children: [
                                                     Icon(Icons.flash_on,
-                                                        color: Color(0xFF080C14), size: 18),
+                                                        color: Color(0xFFFAFAFA), size: 18),
                                                     SizedBox(width: 8),
                                                     Text(
                                                         'BEGIN HUNTER ASSESSMENT',
                                                         style: TextStyle(
-                                                            color: Color(0xFF080C14),
+                                                            color: Color(0xFFFAFAFA),
                                                             fontWeight: FontWeight.w800,
                                                             fontSize: 13,
                                                             letterSpacing: 2,
@@ -350,7 +350,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
         final size = MediaQuery.of(context).size;
 
         return Scaffold(
-            backgroundColor: const Color(0xFF080C14),
+            backgroundColor: const Color(0xFFFAFAFA),
             body: Stack(
                 children: [
                     CustomPaint(
@@ -371,7 +371,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                         shape: BoxShape.circle,
                                         gradient: RadialGradient(
                                             colors: [
-                                                const Color(0xFF00E5FF)
+                                                const Color(0xFFFF6B2B)
                                                     .withOpacity(0.1 * _pulseAnim.value),
                                                 Colors.transparent,
                                             ],
@@ -402,7 +402,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                 const Text(
                                                     '[ SYSTEM ANALYSIS ]',
                                                     style: TextStyle(
-                                                        color: Color(0xFF00E5FF),
+                                                        color: Color(0xFFFF6B2B),
                                                         fontSize: 13,
                                                         letterSpacing: 3,
                                                         fontWeight: FontWeight.w700,
@@ -419,7 +419,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                         const Text(
                                             'HUNTER ASSESSMENT',
                                             style: TextStyle(
-                                                color: Colors.white,
+                                                color: Color(0xFF1A1A1A),
                                                 fontSize: 24,
                                                 fontWeight: FontWeight.w800,
                                                 letterSpacing: 3,
@@ -433,13 +433,13 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                 gradient: const LinearGradient(
                                                     colors: [
                                                         Colors.transparent,
-                                                        Color(0xFF00E5FF),
+                                                        Color(0xFFFF6B2B),
                                                         Colors.transparent,
                                                     ],
                                                 ),
                                                 boxShadow: [
                                                     BoxShadow(
-                                                        color: const Color(0xFF00E5FF).withOpacity(0.5),
+                                                        color: const Color(0xFFFF6B2B).withOpacity(0.5),
                                                         blurRadius: 6,
                                                     ),
                                                 ],
@@ -449,7 +449,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                         Text(
                                             'Enter your hunter data to begin profiling',
                                             style: TextStyle(
-                                                color: Colors.white.withOpacity(0.3),
+                                                color: Color(0xFF1A1A1A).withOpacity(0.3),
                                                 fontSize: 11,
                                                 letterSpacing: 1,
                                             ),
@@ -459,10 +459,10 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                             width: double.infinity,
                                             padding: const EdgeInsets.all(20),
                                             decoration: BoxDecoration(
-                                                color: const Color(0xFF0D1620),
+                                                color: const Color(0xFFFFFFFF),
                                                 borderRadius: BorderRadius.circular(10),
                                                 border: Border.all(
-                                                    color: const Color(0xFF00E5FF).withOpacity(0.25),
+                                                    color: const Color(0xFFFF6B2B).withOpacity(0.25),
                                                     width: 1,
                                                 ),
                                             ),
@@ -520,7 +520,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                     weightController.text.trim().isEmpty) {
                                                     ScaffoldMessenger.of(context).showSnackBar(
                                                         SnackBar(
-                                                            backgroundColor: const Color(0xFF0D1620),
+                                                            backgroundColor: const Color(0xFFFFFFFF),
                                                             shape: RoundedRectangleBorder(
                                                                 side: const BorderSide(
                                                                     color: Colors.redAccent, width: 1),
@@ -582,11 +582,11 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                 width: double.infinity,
                                                 height: 54,
                                                 decoration: BoxDecoration(
-                                                    color: const Color(0xFF00E5FF),
+                                                    color: const Color(0xFFFF6B2B),
                                                     borderRadius: BorderRadius.circular(6),
                                                     boxShadow: [
                                                         BoxShadow(
-                                                            color: const Color(0xFF00E5FF).withOpacity(0.4),
+                                                            color: const Color(0xFFFF6B2B).withOpacity(0.4),
                                                             blurRadius: 22,
                                                             spreadRadius: 2,
                                                         ),
@@ -596,12 +596,12 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                     mainAxisAlignment: MainAxisAlignment.center,
                                                     children: [
                                                         Icon(Icons.radar,
-                                                            color: Color(0xFF080C14), size: 18),
+                                                            color: Color(0xFFFAFAFA), size: 18),
                                                         SizedBox(width: 10),
                                                         Text(
                                                             'INITIATE SCAN',
                                                             style: TextStyle(
-                                                                color: Color(0xFF080C14),
+                                                                color: Color(0xFFFAFAFA),
                                                                 fontWeight: FontWeight.w800,
                                                                 fontSize: 14,
                                                                 letterSpacing: 2,
@@ -628,10 +628,10 @@ class _AssessmentScreenState extends State<AssessmentScreen>
             height: 6,
             decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFF00E5FF).withOpacity(opacity),
+                color: const Color(0xFFFF6B2B).withOpacity(opacity),
                 boxShadow: [
                     BoxShadow(
-                        color: const Color(0xFF00E5FF).withOpacity(0.8),
+                        color: const Color(0xFFFF6B2B).withOpacity(0.8),
                         blurRadius: 6,
                     ),
                 ],
@@ -646,11 +646,11 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                     width: 3,
                     height: 12,
                     decoration: BoxDecoration(
-                        color: const Color(0xFF00E5FF),
+                        color: const Color(0xFFFF6B2B),
                         borderRadius: BorderRadius.circular(2),
                         boxShadow: [
                             BoxShadow(
-                                color: const Color(0xFF00E5FF).withOpacity(0.6),
+                                color: const Color(0xFFFF6B2B).withOpacity(0.6),
                                 blurRadius: 6,
                             ),
                         ],
@@ -660,7 +660,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                 Text(
                     label,
                     style: TextStyle(
-                        color: Colors.white.withOpacity(0.4),
+                        color: Color(0xFF1A1A1A).withOpacity(0.4),
                         fontSize: 10,
                         letterSpacing: 2.5,
                         fontWeight: FontWeight.w600,
@@ -699,17 +699,17 @@ class _HunterTextFieldState extends State<_HunterTextField> {
                 controller: widget.controller,
                 keyboardType: widget.keyboardType,
                 style: const TextStyle(
-                    color: Colors.white,
+                    color: Color(0xFF1A1A1A),
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                 ),
-                cursorColor: const Color(0xFF00E5FF),
+                cursorColor: const Color(0xFFFF6B2B),
                 decoration: InputDecoration(
                     labelText: widget.label,
                     labelStyle: TextStyle(
                         color: _focused
-                            ? const Color(0xFF00E5FF)
-                            : Colors.white.withOpacity(0.35),
+                            ? const Color(0xFFFF6B2B)
+                            : Color(0xFF1A1A1A).withOpacity(0.35),
                         fontSize: 12,
                         letterSpacing: 1,
                         fontWeight: FontWeight.w600,
@@ -717,24 +717,24 @@ class _HunterTextFieldState extends State<_HunterTextField> {
                     prefixIcon: Icon(
                         widget.icon,
                         color: _focused
-                            ? const Color(0xFF00E5FF)
-                            : Colors.white.withOpacity(0.25),
+                            ? const Color(0xFFFF6B2B)
+                            : Color(0xFF1A1A1A).withOpacity(0.25),
                         size: 16,
                     ),
                     filled: true,
                     fillColor: _focused
-                        ? const Color(0xFF00E5FF).withOpacity(0.05)
-                        : const Color(0xFF080C14),
+                        ? const Color(0xFFFF6B2B).withOpacity(0.05)
+                        : const Color(0xFFFAFAFA),
                     enabledBorder: OutlineInputBorder(
                         borderSide: BorderSide(
-                            color: const Color(0xFF00E5FF).withOpacity(0.2),
+                            color: const Color(0xFFFF6B2B).withOpacity(0.2),
                             width: 1,
                         ),
                         borderRadius: BorderRadius.circular(6),
                     ),
                     focusedBorder: OutlineInputBorder(
                         borderSide: const BorderSide(
-                            color: Color(0xFF00E5FF),
+                            color: Color(0xFFFF6B2B),
                             width: 1.5,
                         ),
                         borderRadius: BorderRadius.circular(6),
@@ -753,7 +753,7 @@ class _GridPainter extends CustomPainter {
     @override
     void paint(Canvas canvas, Size size) {
         final paint = Paint()
-            ..color = const Color(0xFF00E5FF).withOpacity(0.03)
+            ..color = const Color(0xFFFF6B2B).withOpacity(0.03)
             ..strokeWidth = 0.5;
 
         const spacing = 40.0;

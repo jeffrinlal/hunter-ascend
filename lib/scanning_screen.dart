@@ -97,7 +97,7 @@ class _ScanningScreenState extends State<ScanningScreen>
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF080C14),
+      backgroundColor: const Color(0xFFFAFAFA),
       body: Stack(
         children: [
           // Grid background
@@ -117,7 +117,7 @@ class _ScanningScreenState extends State<ScanningScreen>
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      const Color(0xFF00E5FF)
+                      const Color(0xFFFF6B2B)
                           .withOpacity(0.07 * _pulseAnim.value),
                       Colors.transparent,
                     ],
@@ -140,13 +140,13 @@ class _ScanningScreenState extends State<ScanningScreen>
                   gradient: LinearGradient(
                     colors: [
                       Colors.transparent,
-                      const Color(0xFF00E5FF).withOpacity(0.7),
+                      const Color(0xFFFF6B2B).withOpacity(0.7),
                       Colors.transparent,
                     ],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF00E5FF).withOpacity(0.4),
+                      color: const Color(0xFFFF6B2B).withOpacity(0.4),
                       blurRadius: 8,
                     ),
                   ],
@@ -179,7 +179,7 @@ class _ScanningScreenState extends State<ScanningScreen>
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: const Color(0xFF00E5FF)
+                                    color: const Color(0xFFFF6B2B)
                                         .withOpacity(0.15 * _pulseAnim.value),
                                     width: 1,
                                   ),
@@ -191,16 +191,16 @@ class _ScanningScreenState extends State<ScanningScreen>
                                 height: 100,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: const Color(0xFF00E5FF)
+                                  color: const Color(0xFFFF6B2B)
                                       .withOpacity(0.07),
                                   border: Border.all(
-                                    color: const Color(0xFF00E5FF)
+                                    color: const Color(0xFFFF6B2B)
                                         .withOpacity(0.5),
                                     width: 1.5,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF00E5FF)
+                                      color: const Color(0xFFFF6B2B)
                                           .withOpacity(
                                           0.3 * _pulseAnim.value),
                                       blurRadius: 30,
@@ -211,7 +211,7 @@ class _ScanningScreenState extends State<ScanningScreen>
                                 child: Icon(
                                   Icons.memory,
                                   size: 48,
-                                  color: const Color(0xFF00E5FF)
+                                  color: const Color(0xFFFF6B2B)
                                       .withOpacity(
                                       0.7 + 0.3 * _pulseAnim.value),
                                 ),
@@ -236,11 +236,11 @@ class _ScanningScreenState extends State<ScanningScreen>
                               height: 6,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: const Color(0xFF00E5FF)
+                                color: const Color(0xFFFF6B2B)
                                     .withOpacity(_pulseAnim.value),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF00E5FF)
+                                    color: const Color(0xFFFF6B2B)
                                         .withOpacity(0.8),
                                     blurRadius: 6,
                                   ),
@@ -252,7 +252,7 @@ class _ScanningScreenState extends State<ScanningScreen>
                           const Text(
                             '[ SYSTEM ANALYSIS ]',
                             style: TextStyle(
-                              color: Color(0xFF00E5FF),
+                              color: Color(0xFFFF6B2B),
                               fontSize: 16,
                               letterSpacing: 3,
                               fontWeight: FontWeight.w700,
@@ -266,11 +266,11 @@ class _ScanningScreenState extends State<ScanningScreen>
                               height: 6,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: const Color(0xFF00E5FF)
+                                color: const Color(0xFFFF6B2B)
                                     .withOpacity(_pulseAnim.value),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF00E5FF)
+                                    color: const Color(0xFFFF6B2B)
                                         .withOpacity(0.8),
                                     blurRadius: 6,
                                   ),
@@ -287,10 +287,10 @@ class _ScanningScreenState extends State<ScanningScreen>
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0D1620),
+                          color: const Color(0xFFFFFFFF),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: const Color(0xFF00E5FF).withOpacity(0.25),
+                            color: const Color(0xFFFF6B2B).withOpacity(0.25),
                             width: 1,
                           ),
                         ),
@@ -305,7 +305,7 @@ class _ScanningScreenState extends State<ScanningScreen>
                                 Text(
                                   'SCAN PROGRESS',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.4),
+                                    color: Color(0xFF1A1A1A).withOpacity(0.4),
                                     fontSize: 10,
                                     letterSpacing: 2,
                                     fontWeight: FontWeight.w600,
@@ -314,7 +314,7 @@ class _ScanningScreenState extends State<ScanningScreen>
                                 Text(
                                   '${(progress * 100).toInt()}%',
                                   style: const TextStyle(
-                                    color: Color(0xFF00E5FF),
+                                    color: Color(0xFFFF6B2B),
                                     fontSize: 13,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 1,
@@ -332,10 +332,10 @@ class _ScanningScreenState extends State<ScanningScreen>
                                 value: progress,
                                 minHeight: 8,
                                 backgroundColor:
-                                Colors.white.withOpacity(0.07),
+                                Color(0xFF1A1A1A).withOpacity(0.07),
                                 valueColor:
                                 const AlwaysStoppedAnimation<Color>(
-                                  Color(0xFF00E5FF),
+                                  Color(0xFFFF6B2B),
                                 ),
                               ),
                             ),
@@ -347,14 +347,14 @@ class _ScanningScreenState extends State<ScanningScreen>
                               children: [
                                 const Icon(
                                   Icons.chevron_right,
-                                  color: Color(0xFF00E5FF),
+                                  color: Color(0xFFFF6B2B),
                                   size: 14,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   _currentStatus,
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.6),
+                                    color: Color(0xFF1A1A1A).withOpacity(0.6),
                                     fontSize: 12,
                                     letterSpacing: 0.5,
                                   ),
@@ -377,7 +377,7 @@ class _ScanningScreenState extends State<ScanningScreen>
 
   // Corner bracket decorations around the icon
   List<Widget> _buildCornerBrackets(double boxSize) {
-    const color = Color(0xFF00E5FF);
+    const color = Color(0xFFFF6B2B);
     const len = 14.0;
     const thick = 1.5;
     final half = boxSize / 2;
@@ -456,7 +456,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF00E5FF).withOpacity(0.03)
+      ..color = const Color(0xFFFF6B2B).withOpacity(0.03)
       ..strokeWidth = 0.5;
 
     const spacing = 40.0;

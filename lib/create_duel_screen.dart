@@ -187,13 +187,13 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0C14),
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0C14),
+        backgroundColor: const Color(0xFFFAFAFA),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios,
-              color: Colors.white70, size: 20),
+              color: Color(0xFF666666), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -203,7 +203,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
             Text(
               'Create Duel',
               style: TextStyle(
-                color: Colors.white,
+                color: Color(0xFF1A1A1A),
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
@@ -213,7 +213,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.history, color: Color(0xFF64C8FF)),
+            icon: const Icon(Icons.history, color: Color(0xFFFF6B2B)),
             onPressed: () {
               Navigator.push(
                 context,
@@ -239,9 +239,9 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFF1A0510),
-                    Color(0xFF2A0A1A),
-                    Color(0xFF0A0C2A),
+                    Color(0xFFFCE4EC),
+                    Color(0xFFFFE5EC),
+                    Color(0xFFFAFAFA),
                   ],
                 ),
                 border: Border.all(
@@ -273,7 +273,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                   const Text(
                     'DUEL ARENA',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Color(0xFF1A1A1A),
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 4,
@@ -284,7 +284,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                     'Create a rivalry and challenge another Hunter',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.55),
+                      color: Color(0xFF1A1A1A).withOpacity(0.55),
                       fontSize: 13,
                     ),
                   ),
@@ -305,15 +305,15 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF111523),
+                        color: const Color(0xFFFFFFFF),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                            color: const Color(0xFF64C8FF).withOpacity(0.2)),
+                            color: const Color(0xFFFF6B2B).withOpacity(0.2)),
                       ),
                       child: Row(
                         children: [
                           const Icon(Icons.fingerprint,
-                              color: Color(0xFF64C8FF), size: 20),
+                              color: Color(0xFFFF6B2B), size: 20),
                           const SizedBox(width: 10),
                         Expanded(
                           child: FutureBuilder<DocumentSnapshot>(
@@ -325,7 +325,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                               if (!snapshot.hasData) {
                                 return const Text(
                                   'Loading...',
-                                  style: TextStyle(color: Colors.white38),
+                                  style: TextStyle(color: Color(0xFF999999)),
                                 );
                               }
 
@@ -335,7 +335,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                               return SelectableText(
                                 data?['hunterName'] ?? 'Unknown Hunter',
                                 style: const TextStyle(
-                                  color: Color(0xFF64C8FF),
+                                  color: Color(0xFFFF6B2B),
                                   fontSize: 12,
                                   letterSpacing: 0.5,
                                 ),
@@ -380,14 +380,14 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                             width: 48,
                             height: 52,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF64C8FF).withOpacity(0.12),
+                              color: const Color(0xFFFF6B2B).withOpacity(0.12),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                  color: const Color(0xFF64C8FF)
+                                  color: const Color(0xFFFF6B2B)
                                       .withOpacity(0.4)),
                             ),
                             child: const Icon(Icons.add,
-                                color: Color(0xFF64C8FF)),
+                                color: Color(0xFFFF6B2B)),
                           ),
                         ),
                       ],
@@ -437,20 +437,20 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF111523),
+                          color: const Color(0xFFFFFFFF),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                              color: Colors.white.withOpacity(0.06)),
+                              color: Color(0xFF1A1A1A).withOpacity(0.06)),
                         ),
                         child: Column(
                           children: [
                             Icon(Icons.add_task,
-                                color: Colors.white24, size: 36),
+                                color: Color(0xFFBBBBBB), size: 36),
                             const SizedBox(height: 8),
                             Text(
                               'Add at least 4 quests to challenge',
                               style: TextStyle(
-                                  color: Colors.white38, fontSize: 13),
+                                  color: Color(0xFF999999), fontSize: 13),
                             ),
                           ],
                         ),
@@ -464,7 +464,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF111523),
+                          color: const Color(0xFFFFFFFF),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: const Color(0xFFE74C3C).withOpacity(0.3),
@@ -490,7 +490,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                                   Text(
                                     quest['name'],
                                     style: const TextStyle(
-                                      color: Colors.white,
+                                      color: Color(0xFF1A1A1A),
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14,
                                     ),
@@ -499,7 +499,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                                   const Text(
                                     'Mission Objective',
                                     style: TextStyle(
-                                      color: Colors.white38,
+                                      color: Color(0xFF999999),
                                       fontSize: 11,
                                     ),
                                   ),
@@ -560,7 +560,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: duelQuests.length >= 4
                         ? const Color(0xFFE74C3C)
-                        : const Color(0xFF1A1D2E),
+                        : const Color(0xFFFFFFFF),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -568,7 +568,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                       side: BorderSide(
                         color: duelQuests.length >= 4
                             ? const Color(0xFFE74C3C)
-                            : Colors.white12,
+                            : Color(0x1FFF6B2B),
                       ),
                     ),
                     elevation: duelQuests.length >= 4 ? 8 : 0,
@@ -605,7 +605,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
     return Text(
       text,
       style: const TextStyle(
-        color: Colors.white54,
+        color: Color(0xFF666666),
         fontSize: 11,
         fontWeight: FontWeight.w600,
         letterSpacing: 2,
@@ -620,23 +620,23 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
   }) {
     return TextField(
       controller: controller,
-      style: const TextStyle(color: Colors.white, fontSize: 14),
+      style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-        prefixIcon: Icon(icon, color: const Color(0xFF64C8FF), size: 20),
+        hintStyle: const TextStyle(color: Color(0xFF999999), fontSize: 14),
+        prefixIcon: Icon(icon, color: const Color(0xFFFF6B2B), size: 20),
         filled: true,
-        fillColor: const Color(0xFF111523),
+        fillColor: const Color(0xFFFFFFFF),
         contentPadding:
         const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide:
-          BorderSide(color: const Color(0xFF64C8FF).withOpacity(0.2)),
+          BorderSide(color: const Color(0xFFFF6B2B).withOpacity(0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF64C8FF), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFFFF6B2B), width: 1.5),
         ),
       ),
     );

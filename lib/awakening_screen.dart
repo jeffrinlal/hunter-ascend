@@ -413,14 +413,14 @@ class _AwakeningScreenState extends State<AwakeningScreen>
                           children: [
                             Icon(
                               Icons.flash_on,
-                              color: Colors.white,
+                              color: Color(0xFF1A1A1A),
                               size: 18,
                             ),
                             SizedBox(width: 8),
                             Text(
                               'ACCEPT SYSTEM',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: Color(0xFF1A1A1A),
                                 fontWeight: FontWeight.w800,
                                 fontSize: 14,
                                 letterSpacing: 2,

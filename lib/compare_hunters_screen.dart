@@ -23,10 +23,10 @@ class CompareHuntersScreen extends StatelessWidget {
   Color _getRankColor(int level) {
     if (level >= 30) return const Color(0xFFFFD700);
     if (level >= 20) return const Color(0xFFFF4444);
-    if (level >= 15) return const Color(0xFFFF8800);
-    if (level >= 10) return const Color(0xFF44AAFF);
+    if (level >= 15) return const Color(0xFFFF6B2B);
+    if (level >= 10) return const Color(0xFFFF6B2B);
     if (level >= 5)  return const Color(0xFF44DD88);
-    return const Color(0xFF8898BB);
+    return const Color(0xFF666666);
   }
 
   @override
@@ -34,12 +34,12 @@ class CompareHuntersScreen extends StatelessWidget {
     final currentUid = FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF070B14),
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF070B14),
+        backgroundColor: const Color(0xFFFAFAFA),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white70, size: 20),
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF666666), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -47,18 +47,18 @@ class CompareHuntersScreen extends StatelessWidget {
             Container(
               width: 28, height: 28,
               decoration: BoxDecoration(
-                color: const Color(0xFF4D7CFF).withOpacity(0.12),
+                color: const Color(0xFFFF6B2B).withOpacity(0.12),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFF4D7CFF).withOpacity(0.4)),
+                border: Border.all(color: const Color(0xFFFF6B2B).withOpacity(0.4)),
               ),
               child: const Icon(Icons.compare_arrows,
-                  color: Color(0xFF4D7CFF), size: 17),
+                  color: Color(0xFFFF6B2B), size: 17),
             ),
             const SizedBox(width: 10),
             const Text(
               'HUNTER COMPARISON',
               style: TextStyle(
-                color: Colors.white,
+                color: Color(0xFF1A1A1A),
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.5,
@@ -75,7 +75,7 @@ class CompareHuntersScreen extends StatelessWidget {
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(
-              child: CircularProgressIndicator(color: Color(0xFF4D7CFF)),
+              child: CircularProgressIndicator(color: Color(0xFFFF6B2B)),
             );
           }
 
@@ -144,13 +144,13 @@ class CompareHuntersScreen extends StatelessWidget {
                     Container(
                       width: 44, height: 44,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0D1120),
+                        color: const Color(0xFFFFFFFF),
                         shape: BoxShape.circle,
                         border: Border.all(
-                            color: const Color(0xFF1E2D4A), width: 1.5),
+                            color: const Color(0xFFFFE0D0), width: 1.5),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF4D7CFF).withOpacity(0.2),
+                            color: const Color(0xFFFF6B2B).withOpacity(0.2),
                             blurRadius: 12,
                           ),
                         ],
@@ -159,7 +159,7 @@ class CompareHuntersScreen extends StatelessWidget {
                         child: Text(
                           'VS',
                           style: TextStyle(
-                            color: Color(0xFF4D7CFF),
+                            color: Color(0xFFFF6B2B),
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1,
@@ -321,7 +321,7 @@ class CompareHuntersScreen extends StatelessWidget {
                   BoxShadow(
                       color: rankColor.withOpacity(0.35), blurRadius: 16),
                 ],
-                color: const Color(0xFF0D1120),
+                color: const Color(0xFFFFFFFF),
               ),
               child: profilePicture != null &&
                   profilePicture.isNotEmpty
@@ -346,7 +346,7 @@ class CompareHuntersScreen extends StatelessWidget {
               child: Container(
                 width: 22, height: 22,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF070B14),
+                  color: const Color(0xFFFAFAFA),
                   shape: BoxShape.circle,
                   border: Border.all(color: rankColor, width: 1.5),
                 ),
@@ -368,7 +368,7 @@ class CompareHuntersScreen extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: isMe ? const Color(0xFF4D7CFF) : Colors.white,
+            color: isMe ? const Color(0xFFFF6B2B) : const Color(0xFF1A1A1A),
             fontSize: 13,
             fontWeight: FontWeight.bold,
           ),
@@ -413,9 +413,9 @@ class CompareHuntersScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1120),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF1E2D4A), width: 1),
+        border: Border.all(color: const Color(0xFFFFE0D0), width: 1),
       ),
       child: Column(
         children: [
@@ -429,7 +429,7 @@ class CompareHuntersScreen extends StatelessWidget {
                   displayMy,
                   textAlign: TextAlign.left,
                   style: TextStyle(
-                    color: myWins ? myColor : Colors.white54,
+                    color: myWins ? myColor : Color(0xFF666666),
                     fontSize: 14,
                     fontWeight: myWins ? FontWeight.bold : FontWeight.normal,
                   ),
@@ -441,7 +441,7 @@ class CompareHuntersScreen extends StatelessWidget {
                   label,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: Colors.white38,
+                    color: Color(0xFF999999),
                     fontSize: 10,
                     letterSpacing: 1.5,
                     fontWeight: FontWeight.w600,
@@ -455,7 +455,7 @@ class CompareHuntersScreen extends StatelessWidget {
                   displayTheir,
                   textAlign: TextAlign.right,
                   style: TextStyle(
-                    color: theirWins ? theirColor : Colors.white54,
+                    color: theirWins ? theirColor : Color(0xFF666666),
                     fontSize: 14,
                     fontWeight: theirWins ? FontWeight.bold : FontWeight.normal,
                   ),
@@ -511,18 +511,18 @@ class CompareHuntersScreen extends StatelessWidget {
   Widget _sectionLabel(String text) {
     return Row(children: [
       Expanded(child: Container(height: 1,
-          color: Colors.white.withOpacity(0.06))),
+          color: Color(0xFF1A1A1A).withOpacity(0.06))),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Text(text,
             style: const TextStyle(
-                color: Colors.white24,
+                color: Color(0xFFBBBBBB),
                 fontSize: 10,
                 letterSpacing: 2,
                 fontWeight: FontWeight.bold)),
       ),
       Expanded(child: Container(height: 1,
-          color: Colors.white.withOpacity(0.06))),
+          color: Color(0xFF1A1A1A).withOpacity(0.06))),
     ]);
   }
 }

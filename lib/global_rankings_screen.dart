@@ -180,7 +180,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
   Color _rankColor(int level) {
     if (level >= 30) return const Color(0xFFFF4444);
-    if (level >= 20) return const Color(0xFFFF8800);
+    if (level >= 20) return const Color(0xFFFF6B2B);
     if (level >= 15) return const Color(0xFF9B59B6);
     if (level >= 10) return const Color(0xFF3498DB);
     if (level >= 5)  return const Color(0xFF2ECC71);
@@ -341,7 +341,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                   child: Text(
                     '${index + 1}',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Color(0xFF1A1A1A),
                       fontSize: isFirst ? 26 : 20,
                       fontWeight: FontWeight.w900,
                     ),

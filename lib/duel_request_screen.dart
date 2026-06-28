@@ -12,11 +12,11 @@ class DuelRequestScreen extends StatefulWidget {
 
 class _DuelRequestScreenState extends State<DuelRequestScreen> {
 
-  static const _bg      = Color(0xFF070B14);
-  static const _card    = Color(0xFF0D1120);
-  static const _blue    = Color(0xFF4D7CFF);
-  static const _blueDim = Color(0xFF1A2A4A);
-  static const _border  = Color(0xFF1E2D4A);
+  static const _bg      = Color(0xFFFAFAFA);
+  static const _card    = Color(0xFFFFFFFF);
+  static const _blue    = Color(0xFFFF6B2B);
+  static const _blueDim = Color(0xFFFFE0D0);
+  static const _border  = Color(0xFFFFE0D0);
 
   BannerAd? bannerAd;
   bool isBannerReady = false;
@@ -53,14 +53,14 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
         backgroundColor: _bg,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white70, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF666666), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: RichText(
           text: const TextSpan(children: [
             TextSpan(
               text: "INCOMING ",
-              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1),
+              style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1),
             ),
             TextSpan(
               text: "CHALLENGE",
@@ -105,12 +105,12 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                   const SizedBox(height: 20),
                   const Text(
                     "NO PENDING CHALLENGES",
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2),
+                    style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2),
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     "You have no incoming duel requests",
-                    style: TextStyle(color: Colors.white38, fontSize: 13),
+                    style: TextStyle(color: Color(0xFF999999), fontSize: 13),
                   ),
                 ],
               ),
@@ -168,7 +168,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                             Text(
                               "${duelData['fromHunterName']} has challenged you to battle.\nAccept to begin the $days-day duel.",
                               textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.white54, fontSize: 13, height: 1.5),
+                              style: const TextStyle(color: Color(0xFF666666), fontSize: 13, height: 1.5),
                             ),
                             const SizedBox(height: 16),
                             Container(
@@ -197,7 +197,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                       Row(children: [
                         const Text(
                           "Shared Missions",
-                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(width: 10),
                         Container(
@@ -236,7 +236,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                             Expanded(
                               child: Text(
                                 quest['name'],
-                                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                                style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 14, fontWeight: FontWeight.w600),
                               ),
                             ),
                             Container(
@@ -264,7 +264,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
                 decoration: const BoxDecoration(
-                  color: Color(0xFF080C18),
+                  color: Color(0xFFFAFAFA),
                   border: Border(top: BorderSide(color: _border, width: 1)),
                 ),
                 child: Column(
@@ -345,7 +345,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                               child: Text(
                                 "ACCEPT",
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: Color(0xFF1A1A1A),
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1.5,
                                   fontSize: 14,

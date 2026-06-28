@@ -5,11 +5,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 class DuelHistoryScreen extends StatelessWidget {
   const DuelHistoryScreen({super.key});
 
-  static const _bg     = Color(0xFF070B14);
-  static const _card   = Color(0xFF0D1120);
-  static const _blue   = Color(0xFF4D7CFF);
-  static const _blueDim = Color(0xFF1A2A4A);
-  static const _border = Color(0xFF1E2D4A);
+  static const _bg     = Color(0xFFFAFAFA);
+  static const _card   = Color(0xFFFFFFFF);
+  static const _blue   = Color(0xFFFF6B2B);
+  static const _blueDim = Color(0xFFFFE0D0);
+  static const _border = Color(0xFFFFE0D0);
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +21,7 @@ class DuelHistoryScreen extends StatelessWidget {
         backgroundColor: _bg,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white70, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF666666), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: RichText(
@@ -29,7 +29,7 @@ class DuelHistoryScreen extends StatelessWidget {
             TextSpan(
               text: "DUEL ",
               style: TextStyle(
-                color: Colors.white,
+                color: Color(0xFF1A1A1A),
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1,
@@ -100,7 +100,7 @@ class DuelHistoryScreen extends StatelessWidget {
                   const Text(
                     "NO DUEL HISTORY",
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Color(0xFF1A1A1A),
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 2,
@@ -109,7 +109,7 @@ class DuelHistoryScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   const Text(
                     "Challenge a hunter to begin",
-                    style: TextStyle(color: Colors.white38, fontSize: 13),
+                    style: TextStyle(color: Color(0xFF999999), fontSize: 13),
                   ),
                 ],
               ),
@@ -129,7 +129,7 @@ class DuelHistoryScreen extends StatelessWidget {
                   const SizedBox(width: 10),
                   _buildStatCard("LOSSES",    "$losses",    const Color(0xFFFF4444), Icons.sports_kabaddi),
                   const SizedBox(width: 10),
-                  _buildStatCard("CANCELLED", "$cancelled", Colors.white38,          Icons.cancel_outlined),
+                  _buildStatCard("CANCELLED", "$cancelled", Color(0xFF999999),          Icons.cancel_outlined),
                 ]),
 
                 const SizedBox(height: 24),
@@ -138,7 +138,7 @@ class DuelHistoryScreen extends StatelessWidget {
                 Row(children: [
                   const Text(
                     "Recent Duels",
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(width: 10),
                   Container(
@@ -176,9 +176,9 @@ class DuelHistoryScreen extends StatelessWidget {
                     }
                   } else {
                     label      = "CANCELLED";
-                    accentColor = Colors.white38;
+                    accentColor = Color(0xFF999999);
                     iconData   = Icons.cancel_outlined;
-                    iconBg     = Colors.white.withOpacity(0.05);
+                    iconBg     = Color(0xFF1A1A1A).withOpacity(0.05);
                   }
 
                   // Optional: show opponent name if available
@@ -231,7 +231,7 @@ class DuelHistoryScreen extends StatelessWidget {
                             const SizedBox(height: 3),
                             Text(
                               "vs $opponentName",
-                              style: const TextStyle(color: Colors.white38, fontSize: 12),
+                              style: const TextStyle(color: Color(0xFF999999), fontSize: 12),
                             ),
                           ],
                         ]),
@@ -241,7 +241,7 @@ class DuelHistoryScreen extends StatelessWidget {
                         if (dateStr.isNotEmpty)
                           Text(
                             dateStr,
-                            style: const TextStyle(color: Colors.white38, fontSize: 11),
+                            style: const TextStyle(color: Color(0xFF999999), fontSize: 11),
                           ),
                         const SizedBox(height: 6),
                         Container(
@@ -291,7 +291,7 @@ class DuelHistoryScreen extends StatelessWidget {
             style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          Text(label, style: const TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 1)),
+          Text(label, style: const TextStyle(color: Color(0xFF999999), fontSize: 10, letterSpacing: 1)),
         ]),
       ),
     );

@@ -588,7 +588,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                     child: const Center(
                         child: Text("LOG MEAL",
                             style: TextStyle(
-                                color: Colors.white,
+                                color: Color(0xFF1A1A1A),
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 1))),
                   ),
@@ -760,9 +760,9 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
+                                color: Color(0xFF1A1A1A), strokeWidth: 2))
                             : const Icon(Icons.search,
-                            color: Colors.white, size: 20),
+                            color: Color(0xFF1A1A1A), size: 20),
                       ),
                     ),
 

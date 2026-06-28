@@ -7,7 +7,7 @@ class NutritionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF070B14),
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
         title: const Text("Nutrition"),
       ),

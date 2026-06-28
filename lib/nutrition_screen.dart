@@ -17,6 +17,9 @@ class NutritionScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: HunterTheme.background,
       appBar: AppBar(
+        backgroundColor: HunterTheme.cardColor,
+        foregroundColor: HunterTheme.textPrimary,
+        elevation: 0,
         title: const Text("Nutrition"),
       ),
       body: const SafeArea(

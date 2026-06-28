@@ -4,6 +4,7 @@ import 'Theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'public_hunter_profile_screen.dart';
+import 'skeleton_loaders.dart';
 import 'dart:convert';
 
 // ── Top 3 Crown Painter ────────────────────────────────────────────────────
@@ -456,15 +457,9 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: HunterTheme.primary),
-                  SizedBox(height: 16),
-                  Text('Loading Hunters...', style: TextStyle(color: HunterTheme.textSecondary, fontSize: 14)),
-                ],
-              ),
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              child: buildLeaderboardSkeleton(),
             );
           }
 

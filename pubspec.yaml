@@ -33,6 +33,7 @@ dependencies:
   screenshot: ^3.0.0
   share_plus: ^10.1.4
   in_app_review: ^2.0.10
+  shimmer: ^3.0.0
 
 
 

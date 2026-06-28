@@ -10,6 +10,7 @@ import 'ai_quest_service.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:in_app_review/in_app_review.dart';
+import 'skeleton_loaders.dart';
 import 'map_screen.dart';
 import 'nutrition_screen.dart';
 
@@ -1620,13 +1621,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
               if (!widget.questsOnly) ...[
                 _buildTopBar(),
                 const SizedBox(height: 20),
-                _buildHunterCard(),
-                const SizedBox(height: 16),
-                _buildStepsCard(),
-                const SizedBox(height: 16),
-                _buildQuickActions(),
-                const SizedBox(height: 16),
-                _buildWaterCard(),
+                StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('hunters')
+                      .doc(FirebaseAuth.instance.currentUser?.uid)
+                      .snapshots(),
+                  builder: (context, snap) {
+                    final loading =
+                        snap.connectionState == ConnectionState.waiting ||
+                            !snap.hasData;
+                    if (loading) return buildDashboardSkeleton();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildHunterCard(),
+                        const SizedBox(height: 16),
+                        _buildStepsCard(),
+                        const SizedBox(height: 16),
+                        _buildQuickActions(),
+                        const SizedBox(height: 16),
+                        _buildWaterCard(),
+                      ],
+                    );
+                  },
+                ),
                 const SizedBox(height: 30),
               ],
               // Daily missions render only in the Missions tab (questsOnly),

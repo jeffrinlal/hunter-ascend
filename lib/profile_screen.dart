@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
+import 'skeleton_loaders.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -111,8 +112,11 @@ class _ProfileScreenState extends State<ProfileScreen>
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return Center(
-              child: CircularProgressIndicator(color: HunterTheme.primary),
+            return SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: buildProfileSkeleton(),
+              ),
             );
           }
 

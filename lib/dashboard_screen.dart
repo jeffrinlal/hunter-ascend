@@ -7,11 +7,6 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'ai_quest_service.dart';
-import 'global_rankings_screen.dart';
-import 'profile_screen.dart';
-import 'duel_screen.dart';
-import 'create_duel_screen.dart';
-import 'duel_request_screen.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'map_screen.dart';
@@ -261,6 +256,7 @@ class DashboardScreen extends StatefulWidget {
   final bool muscleGain;
   final bool selfImprovement;
   final List<Map<String, dynamic>> bioQuests;
+  final bool questsOnly;
 
   const DashboardScreen({
     super.key,
@@ -269,6 +265,7 @@ class DashboardScreen extends StatefulWidget {
     required this.muscleGain,
     required this.selfImprovement,
     this.bioQuests = const [],
+    this.questsOnly = false,
   });
 
   @override
@@ -1554,12 +1551,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              _buildTopBar(),
-              const SizedBox(height: 20),
-              _buildHunterCard(),
-              const SizedBox(height: 16),
-              _buildStepsCard(),
-              const SizedBox(height: 24),
+              if (!widget.questsOnly) ...[
+                _buildTopBar(),
+                const SizedBox(height: 20),
+                _buildHunterCard(),
+                const SizedBox(height: 16),
+                _buildStepsCard(),
+                const SizedBox(height: 16),
+                _buildQuickActions(),
+                const SizedBox(height: 24),
+              ],
               if (questStarted) _buildActiveQuestCard(),
               _buildQuestsSection(),
               const SizedBox(height: 30),
@@ -2093,6 +2094,76 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // ── Quick actions (Nutrition + Map) ──────────────────────
+  Widget _buildQuickActions() {
+    return Row(
+      children: [
+        Expanded(
+          child: _quickActionCard(
+            icon: Icons.restaurant_menu,
+            label: 'Nutrition',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NutritionScreen()),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _quickActionCard(
+            icon: Icons.map,
+            label: 'Map',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MapScreen()),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _quickActionCard({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: HunterTheme.cardColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: HunterTheme.primary.withOpacity(0.5),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: HunterTheme.primary.withOpacity(0.08),
+              blurRadius: 12,
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: HunterTheme.primary, size: 26),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: HunterTheme.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAddQuestDialog() {
     showDialog(
       context: context,
@@ -2122,121 +2193,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  // ── Bottom Nav ───────────────────────────────────────────
-  Widget _buildBottomNav() {
-    return Container(
-      height: 68 + MediaQuery.of(context).padding.bottom,
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
-      decoration: BoxDecoration(
-        color: HunterTheme.background,
-        border: Border(top: BorderSide(color: _border, width: 1)),
-      ),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-
-
-        _navItem(Icons.home_filled, true, () {}),
-
-        _navItem(
-          Icons.restaurant_menu,
-          false,
-              () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const NutritionScreen(),
-            ),
-          ),
-        ),
-
-// Duel item continues here...
-
-        StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('duel_requests')
-              .where('toUid', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-              .where('status', isEqualTo: 'pending')
-              .snapshots(),
-          builder: (context, duelReqSnapshot) {
-            final hasPending = (duelReqSnapshot.data?.docs ?? []).isNotEmpty;
-            return _navItem(Icons.sports_kabaddi, false, () async {
-              final user = FirebaseAuth.instance.currentUser;
-              if (user == null) return;
-              final duelSnapshot = await FirebaseFirestore.instance.collection('duels').where('participants', arrayContains: user.uid).limit(1).get();
-              bool hasActiveDuel = false; String? duelId;
-              if (duelSnapshot.docs.isNotEmpty) {
-                final doc = duelSnapshot.docs.first; final data = doc.data();
-                bool isPlayer1 = data['player1'] == user.uid;
-                bool shouldShowResult = data['status'] == 'completed' && ((isPlayer1 && data['player1ViewedResult'] == false) || (!isPlayer1 && data['player2ViewedResult'] == false));
-                if (data['status'] == 'active' || shouldShowResult) { hasActiveDuel = true; duelId = doc.id; }
-              }
-              if (hasActiveDuel) { Navigator.push(context, MaterialPageRoute(builder: (_) => DuelScreen(duelId: duelId!))); return; }
-              final pendingRequest = await FirebaseFirestore.instance.collection('duel_requests').where('toUid', isEqualTo: user.uid).where('status', isEqualTo: 'pending').limit(1).get();
-              if (pendingRequest.docs.isNotEmpty) { Navigator.push(context, MaterialPageRoute(builder: (_) => const DuelRequestScreen())); return; }
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateDuelScreen()));
-            }, hasDuelAlert: hasPending);
-          },
-        ),
-        _navItem(Icons.leaderboard, false, () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const GlobalRankingsScreen()),
-        )),
-
-        _navItem(Icons.map, false, () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const MapScreen()),
-        )),
-
-
-        _navItem(Icons.person, false, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()))),
-      ]),
-    );
-  }
-
-  Widget _navItem(IconData icon, bool active, VoidCallback onTap, {bool hasDuelAlert = false}) {
-    return IconButton(
-      icon: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Icon(icon, color: active ? _blue : HunterTheme.textTertiary, size: active ? 28 : 24),
-          if (hasDuelAlert)
-            Positioned(
-              right: -4,
-              top: -4,
-              child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.6, end: 1.0),
-                duration: const Duration(milliseconds: 800),
-                curve: Curves.easeInOut,
-                builder: (context, value, child) => Transform.scale(
-                  scale: value,
-                  child: child,
-                ),
-                onEnd: () => setState(() {}),
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: HunterTheme.danger,
-                    border: Border.all(color: HunterTheme.background, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: HunterTheme.danger.withOpacity(0.8),
-                        blurRadius: 8,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Icon(Icons.bolt, color: HunterTheme.textPrimary, size: 7),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-      onPressed: onTap,
     );
   }
 }

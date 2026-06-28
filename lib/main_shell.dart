@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'Theme/hunter_theme.dart';
 import 'dashboard_screen.dart';
-import 'quest_selection_screen.dart';
+import 'quest_screen.dart';
 import 'global_rankings_screen.dart';
 import 'profile_screen.dart';
 import 'duel_screen.dart';
@@ -44,7 +44,7 @@ class _MainShellState extends State<MainShell> {
       selfImprovement: widget.selfImprovement,
       bioQuests: widget.bioQuests,
     ),
-    const QuestSelectionScreen(),
+    const QuestScreen(),
     const GlobalRankingsScreen(),
     const SizedBox.shrink(), // Duels = push action (see _openDuels)
     const ProfileScreen(),

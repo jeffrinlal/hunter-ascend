@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'ai_quest_service.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:in_app_review/in_app_review.dart';
 import 'map_screen.dart';
 import 'nutrition_screen.dart';
 
@@ -485,6 +486,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     loadHunterData().then((_) async {
       await _loadAIQuests();
       await checkDailyReset();
+      if (!widget.questsOnly) await _maybeRequestReview();
     });
     _restoreDashboardActiveQuest();
     if (!widget.questsOnly) _loadWaterIntake();
@@ -1538,6 +1540,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
       completedQuests = List<String>.from(data['completedQuests'] ?? []);
     });
     await checkDisciplineMode();
+  }
+
+  // ── App Review prompt ────────────────────────────────────
+  // Shows the native in-app review once, only after the user reaches a
+  // 3-day streak (never on first launch), then records it in Firestore so
+  // it never shows again.
+  Future<void> _maybeRequestReview() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final ref =
+          FirebaseFirestore.instance.collection('hunters').doc(user.uid);
+      final doc = await ref.get();
+      if (!doc.exists) return;
+      final data = doc.data()!;
+      final streak = (data['streak'] ?? 0) as int;
+      final alreadyRequested = data['reviewRequested'] == true;
+      if (streak >= 3 && !alreadyRequested) {
+        final inAppReview = InAppReview.instance;
+        if (await inAppReview.isAvailable()) {
+          await inAppReview.requestReview();
+        }
+        await ref.update({'reviewRequested': true});
+      }
+    } catch (_) {
+      // Review prompt is non-critical; ignore any failures.
+    }
   }
 
   Future<void> checkDailyReset() async {

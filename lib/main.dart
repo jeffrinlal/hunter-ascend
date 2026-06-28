@@ -63,6 +63,10 @@ void main() async {
     final prefs = await SharedPreferences.getInstance();
     final hasCompletedSetup = prefs.getBool('hasCompletedSetup') ?? false;
 
+    final isDarkMode = prefs.getBool('darkMode') ?? false;
+    HunterTheme.isDark = isDarkMode;
+    themeNotifier.value = isDarkMode ? ThemeMode.dark : ThemeMode.light;
+
     runApp(HunterAscendApp(hasCompletedSetup: hasCompletedSetup));
 }
 
@@ -73,10 +77,16 @@ class HunterAscendApp extends StatelessWidget {
 
     @override
     Widget build(BuildContext context) {
-        return MaterialApp(
+        return ValueListenableBuilder<ThemeMode>(
+            valueListenable: themeNotifier,
+            builder: (context, mode, _) {
+                HunterTheme.isDark = mode == ThemeMode.dark;
+                return MaterialApp(
             debugShowCheckedModeBanner: false,
             title: 'Hunter Ascend',
-            theme: ThemeData.dark(),
+            theme: HunterTheme.lightTheme,
+            darkTheme: HunterTheme.darkTheme,
+            themeMode: mode,
 
             builder: (context, child) {
                 return MediaQuery(
@@ -142,6 +152,8 @@ class HunterAscendApp extends StatelessWidget {
                     return const LoginScreen();
                 },
             ),
+                );
+            },
         );
     }
 }
@@ -151,7 +163,7 @@ class _LoadingScreen extends StatelessWidget {
 
     @override
     Widget build(BuildContext context) {
-        return const Scaffold(
+        return Scaffold(
             backgroundColor: HunterTheme.background,
             body: Center(
                 child: CircularProgressIndicator(
@@ -200,7 +212,7 @@ class WelcomeScreen extends StatelessWidget {
                                                 ),
                                             ],
                                         ),
-                                        child: const Icon(
+                                        child: Icon(
                                             Icons.flash_on,
                                             size: 48,
                                             color: HunterTheme.primary,
@@ -208,7 +220,7 @@ class WelcomeScreen extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 28),
                                     RichText(
-                                        text: const TextSpan(
+                                        text: TextSpan(
                                             children: [
                                                 TextSpan(
                                                     text: 'HUNTER ',
@@ -264,7 +276,7 @@ class WelcomeScreen extends StatelessWidget {
                                                     ),
                                                 ],
                                             ),
-                                            child: const Row(
+                                            child: Row(
                                                 mainAxisAlignment: MainAxisAlignment.center,
                                                 children: [
                                                     Icon(Icons.flash_on,
@@ -400,7 +412,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                     builder: (context, _) => _dot(_pulseAnim.value),
                                                 ),
                                                 const SizedBox(width: 10),
-                                                const Text(
+                                                Text(
                                                     '[ SYSTEM ANALYSIS ]',
                                                     style: TextStyle(
                                                         color: HunterTheme.primary,
@@ -417,7 +429,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                             ],
                                         ),
                                         const SizedBox(height: 10),
-                                        const Text(
+                                        Text(
                                             'HUNTER ASSESSMENT',
                                             style: TextStyle(
                                                 color: HunterTheme.textPrimary,
@@ -431,7 +443,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                             width: 80,
                                             height: 1,
                                             decoration: BoxDecoration(
-                                                gradient: const LinearGradient(
+                                                gradient: LinearGradient(
                                                     colors: [
                                                         Colors.transparent,
                                                         HunterTheme.primary,
@@ -593,7 +605,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                         ),
                                                     ],
                                                 ),
-                                                child: const Row(
+                                                child: Row(
                                                     mainAxisAlignment: MainAxisAlignment.center,
                                                     children: [
                                                         Icon(Icons.radar,
@@ -699,7 +711,7 @@ class _HunterTextFieldState extends State<_HunterTextField> {
             child: TextField(
                 controller: widget.controller,
                 keyboardType: widget.keyboardType,
-                style: const TextStyle(
+                style: TextStyle(
                     color: HunterTheme.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -734,7 +746,7 @@ class _HunterTextFieldState extends State<_HunterTextField> {
                         borderRadius: BorderRadius.circular(6),
                     ),
                     focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(
+                        borderSide: BorderSide(
                             color: HunterTheme.primary,
                             width: 1.5,
                         ),

@@ -140,7 +140,7 @@ class _AwakeningScreenState extends State<AwakeningScreen>
                           ),
                         ),
                         const SizedBox(width: 8),
-                        const Text(
+                        Text(
                           '[ SYSTEM ]',
                           style: TextStyle(
                             color: HunterTheme.primary,
@@ -209,7 +209,7 @@ class _AwakeningScreenState extends State<AwakeningScreen>
                                   ),
                                 ],
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.flash_on,
                                 color: HunterTheme.primary,
                                 size: 52,
@@ -223,7 +223,7 @@ class _AwakeningScreenState extends State<AwakeningScreen>
                     const SizedBox(height: 28),
 
                     // Title
-                    const Text(
+                    Text(
                       'YOUR AWAKENING',
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -241,7 +241,7 @@ class _AwakeningScreenState extends State<AwakeningScreen>
                       width: 80,
                       height: 1,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           colors: [
                             Colors.transparent,
                             HunterTheme.primary,
@@ -281,13 +281,13 @@ class _AwakeningScreenState extends State<AwakeningScreen>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.shield,
                             color: HunterTheme.primary,
                             size: 18,
                           ),
                           const SizedBox(width: 10),
-                          const Text(
+                          Text(
                             'LEVEL 1',
                             style: TextStyle(
                               color: HunterTheme.primary,
@@ -307,7 +307,7 @@ class _AwakeningScreenState extends State<AwakeningScreen>
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: HunterTheme.cardColor,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: HunterTheme.primary.withOpacity(0.35),
@@ -329,13 +329,13 @@ class _AwakeningScreenState extends State<AwakeningScreen>
                               Container(
                                 width: 4,
                                 height: 4,
-                                decoration: const BoxDecoration(
+                                decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: HunterTheme.primary,
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              const Text(
+                              Text(
                                 'SYSTEM MESSAGE',
                                 style: TextStyle(
                                   color: HunterTheme.primary,
@@ -369,13 +369,13 @@ class _AwakeningScreenState extends State<AwakeningScreen>
                       onTap: () async {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            backgroundColor: Colors.white,
+                            backgroundColor: HunterTheme.cardColor,
                             shape: RoundedRectangleBorder(
-                              side: const BorderSide(
+                              side: BorderSide(
                                   color: HunterTheme.primary, width: 1),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            content: const Text(
+                            content: Text(
                               '[ SYSTEM ] ACTIVATING...',
                               style: TextStyle(
                                 color: HunterTheme.primary,
@@ -409,7 +409,7 @@ class _AwakeningScreenState extends State<AwakeningScreen>
                             ),
                           ],
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(

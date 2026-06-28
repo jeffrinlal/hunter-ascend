@@ -264,7 +264,7 @@ class _LoginScreenState extends State<LoginScreen>
 
                     RichText(
                       textAlign: TextAlign.center,
-                      text: const TextSpan(
+                      text: TextSpan(
                         children: [
                           TextSpan(
                             text: 'HUNTER ',
@@ -306,7 +306,7 @@ class _LoginScreenState extends State<LoginScreen>
                       width: 60,
                       height: 1,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           colors: [
                             Colors.transparent,
                             HunterTheme.primary,
@@ -326,7 +326,7 @@ class _LoginScreenState extends State<LoginScreen>
 
                     // Loading indicator
                     if (_isLoading)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(bottom: 20),
                         child: CircularProgressIndicator(
                           color: HunterTheme.primary,
@@ -347,7 +347,7 @@ class _LoginScreenState extends State<LoginScreen>
                     _HunterButton(
                       onTap: _isLoading ? () {} : () => signInGuest(context),
                       label: 'ENTER AS GUEST',
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.bolt,
                         color: HunterTheme.textPrimary,
                         size: 18,
@@ -557,13 +557,13 @@ class _GoogleIcon extends StatelessWidget {
       height: 20,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white,
+        color: HunterTheme.cardColor,
         border: Border.all(
           color: HunterTheme.primary,
           width: 1,
         ),
       ),
-      child: const Center(
+      child: Center(
         child: Text(
           'G',
           style: TextStyle(

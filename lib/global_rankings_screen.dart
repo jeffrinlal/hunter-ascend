@@ -290,7 +290,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   color: HunterTheme.textSecondary,
                   fontSize: 10,
                 ),
@@ -307,7 +307,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                 ),
                 child: Text(
                   '${hunter['xp'] ?? 0} XP',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: HunterTheme.primary,
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
@@ -366,7 +366,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
         actions: [
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.search,
               color: HunterTheme.textSecondary,
             ),
@@ -379,7 +379,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
         ],
 
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: HunterTheme.textSecondary, size: 20),
+          icon: Icon(Icons.arrow_back_ios, color: HunterTheme.textSecondary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: _searchMode
@@ -392,8 +392,8 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
             });
           },
 
-          style: const TextStyle(color: HunterTheme.textPrimary),
-          decoration: const InputDecoration(
+          style: TextStyle(color: HunterTheme.textPrimary),
+          decoration: InputDecoration(
             hintText: 'Enter Hunter ID...',
             hintStyle: TextStyle(color: HunterTheme.textSecondary),
             border: InputBorder.none,
@@ -412,14 +412,14 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                   color: HunterTheme.primary.withOpacity(0.4),
                 ),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.military_tech,
                 color: HunterTheme.primary,
                 size: 18,
               ),
             ),
             const SizedBox(width: 10),
-            const Text(
+            Text(
               'GLOBAL RANKINGS',
               style: TextStyle(
                 color: HunterTheme.textPrimary,
@@ -440,7 +440,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -507,7 +507,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                     margin: const EdgeInsets.all(20),
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: HunterTheme.cardColor,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: HunterTheme.primary,
@@ -531,7 +531,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                             base64Decode(hunter['profilePicture']),
                           ),
                         )
-                            : const Icon(
+                            : Icon(
                           Icons.person,
                           color: HunterTheme.primary,
                           size: 60,
@@ -541,7 +541,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
                         Text(
                           hunter['hunterName'] ?? 'Unknown',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: HunterTheme.textPrimary,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -552,17 +552,17 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
                         Text(
                           'Level ${hunter['level'] ?? 1}',
-                          style: const TextStyle(color: HunterTheme.textSecondary),
+                          style: TextStyle(color: HunterTheme.textSecondary),
                         ),
 
                         Text(
                           '${hunter['xp'] ?? 0} XP',
-                          style: const TextStyle(color: HunterTheme.textSecondary),
+                          style: TextStyle(color: HunterTheme.textSecondary),
                         ),
 
                         Text(
                           hunter['hunterId'] ?? '',
-                          style: const TextStyle(color: HunterTheme.textTertiary),
+                          style: TextStyle(color: HunterTheme.textTertiary),
                         ),
                       ],
                     ),
@@ -579,7 +579,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  color: Colors.white,
+                  color: HunterTheme.cardColor,
                   border: Border.all(
                     color: HunterTheme.primary.withOpacity(0.35),
                     width: 1.5,
@@ -599,13 +599,13 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                       children: [
                         Container(
                           width: 4, height: 4,
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             color: HunterTheme.primary,
                             shape: BoxShape.circle,
                           ),
                         ),
                         const SizedBox(width: 8),
-                        const Text(
+                        Text(
                           'YOUR HUNTER STATUS',
                           style: TextStyle(
                             color: HunterTheme.primary,
@@ -617,7 +617,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                         const SizedBox(width: 8),
                         Container(
                           width: 4, height: 4,
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             color: HunterTheme.primary,
                             shape: BoxShape.circle,
                           ),
@@ -663,7 +663,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                             children: [
                               Text(
                                 myHunter?['hunterName'] ?? 'Unknown Hunter',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: HunterTheme.textPrimary,
                                   fontSize: 17,
                                   fontWeight: FontWeight.w700,
@@ -674,7 +674,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                 myHunter != null
                                     ? '${getRankTitle(myHunter['level'] ?? 1)}  ·  Level ${myHunter['level']}'
                                     : '',
-                                style: const TextStyle(color: HunterTheme.textSecondary, fontSize: 12),
+                                style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12),
                               ),
                             ],
                           ),
@@ -684,7 +684,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                           children: [
                             Text(
                               myHunter != null ? '${myHunter['xp']} XP' : '',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: HunterTheme.primary,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
@@ -702,7 +702,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                               ),
                               child: Text(
                                 myRank > 0 ? '# $myRank' : 'UNRANKED',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: HunterTheme.primary,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
@@ -738,7 +738,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                 child: Row(
                   children: [
                     Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08))),
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(horizontal: 12),
                       child: Text(
                         'LEADERBOARD',
@@ -789,7 +789,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                         decoration: BoxDecoration(
                           color: isMe
                               ? HunterTheme.surface
-                              : Colors.white,
+                              : HunterTheme.cardColor,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
                             color: isMe
@@ -903,7 +903,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                               color: HunterTheme.primary.withOpacity(0.3),
                                             ),
                                           ),
-                                          child: const Text(
+                                          child: Text(
                                             'YOU',
                                             style: TextStyle(
                                               color: HunterTheme.primary,
@@ -942,7 +942,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                               ),
                               child: Text(
                                 '${hunter['xp'] ?? 0} XP',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: HunterTheme.primary,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,

@@ -101,7 +101,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(
+            return Center(
               child: CircularProgressIndicator(color: HunterTheme.primary),
             );
           }
@@ -173,7 +173,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                               children: [
                                 IconButton(
                                   onPressed: () => Navigator.pop(context),
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.arrow_back_ios,
                                     color: HunterTheme.textSecondary,
                                     size: 20,
@@ -189,7 +189,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                       ),
                                     );
                                   },
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.settings,
                                     color: HunterTheme.textSecondary,
                                     size: 24,
@@ -265,7 +265,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                               children: [
                                 Text(
                                   hunterName,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: HunterTheme.textPrimary,
                                     fontSize: 24,
                                     fontWeight: FontWeight.w700,
@@ -289,7 +289,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                       ),
                                     );
                                   },
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.copy,
                                     color: HunterTheme.primary,
                                     size: 18,
@@ -338,7 +338,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     ),
                                     Text(
                                       '$xp XP',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         color: HunterTheme.primary,
                                         fontSize: 13,
                                         fontWeight: FontWeight.bold,
@@ -423,7 +423,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'HUNTER STATS',
                             style: TextStyle(
                               color: HunterTheme.textSecondary,
@@ -462,7 +462,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'DUEL RECORD',
                                   style: TextStyle(
                                     color: HunterTheme.textSecondary,
@@ -506,7 +506,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                               children: [
                                 Text(
                                   '🔥 ${_getHunterClass(bmi)}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: HunterTheme.gold,
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -623,7 +623,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         }
 
         if (!snapshot.hasData) {
-          return const Center(
+          return Center(
             child: CircularProgressIndicator(color: HunterTheme.primary),
           );
         }
@@ -631,7 +631,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         final docs = snapshot.data!.docs;
 
         if (docs.isEmpty) {
-          return const Center(
+          return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -710,7 +710,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     const SizedBox(height: 8),
                     Text(message,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: HunterTheme.textSecondary)),
+                        style: TextStyle(color: HunterTheme.textSecondary)),
                   ],
                 ),
               ),
@@ -745,18 +745,18 @@ class _ProfileScreenState extends State<ProfileScreen>
                           color: HunterTheme.primary.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.monitor_weight_outlined,
+                        child: Icon(Icons.monitor_weight_outlined,
                             color: HunterTheme.primary, size: 20),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Text(dateStr,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: HunterTheme.textSecondary, fontSize: 13)),
                       ),
                       Text(
                         '${w.toStringAsFixed(1)} kg',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: HunterTheme.textPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -779,13 +779,13 @@ class _ProfileScreenState extends State<ProfileScreen>
     return Column(
       children: [
         Text(value,
-            style: const TextStyle(
+            style: TextStyle(
                 color: HunterTheme.textPrimary,
                 fontSize: 28,
                 fontWeight: FontWeight.w700)),
         const SizedBox(height: 2),
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 color: HunterTheme.textTertiary,
                 fontSize: 11,
                 letterSpacing: 1.5)),
@@ -836,7 +836,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           const SizedBox(width: 10),
           Text('$value',
-              style: const TextStyle(
+              style: TextStyle(
                   color: HunterTheme.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.bold)),
@@ -855,7 +855,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 color: HunterTheme.textTertiary,
                 fontSize: 11,
                 letterSpacing: 1.5)),
@@ -869,13 +869,13 @@ class _ProfileScreenState extends State<ProfileScreen>
         Icon(icon, color: HunterTheme.primary, size: 22),
         const SizedBox(height: 6),
         Text(value,
-            style: const TextStyle(
+            style: TextStyle(
                 color: HunterTheme.textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 2),
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 color: HunterTheme.textTertiary,
                 fontSize: 11,
                 letterSpacing: 1.5)),
@@ -932,31 +932,31 @@ class _ProfileScreenState extends State<ProfileScreen>
           backgroundColor: HunterTheme.cardColor,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16)),
-          title: const Text('Update Current Weight',
+          title: Text('Update Current Weight',
               style: TextStyle(color: HunterTheme.textPrimary)),
           content: TextField(
             controller: weightController,
             keyboardType: TextInputType.number,
-            style: const TextStyle(color: HunterTheme.textPrimary),
+            style: TextStyle(color: HunterTheme.textPrimary),
             decoration: InputDecoration(
               hintText: 'Weight in kg',
-              hintStyle: const TextStyle(color: HunterTheme.textTertiary),
+              hintStyle: TextStyle(color: HunterTheme.textTertiary),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide:
-                const BorderSide(color: HunterTheme.primary, width: 1),
+                BorderSide(color: HunterTheme.primary, width: 1),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide:
-                const BorderSide(color: HunterTheme.primary, width: 2),
+                BorderSide(color: HunterTheme.primary, width: 2),
               ),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('CANCEL',
+              child: Text('CANCEL',
                   style: TextStyle(color: HunterTheme.textTertiary)),
             ),
             ElevatedButton(

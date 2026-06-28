@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'Theme/hunter_theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -84,7 +85,7 @@ class SettingsScreen extends StatelessWidget {
                 size: 36,
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'LOGOUT',
                 style: TextStyle(
                   color: HunterTheme.textPrimary,
@@ -224,7 +225,7 @@ class SettingsScreen extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 6),
-                      const Text(
+                      Text(
                         'SETTINGS',
                         style: TextStyle(
                           color: HunterTheme.textPrimary,
@@ -238,7 +239,7 @@ class SettingsScreen extends StatelessWidget {
                         width: 60,
                         height: 1,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
                             colors: [
                               HunterTheme.primary,
                               Colors.transparent,
@@ -263,6 +264,12 @@ class SettingsScreen extends StatelessWidget {
                   child: ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     children: [
+                      _sectionLabel('APPEARANCE'),
+                      const SizedBox(height: 10),
+
+                      const _DarkModeTile(),
+
+                      const SizedBox(height: 24),
                       _sectionLabel('GENERAL'),
                       const SizedBox(height: 10),
 
@@ -304,13 +311,13 @@ class SettingsScreen extends StatelessWidget {
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(
+                                    Icon(
                                       Icons.bolt,
                                       color: HunterTheme.primary,
                                       size: 36,
                                     ),
                                     const SizedBox(height: 12),
-                                    const Text(
+                                    Text(
                                       'HUNTER ASCEND',
                                       style: TextStyle(
                                         color: HunterTheme.textPrimary,
@@ -349,7 +356,7 @@ class SettingsScreen extends StatelessWidget {
                                           borderRadius:
                                           BorderRadius.circular(6),
                                         ),
-                                        child: const Center(
+                                        child: Center(
                                           child: Text(
                                             'CLOSE',
                                             style: TextStyle(
@@ -522,6 +529,95 @@ class _SettingsTileState extends State<_SettingsTile> {
   }
 }
 
+// ── Dark Mode toggle tile ─────────────────────────────────────────────────────
+
+class _DarkModeTile extends StatelessWidget {
+  const _DarkModeTile();
+
+  Future<void> _setDark(bool value) async {
+    themeNotifier.value = value ? ThemeMode.dark : ThemeMode.light;
+    HunterTheme.isDark = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('darkMode', value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = HunterTheme.primary;
+
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, mode, _) {
+        final isDark = mode == ThemeMode.dark;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: HunterTheme.cardColor,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: accent.withOpacity(0.15),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: accent.withOpacity(0.25),
+                    width: 1,
+                  ),
+                ),
+                child: Icon(
+                  isDark ? Icons.dark_mode : Icons.light_mode,
+                  color: accent,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Dark Mode',
+                      style: TextStyle(
+                        color: HunterTheme.textPrimary.withOpacity(0.9),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isDark
+                          ? 'Dark theme enabled'
+                          : 'Light theme (white + orange)',
+                      style: TextStyle(
+                        color: HunterTheme.textPrimary.withOpacity(0.3),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: isDark,
+                onChanged: _setDark,
+                activeColor: accent,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 // ── Privacy Policy Screen ─────────────────────────────────────────────────────
 
 class PrivacyPolicyScreen extends StatelessWidget {
@@ -552,7 +648,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                           width: 1,
                         ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.arrow_back_ios_new,
                         color: HunterTheme.primary,
                         size: 14,
@@ -560,7 +656,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  const Text(
+                  Text(
                     'PRIVACY POLICY',
                     style: TextStyle(
                       color: HunterTheme.textPrimary,

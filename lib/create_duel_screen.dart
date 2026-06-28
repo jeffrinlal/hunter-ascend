@@ -193,12 +193,12 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
         backgroundColor: HunterTheme.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios,
+          icon: Icon(Icons.arrow_back_ios,
               color: HunterTheme.textSecondary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
-          children: const [
+          children: [
             Icon(Icons.close, color: HunterTheme.dangerAlt, size: 20),
             SizedBox(width: 8),
             Text(
@@ -214,7 +214,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.history, color: HunterTheme.primary),
+            icon: Icon(Icons.history, color: HunterTheme.primary),
             onPressed: () {
               Navigator.push(
                 context,
@@ -236,7 +236,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
               padding: const EdgeInsets.symmetric(vertical: 24),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
@@ -267,11 +267,11 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                       border: Border.all(
                           color: HunterTheme.dangerAlt.withOpacity(0.4)),
                     ),
-                    child: const Icon(Icons.sports_kabaddi,
+                    child: Icon(Icons.sports_kabaddi,
                         color: HunterTheme.dangerAlt, size: 40),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
+                  Text(
                     'DUEL ARENA',
                     style: TextStyle(
                       color: HunterTheme.textPrimary,
@@ -313,7 +313,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.fingerprint,
+                          Icon(Icons.fingerprint,
                               color: HunterTheme.primary, size: 20),
                           const SizedBox(width: 10),
                         Expanded(
@@ -324,7 +324,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                                 .get(),
                             builder: (context, snapshot) {
                               if (!snapshot.hasData) {
-                                return const Text(
+                                return Text(
                                   'Loading...',
                                   style: TextStyle(color: HunterTheme.textTertiary),
                                 );
@@ -335,7 +335,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
 
                               return SelectableText(
                                 data?['hunterName'] ?? 'Unknown Hunter',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: HunterTheme.primary,
                                   fontSize: 12,
                                   letterSpacing: 0.5,
@@ -387,7 +387,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                                   color: HunterTheme.primary
                                       .withOpacity(0.4)),
                             ),
-                            child: const Icon(Icons.add,
+                            child: Icon(Icons.add,
                                 color: HunterTheme.primary),
                           ),
                         ),
@@ -480,7 +480,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                                 HunterTheme.dangerAlt.withOpacity(0.12),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.gps_fixed,
+                              child: Icon(Icons.gps_fixed,
                                   color: HunterTheme.dangerAlt, size: 16),
                             ),
                             const SizedBox(width: 12),
@@ -490,14 +490,14 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                                 children: [
                                   Text(
                                     quest['name'],
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: HunterTheme.textPrimary,
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
-                                  const Text(
+                                  Text(
                                     'Mission Objective',
                                     style: TextStyle(
                                       color: HunterTheme.textTertiary,
@@ -518,7 +518,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                                     color: HunterTheme.successAlt
                                         .withOpacity(0.3)),
                               ),
-                              child: const Text(
+                              child: Text(
                                 '+50 XP',
                                 style: TextStyle(
                                   color: HunterTheme.successAlt,
@@ -537,7 +537,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                                   HunterTheme.dangerAlt.withOpacity(0.1),
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.close,
+                                child: Icon(Icons.close,
                                     color: HunterTheme.dangerAlt, size: 16),
                               ),
                             ),
@@ -605,7 +605,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
   Widget _sectionLabel(String text) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         color: HunterTheme.textSecondary,
         fontSize: 11,
         fontWeight: FontWeight.w600,
@@ -621,10 +621,10 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
   }) {
     return TextField(
       controller: controller,
-      style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 14),
+      style: TextStyle(color: HunterTheme.textPrimary, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: HunterTheme.textTertiary, fontSize: 14),
+        hintStyle: TextStyle(color: HunterTheme.textTertiary, fontSize: 14),
         prefixIcon: Icon(icon, color: HunterTheme.primary, size: 20),
         filled: true,
         fillColor: HunterTheme.cardColor,
@@ -637,7 +637,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: HunterTheme.primary, width: 1.5),
+          borderSide: BorderSide(color: HunterTheme.primary, width: 1.5),
         ),
       ),
     );

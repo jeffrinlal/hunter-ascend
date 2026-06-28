@@ -6,12 +6,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 class DuelHistoryScreen extends StatelessWidget {
   const DuelHistoryScreen({super.key});
 
-  static const _bg     = HunterTheme.background;
-  static const _card   = HunterTheme.cardColor;
-  static const _blue   = HunterTheme.primary;
-  static const _blueDim = HunterTheme.border;
-  static const _border = HunterTheme.border;
-
+  static Color get _bg => HunterTheme.background;
+  static Color get _card => HunterTheme.cardColor;
+  static Color get _blue => HunterTheme.primary;
+  static Color get _blueDim => HunterTheme.border;
+  static Color get _border => HunterTheme.border;
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -22,11 +21,11 @@ class DuelHistoryScreen extends StatelessWidget {
         backgroundColor: _bg,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: HunterTheme.textSecondary, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new, color: HunterTheme.textSecondary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: RichText(
-          text: const TextSpan(children: [
+          text: TextSpan(children: [
             TextSpan(
               text: "DUEL ",
               style: TextStyle(
@@ -61,7 +60,7 @@ class DuelHistoryScreen extends StatelessWidget {
             .get(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(
+            return Center(
               child: CircularProgressIndicator(color: _blue),
             );
           }
@@ -95,10 +94,10 @@ class DuelHistoryScreen extends StatelessWidget {
                       shape: BoxShape.circle,
                       border: Border.all(color: _border, width: 1.5),
                     ),
-                    child: const Icon(Icons.sports_kabaddi, color: _blue, size: 40),
+                    child: Icon(Icons.sports_kabaddi, color: _blue, size: 40),
                   ),
                   const SizedBox(height: 20),
-                  const Text(
+                  Text(
                     "NO DUEL HISTORY",
                     style: TextStyle(
                       color: HunterTheme.textPrimary,
@@ -108,7 +107,7 @@ class DuelHistoryScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     "Challenge a hunter to begin",
                     style: TextStyle(color: HunterTheme.textTertiary, fontSize: 13),
                   ),
@@ -137,7 +136,7 @@ class DuelHistoryScreen extends StatelessWidget {
 
                 // ── Section label ──
                 Row(children: [
-                  const Text(
+                  Text(
                     "Recent Duels",
                     style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
@@ -147,7 +146,7 @@ class DuelHistoryScreen extends StatelessWidget {
                     decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(20)),
                     child: Text(
                       "${myDuels.length}",
-                      style: const TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ]),
@@ -232,7 +231,7 @@ class DuelHistoryScreen extends StatelessWidget {
                             const SizedBox(height: 3),
                             Text(
                               "vs $opponentName",
-                              style: const TextStyle(color: HunterTheme.textTertiary, fontSize: 12),
+                              style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12),
                             ),
                           ],
                         ]),
@@ -242,7 +241,7 @@ class DuelHistoryScreen extends StatelessWidget {
                         if (dateStr.isNotEmpty)
                           Text(
                             dateStr,
-                            style: const TextStyle(color: HunterTheme.textTertiary, fontSize: 11),
+                            style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11),
                           ),
                         const SizedBox(height: 6),
                         Container(
@@ -292,7 +291,7 @@ class DuelHistoryScreen extends StatelessWidget {
             style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          Text(label, style: const TextStyle(color: HunterTheme.textTertiary, fontSize: 10, letterSpacing: 1)),
+          Text(label, style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10, letterSpacing: 1)),
         ]),
       ),
     );

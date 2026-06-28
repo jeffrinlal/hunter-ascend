@@ -52,7 +52,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(
+            return Center(
               child: CircularProgressIndicator(color: HunterTheme.primary),
             );
           }
@@ -100,7 +100,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                               children: [
                                 IconButton(
                                   onPressed: () => Navigator.pop(context),
-                                  icon: const Icon(Icons.arrow_back_ios,
+                                  icon: Icon(Icons.arrow_back_ios,
                                       color: HunterTheme.textSecondary, size: 20),
                                 ),
                                 const Spacer(),
@@ -198,7 +198,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                             // Name
                             Text(
                               name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: HunterTheme.textPrimary,
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -321,7 +321,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(vertical: 15),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
-                              side: const BorderSide(
+                              side: BorderSide(
                                   color: HunterTheme.danger, width: 1.5),
                             ),
                             elevation: 0,
@@ -391,7 +391,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(2))),
       const SizedBox(width: 8),
       Text(text,
-          style: const TextStyle(
+          style: TextStyle(
               color: HunterTheme.textSecondary,
               fontSize: 11,
               letterSpacing: 2,
@@ -415,7 +415,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 color: HunterTheme.textTertiary,
                 fontSize: 10,
                 letterSpacing: 1.5,
@@ -445,10 +445,10 @@ class PublicHunterProfileScreen extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: Text(label,
-              style: const TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
+              style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
         ),
         Text(value,
-            style: const TextStyle(
+            style: TextStyle(
                 color: HunterTheme.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.bold)),

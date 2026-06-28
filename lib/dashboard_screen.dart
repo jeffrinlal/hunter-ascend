@@ -278,12 +278,11 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
 
   // ── Colors ──────────────────────────────────────────────
-  static const _bg      = HunterTheme.background;
-  static const _card    = HunterTheme.cardColor;
-  static const _blue    = HunterTheme.primary;
-  static const _blueDim = HunterTheme.border;
-  static const _border  = HunterTheme.border;
-
+  static Color get _bg => HunterTheme.background;
+  static Color get _card => HunterTheme.cardColor;
+  static Color get _blue => HunterTheme.primary;
+  static Color get _blueDim => HunterTheme.border;
+  static Color get _border => HunterTheme.border;
   // ── State ────────────────────────────────────────────────
   int xp = 0;
   int level = 1;
@@ -752,15 +751,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.4), width: 1.5),
             ),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.warning_amber_rounded, color: HunterTheme.danger, size: 48),
+              Icon(Icons.warning_amber_rounded, color: HunterTheme.danger, size: 48),
               const SizedBox(height: 16),
-              const Text("DISCIPLINE FAILURE",
+              Text("DISCIPLINE FAILURE",
                   style: TextStyle(color: HunterTheme.danger, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
               const SizedBox(height: 10),
               Text(
                 "You failed yesterday's mission.\n\n-${mode == 'strict' ? 100 : 25} XP has been deducted.",
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: HunterTheme.textSecondary, fontSize: 13, height: 1.5),
+                style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, height: 1.5),
               ),
               const SizedBox(height: 20),
               GestureDetector(
@@ -772,7 +771,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     color: HunterTheme.primary,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Text("ACCEPT",
                         style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                   ),
@@ -806,13 +805,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 shape: BoxShape.circle,
                 border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.4), width: 1.5),
               ),
-              child: const Icon(Icons.warning_amber_rounded, color: HunterTheme.danger, size: 32),
+              child: Icon(Icons.warning_amber_rounded, color: HunterTheme.danger, size: 32),
             ),
             const SizedBox(height: 16),
-            const Text("DISCIPLINE FAILURE",
+            Text("DISCIPLINE FAILURE",
                 style: TextStyle(color: HunterTheme.danger, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 2)),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               "You failed yesterday's mission.\n\nWatch the full ad to repay your debt.\nThere is no other way.",
               textAlign: TextAlign.center,
               style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, height: 1.5),
@@ -867,7 +866,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: HunterTheme.danger,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Center(
+                child: Center(
                   child: Text("WATCH AD TO CONTINUE",
                       style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                 ),
@@ -930,12 +929,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   border: Border.all(color: HunterTheme.primary, width: 1.5),
                   boxShadow: [BoxShadow(color: HunterTheme.primary.withOpacity(0.3), blurRadius: 16)],
                 ),
-                child: const Icon(Icons.shield, color: HunterTheme.primary, size: 32),
+                child: Icon(Icons.shield, color: HunterTheme.primary, size: 32),
               ),
               const SizedBox(height: 16),
 
               // ── Title ──
-              const Text(
+              Text(
                 "DISCIPLINE MODE",
                 style: TextStyle(
                   color: HunterTheme.textPrimary,
@@ -955,7 +954,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   child: Text(
                     "Current: ${mode.toUpperCase()}",
-                    style: const TextStyle(color: HunterTheme.primary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1),
+                    style: TextStyle(color: HunterTheme.primary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1),
                   ),
                 ),
 
@@ -978,7 +977,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 4),
                     Text(
                       "$remainingDays days remaining",
-                      style: const TextStyle(color: HunterTheme.textSecondary, fontSize: 13),
+                      style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13),
                     ),
                   ]),
                 ),
@@ -992,14 +991,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     onPressed: () => Navigator.pop(context),
-                    child: const Text("UNDERSTOOD", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                    child: Text("UNDERSTOOD", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                   ),
                 ),
               ]
 
               // ── Mode selection ──
               else ...[
-                const Text(
+                Text(
                   "Choose how hard you want to be pushed.\nThis locks for 30 days once set.",
                   textAlign: TextAlign.center,
                   style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, height: 1.5),
@@ -1030,17 +1029,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           color: HunterTheme.success.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.spa, color: HunterTheme.success, size: 22),
+                        child: Icon(Icons.spa, color: HunterTheme.success, size: 22),
                       ),
                       const SizedBox(width: 14),
-                      const Expanded(
+                      Expanded(
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text("CASUAL", style: TextStyle(color: HunterTheme.success, fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 1)),
                           SizedBox(height: 3),
                           Text("Penalty only if zero quests done", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12)),
                         ]),
                       ),
-                      const Icon(Icons.chevron_right, color: HunterTheme.success, size: 20),
+                      Icon(Icons.chevron_right, color: HunterTheme.success, size: 20),
                     ]),
                   ),
                 ),
@@ -1071,17 +1070,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           color: HunterTheme.danger.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.bolt, color: HunterTheme.danger, size: 22),
+                        child: Icon(Icons.bolt, color: HunterTheme.danger, size: 22),
                       ),
                       const SizedBox(width: 14),
-                      const Expanded(
+                      Expanded(
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text("STRICT", style: TextStyle(color: HunterTheme.danger, fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 1)),
                           SizedBox(height: 3),
                           Text("Penalty if any quest is missed", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12)),
                         ]),
                       ),
-                      const Icon(Icons.chevron_right, color: HunterTheme.danger, size: 20),
+                      Icon(Icons.chevron_right, color: HunterTheme.danger, size: 20),
                     ]),
                   ),
                 ),
@@ -1156,10 +1155,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   shape: BoxShape.circle,
                   border: Border.all(color: _blue, width: 1.5),
                 ),
-                child: const Icon(Icons.notifications_active, color: _blue, size: 30),
+                child: Icon(Icons.notifications_active, color: _blue, size: 30),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 "QUEST REMINDER",
                 style: TextStyle(
                   color: HunterTheme.textPrimary,
@@ -1169,7 +1168,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 "Choose when to be reminded\nto complete your daily quests.",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: HunterTheme.textTertiary, fontSize: 13, height: 1.5),
@@ -1235,7 +1234,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           Text(
                             opt['sub'] as String,
-                            style: const TextStyle(color: HunterTheme.textTertiary, fontSize: 12),
+                            style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12),
                           ),
                         ]),
                       ),
@@ -1272,7 +1271,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         color: HunterTheme.danger.withValues(alpha: 0.3),
                       ),
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Text(
                         "TURN OFF REMINDERS",
                         style: TextStyle(
@@ -1299,16 +1298,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: _card,
-        title: const Text("START QUEST", style: TextStyle(color: _blue)),
+        title: Text("START QUEST", style: TextStyle(color: _blue)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(questName, style: const TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold)),
+            Text(questName, style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
 
             const SizedBox(height: 16),
-            const Text("Choose a time to complete this quest", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12)),
+            Text("Choose a time to complete this quest", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12)),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
@@ -1466,9 +1465,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.emoji_events, color: Colors.amber, size: 80),
           const SizedBox(height: 20),
-          const Text("QUEST COMPLETE", style: TextStyle(color: _blue, fontSize: 24, fontWeight: FontWeight.bold)),
+          Text("QUEST COMPLETE", style: TextStyle(color: _blue, fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          Text("+$questReward XP", style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
+          Text("+$questReward XP", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
         ]),
       ),
     );
@@ -1480,11 +1479,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         builder: (_) => Scaffold(
           backgroundColor: HunterTheme.background,
           body: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            const Icon(Icons.bolt, color: _blue, size: 140),
+            Icon(Icons.bolt, color: _blue, size: 140),
             const SizedBox(height: 30),
-            const Text("LEVEL UP", style: TextStyle(color: _blue, fontSize: 40, fontWeight: FontWeight.bold, letterSpacing: 4)),
+            Text("LEVEL UP", style: TextStyle(color: _blue, fontSize: 40, fontWeight: FontWeight.bold, letterSpacing: 4)),
             const SizedBox(height: 20),
-            Text("LEVEL $level", style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 28)),
+            Text("LEVEL $level", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 28)),
           ])),
         ),
       );
@@ -1594,7 +1593,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       right: 0, top: 0,
                       child: Container(
                         width: 8, height: 8,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: HunterTheme.success,
                           shape: BoxShape.circle,
                         ),
@@ -1607,7 +1606,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const Spacer(),
         RichText(
-          text: const TextSpan(children: [
+          text: TextSpan(children: [
             TextSpan(text: "HUNTER ", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1)),
             TextSpan(text: "ASCEND", style: TextStyle(color: _blue, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1)),
           ]),
@@ -1623,7 +1622,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             return Row(mainAxisSize: MainAxisSize.min, children: [
               const Icon(Icons.local_fire_department, color: Colors.orange, size: 22),
               const SizedBox(width: 3),
-              Text("$streak", style: const TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
+              Text("$streak", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
             ]);
           },
         ),
@@ -1691,7 +1690,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       name = (snapshot.data!.data() as Map<String, dynamic>)['hunterName'] ?? "Hunter";
                     }
                     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(name, style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
+                      Text(name, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
                       Text("$hunterRank HUNTER", style: TextStyle(color: rankColor, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1)),
                     ]);
@@ -1708,8 +1707,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           // Level + XP
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text("LEVEL $level", style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 30, fontWeight: FontWeight.bold)),
-            Text("$xp / 500 XP", style: const TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
+            Text("LEVEL $level", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 30, fontWeight: FontWeight.bold)),
+            Text("$xp / 500 XP", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
           ]),
 
           const SizedBox(height: 8),
@@ -1723,7 +1722,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: LinearProgressIndicator(
                 value: value, minHeight: 8,
                 backgroundColor: _blueDim,
-                valueColor: const AlwaysStoppedAnimation<Color>(_blue),
+                valueColor: AlwaysStoppedAnimation<Color>(_blue),
               ),
             ),
           ),
@@ -1751,15 +1750,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.directions_walk, color: _blue, size: 20),
+              child: Icon(Icons.directions_walk, color: _blue, size: 20),
             ),
             const SizedBox(width: 10),
-            const Text("TODAY'S MISSION", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, letterSpacing: 1)),
+            Text("TODAY'S MISSION", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, letterSpacing: 1)),
             const Spacer(),
-            Text("$percent%", style: const TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
+            Text("$percent%", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
           ]),
           const SizedBox(height: 10),
-          const Text("10,000 STEPS", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
+          Text("10,000 STEPS", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(20),
@@ -1767,12 +1766,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               value: (todaySteps / 10000).clamp(0.0, 1.0),
               minHeight: 10,
               backgroundColor: _blueDim,
-              valueColor: const AlwaysStoppedAnimation<Color>(_blue),
+              valueColor: AlwaysStoppedAnimation<Color>(_blue),
             ),
           ),
           const SizedBox(height: 8),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text("$todaySteps / 10,000", style: const TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+            Text("$todaySteps / 10,000", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
             Text(
               todaySteps >= 10000 ? "🏆 Goal Completed! +25 XP" : "🎯 Keep going!",
               style: TextStyle(color: todaySteps >= 10000 ? Colors.amber : HunterTheme.textTertiary, fontSize: 12),
@@ -1796,14 +1795,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         boxShadow: [BoxShadow(color: _blue.withOpacity(0.2), blurRadius: 16)],
       ),
       child: Column(children: [
-        const Text("⚡ ACTIVE QUEST ⚡", style: TextStyle(color: _blue, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2)),
+        Text("⚡ ACTIVE QUEST ⚡", style: TextStyle(color: _blue, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2)),
         const SizedBox(height: 8),
         Text(
           questRemaining == Duration.zero ? "Status: Ready to Complete" : "Status: In Progress",
           style: TextStyle(color: questRemaining == Duration.zero ? HunterTheme.success : Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        Text(activeQuest, textAlign: TextAlign.center, style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
+        Text(activeQuest, textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1848,7 +1847,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 return AlertDialog(
                   backgroundColor: HunterTheme.background,
                   title: const Text("Hunter Verification", style: TextStyle(color: Colors.amber)),
-                  content: Text("Are you sure you completed this mission honestly?\n\nOnly you know the truth.\n\n${messages.first}", style: const TextStyle(color: HunterTheme.textPrimary)),
+                  content: Text("Are you sure you completed this mission honestly?\n\nOnly you know the truth.\n\n${messages.first}", style: TextStyle(color: HunterTheme.textPrimary)),
                   actions: [
                     TextButton(onPressed: () => Navigator.pop(context), child: const Text("CONTINUE QUEST")),
                     ElevatedButton(onPressed: () { Navigator.pop(context); completeQuest(); }, child: const Text("COMPLETE")),
@@ -1856,13 +1855,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 );
               });
             },
-            child: const Text("COMPLETE QUEST", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, letterSpacing: 2)),
+            child: Text("COMPLETE QUEST", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, letterSpacing: 2)),
           ),
         ),
         const SizedBox(height: 10),
         GestureDetector(
           onTap: _cancelActiveQuest,
-          child: const Text("Cancel quest", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12, decoration: TextDecoration.underline)),
+          child: Text("Cancel quest", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12, decoration: TextDecoration.underline)),
         ),
         if (isBannerReady) ...[
           const SizedBox(height: 12),
@@ -1891,7 +1890,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                   Row(
                     children: [
-                      const Text(
+                      Text(
                         "DAILY QUESTS (AI)",
                         style: TextStyle(
                           color: HunterTheme.textPrimary,
@@ -1913,7 +1912,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         child: Text(
                           "$completedCount/$totalQuests",
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: _blue,
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
@@ -1937,7 +1936,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     child: Text(
                       '⏳ ${timeUntilReset.inHours}h ${timeUntilReset.inMinutes.remainder(60)}m',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: HunterTheme.primary,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -1961,9 +1960,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.shield, size: 14, color: _blue),
+                        Icon(Icons.shield, size: 14, color: _blue),
                         const SizedBox(width: 4),
-                        Text(mode, style: const TextStyle(color: HunterTheme.textSecondary, fontSize: 11)),
+                        Text(mode, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 11)),
                       ]),
                     ),
                   );
@@ -1975,7 +1974,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
-                  child: const Icon(Icons.add, color: _blue, size: 20),
+                  child: Icon(Icons.add, color: _blue, size: 20),
                 ),
               ),
             ]),
@@ -1986,7 +1985,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 width: double.infinity, padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: _border)),
-                child: const Column(children: [
+                child: Column(children: [
                   Icon(Icons.bolt, color: _blue, size: 40),
                   SizedBox(height: 10),
                   Text("No quests yet", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
@@ -2125,7 +2124,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       height: 68 + MediaQuery.of(context).padding.bottom,
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: HunterTheme.background,
         border: Border(top: BorderSide(color: _border, width: 1)),
       ),
@@ -2223,7 +2222,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ],
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Icon(Icons.bolt, color: HunterTheme.textPrimary, size: 7),
                   ),
                 ),

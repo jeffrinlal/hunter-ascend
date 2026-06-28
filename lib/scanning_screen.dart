@@ -250,7 +250,7 @@ class _ScanningScreenState extends State<ScanningScreen>
                             ),
                           ),
                           const SizedBox(width: 10),
-                          const Text(
+                          Text(
                             '[ SYSTEM ANALYSIS ]',
                             style: TextStyle(
                               color: HunterTheme.primary,
@@ -314,7 +314,7 @@ class _ScanningScreenState extends State<ScanningScreen>
                                 ),
                                 Text(
                                   '${(progress * 100).toInt()}%',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: HunterTheme.primary,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w800,
@@ -335,7 +335,7 @@ class _ScanningScreenState extends State<ScanningScreen>
                                 backgroundColor:
                                 HunterTheme.textPrimary.withOpacity(0.07),
                                 valueColor:
-                                const AlwaysStoppedAnimation<Color>(
+                                AlwaysStoppedAnimation<Color>(
                                   HunterTheme.primary,
                                 ),
                               ),
@@ -346,7 +346,7 @@ class _ScanningScreenState extends State<ScanningScreen>
                             // Status message
                             Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.chevron_right,
                                   color: HunterTheme.primary,
                                   size: 14,
@@ -378,7 +378,7 @@ class _ScanningScreenState extends State<ScanningScreen>
 
   // Corner bracket decorations around the icon
   List<Widget> _buildCornerBrackets(double boxSize) {
-    const color = HunterTheme.primary;
+    final color = HunterTheme.primary;
     const len = 14.0;
     const thick = 1.5;
     final half = boxSize / 2;

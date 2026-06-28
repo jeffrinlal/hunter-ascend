@@ -40,7 +40,7 @@ class CompareHuntersScreen extends StatelessWidget {
         backgroundColor: HunterTheme.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: HunterTheme.textSecondary, size: 20),
+          icon: Icon(Icons.arrow_back_ios, color: HunterTheme.textSecondary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -52,11 +52,11 @@ class CompareHuntersScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: HunterTheme.primary.withOpacity(0.4)),
               ),
-              child: const Icon(Icons.compare_arrows,
+              child: Icon(Icons.compare_arrows,
                   color: HunterTheme.primary, size: 17),
             ),
             const SizedBox(width: 10),
-            const Text(
+            Text(
               'HUNTER COMPARISON',
               style: TextStyle(
                 color: HunterTheme.textPrimary,
@@ -75,7 +75,7 @@ class CompareHuntersScreen extends StatelessWidget {
         ]),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(
+            return Center(
               child: CircularProgressIndicator(color: HunterTheme.primary),
             );
           }
@@ -156,7 +156,7 @@ class CompareHuntersScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
                           'VS',
                           style: TextStyle(
@@ -441,7 +441,7 @@ class CompareHuntersScreen extends StatelessWidget {
                 child: Text(
                   label,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: HunterTheme.textTertiary,
                     fontSize: 10,
                     letterSpacing: 1.5,
@@ -516,7 +516,7 @@ class CompareHuntersScreen extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Text(text,
-            style: const TextStyle(
+            style: TextStyle(
                 color: HunterTheme.textFaint,
                 fontSize: 10,
                 letterSpacing: 2,

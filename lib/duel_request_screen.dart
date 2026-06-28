@@ -13,12 +13,11 @@ class DuelRequestScreen extends StatefulWidget {
 
 class _DuelRequestScreenState extends State<DuelRequestScreen> {
 
-  static const _bg      = HunterTheme.background;
-  static const _card    = HunterTheme.cardColor;
-  static const _blue    = HunterTheme.primary;
-  static const _blueDim = HunterTheme.border;
-  static const _border  = HunterTheme.border;
-
+  static Color get _bg => HunterTheme.background;
+  static Color get _card => HunterTheme.cardColor;
+  static Color get _blue => HunterTheme.primary;
+  static Color get _blueDim => HunterTheme.border;
+  static Color get _border => HunterTheme.border;
   BannerAd? bannerAd;
   bool isBannerReady = false;
 
@@ -54,11 +53,11 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
         backgroundColor: _bg,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: HunterTheme.textSecondary, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new, color: HunterTheme.textSecondary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: RichText(
-          text: const TextSpan(children: [
+          text: TextSpan(children: [
             TextSpan(
               text: "INCOMING ",
               style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1),
@@ -85,7 +84,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
         builder: (context, snapshot) {
 
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator(color: _blue));
+            return Center(child: CircularProgressIndicator(color: _blue));
           }
 
           // ── Empty state ──
@@ -101,15 +100,15 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                       shape: BoxShape.circle,
                       border: Border.all(color: _border, width: 1.5),
                     ),
-                    child: const Icon(Icons.sports_kabaddi, color: _blue, size: 40),
+                    child: Icon(Icons.sports_kabaddi, color: _blue, size: 40),
                   ),
                   const SizedBox(height: 20),
-                  const Text(
+                  Text(
                     "NO PENDING CHALLENGES",
                     style: TextStyle(color: HunterTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     "You have no incoming duel requests",
                     style: TextStyle(color: HunterTheme.textTertiary, fontSize: 13),
                   ),
@@ -153,10 +152,10 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                                 shape: BoxShape.circle,
                                 border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.4), width: 1.5),
                               ),
-                              child: const Icon(Icons.sports_kabaddi, color: HunterTheme.danger, size: 44),
+                              child: Icon(Icons.sports_kabaddi, color: HunterTheme.danger, size: 44),
                             ),
                             const SizedBox(height: 16),
-                            const Text(
+                            Text(
                               "⚔️  DUEL REQUEST",
                               style: TextStyle(
                                 color: HunterTheme.danger,
@@ -169,7 +168,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                             Text(
                               "${duelData['fromHunterName']} has challenged you to battle.\nAccept to begin the $days-day duel.",
                               textAlign: TextAlign.center,
-                              style: const TextStyle(color: HunterTheme.textSecondary, fontSize: 13, height: 1.5),
+                              style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, height: 1.5),
                             ),
                             const SizedBox(height: 16),
                             Container(
@@ -180,11 +179,11 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                                 border: Border.all(color: _border),
                               ),
                               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                const Icon(Icons.timer_outlined, color: _blue, size: 16),
+                                Icon(Icons.timer_outlined, color: _blue, size: 16),
                                 const SizedBox(width: 6),
                                 Text(
                                   "$days DAY DUEL",
-                                  style: const TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1),
+                                  style: TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1),
                                 ),
                               ]),
                             ),
@@ -196,7 +195,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
 
                       // ── Shared missions header ──
                       Row(children: [
-                        const Text(
+                        Text(
                           "Shared Missions",
                           style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
                         ),
@@ -206,7 +205,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                           decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(20)),
                           child: Text(
                             "${quests.length}",
-                            style: const TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ]),
@@ -231,13 +230,13 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                                 color: HunterTheme.danger.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Icon(Icons.gps_fixed, color: HunterTheme.danger, size: 18),
+                              child: Icon(Icons.gps_fixed, color: HunterTheme.danger, size: 18),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 quest['name'],
-                                style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+                                style: TextStyle(color: HunterTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
                               ),
                             ),
                             Container(
@@ -248,7 +247,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                               ),
                               child: Text(
                                 "+${quest['xp'] ?? '?'} XP",
-                                style: const TextStyle(color: _blue, fontSize: 11, fontWeight: FontWeight.bold),
+                                style: TextStyle(color: _blue, fontSize: 11, fontWeight: FontWeight.bold),
                               ),
                             ),
                           ]),
@@ -264,7 +263,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
               // ── Action buttons + banner ──
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: HunterTheme.background,
                   border: Border(top: BorderSide(color: _border, width: 1)),
                 ),
@@ -286,7 +285,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.4), width: 1.2),
                             ),
-                            child: const Center(
+                            child: Center(
                               child: Text(
                                 "DECLINE",
                                 style: TextStyle(
@@ -342,7 +341,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                                 BoxShadow(color: _blue.withValues(alpha: 0.3), blurRadius: 12),
                               ],
                             ),
-                            child: const Center(
+                            child: Center(
                               child: Text(
                                 "ACCEPT",
                                 style: TextStyle(

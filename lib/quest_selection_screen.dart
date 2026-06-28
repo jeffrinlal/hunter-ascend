@@ -251,7 +251,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                           builder: (context, _) => _dot(_pulseAnim.value),
                         ),
                         const SizedBox(width: 10),
-                        const Text(
+                        Text(
                           '[ CHOOSE YOUR PATH ]',
                           style: TextStyle(
                             color: HunterTheme.primary,
@@ -270,7 +270,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
 
                     const SizedBox(height: 10),
 
-                    const Text(
+                    Text(
                       'HUNTER SPECIALIZATION',
                       style: TextStyle(
                         color: HunterTheme.textPrimary,
@@ -287,7 +287,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                       width: 80,
                       height: 1,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           colors: [
                             Colors.transparent,
                             HunterTheme.primary,
@@ -345,7 +345,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Text(
                           '$_selectedCount PATH${_selectedCount > 1 ? 'S' : ''} SELECTED',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: HunterTheme.primary,
                             fontSize: 11,
                             letterSpacing: 2,
@@ -424,7 +424,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                                   ),
                                 ],
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisAlignment:
                                 MainAxisAlignment.center,
                                 children: [
@@ -650,7 +650,7 @@ class _PathCardState extends State<_PathCard>
                       : null,
                 ),
                 child: widget.selected
-                    ? const Icon(
+                    ? Icon(
                   Icons.check,
                   color: HunterTheme.background,
                   size: 14,

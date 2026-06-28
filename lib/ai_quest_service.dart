@@ -138,4 +138,56 @@ Return JSON only.
     }
 
   }
+
+  // ── Weekly missions (harder, 7-day goals) ──────────────────────────────
+  static Future<List<dynamic>> generateWeeklyQuests({
+    required String goals,
+    required int level,
+  }) async {
+    print("⚡ Generating AI Weekly Missions...");
+    try {
+      final response = await http.post(
+        Uri.parse('https://hunter-ascend-ai.jefferinlal.workers.dev/mistral'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': 'test-user',
+        },
+        body: jsonEncode({
+          "model": "mistral-small-latest",
+          "messages": [
+            {
+              "role": "user",
+              "content": """
+Generate 3 challenging weekly fitness missions for someone focused on $goals. These should be harder goals achievable over 7 days. Keep each mission under 10 words.
+
+Hunter level: $level
+
+Return ONLY a JSON array, no markdown:
+[
+  {"title": "Run 10km this week", "xp": 150, "category": "fitness"}
+]
+
+Rules:
+- Safe missions only
+- No dangerous activities
+- No medical advice
+- Each mission is a 7-day goal (harder than a daily task)
+"""
+            }
+          ]
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+      String content = data['choices'][0]['message']['content'];
+      content =
+          content.replaceAll('```json', '').replaceAll('```', '').trim();
+      final missions = jsonDecode(content);
+      print("AI WEEKLY MISSIONS: $missions");
+      return missions is List ? missions : [];
+    } catch (e) {
+      print("WEEKLY ERROR: $e");
+      return [];
+    }
+  }
 }

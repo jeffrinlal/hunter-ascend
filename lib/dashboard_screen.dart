@@ -291,6 +291,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int waterIntakeMl = 0;
   int selectedCupSize = 250;
   int waterGoalMl = 2000;
+
+  // ── Weekly missions ──────────────────────────────────────
+  List<Map<String, dynamic>> weeklyMissions = [];
+  bool _weeklyLoading = false;
   int questReward = 0;
   DateTime? questEndTime;
   Timer? _questCountdownTimer;
@@ -476,6 +480,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
     _restoreDashboardActiveQuest();
     if (!widget.questsOnly) _loadWaterIntake();
+    if (widget.questsOnly) _loadWeeklyMissions();
   }
 
   @override
@@ -1574,6 +1579,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               if (widget.questsOnly) ...[
                 if (questStarted) _buildActiveQuestCard(),
                 _buildQuestsSection(),
+                _buildWeeklyMissionsSection(),
                 const SizedBox(height: 30),
               ],
             ],
@@ -2475,6 +2481,338 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [150, 250, 350, 500].map(_cupPill).toList(),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Weekly missions (AI, reset every Monday 00:00) ───────
+  int _isoWeekNumber(DateTime date) {
+    final d = DateTime(date.year, date.month, date.day);
+    final dayOfYear = d.difference(DateTime(date.year, 1, 1)).inDays + 1;
+    final week = ((dayOfYear - d.weekday + 10) / 7).floor();
+    if (week < 1) return _isoWeekNumber(DateTime(date.year - 1, 12, 31));
+    if (week > 52) {
+      final dec31 = DateTime(date.year, 12, 31);
+      if (week == 53 && dec31.weekday < 4) return 1;
+    }
+    return week;
+  }
+
+  String _currentWeekId() {
+    final now = DateTime.now();
+    final w = _isoWeekNumber(now);
+    return '${now.year}-W${w.toString().padLeft(2, '0')}';
+  }
+
+  Duration _untilNextMonday() {
+    final now = DateTime.now();
+    final daysUntilMonday = (8 - now.weekday) % 7;
+    final days = daysUntilMonday == 0 ? 7 : daysUntilMonday;
+    final nextMonday =
+        DateTime(now.year, now.month, now.day).add(Duration(days: days));
+    return nextMonday.difference(now);
+  }
+
+  Future<void> _loadWeeklyMissions() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final docRef =
+        FirebaseFirestore.instance.collection('hunters').doc(user.uid);
+    final doc = await docRef.get();
+    if (!doc.exists) return;
+    final data = doc.data() as Map<String, dynamic>;
+    final currentWeek = _currentWeekId();
+    final savedWeek = (data['weeklyMissionsDate'] ?? '').toString();
+    final generated = data['weeklyMissionsGenerated'] == true;
+
+    if (savedWeek == currentWeek &&
+        generated &&
+        data['weeklyMissions'] != null) {
+      final list = (data['weeklyMissions'] as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      if (mounted) setState(() => weeklyMissions = list);
+    } else {
+      await _generateWeeklyMissions(data, currentWeek);
+    }
+  }
+
+  Future<void> _generateWeeklyMissions(
+      Map<String, dynamic> data, String currentWeek) async {
+    if (mounted) setState(() => _weeklyLoading = true);
+
+    final paths = <String>[];
+    if (data['fatLoss'] == true || widget.fatLoss) paths.add('fat loss');
+    if (data['muscleGain'] == true || widget.muscleGain) {
+      paths.add('muscle gain');
+    }
+    if (data['discipline'] == true || widget.discipline) {
+      paths.add('discipline');
+    }
+    if (data['selfImprovement'] == true || widget.selfImprovement) {
+      paths.add('self improvement');
+    }
+    final goals = paths.isEmpty ? 'general fitness' : paths.join(', ');
+    final lvl = ((data['level'] ?? 1) as num).toInt();
+
+    final raw =
+        await AIQuestService.generateWeeklyQuests(goals: goals, level: lvl);
+    var missions = raw.take(3).map<Map<String, dynamic>>((q) {
+      final m = q as Map;
+      return {
+        'title': (m['title'] ?? 'Weekly Mission').toString(),
+        'completed': false,
+        'xpReward': ((m['xp'] ?? 150) as num).toInt() * 3, // 3x daily
+      };
+    }).toList();
+
+    if (missions.isEmpty) {
+      missions = [
+        {'title': 'Walk 25,000 steps this week', 'completed': false, 'xpReward': 450},
+        {'title': 'Complete 4 workout sessions', 'completed': false, 'xpReward': 450},
+        {'title': 'Sleep 7+ hours for 5 days', 'completed': false, 'xpReward': 450},
+      ];
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await FirebaseFirestore.instance
+          .collection('hunters')
+          .doc(user.uid)
+          .update({
+        'weeklyMissions': missions,
+        'weeklyMissionsDate': currentWeek,
+        'weeklyMissionsGenerated': true,
+      });
+    }
+    if (mounted) {
+      setState(() {
+        weeklyMissions = missions;
+        _weeklyLoading = false;
+      });
+    }
+  }
+
+  void _confirmCompleteWeekly(int index) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: _card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Complete Weekly Mission?',
+            style: TextStyle(
+                color: HunterTheme.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.bold)),
+        content: Text(
+            'Only mark this complete if you truly finished it this week.',
+            style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('CANCEL')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: HunterTheme.primary,
+                foregroundColor: Colors.white),
+            onPressed: () {
+              Navigator.pop(context);
+              _completeWeeklyMission(index);
+            },
+            child: const Text('COMPLETE'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _completeWeeklyMission(int index) async {
+    if (index < 0 || index >= weeklyMissions.length) return;
+    if (weeklyMissions[index]['completed'] == true) return;
+    final reward = ((weeklyMissions[index]['xpReward'] ?? 150) as num).toInt();
+    setState(() {
+      weeklyMissions[index]['completed'] = true;
+      xp += reward;
+      while (xp >= 500) {
+        level++;
+        xp -= 500;
+      }
+    });
+    await updateHunterOnline(); // persists xp + level (same as daily)
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await FirebaseFirestore.instance
+          .collection('hunters')
+          .doc(user.uid)
+          .update({'weeklyMissions': weeklyMissions});
+    }
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          backgroundColor: _card,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.local_fire_department,
+                color: Colors.deepOrange, size: 70),
+            const SizedBox(height: 16),
+            Text('WEEKLY MISSION COMPLETE',
+                style: TextStyle(
+                    color: _blue, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('+$reward XP',
+                style: TextStyle(
+                    color: HunterTheme.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold)),
+          ]),
+        ),
+      );
+      Future.delayed(const Duration(seconds: 1),
+          () => context.mounted ? Navigator.pop(context) : null);
+    }
+  }
+
+  Widget _buildWeeklyMissionsSection() {
+    final completedCount =
+        weeklyMissions.where((m) => m['completed'] == true).length;
+    final total = weeklyMissions.isEmpty ? 3 : weeklyMissions.length;
+    final reset = _untilNextMonday();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 28),
+        Row(children: [
+          Text('WEEKLY MISSIONS (AI)',
+              style: TextStyle(
+                  color: HunterTheme.textPrimary,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+                color: _blueDim, borderRadius: BorderRadius.circular(20)),
+            child: Text('$completedCount/$total',
+                style: TextStyle(
+                    color: _blue, fontSize: 13, fontWeight: FontWeight.bold)),
+          ),
+        ]),
+        const SizedBox(height: 6),
+        Text(
+            'Resets in ${reset.inDays}d ${reset.inHours.remainder(24)}h ${reset.inMinutes.remainder(60)}m',
+            style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12)),
+        const SizedBox(height: 12),
+        if (_weeklyLoading)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Center(
+                child:
+                    CircularProgressIndicator(color: HunterTheme.primary)),
+          )
+        else if (weeklyMissions.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _border)),
+            child: Center(
+                child: Text('No weekly missions yet',
+                    style: TextStyle(
+                        color: HunterTheme.textSecondary, fontSize: 13))),
+          )
+        else
+          ...weeklyMissions
+              .asMap()
+              .entries
+              .map((e) => _buildWeeklyTile(e.key, e.value)),
+      ],
+    );
+  }
+
+  Widget _buildWeeklyTile(int index, Map<String, dynamic> mission) {
+    final completed = mission['completed'] == true;
+    final title = (mission['title'] ?? '').toString();
+    final reward = ((mission['xpReward'] ?? 0) as num).toInt();
+
+    return GestureDetector(
+      onTap: completed ? null : () => _confirmCompleteWeekly(index),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: _card,
+          border: Border.all(
+            color: completed
+                ? Colors.green.withOpacity(0.4)
+                : HunterTheme.primary.withOpacity(0.4),
+            width: 1.2,
+          ),
+        ),
+        child: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: completed
+                  ? Colors.green.withOpacity(0.1)
+                  : HunterTheme.primary.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              completed ? Icons.check_circle : Icons.local_fire_department,
+              color: completed ? Colors.green : HunterTheme.primary,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    completed ? '✓ $title' : title,
+                    style: TextStyle(
+                      color: completed
+                          ? HunterTheme.textTertiary
+                          : HunterTheme.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      decoration:
+                          completed ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text('🔥 +$reward XP',
+                      style: TextStyle(
+                          color: HunterTheme.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                ]),
+          ),
+          if (completed)
+            const Text('DONE',
+                style: TextStyle(
+                    color: Colors.green,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold))
+          else
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                  color: HunterTheme.primary.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text('TAP TO START',
+                  style: TextStyle(
+                      color: HunterTheme.primary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold)),
+            ),
+        ]),
       ),
     );
   }

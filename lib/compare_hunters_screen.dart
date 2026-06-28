@@ -22,11 +22,11 @@ class CompareHuntersScreen extends StatelessWidget {
   }
 
   Color _getRankColor(int level) {
-    if (level >= 30) return const Color(0xFFFFD700);
-    if (level >= 20) return const Color(0xFFFF4444);
+    if (level >= 30) return HunterTheme.gold;
+    if (level >= 20) return HunterTheme.danger;
     if (level >= 15) return HunterTheme.primary;
     if (level >= 10) return HunterTheme.primary;
-    if (level >= 5)  return const Color(0xFF44DD88);
+    if (level >= 5)  return HunterTheme.success;
     return HunterTheme.textSecondary;
   }
 
@@ -109,15 +109,15 @@ class CompareHuntersScreen extends StatelessWidget {
           IconData verdictIcon;
           if (theirXp > myXp) {
             verdictText  = 'This hunter outranks you. Train harder.';
-            verdictColor = const Color(0xFFFF4444);
+            verdictColor = HunterTheme.danger;
             verdictIcon  = Icons.trending_down;
           } else if (theirXp < myXp) {
             verdictText  = 'You outrank this hunter. Stay sharp.';
-            verdictColor = const Color(0xFF44DD88);
+            verdictColor = HunterTheme.success;
             verdictIcon  = Icons.trending_up;
           } else {
             verdictText  = 'You are perfectly matched. Duel to decide.';
-            verdictColor = const Color(0xFFFFD700);
+            verdictColor = HunterTheme.gold;
             verdictIcon  = Icons.balance;
           }
 
@@ -211,8 +211,8 @@ class CompareHuntersScreen extends StatelessWidget {
                   label: 'DUEL WINS',
                   myVal: myWins,
                   theirVal: theirWins,
-                  myColor: const Color(0xFF44DD88),
-                  theirColor: const Color(0xFF44DD88),
+                  myColor: HunterTheme.success,
+                  theirColor: HunterTheme.success,
                   displayMy: '$myWins',
                   displayTheir: '$theirWins',
                 ),
@@ -220,8 +220,8 @@ class CompareHuntersScreen extends StatelessWidget {
                   label: 'LOSSES',
                   myVal: myLosses,
                   theirVal: theirLosses,
-                  myColor: const Color(0xFFFF4444),
-                  theirColor: const Color(0xFFFF4444),
+                  myColor: HunterTheme.danger,
+                  theirColor: HunterTheme.danger,
                   displayMy: '$myLosses',
                   displayTheir: '$theirLosses',
                   lowerIsBetter: true,
@@ -230,8 +230,8 @@ class CompareHuntersScreen extends StatelessWidget {
                   label: 'WIN RATE',
                   myVal: myWinRate,
                   theirVal: theirWinRate,
-                  myColor: const Color(0xFFFFD700),
-                  theirColor: const Color(0xFFFFD700),
+                  myColor: HunterTheme.gold,
+                  theirColor: HunterTheme.gold,
                   displayMy: '$myWinRate%',
                   displayTheir: '$theirWinRate%',
                 ),
@@ -517,7 +517,7 @@ class CompareHuntersScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Text(text,
             style: const TextStyle(
-                color: Color(0xFFBBBBBB),
+                color: HunterTheme.textFaint,
                 fontSize: 10,
                 letterSpacing: 2,
                 fontWeight: FontWeight.bold)),

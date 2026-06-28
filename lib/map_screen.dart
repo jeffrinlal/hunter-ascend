@@ -222,7 +222,7 @@ class _MapScreenState extends State<MapScreen> {
               Row(children: [
                 _statBox("🔥 CALORIES", "${_caloriesBurned.toStringAsFixed(0)} kcal", Colors.redAccent),
                 const SizedBox(width: 10),
-                _statBox("⚡ XP EARNED", "+$_xpEarned XP", const Color(0xFF44DD88)),
+                _statBox("⚡ XP EARNED", "+$_xpEarned XP", HunterTheme.success),
               ]),
               const SizedBox(height: 10),
               _statBox("💨 AVG SPEED", "${_speedKmh.toStringAsFixed(1)} km/h", Colors.purpleAccent),
@@ -606,7 +606,7 @@ class _MapScreenState extends State<MapScreen> {
                         const SizedBox(width: 8),
                         _statBox("🔥 CALORIES", "${totalCal.toStringAsFixed(0)} kcal", Colors.redAccent),
                         const SizedBox(width: 8),
-                        _statBox("⚡ TOTAL XP", "+$totalXp XP", const Color(0xFF44DD88)),
+                        _statBox("⚡ TOTAL XP", "+$totalXp XP", HunterTheme.success),
                       ]),
                     ]),
                   ),
@@ -642,8 +642,8 @@ class _MapScreenState extends State<MapScreen> {
                           const Spacer(),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(color: const Color(0xFF44DD88).withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
-                            child: Text("+$xp XP", style: const TextStyle(color: Color(0xFF44DD88), fontWeight: FontWeight.bold, fontSize: 12)),
+                            decoration: BoxDecoration(color: HunterTheme.success.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+                            child: Text("+$xp XP", style: const TextStyle(color: HunterTheme.success, fontWeight: FontWeight.bold, fontSize: 12)),
                           ),
                         ]),
                         const SizedBox(height: 12),

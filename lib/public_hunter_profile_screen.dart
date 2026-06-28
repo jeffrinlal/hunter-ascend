@@ -33,11 +33,11 @@ class PublicHunterProfileScreen extends StatelessWidget {
   }
 
   Color _getRankColor(int level) {
-    if (level >= 30) return const Color(0xFFFFD700);
-    if (level >= 20) return const Color(0xFFFF4444);
+    if (level >= 30) return HunterTheme.gold;
+    if (level >= 20) return HunterTheme.danger;
     if (level >= 15) return HunterTheme.primary;
     if (level >= 10) return HunterTheme.primary;
-    if (level >= 5)  return const Color(0xFF44DD88);
+    if (level >= 5)  return HunterTheme.success;
     return HunterTheme.textSecondary;
   }
 
@@ -219,7 +219,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                                     '$streak DAY STREAK', Colors.orange),
                                 const SizedBox(width: 10),
                                 _infoPill(Icons.star,
-                                    '$xp XP', const Color(0xFF44DD88)),
+                                    '$xp XP', HunterTheme.success),
                               ],
                             ),
 
@@ -249,13 +249,13 @@ class PublicHunterProfileScreen extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(child: _duelStatCard(
-                              '$wins', 'WINS', const Color(0xFF44DD88))),
+                              '$wins', 'WINS', HunterTheme.success)),
                           const SizedBox(width: 10),
                           Expanded(child: _duelStatCard(
-                              '$losses', 'LOSSES', const Color(0xFFFF4444))),
+                              '$losses', 'LOSSES', HunterTheme.danger)),
                           const SizedBox(width: 10),
                           Expanded(child: _duelStatCard(
-                              '$winRate%', 'WIN RATE', const Color(0xFFFFD700))),
+                              '$winRate%', 'WIN RATE', HunterTheme.gold)),
                         ],
                       ),
 
@@ -267,7 +267,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                       _infoRow(Icons.bolt, 'Level', 'LV.$level',
                           HunterTheme.primary),
                       _infoRow(Icons.emoji_events, 'Total XP', '$xp XP',
-                          const Color(0xFF44DD88)),
+                          HunterTheme.success),
                       _infoRow(Icons.local_fire_department, 'Streak',
                           '$streak Days', Colors.orange),
                       _infoRow(Icons.sports_kabaddi, 'Total Duels',
@@ -316,13 +316,13 @@ class PublicHunterProfileScreen extends StatelessWidget {
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF4444).withOpacity(0.12),
-                            foregroundColor: const Color(0xFFFF4444),
+                            backgroundColor: HunterTheme.danger.withOpacity(0.12),
+                            foregroundColor: HunterTheme.danger,
                             padding: const EdgeInsets.symmetric(vertical: 15),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                               side: const BorderSide(
-                                  color: Color(0xFFFF4444), width: 1.5),
+                                  color: HunterTheme.danger, width: 1.5),
                             ),
                             elevation: 0,
                           ),

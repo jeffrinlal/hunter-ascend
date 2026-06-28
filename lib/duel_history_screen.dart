@@ -126,9 +126,9 @@ class DuelHistoryScreen extends StatelessWidget {
 
                 // ── Stats row ──
                 Row(children: [
-                  _buildStatCard("WINS",      "$wins",      const Color(0xFF44DD88), Icons.emoji_events),
+                  _buildStatCard("WINS",      "$wins",      HunterTheme.success, Icons.emoji_events),
                   const SizedBox(width: 10),
-                  _buildStatCard("LOSSES",    "$losses",    const Color(0xFFFF4444), Icons.sports_kabaddi),
+                  _buildStatCard("LOSSES",    "$losses",    HunterTheme.danger, Icons.sports_kabaddi),
                   const SizedBox(width: 10),
                   _buildStatCard("CANCELLED", "$cancelled", HunterTheme.textTertiary,          Icons.cancel_outlined),
                 ]),
@@ -166,14 +166,14 @@ class DuelHistoryScreen extends StatelessWidget {
                   if (duel['status'] == 'completed') {
                     if (duel['winner'] == user?.uid) {
                       label      = "VICTORY";
-                      accentColor = const Color(0xFF44DD88);
+                      accentColor = HunterTheme.success;
                       iconData   = Icons.emoji_events;
-                      iconBg     = const Color(0xFF44DD88).withOpacity(0.12);
+                      iconBg     = HunterTheme.success.withOpacity(0.12);
                     } else {
                       label      = "DEFEATED";
-                      accentColor = const Color(0xFFFF4444);
+                      accentColor = HunterTheme.danger;
                       iconData   = Icons.whatshot;
-                      iconBg     = const Color(0xFFFF4444).withOpacity(0.12);
+                      iconBg     = HunterTheme.danger.withOpacity(0.12);
                     }
                   } else {
                     label      = "CANCELLED";

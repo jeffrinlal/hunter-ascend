@@ -27,44 +27,44 @@ class RankShieldPainter extends CustomPainter {
 
   Color get _shieldFill {
     switch (rank) {
-      case 'S': return const Color(0xFFFFF1D6);
-      case 'A': return const Color(0xFFFFD9D9);
-      case 'B': return const Color(0xFFFFF1D6);
+      case 'S': return HunterTheme.amberSurface;
+      case 'A': return HunterTheme.redSurface;
+      case 'B': return HunterTheme.amberSurface;
       case 'C': return HunterTheme.background;
-      case 'D': return const Color(0xFFE8F8F0);
+      case 'D': return HunterTheme.greenSurface;
       default:  return HunterTheme.background; // E
     }
   }
 
   Color get _strokeColor {
     switch (rank) {
-      case 'S': return const Color(0xFFB8900A);
-      case 'A': return const Color(0xFFFFD9D9);
-      case 'B': return const Color(0xFFFFF1D6);
+      case 'S': return HunterTheme.goldDeep;
+      case 'A': return HunterTheme.redSurface;
+      case 'B': return HunterTheme.amberSurface;
       case 'C': return HunterTheme.border;
-      case 'D': return const Color(0xFFE8F8F0);
+      case 'D': return HunterTheme.greenSurface;
       default:  return HunterTheme.border; // E
     }
   }
 
   Color get _letterColor {
     switch (rank) {
-      case 'S': return const Color(0xFFFFD700);
-      case 'A': return const Color(0xFFFF4444);
+      case 'S': return HunterTheme.gold;
+      case 'A': return HunterTheme.danger;
       case 'B': return HunterTheme.primary;
       case 'C': return HunterTheme.primary;
-      case 'D': return const Color(0xFF44DD88);
+      case 'D': return HunterTheme.success;
       default:  return HunterTheme.textSecondary; // E
     }
   }
 
   Color get _innerStroke {
     switch (rank) {
-      case 'S': return const Color(0xFF8A6800);
-      case 'A': return const Color(0xFFFFD9D9);
-      case 'B': return const Color(0xFFFFF1D6);
+      case 'S': return HunterTheme.goldDark;
+      case 'A': return HunterTheme.redSurface;
+      case 'B': return HunterTheme.amberSurface;
       case 'C': return HunterTheme.border;
-      case 'D': return const Color(0xFFE8F8F0);
+      case 'D': return HunterTheme.greenSurface;
       default:  return HunterTheme.border; // E
     }
   }
@@ -414,11 +414,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Color get rankColor {
-    if (level >= 30) return const Color(0xFFFFD700);
-    if (level >= 20) return const Color(0xFFFF4444);
+    if (level >= 30) return HunterTheme.gold;
+    if (level >= 20) return HunterTheme.danger;
     if (level >= 15) return HunterTheme.primary;
     if (level >= 10) return HunterTheme.primary;
-    if (level >= 5)  return const Color(0xFF44DD88);
+    if (level >= 5)  return HunterTheme.success;
     return HunterTheme.textSecondary;
   }
 
@@ -749,13 +749,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             decoration: BoxDecoration(
               color: HunterTheme.cardColor,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFFF4444).withValues(alpha: 0.4), width: 1.5),
+              border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.4), width: 1.5),
             ),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.warning_amber_rounded, color: Color(0xFFFF4444), size: 48),
+              const Icon(Icons.warning_amber_rounded, color: HunterTheme.danger, size: 48),
               const SizedBox(height: 16),
               const Text("DISCIPLINE FAILURE",
-                  style: TextStyle(color: Color(0xFFFF4444), fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                  style: TextStyle(color: HunterTheme.danger, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
               const SizedBox(height: 10),
               Text(
                 "You failed yesterday's mission.\n\n-${mode == 'strict' ? 100 : 25} XP has been deducted.",
@@ -795,22 +795,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
           decoration: BoxDecoration(
             color: HunterTheme.cardColor,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFFF4444).withValues(alpha: 0.5), width: 1.5),
-            boxShadow: [BoxShadow(color: const Color(0xFFFF4444).withValues(alpha: 0.1), blurRadius: 24)],
+            border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.5), width: 1.5),
+            boxShadow: [BoxShadow(color: HunterTheme.danger.withValues(alpha: 0.1), blurRadius: 24)],
           ),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFFFF4444).withValues(alpha: 0.1),
+                color: HunterTheme.danger.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFFF4444).withValues(alpha: 0.4), width: 1.5),
+                border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.4), width: 1.5),
               ),
-              child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFFF4444), size: 32),
+              child: const Icon(Icons.warning_amber_rounded, color: HunterTheme.danger, size: 32),
             ),
             const SizedBox(height: 16),
             const Text("DISCIPLINE FAILURE",
-                style: TextStyle(color: Color(0xFFFF4444), fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                style: TextStyle(color: HunterTheme.danger, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 2)),
             const SizedBox(height: 10),
             const Text(
               "You failed yesterday's mission.\n\nWatch the full ad to repay your debt.\nThere is no other way.",
@@ -864,7 +864,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF4444),
+                  color: HunterTheme.danger,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Center(
@@ -1019,28 +1019,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF44DD88).withOpacity(0.07),
+                      color: HunterTheme.success.withOpacity(0.07),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFF44DD88).withOpacity(0.4), width: 1.2),
+                      border: Border.all(color: HunterTheme.success.withOpacity(0.4), width: 1.2),
                     ),
                     child: Row(children: [
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF44DD88).withOpacity(0.15),
+                          color: HunterTheme.success.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.spa, color: Color(0xFF44DD88), size: 22),
+                        child: const Icon(Icons.spa, color: HunterTheme.success, size: 22),
                       ),
                       const SizedBox(width: 14),
                       const Expanded(
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text("CASUAL", style: TextStyle(color: Color(0xFF44DD88), fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 1)),
+                          Text("CASUAL", style: TextStyle(color: HunterTheme.success, fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 1)),
                           SizedBox(height: 3),
                           Text("Penalty only if zero quests done", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12)),
                         ]),
                       ),
-                      const Icon(Icons.chevron_right, color: Color(0xFF44DD88), size: 20),
+                      const Icon(Icons.chevron_right, color: HunterTheme.success, size: 20),
                     ]),
                   ),
                 ),
@@ -1060,28 +1060,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFF4444).withOpacity(0.07),
+                      color: HunterTheme.danger.withOpacity(0.07),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFFF4444).withOpacity(0.4), width: 1.2),
+                      border: Border.all(color: HunterTheme.danger.withOpacity(0.4), width: 1.2),
                     ),
                     child: Row(children: [
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFF4444).withOpacity(0.15),
+                          color: HunterTheme.danger.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.bolt, color: Color(0xFFFF4444), size: 22),
+                        child: const Icon(Icons.bolt, color: HunterTheme.danger, size: 22),
                       ),
                       const SizedBox(width: 14),
                       const Expanded(
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text("STRICT", style: TextStyle(color: Color(0xFFFF4444), fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 1)),
+                          Text("STRICT", style: TextStyle(color: HunterTheme.danger, fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 1)),
                           SizedBox(height: 3),
                           Text("Penalty if any quest is missed", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12)),
                         ]),
                       ),
-                      const Icon(Icons.chevron_right, color: Color(0xFFFF4444), size: 20),
+                      const Icon(Icons.chevron_right, color: HunterTheme.danger, size: 20),
                     ]),
                   ),
                 ),
@@ -1108,7 +1108,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         'label': 'Morning',
         'sub': '8:00 AM',
         'icon': Icons.wb_sunny_outlined,
-        'color': const Color(0xFFFFD700),
+        'color': HunterTheme.gold,
         'hour': 8,
         'minute': 0,
       },
@@ -1124,7 +1124,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         'label': 'Evening',
         'sub': '7:00 PM',
         'icon': Icons.nights_stay_outlined,
-        'color': const Color(0xFFAA88FF),
+        'color': HunterTheme.purpleLight,
         'hour': 19,
         'minute': 0,
       },
@@ -1266,17 +1266,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFF4444).withValues(alpha: 0.07),
+                      color: HunterTheme.danger.withValues(alpha: 0.07),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: const Color(0xFFFF4444).withValues(alpha: 0.3),
+                        color: HunterTheme.danger.withValues(alpha: 0.3),
                       ),
                     ),
                     child: const Center(
                       child: Text(
                         "TURN OFF REMINDERS",
                         style: TextStyle(
-                          color: Color(0xFFFF4444),
+                          color: HunterTheme.danger,
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                           letterSpacing: 1,
@@ -1595,7 +1595,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Container(
                         width: 8, height: 8,
                         decoration: const BoxDecoration(
-                          color: Color(0xFF44DD88),
+                          color: HunterTheme.success,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -1800,7 +1800,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const SizedBox(height: 8),
         Text(
           questRemaining == Duration.zero ? "Status: Ready to Complete" : "Status: In Progress",
-          style: TextStyle(color: questRemaining == Duration.zero ? const Color(0xFF44DD88) : Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold),
+          style: TextStyle(color: questRemaining == Duration.zero ? HunterTheme.success : Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         Text(activeQuest, textAlign: TextAlign.center, style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
@@ -1816,15 +1816,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           decoration: BoxDecoration(
             color: _blueDim,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: questRemaining == Duration.zero ? const Color(0xFF44DD88).withOpacity(0.5) : _blue.withOpacity(0.4)),
+            border: Border.all(color: questRemaining == Duration.zero ? HunterTheme.success.withOpacity(0.5) : _blue.withOpacity(0.4)),
           ),
           margin: const EdgeInsets.only(bottom: 16),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(questRemaining == Duration.zero ? Icons.check_circle_outline : Icons.timer_outlined, color: questRemaining == Duration.zero ? const Color(0xFF44DD88) : _blue, size: 22),
+            Icon(questRemaining == Duration.zero ? Icons.check_circle_outline : Icons.timer_outlined, color: questRemaining == Duration.zero ? HunterTheme.success : _blue, size: 22),
             const SizedBox(width: 10),
             Text(
               questRemaining == Duration.zero ? "TIME'S UP!" : _formatQuestTime(questRemaining),
-              style: TextStyle(color: questRemaining == Duration.zero ? const Color(0xFF44DD88) : HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1),
+              style: TextStyle(color: questRemaining == Duration.zero ? HunterTheme.success : HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1),
             ),
           ]),
         ),
@@ -2213,11 +2213,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   height: 14,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFFFF4444),
+                    color: HunterTheme.danger,
                     border: Border.all(color: HunterTheme.background, width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFFF4444).withOpacity(0.8),
+                        color: HunterTheme.danger.withOpacity(0.8),
                         blurRadius: 8,
                         spreadRadius: 2,
                       ),

@@ -219,7 +219,7 @@ class _DuelScreenState extends State<DuelScreen> {
             const SizedBox(height: 10),
             Text(questName, textAlign: TextAlign.center, style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
-            const Text("XP based on time chosen", style: TextStyle(color: Color(0xFF44DD88), fontWeight: FontWeight.bold, fontSize: 12)),
+            const Text("XP based on time chosen", style: TextStyle(color: HunterTheme.success, fontWeight: FontWeight.bold, fontSize: 12)),
             const SizedBox(height: 20),
             const Text("Choose a time to complete this quest", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12)),
             const SizedBox(height: 14),
@@ -269,7 +269,7 @@ class _DuelScreenState extends State<DuelScreen> {
                             ? 5
                             : 3} XP",
                         style: const TextStyle(
-                          color: Color(0xFF44DD88),
+                          color: HunterTheme.success,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
@@ -359,15 +359,15 @@ class _DuelScreenState extends State<DuelScreen> {
         const SizedBox(height: 8),
         Text(
           ready ? "Status: Ready to Complete" : "Status: In Progress",
-          style: TextStyle(color: ready ? const Color(0xFF44DD88) : Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold),
+          style: TextStyle(color: ready ? HunterTheme.success : Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         Text(activeQuestName ?? "", textAlign: TextAlign.center, style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(color: const Color(0xFF44DD88).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
-          child: Text("Reward: +$activeQuestXp XP", style: const TextStyle(color: Color(0xFF44DD88), fontWeight: FontWeight.bold)),
+          decoration: BoxDecoration(color: HunterTheme.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+          child: Text("Reward: +$activeQuestXp XP", style: const TextStyle(color: HunterTheme.success, fontWeight: FontWeight.bold)),
         ),
         const SizedBox(height: 16),
         Container(
@@ -375,14 +375,14 @@ class _DuelScreenState extends State<DuelScreen> {
           decoration: BoxDecoration(
             color: _blueDim,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: ready ? const Color(0xFF44DD88).withValues(alpha: 0.5) : _blue.withValues(alpha: 0.4)),
+            border: Border.all(color: ready ? HunterTheme.success.withValues(alpha: 0.5) : _blue.withValues(alpha: 0.4)),
           ),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(ready ? Icons.check_circle_outline : Icons.timer_outlined, color: ready ? const Color(0xFF44DD88) : _blue, size: 22),
+            Icon(ready ? Icons.check_circle_outline : Icons.timer_outlined, color: ready ? HunterTheme.success : _blue, size: 22),
             const SizedBox(width: 10),
             Text(
               ready ? "TIME'S UP!" : _formatDuration(remaining),
-              style: TextStyle(color: ready ? const Color(0xFF44DD88) : HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1),
+              style: TextStyle(color: ready ? HunterTheme.success : HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1),
             ),
           ]),
         ),
@@ -429,24 +429,24 @@ class _DuelScreenState extends State<DuelScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF44DD88).withValues(alpha: 0.4), width: 1.5),
+        border: Border.all(color: HunterTheme.success.withValues(alpha: 0.4), width: 1.5),
         color: _card,
-        boxShadow: [BoxShadow(color: const Color(0xFF44DD88).withValues(alpha: 0.08), blurRadius: 16)],
+        boxShadow: [BoxShadow(color: HunterTheme.success.withValues(alpha: 0.08), blurRadius: 16)],
       ),
       child: Column(children: [
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFF44DD88).withValues(alpha: 0.1),
+            color: HunterTheme.success.withValues(alpha: 0.1),
             shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFF44DD88).withValues(alpha: 0.4)),
+            border: Border.all(color: HunterTheme.success.withValues(alpha: 0.4)),
           ),
-          child: const Icon(Icons.check_circle_outline, color: Color(0xFF44DD88), size: 32),
+          child: const Icon(Icons.check_circle_outline, color: HunterTheme.success, size: 32),
         ),
         const SizedBox(height: 14),
         const Text(
           "ALL QUESTS DONE FOR TODAY",
-          style: TextStyle(color: Color(0xFF44DD88), fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+          style: TextStyle(color: HunterTheme.success, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1.5),
         ),
         const SizedBox(height: 8),
         const Text(
@@ -552,18 +552,18 @@ class _DuelScreenState extends State<DuelScreen> {
                       decoration: BoxDecoration(
                         color: won
                             ? Colors.amber.withValues(alpha: 0.1)
-                            : const Color(0xFFFF4444).withValues(alpha: 0.1),
+                            : HunterTheme.danger.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: won
                               ? Colors.amber.withValues(alpha: 0.5)
-                              : const Color(0xFFFF4444).withValues(alpha: 0.5),
+                              : HunterTheme.danger.withValues(alpha: 0.5),
                           width: 2,
                         ),
                       ),
                       child: Icon(
                         won ? Icons.emoji_events : Icons.close,
-                        color: won ? Colors.amber : const Color(0xFFFF4444),
+                        color: won ? Colors.amber : HunterTheme.danger,
                         size: 72,
                       ),
                     ),
@@ -571,7 +571,7 @@ class _DuelScreenState extends State<DuelScreen> {
                     Text(
                       won ? "VICTORY" : "DEFEATED",
                       style: TextStyle(
-                        color: won ? Colors.amber : const Color(0xFFFF4444),
+                        color: won ? Colors.amber : HunterTheme.danger,
                         fontSize: 36,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 4,
@@ -638,15 +638,15 @@ class _DuelScreenState extends State<DuelScreen> {
                     margin: const EdgeInsets.only(bottom: 16),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFF4444).withValues(alpha: 0.08),
+                      color: HunterTheme.danger.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFFF4444).withValues(alpha: 0.5), width: 1.2),
+                      border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.5), width: 1.2),
                     ),
                     child: Column(children: [
                       const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Icon(Icons.warning_amber_rounded, color: Color(0xFFFF4444), size: 20),
+                        Icon(Icons.warning_amber_rounded, color: HunterTheme.danger, size: 20),
                         SizedBox(width: 8),
-                        Text("CANCEL REQUEST RECEIVED", style: TextStyle(color: Color(0xFFFF4444), fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1)),
+                        Text("CANCEL REQUEST RECEIVED", style: TextStyle(color: HunterTheme.danger, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1)),
                       ]),
                       const SizedBox(height: 14),
                       Row(children: [
@@ -657,11 +657,11 @@ class _DuelScreenState extends State<DuelScreen> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF44DD88).withValues(alpha: 0.1),
+                                color: HunterTheme.success.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFF44DD88).withValues(alpha: 0.4)),
+                                border: Border.all(color: HunterTheme.success.withValues(alpha: 0.4)),
                               ),
-                              child: const Center(child: Text("ACCEPT", style: TextStyle(color: Color(0xFF44DD88), fontWeight: FontWeight.bold, letterSpacing: 1))),
+                              child: const Center(child: Text("ACCEPT", style: TextStyle(color: HunterTheme.success, fontWeight: FontWeight.bold, letterSpacing: 1))),
                             ),
                           ),
                         ),
@@ -673,11 +673,11 @@ class _DuelScreenState extends State<DuelScreen> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFF4444).withValues(alpha: 0.1),
+                                color: HunterTheme.danger.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFFF4444).withValues(alpha: 0.4)),
+                                border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.4)),
                               ),
-                              child: const Center(child: Text("DECLINE", style: TextStyle(color: Color(0xFFFF4444), fontWeight: FontWeight.bold, letterSpacing: 1))),
+                              child: const Center(child: Text("DECLINE", style: TextStyle(color: HunterTheme.danger, fontWeight: FontWeight.bold, letterSpacing: 1))),
                             ),
                           ),
                         ),
@@ -773,11 +773,11 @@ class _DuelScreenState extends State<DuelScreen> {
                         margin: const EdgeInsets.symmetric(horizontal: 12),
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFF4444).withValues(alpha: 0.1),
+                          color: HunterTheme.danger.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFFF4444).withValues(alpha: 0.3)),
+                          border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.3)),
                         ),
-                        child: const Text("VS", style: TextStyle(color: Color(0xFFFF4444), fontSize: 11, fontWeight: FontWeight.bold)),
+                        child: const Text("VS", style: TextStyle(color: HunterTheme.danger, fontSize: 11, fontWeight: FontWeight.bold)),
                       ),
                       Expanded(child: Container(height: 1, color: _border)),
                     ]),
@@ -785,8 +785,8 @@ class _DuelScreenState extends State<DuelScreen> {
                     Row(children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(color: const Color(0xFFFF4444).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                        child: const Text("OPPONENT", style: TextStyle(color: Color(0xFFFF4444), fontSize: 12, fontWeight: FontWeight.bold)),
+                        decoration: BoxDecoration(color: HunterTheme.danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                        child: const Text("OPPONENT", style: TextStyle(color: HunterTheme.danger, fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
                       const Spacer(),
                       Text("$oppScore XP", style: const TextStyle(color: HunterTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
@@ -796,8 +796,8 @@ class _DuelScreenState extends State<DuelScreen> {
                       borderRadius: BorderRadius.circular(20),
                       child: LinearProgressIndicator(
                         value: oppRatio.toDouble(), minHeight: 10,
-                        backgroundColor: const Color(0xFFFF4444).withValues(alpha: 0.1),
-                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF4444)),
+                        backgroundColor: HunterTheme.danger.withValues(alpha: 0.1),
+                        valueColor: const AlwaysStoppedAnimation<Color>(HunterTheme.danger),
                       ),
                     ),
                   ]),
@@ -839,7 +839,7 @@ class _DuelScreenState extends State<DuelScreen> {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: done
-                            ? const Color(0xFF44DD88).withValues(alpha: 0.4)
+                            ? HunterTheme.success.withValues(alpha: 0.4)
                             : isCurrentActive
                             ? _blue.withValues(alpha: 0.6)
                             : _border,
@@ -850,12 +850,12 @@ class _DuelScreenState extends State<DuelScreen> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: done ? const Color(0xFF44DD88).withValues(alpha: 0.1) : _blueDim,
+                          color: done ? HunterTheme.success.withValues(alpha: 0.1) : _blueDim,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
                           done ? Icons.check_circle_outline : Icons.gps_fixed,
-                          color: done ? const Color(0xFF44DD88) : _blue,
+                          color: done ? HunterTheme.success : _blue,
                           size: 18,
                         ),
                       ),
@@ -872,14 +872,14 @@ class _DuelScreenState extends State<DuelScreen> {
                             ),
                           ),
                           const SizedBox(height: 3),
-                          const Text("XP based on time", style: TextStyle(color: Color(0xFF44DD88), fontSize: 11, fontWeight: FontWeight.bold)),
+                          const Text("XP based on time", style: TextStyle(color: HunterTheme.success, fontSize: 11, fontWeight: FontWeight.bold)),
                         ]),
                       ),
                       if (done)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(color: const Color(0xFF44DD88).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                          child: const Text("DONE", style: TextStyle(color: Color(0xFF44DD88), fontSize: 11, fontWeight: FontWeight.bold)),
+                          decoration: BoxDecoration(color: HunterTheme.success.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                          child: const Text("DONE", style: TextStyle(color: HunterTheme.success, fontSize: 11, fontWeight: FontWeight.bold)),
                         )
                       else if (isCurrentActive)
                         Container(
@@ -941,14 +941,14 @@ class _DuelScreenState extends State<DuelScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF4444).withValues(alpha: 0.07),
+                        color: HunterTheme.danger.withValues(alpha: 0.07),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFFF4444).withValues(alpha: 0.35), width: 1.2),
+                        border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.35), width: 1.2),
                       ),
                       child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Icon(Icons.cancel_outlined, color: Color(0xFFFF4444), size: 18),
+                        Icon(Icons.cancel_outlined, color: HunterTheme.danger, size: 18),
                         SizedBox(width: 8),
-                        Text("REQUEST CANCEL DUEL", style: TextStyle(color: Color(0xFFFF4444), fontWeight: FontWeight.bold, letterSpacing: 1.5, fontSize: 13)),
+                        Text("REQUEST CANCEL DUEL", style: TextStyle(color: HunterTheme.danger, fontWeight: FontWeight.bold, letterSpacing: 1.5, fontSize: 13)),
                       ]),
                     ),
                   ),

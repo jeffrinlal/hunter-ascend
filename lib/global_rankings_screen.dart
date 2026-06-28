@@ -180,19 +180,19 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
   }
 
   Color _rankColor(int level) {
-    if (level >= 30) return const Color(0xFFFF4444);
+    if (level >= 30) return HunterTheme.danger;
     if (level >= 20) return HunterTheme.primary;
-    if (level >= 15) return const Color(0xFF9B59B6);
-    if (level >= 10) return const Color(0xFF3498DB);
-    if (level >= 5)  return const Color(0xFF2ECC71);
+    if (level >= 15) return HunterTheme.purple;
+    if (level >= 10) return HunterTheme.info;
+    if (level >= 5)  return HunterTheme.successAlt;
     return HunterTheme.primary;
   }
 
   // Position-specific colors
   Color _positionColor(int index) {
-    if (index == 0) return const Color(0xFFFFB300); // Gold
-    if (index == 1) return const Color(0xFF9AA7B8); // Steel silver
-    if (index == 2) return const Color(0xFFCD7F32); // Bronze
+    if (index == 0) return HunterTheme.goldBright; // Gold
+    if (index == 1) return HunterTheme.silver; // Steel silver
+    if (index == 2) return HunterTheme.bronze; // Bronze
     return HunterTheme.textSecondary;
   }
 

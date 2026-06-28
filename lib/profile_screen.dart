@@ -67,11 +67,11 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Color _getRankColor(String rank) {
     switch (rank) {
-      case 'S': return const Color(0xFFFF4444);
+      case 'S': return HunterTheme.danger;
       case 'A': return HunterTheme.primary;
-      case 'B': return const Color(0xFF9B59B6);
-      case 'C': return const Color(0xFF3498DB);
-      case 'D': return const Color(0xFF2ECC71);
+      case 'B': return HunterTheme.purple;
+      case 'C': return HunterTheme.info;
+      case 'D': return HunterTheme.successAlt;
       default:  return HunterTheme.primary;
     }
   }
@@ -452,11 +452,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                           ),
                           const SizedBox(height: 20),
                           _statBar('STR', str,  HunterTheme.primary),
-                          _statBar('END', end_, const Color(0xFF9B59B6)),
+                          _statBar('END', end_, HunterTheme.purple),
                           _statBar('AGI', agi,  HunterTheme.primary),
-                          _statBar('VIT', vit,  const Color(0xFF2ECC71)),
+                          _statBar('VIT', vit,  HunterTheme.successAlt),
                           _statBar('INT', int_, HunterTheme.primary),
-                          _statBar('LUK', luk,  const Color(0xFFFFD700)),
+                          _statBar('LUK', luk,  HunterTheme.gold),
                           const SizedBox(height: 24),
                           _card(
                             child: Column(
@@ -476,15 +476,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   MainAxisAlignment.spaceAround,
                                   children: [
                                     _duelStat('$duelWins', 'WINS',
-                                        const Color(0xFF2ECC71)),
+                                        HunterTheme.successAlt),
                                     _duelStat('$duelLosses', 'LOSSES',
-                                        const Color(0xFFE74C3C)),
+                                        HunterTheme.dangerAlt),
                                     _duelStat(
                                       totalDuels == 0
                                           ? '0%'
                                           : '${(duelWins * 100 / totalDuels).toStringAsFixed(0)}%',
                                       'WIN RATE',
-                                      const Color(0xFFFFD700),
+                                      HunterTheme.gold,
                                     ),
                                   ],
                                 ),
@@ -507,7 +507,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 Text(
                                   '🔥 ${_getHunterClass(bmi)}',
                                   style: const TextStyle(
-                                    color: Color(0xFFFFD700),
+                                    color: HunterTheme.gold,
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
                                     letterSpacing: 1,
@@ -546,8 +546,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                                             ? Icons.trending_down
                                             : Icons.trending_up,
                                         color: weight <= startingWeight
-                                            ? const Color(0xFF2ECC71)
-                                            : const Color(0xFFE74C3C),
+                                            ? HunterTheme.successAlt
+                                            : HunterTheme.dangerAlt,
                                         size: 20,
                                       ),
                                       const SizedBox(width: 8),
@@ -555,8 +555,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                                         '${(weight - startingWeight).abs().toStringAsFixed(1)} kg ${weight <= startingWeight ? "lost" : "gained"} since start',
                                         style: TextStyle(
                                           color: weight <= startingWeight
-                                              ? const Color(0xFF2ECC71)
-                                              : const Color(0xFFE74C3C),
+                                              ? HunterTheme.successAlt
+                                              : HunterTheme.dangerAlt,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -636,13 +636,13 @@ class _ProfileScreenState extends State<ProfileScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.monitor_weight_outlined,
-                    color: Color(0xFFBBBBBB), size: 64),
+                    color: HunterTheme.textFaint, size: 64),
                 SizedBox(height: 16),
                 Text('No weight history yet',
                     style: TextStyle(color: HunterTheme.textTertiary, fontSize: 16)),
                 SizedBox(height: 8),
                 Text('Update your weight in the Physique tab',
-                    style: TextStyle(color: Color(0xFFBBBBBB), fontSize: 13)),
+                    style: TextStyle(color: HunterTheme.textFaint, fontSize: 13)),
               ],
             ),
           );
@@ -696,7 +696,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       style: TextStyle(
                         color: weightLost >= 0
                             ? Colors.greenAccent
-                            : const Color(0xFFE74C3C),
+                            : HunterTheme.dangerAlt,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),

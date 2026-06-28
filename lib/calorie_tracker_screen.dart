@@ -321,8 +321,8 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   static const _blue    = HunterTheme.primary; // accent → orange
   static const _blueDim = HunterTheme.surface; // light secondary surface / track
   static const _border  = Color(0x33FF6B2B); // orange low-opacity border
-  static const _green   = Color(0xFF2EAE76); // carbs
-  static const _red     = Color(0xFFE5484D); // fat / over-goal
+  static const _green   = HunterTheme.successDeep; // carbs
+  static const _red     = HunterTheme.dangerDeep; // fat / over-goal
   static const _orange  = HunterTheme.primary; // brand orange
 
   final TextEditingController _foodController = TextEditingController();

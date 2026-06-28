@@ -139,9 +139,9 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                         decoration: BoxDecoration(
                           color: _card,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFFF4444).withValues(alpha: 0.4), width: 1.5),
+                          border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.4), width: 1.5),
                           boxShadow: [
-                            BoxShadow(color: const Color(0xFFFF4444).withValues(alpha: 0.1), blurRadius: 24),
+                            BoxShadow(color: HunterTheme.danger.withValues(alpha: 0.1), blurRadius: 24),
                           ],
                         ),
                         child: Column(
@@ -149,17 +149,17 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFF4444).withValues(alpha: 0.1),
+                                color: HunterTheme.danger.withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
-                                border: Border.all(color: const Color(0xFFFF4444).withValues(alpha: 0.4), width: 1.5),
+                                border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.4), width: 1.5),
                               ),
-                              child: const Icon(Icons.sports_kabaddi, color: Color(0xFFFF4444), size: 44),
+                              child: const Icon(Icons.sports_kabaddi, color: HunterTheme.danger, size: 44),
                             ),
                             const SizedBox(height: 16),
                             const Text(
                               "⚔️  DUEL REQUEST",
                               style: TextStyle(
-                                color: Color(0xFFFF4444),
+                                color: HunterTheme.danger,
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 2,
@@ -228,10 +228,10 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFF4444).withValues(alpha: 0.1),
+                                color: HunterTheme.danger.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Icon(Icons.gps_fixed, color: Color(0xFFFF4444), size: 18),
+                              child: const Icon(Icons.gps_fixed, color: HunterTheme.danger, size: 18),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -282,15 +282,15 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFF4444).withValues(alpha: 0.08),
+                              color: HunterTheme.danger.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: const Color(0xFFFF4444).withValues(alpha: 0.4), width: 1.2),
+                              border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.4), width: 1.2),
                             ),
                             child: const Center(
                               child: Text(
                                 "DECLINE",
                                 style: TextStyle(
-                                  color: Color(0xFFFF4444),
+                                  color: HunterTheme.danger,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1.5,
                                   fontSize: 14,

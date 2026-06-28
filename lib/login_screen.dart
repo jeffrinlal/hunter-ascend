@@ -108,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen>
 
       _navigate(context, data, onboardingDone);
     } catch (e) {
-      print("❌ Guest Sign In error: $e");
+      print("✗ Guest Sign In error: $e");
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Sign in failed. Please try again.")),
@@ -168,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen>
 
       _navigate(context, data, onboardingDone);
     } catch (e) {
-      print("❌ Google Sign In error: $e");
+      print("✗ Google Sign In error: $e");
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Sign in failed. Please try again.")),
@@ -182,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF080C14),
+      backgroundColor: const Color(0xFFFAFAFA),
       body: Stack(
         children: [
           CustomPaint(
@@ -208,8 +208,7 @@ class _LoginScreenState extends State<LoginScreen>
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
-                          const Color(0xFF00E5FF)
-                              .withOpacity(0.12 * _glowAnimation.value),
+                          const Color(0xFFFF6B2B).withOpacity(0.12 * _glowAnimation.value),
                           Colors.transparent,
                         ],
                       ),
@@ -239,14 +238,14 @@ class _LoginScreenState extends State<LoginScreen>
                             height: 110,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: const Color(0xFF0D1620),
+                              color: const Color(0xFFFFF0E8),
                               border: Border.all(
-                                color: const Color(0xFF00E5FF).withOpacity(0.6),
+                                color: const Color(0xFFFF6B2B).withOpacity(0.6),
                                 width: 1.5,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF00E5FF).withOpacity(0.3),
+                                  color: const Color(0xFFFF6B2B).withOpacity(0.3),
                                   blurRadius: 30,
                                   spreadRadius: 4,
                                 ),
@@ -269,7 +268,7 @@ class _LoginScreenState extends State<LoginScreen>
                           TextSpan(
                             text: 'HUNTER ',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Color(0xFF1A1A1A),
                               fontSize: 28,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 4,
@@ -278,7 +277,7 @@ class _LoginScreenState extends State<LoginScreen>
                           TextSpan(
                             text: 'ASCEND',
                             style: TextStyle(
-                              color: Color(0xFF00E5FF),
+                              color: Color(0xFFFF6B2B),
                               fontSize: 28,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 4,
@@ -293,7 +292,7 @@ class _LoginScreenState extends State<LoginScreen>
                     Text(
                       'YOUR AWAKENING BEGINS',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.35),
+                        color: const Color(0xFF666666),
                         fontSize: 11,
                         letterSpacing: 3,
                         fontWeight: FontWeight.w500,
@@ -309,13 +308,13 @@ class _LoginScreenState extends State<LoginScreen>
                         gradient: const LinearGradient(
                           colors: [
                             Colors.transparent,
-                            Color(0xFF00E5FF),
+                            Color(0xFFFF6B2B),
                             Colors.transparent,
                           ],
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF00E5FF).withOpacity(0.5),
+                            color: const Color(0xFFFF6B2B).withOpacity(0.5),
                             blurRadius: 6,
                           ),
                         ],
@@ -329,7 +328,7 @@ class _LoginScreenState extends State<LoginScreen>
                       const Padding(
                         padding: EdgeInsets.only(bottom: 20),
                         child: CircularProgressIndicator(
-                          color: Color(0xFF00E5FF),
+                          color: Color(0xFFFF6B2B),
                           strokeWidth: 2,
                         ),
                       ),
@@ -349,7 +348,7 @@ class _LoginScreenState extends State<LoginScreen>
                       label: 'ENTER AS GUEST',
                       icon: const Icon(
                         Icons.bolt,
-                        color: Color(0xFF080C14),
+                        color: Colors.white,
                         size: 18,
                       ),
                       isPrimary: true,
@@ -362,7 +361,7 @@ class _LoginScreenState extends State<LoginScreen>
                       'By continuing you accept our Terms & Privacy Policy',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.2),
+                        color: const Color(0xFF1A1A1A).withOpacity(0.4),
                         fontSize: 10,
                         letterSpacing: 0.5,
                       ),
@@ -423,24 +422,30 @@ class _HunterButtonState extends State<_HunterButton> {
             height: 54,
             decoration: BoxDecoration(
               color: widget.isPrimary
-                  ? const Color(0xFF00E5FF)
-                  : const Color(0xFF0D1620),
+                  ? const Color(0xFFFF6B2B)
+                  : Colors.white,
               borderRadius: BorderRadius.circular(6),
               border: widget.isPrimary
                   ? null
                   : Border.all(
-                color: const Color(0xFF00E5FF).withOpacity(0.4),
-                width: 1,
+                color: const Color(0xFFFF6B2B),
+                width: 1.5,
               ),
               boxShadow: widget.isPrimary
                   ? [
                 BoxShadow(
-                  color: const Color(0xFF00E5FF).withOpacity(0.35),
+                  color: const Color(0xFFFF6B2B).withOpacity(0.35),
                   blurRadius: 20,
                   spreadRadius: 1,
                 ),
               ]
-                  : null,
+                  : [
+                BoxShadow(
+                  color: const Color(0xFFFF6B2B).withOpacity(0.12),
+                  blurRadius: 12,
+                  spreadRadius: 0,
+                ),
+              ],
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -451,8 +456,8 @@ class _HunterButtonState extends State<_HunterButton> {
                   widget.label,
                   style: TextStyle(
                     color: widget.isPrimary
-                        ? const Color(0xFF080C14)
-                        : Colors.white.withOpacity(0.85),
+                        ? Colors.white
+                        : const Color(0xFF1A1A1A),
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.5,
@@ -484,16 +489,17 @@ class _ShieldCrestIcon extends StatelessWidget {
 class _ShieldPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final cyanColor = const Color(0xFF00E5FF);
+    final orangeColor = const Color(0xFFFF6B2B);
     final paint = Paint()
-      ..color = cyanColor.withOpacity(0.15)
+      ..color = orangeColor.withOpacity(0.15)
       ..style = PaintingStyle.fill;
 
     final strokePaint = Paint()
-      ..color = cyanColor.withOpacity(0.8)
+      ..color = orangeColor.withOpacity(0.8)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
 
+    // Shield shape
     final path = Path();
     path.moveTo(size.width / 2, 0);
     path.lineTo(size.width, size.height * 0.25);
@@ -507,14 +513,21 @@ class _ShieldPainter extends CustomPainter {
     canvas.drawPath(path, paint);
     canvas.drawPath(path, strokePaint);
 
+    // Draw flame using Icons
     final textPainter = TextPainter(
       text: TextSpan(
-        text: 'S',
+        text: String.fromCharCode(Icons.local_fire_department.codePoint),
         style: TextStyle(
-          color: cyanColor,
-          fontSize: 22,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0,
+          fontSize: 28,
+          fontFamily: Icons.local_fire_department.fontFamily,
+          package: Icons.local_fire_department.fontPackage,
+          color: orangeColor,
+          shadows: [
+            Shadow(
+              color: orangeColor.withOpacity(0.6),
+              blurRadius: 12,
+            ),
+          ],
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -543,9 +556,9 @@ class _GoogleIcon extends StatelessWidget {
       height: 20,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white,
         border: Border.all(
-          color: Colors.white.withOpacity(0.25),
+          color: const Color(0xFFFF6B2B),
           width: 1,
         ),
       ),
@@ -553,7 +566,7 @@ class _GoogleIcon extends StatelessWidget {
         child: Text(
           'G',
           style: TextStyle(
-            color: Colors.white,
+            color: Color(0xFFFF6B2B),
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
@@ -569,7 +582,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF00E5FF).withOpacity(0.03)
+      ..color = const Color(0xFFFF6B2B).withOpacity(0.06)
       ..strokeWidth = 0.5;
 
     const spacing = 40.0;

@@ -6,7 +6,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:http/http.dart' as http;
-import 'api_keys.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 // ── Data model ────────────────────────────────────────────────────────────
@@ -117,15 +116,18 @@ Return ONLY valid JSON, nothing else, no markdown fences, no explanation:
 
   // ── Gemini Text ───────────────────────────────────────────────────────
   static Future<MealEntry?> _geminiText(String foodName) async {
-    final geminiKey = await ApiKeys.getGeminiKey();
 
     final url = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$geminiKey',
+        'https://hunter-ascend-ai.jefferinlal.workers.dev/gemini-text'
     );
 
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Id':
+        FirebaseAuth.instance.currentUser?.uid ?? 'anonymous',
+      },
       body: jsonEncode({
         'contents': [
           {'parts': [{'text': _buildTextPrompt(foodName)}]}
@@ -139,15 +141,18 @@ Return ONLY valid JSON, nothing else, no markdown fences, no explanation:
 
   // ── Gemini Photo ──────────────────────────────────────────────────────
   static Future<MealEntry?> _geminiPhoto(String base64Image) async {
-    final geminiKey = await ApiKeys.getGeminiKey();
 
     final url = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$geminiKey',
+      'https://hunter-ascend-ai.jefferinlal.workers.dev/gemini-photo',
     );
 
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Id':
+        FirebaseAuth.instance.currentUser?.uid ?? 'anonymous',
+      },
       body: jsonEncode({
         'contents': [
           {
@@ -182,14 +187,17 @@ Return ONLY valid JSON, nothing else, no markdown fences, no explanation:
 
   // ── Groq Text ─────────────────────────────────────────────────────────
   static Future<MealEntry?> _groqText(String foodName) async {
-    final groqKey = await ApiKeys.getGroqKey();
-    final url = Uri.parse('https://api.groq.com/openai/v1/chat/completions');
+
+    final url = Uri.parse(
+        'https://hunter-ascend-ai.jefferinlal.workers.dev/groq'
+    );
 
     final response = await http.post(
       url,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $groqKey',
+        'X-User-Id':
+        FirebaseAuth.instance.currentUser?.uid ?? 'anonymous',
       },
       body: jsonEncode({
         'model': 'llama-3.1-8b-instant',
@@ -209,14 +217,17 @@ Return ONLY valid JSON, nothing else, no markdown fences, no explanation:
 
   // ── Groq Photo ────────────────────────────────────────────────────────
   static Future<MealEntry?> _groqPhoto(String base64Image) async {
-    final groqKey = await ApiKeys.getGroqKey();
-    final url = Uri.parse('https://api.groq.com/openai/v1/chat/completions');
+
+    final url = Uri.parse(
+        'https://hunter-ascend-ai.jefferinlal.workers.dev/groq'
+    );
 
     final response = await http.post(
       url,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $groqKey',
+        'X-User-Id':
+        FirebaseAuth.instance.currentUser?.uid ?? 'anonymous',
       },
       body: jsonEncode({
         'model': 'meta-llama/llama-4-scout-17b-16e-instruct',
@@ -304,14 +315,14 @@ class CalorieTrackerCard extends StatefulWidget {
 }
 
 class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
-  static const _bg      = Color(0xFF070B14);
-  static const _card    = Color(0xFF0D1120);
-  static const _blue    = Color(0xFF4D7CFF);
-  static const _blueDim = Color(0xFF1A2A4A);
-  static const _border  = Color(0xFF1E2D4A);
-  static const _green   = Color(0xFF44DD88);
-  static const _red     = Color(0xFFFF4444);
-  static const _orange  = Color(0xFFFF8800);
+  static const _bg      = Color(0xFFFFF0E8); // soft surface
+  static const _card    = Color(0xFFFFFFFF); // white card
+  static const _blue    = Color(0xFFFF6B2B); // accent → orange
+  static const _blueDim = Color(0xFFFFF0E8); // light secondary surface / track
+  static const _border  = Color(0x33FF6B2B); // orange low-opacity border
+  static const _green   = Color(0xFF2EAE76); // carbs
+  static const _red     = Color(0xFFE5484D); // fat / over-goal
+  static const _orange  = Color(0xFFFF6B2B); // brand orange
 
   final TextEditingController _foodController = TextEditingController();
   bool _isLoading = false;
@@ -430,7 +441,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('❌ Could not analyze food. Try again.')),
+          const SnackBar(content: Text('✗ Could not analyze food. Try again.')),
         );
       }
     }
@@ -468,7 +479,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('❌ Could not analyze photo. Try again.')),
+          const SnackBar(content: Text('✗ Could not analyze photo. Try again.')),
         );
       }
     }
@@ -486,7 +497,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
             color: _card,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: _border, width: 1.5),
-            boxShadow: [BoxShadow(color: _blue.withOpacity(0.1), blurRadius: 24)],
+            boxShadow: [BoxShadow(color: _orange.withOpacity(0.12), blurRadius: 24)],
           ),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             if (imageBase64 != null) ...[
@@ -504,15 +515,15 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: _blue.withOpacity(0.1),
+                color: _orange.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _blue.withOpacity(0.3)),
+                border: Border.all(color: _orange.withOpacity(0.3)),
               ),
               child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 SizedBox(width: 6),
                 Text("AI ANALYSIS",
                     style: TextStyle(
-                        color: _blue,
+                        color: _orange,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.5)),
@@ -521,7 +532,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
             const SizedBox(height: 16),
             Text(meal.name,
                 style: const TextStyle(
-                    color: Colors.white,
+                    color: Color(0xFF1A1A1A),
                     fontSize: 18,
                     fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center),
@@ -546,7 +557,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                     child: const Center(
                         child: Text("CANCEL",
                             style: TextStyle(
-                                color: Colors.white54,
+                                color: Color(0xFF666666),
                                 fontWeight: FontWeight.bold))),
                   ),
                 ),
@@ -566,18 +577,18 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                     ));
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("✅ ${meal.name} logged!")),
+                        SnackBar(content: Text("✓ ${meal.name} logged!")),
                       );
                     }
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                        color: _green, borderRadius: BorderRadius.circular(12)),
+                        color: _orange, borderRadius: BorderRadius.circular(12)),
                     child: const Center(
                         child: Text("LOG MEAL",
                             style: TextStyle(
-                                color: Colors.black,
+                                color: Colors.white,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 1))),
                   ),
@@ -598,7 +609,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
       const SizedBox(height: 2),
       Text(label,
           style: const TextStyle(
-              color: Colors.white38, fontSize: 10, letterSpacing: 1)),
+              color: Color(0xFF666666), fontSize: 10, letterSpacing: 1)),
     ]);
   }
 
@@ -634,7 +645,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: _border, width: 1.5),
                 boxShadow: [
-                  BoxShadow(color: _orange.withOpacity(0.08), blurRadius: 16)
+                  BoxShadow(color: _orange.withOpacity(0.1), blurRadius: 16)
                 ],
               ),
               child: Column(
@@ -651,13 +662,13 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                           TextSpan(
                               text: "$totalCals",
                               style: const TextStyle(
-                                  color: Colors.white,
+                                  color: Color(0xFF1A1A1A),
                                   fontSize: 28,
                                   fontWeight: FontWeight.bold)),
                           TextSpan(
                               text: " / $calorieGoal kcal",
                               style: const TextStyle(
-                                  color: Colors.white54, fontSize: 14)),
+                                  color: Color(0xFF666666), fontSize: 14)),
                         ]),
                       ),
                       Container(
@@ -713,11 +724,11 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                     Expanded(
                       child: TextField(
                         controller: _foodController,
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 14),
                         decoration: InputDecoration(
                           hintText: "Type food name...",
                           hintStyle:
-                          const TextStyle(color: Colors.white38, fontSize: 13),
+                          const TextStyle(color: Color(0xFF666666), fontSize: 13),
                           filled: true,
                           fillColor: _bg,
                           contentPadding: const EdgeInsets.symmetric(
@@ -729,7 +740,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide:
-                            const BorderSide(color: _blue, width: 1.5),
+                            const BorderSide(color: _orange, width: 1.5),
                           ),
                         ),
                         onSubmitted: (_) => _analyzeText(),
@@ -743,7 +754,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                            color: _blue, borderRadius: BorderRadius.circular(12)),
+                            color: _orange, borderRadius: BorderRadius.circular(12)),
                         child: _isLoading
                             ? const SizedBox(
                             width: 20,
@@ -794,11 +805,11 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                           ),
                           SizedBox(height: 6),
                           Text(
-                            "Examples: 2 idli • 100g chicken breast •\n"
-                                " 3 eggs and 2 chapati •\n"
-                                "1 bowl curd rice",
+                            "Examples: 2 idli • 100g chicken breast •"
+                            " 3 eggs and 2 chapati •"
+                            "1 bowl curd rice",
                             style: TextStyle(
-                              color: Colors.white54,
+                              color: Color(0xFF666666),
                               fontSize: 13,
                             ),
                           ),
@@ -806,7 +817,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                           Text(
                             "⚠️ AI estimates calories and macros. Results may vary.",
                             style: TextStyle(
-                              color: Colors.white38,
+                              color: Color(0xFF999999),
                               fontSize: 12,
                             ),
                           ),
@@ -818,12 +829,12 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                   // ── Meal history ───────────────────────────────────
                   ...[
                     const SizedBox(height: 16),
-                    const Divider(color: Color(0xFF1E2D4A)),
+                    const Divider(color: _border),
                     const SizedBox(height: 12),
                     Row(children: [
                       const Text("Today's Meals",
                           style: TextStyle(
-                              color: Colors.white,
+                              color: Color(0xFF1A1A1A),
                               fontSize: 16,
                               fontWeight: FontWeight.bold)),
                       const SizedBox(width: 8),
@@ -835,7 +846,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                             borderRadius: BorderRadius.circular(20)),
                         child: Text("${meals.length}",
                             style: const TextStyle(
-                                color: _blue,
+                                color: _orange,
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold)),
                       ),
@@ -851,14 +862,14 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                         child: const Center(
                           child: Column(children: [
                             Icon(Icons.restaurant_menu,
-                                color: Colors.white24, size: 32),
+                                color: Color(0xFF999999), size: 32),
                             SizedBox(height: 8),
                             Text("No meals logged yet",
                                 style: TextStyle(
-                                    color: Colors.white38, fontSize: 13)),
+                                    color: Color(0xFF666666), fontSize: 13)),
                             Text("Type food or take a photo!",
                                 style: TextStyle(
-                                    color: Colors.white24, fontSize: 11)),
+                                    color: Color(0xFF999999), fontSize: 11)),
                           ]),
                         ),
                       )
@@ -896,7 +907,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
           style: TextStyle(
               color: color, fontSize: 14, fontWeight: FontWeight.bold)),
       const SizedBox(height: 2),
-      Text(label, style: const TextStyle(color: Colors.white38, fontSize: 10)),
+      Text(label, style: const TextStyle(color: Color(0xFF666666), fontSize: 10)),
     ]);
   }
 
@@ -905,9 +916,9 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF070B14),
+        color: _bg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1E2D4A), width: 1),
+        border: Border.all(color: _border, width: 1),
       ),
       child: Row(children: [
         Container(
@@ -928,12 +939,12 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(meal.name,
                 style: const TextStyle(
-                    color: Colors.white,
+                    color: Color(0xFF1A1A1A),
                     fontSize: 13,
                     fontWeight: FontWeight.w600)),
             Text(
               "${meal.protein.toStringAsFixed(0)}g P  •  ${meal.carbs.toStringAsFixed(0)}g C  •  ${meal.fat.toStringAsFixed(0)}g F",
-              style: const TextStyle(color: Colors.white38, fontSize: 11),
+              style: const TextStyle(color: Color(0xFF666666), fontSize: 11),
             ),
           ]),
         ),
@@ -941,7 +952,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
             style: const TextStyle(
                 color: _orange, fontSize: 15, fontWeight: FontWeight.bold)),
         const SizedBox(width: 4),
-        const Text("kcal", style: TextStyle(color: Colors.white38, fontSize: 10)),
+        const Text("kcal", style: TextStyle(color: Color(0xFF666666), fontSize: 10)),
         const SizedBox(width: 8),
         GestureDetector(
           onTap: () async {
@@ -949,7 +960,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
               await _deleteMeal(meal.id!);
             }
           },
-          child: const Icon(Icons.delete_outline, color: Colors.white24, size: 18),
+          child: const Icon(Icons.delete_outline, color: Color(0xFF999999), size: 18),
         ),
       ]),
     );
@@ -958,7 +969,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   void _showPhotoOptions() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF0D1120),
+      backgroundColor: _card,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => Padding(
@@ -966,7 +977,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Text("Add Food Photo",
               style: TextStyle(
-                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  color: Color(0xFF1A1A1A), fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           Row(children: [
             Expanded(
@@ -1002,16 +1013,16 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
-                    color: _blue.withOpacity(0.1),
+                    color: _orange.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: _blue.withOpacity(0.4)),
+                    border: Border.all(color: _orange.withOpacity(0.4)),
                   ),
                   child: const Column(children: [
-                    Icon(Icons.photo_library, color: _blue, size: 28),
+                    Icon(Icons.photo_library, color: _orange, size: 28),
                     SizedBox(height: 6),
                     Text("Gallery",
                         style:
-                        TextStyle(color: _blue, fontWeight: FontWeight.bold)),
+                        TextStyle(color: _orange, fontWeight: FontWeight.bold)),
                   ]),
                 ),
               ),

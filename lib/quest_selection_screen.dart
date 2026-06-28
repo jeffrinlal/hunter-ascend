@@ -357,66 +357,44 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                     Row(
                       children: [
                         // Skip
-                        Expanded(
-                          flex: 2,
-                          child: GestureDetector(
-                            onTap: () async {
-                              final prefs =
-                              await SharedPreferences.getInstance();
-                              await prefs.setBool('hasCompletedSetup', true);
 
-                              Navigator.pushAndRemoveUntil(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => DashboardScreen(
-                                    fatLoss: false,
-                                    discipline: false,
-                                    muscleGain: false,
-                                    selfImprovement: false,
-                                    bioQuests: [],
-                                  ),
-                                ),
-                                    (route) => false,
-                              );
-                            },
-                            child: Container(
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: Colors.transparent,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: const Color(0xFF00E5FF)
-                                      .withOpacity(0.3),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  'SKIP',
-                                  style: TextStyle(
-                                    color:
-                                    Colors.white.withOpacity(0.5),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
 
                         const SizedBox(width: 12),
 
                         // Generate quests
                         Expanded(
-                          flex: 5,
+                          flex: 1,
                           child: GestureDetector(
                             onTap: () async {
+                              if (!fatLoss &&
+                                  !discipline &&
+                                  !muscleGain &&
+                                  !selfImprovement) {
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Select at least one path to continue.',
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
                               final prefs =
                               await SharedPreferences.getInstance();
                               await prefs.setBool('hasCompletedSetup', true);
 
+                              final uid = FirebaseAuth.instance.currentUser!.uid;
+
+                              await FirebaseFirestore.instance
+                                  .collection('hunters')
+                                  .doc(uid)
+                                  .update({
+                                'fatLoss': fatLoss,
+                                'discipline': discipline,
+                                'muscleGain': muscleGain,
+                                'selfImprovement': selfImprovement,
+                              });
                               Navigator.pushAndRemoveUntil(
                                 context,
                                 MaterialPageRoute(

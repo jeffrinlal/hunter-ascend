@@ -184,91 +184,251 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
     if (level >= 15) return const Color(0xFF9B59B6);
     if (level >= 10) return const Color(0xFF3498DB);
     if (level >= 5)  return const Color(0xFF2ECC71);
-    return const Color(0xFF64C8FF);
+    return const Color(0xFFFF6B2B);
   }
 
   // Position-specific colors
   Color _positionColor(int index) {
-    if (index == 0) return const Color(0xFFFFD700); // Gold
-    if (index == 1) return const Color(0xFFB0C4DE); // Steel silver
+    if (index == 0) return const Color(0xFFFFB300); // Gold
+    if (index == 1) return const Color(0xFF9AA7B8); // Steel silver
     if (index == 2) return const Color(0xFFCD7F32); // Bronze
-    return Colors.white38;
+    return const Color(0xFF666666);
+  }
+
+  // ── Podium item (top 3) ────────────────────────────────────────────────
+  Widget _buildPodiumItem(
+      BuildContext context, List<QueryDocumentSnapshot> hunters, int index, String? currentUid) {
+    if (index >= hunters.length) {
+      return const Expanded(child: SizedBox());
+    }
+
+    final doc = hunters[index];
+    final hunter = doc.data() as Map<String, dynamic>;
+    final isMe = doc.id == currentUid;
+    final level = (hunter['level'] ?? 1) as int;
+    final rc = _rankColor(level);
+    final posColor = _positionColor(index);
+    final isFirst = index == 0;
+
+    final double avatarSize = isFirst ? 76 : 60;
+    final double pedestalHeight = index == 0 ? 78 : (index == 1 ? 58 : 44);
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PublicHunterProfileScreen(
+                hunterUid: doc.id,
+              ),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TopRankBadge(
+                position: index + 1,
+                color: posColor,
+                size: isFirst ? 40 : 32,
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: avatarSize,
+                height: avatarSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFFFFF0E8),
+                  border: Border.all(
+                    color: posColor,
+                    width: isFirst ? 2.5 : 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: posColor.withOpacity(0.3),
+                      blurRadius: 14,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: hunter['profilePicture'] != null &&
+                    hunter['profilePicture'].toString().isNotEmpty
+                    ? ClipOval(
+                  child: Image.memory(
+                    base64Decode(hunter['profilePicture']),
+                    width: avatarSize,
+                    height: avatarSize,
+                    fit: BoxFit.cover,
+                  ),
+                )
+                    : Icon(
+                  Icons.person,
+                  color: rc,
+                  size: isFirst ? 38 : 30,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                hunter['hunterName'] ?? 'Unknown',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isMe ? const Color(0xFFFF6B2B) : const Color(0xFF1A1A1A),
+                  fontSize: isFirst ? 15 : 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${getRankTitle(level)} · Lv.$level',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF666666),
+                  fontSize: 10,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF6B2B).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFFFF6B2B).withOpacity(0.3),
+                  ),
+                ),
+                child: Text(
+                  '${hunter['xp'] ?? 0} XP',
+                  style: const TextStyle(
+                    color: Color(0xFFFF6B2B),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                height: pedestalHeight,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      posColor.withOpacity(0.85),
+                      posColor.withOpacity(0.45),
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(10),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: posColor.withOpacity(0.25),
+                      blurRadius: 12,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: isFirst ? 26 : 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0C14),
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0C14),
+        backgroundColor: const Color(0xFFFAFAFA),
         elevation: 0,
 
         actions: [
           IconButton(
             icon: const Icon(
               Icons.search,
-              color: Colors.white70,
+              color: Color(0xFF666666),
             ),
-              onPressed: () {
-                setState(() {
-                  _searchMode = true;
-                });
-              },
+            onPressed: () {
+              setState(() {
+                _searchMode = true;
+              });
+            },
           ),
         ],
 
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white70, size: 20),
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF666666), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-          title: _searchMode
-              ? TextField(
-            controller: _searchController,
-            autofocus: true,
-            onChanged: (value) {
-              setState(() {
-                _searchText = value.trim();
-              });
-            },
+        title: _searchMode
+            ? TextField(
+          controller: _searchController,
+          autofocus: true,
+          onChanged: (value) {
+            setState(() {
+              _searchText = value.trim();
+            });
+          },
 
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
-              hintText: 'Enter Hunter ID...',
-              hintStyle: TextStyle(color: Colors.white38),
-              border: InputBorder.none,
-            ),
-          )
-
-              : Row(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFD700).withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: const Color(0xFFFFD700).withOpacity(0.4),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.military_tech,
-                  color: Color(0xFFFFD700),
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                'GLOBAL RANKINGS',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                ),
-              ),
-            ],
+          style: const TextStyle(color: Color(0xFF1A1A1A)),
+          decoration: const InputDecoration(
+            hintText: 'Enter Hunter ID...',
+            hintStyle: TextStyle(color: Color(0xFF666666)),
+            border: InputBorder.none,
           ),
+        )
+
+            : Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6B2B).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: const Color(0xFFFF6B2B).withOpacity(0.4),
+                ),
+              ),
+              child: const Icon(
+                Icons.military_tech,
+                color: Color(0xFFFF6B2B),
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'GLOBAL RANKINGS',
+              style: TextStyle(
+                color: Color(0xFF1A1A1A),
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
+              ),
+            ),
+          ],
+        ),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -283,9 +443,9 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: Color(0xFF64C8FF)),
+                  CircularProgressIndicator(color: Color(0xFFFF6B2B)),
                   SizedBox(height: 16),
-                  Text('Loading Hunters...', style: TextStyle(color: Colors.white54, fontSize: 14)),
+                  Text('Loading Hunters...', style: TextStyle(color: Color(0xFF666666), fontSize: 14)),
                 ],
               ),
             );
@@ -307,7 +467,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
           return _searchMode
               ? (_searchText.isEmpty
               ? Container(
-            color: const Color(0xFF0A0C14),
+            color: const Color(0xFFFAFAFA),
           )
               : FutureBuilder<QuerySnapshot>(
             future: FirebaseFirestore.instance
@@ -323,7 +483,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
               if (snapshot.data!.docs.isEmpty) {
                 return Container(
-                  color: const Color(0xFF0A0C14),
+                  color: const Color(0xFFFAFAFA),
                 );
               }
 
@@ -331,75 +491,82 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
               snapshot.data!.docs.first.data() as Map<String, dynamic>;
 
               return Center(
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => PublicHunterProfileScreen(
-                            hunterUid: snapshot.data!.docs.first.id,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PublicHunterProfileScreen(
+                          hunterUid: snapshot.data!.docs.first.id,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: const Color(0xFFFF6B2B),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF6B2B).withOpacity(0.12),
+                          blurRadius: 20,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        hunter['profilePicture'] != null &&
+                            hunter['profilePicture'].toString().isNotEmpty
+                            ? CircleAvatar(
+                          radius: 30,
+                          backgroundImage: MemoryImage(
+                            base64Decode(hunter['profilePicture']),
+                          ),
+                        )
+                            : const Icon(
+                          Icons.person,
+                          color: Color(0xFFFF6B2B),
+                          size: 60,
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        Text(
+                          hunter['hunterName'] ?? 'Unknown',
+                          style: const TextStyle(
+                            color: Color(0xFF1A1A1A),
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      );
-                    },
-                    child: Container(
-                  margin: const EdgeInsets.all(20),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF111523),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: const Color(0xFF64C8FF),
+
+                        const SizedBox(height: 8),
+
+                        Text(
+                          'Level ${hunter['level'] ?? 1}',
+                          style: const TextStyle(color: Color(0xFF666666)),
+                        ),
+
+                        Text(
+                          '${hunter['xp'] ?? 0} XP',
+                          style: const TextStyle(color: Color(0xFF666666)),
+                        ),
+
+                        Text(
+                          hunter['hunterId'] ?? '',
+                          style: const TextStyle(color: Color(0xFF999999)),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      hunter['profilePicture'] != null &&
-                          hunter['profilePicture'].toString().isNotEmpty
-                          ? CircleAvatar(
-                        radius: 30,
-                        backgroundImage: MemoryImage(
-                          base64Decode(hunter['profilePicture']),
-                        ),
-                      )
-                          : const Icon(
-                        Icons.person,
-                        color: Color(0xFF64C8FF),
-                        size: 60,
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      Text(
-                        hunter['hunterName'] ?? 'Unknown',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      Text(
-                        'Level ${hunter['level'] ?? 1}',
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-
-                      Text(
-                        '${hunter['xp'] ?? 0} XP',
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-
-                      Text(
-                        hunter['hunterId'] ?? '',
-                        style: const TextStyle(color: Colors.white38),
-                      ),
-                    ],
-                  ),
                 ),
-                  ),
               );
             },
           ))
@@ -411,14 +578,14 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  color: const Color(0xFF111523),
+                  color: Colors.white,
                   border: Border.all(
-                    color: const Color(0xFFFFD700).withOpacity(0.35),
+                    color: const Color(0xFFFF6B2B).withOpacity(0.35),
                     width: 1.5,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFFFD700).withOpacity(0.08),
+                      color: const Color(0xFFFF6B2B).withOpacity(0.1),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),
@@ -432,7 +599,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                         Container(
                           width: 4, height: 4,
                           decoration: const BoxDecoration(
-                            color: Color(0xFFFFD700),
+                            color: Color(0xFFFF6B2B),
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -440,7 +607,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                         const Text(
                           'YOUR HUNTER STATUS',
                           style: TextStyle(
-                            color: Color(0xFFFFD700),
+                            color: Color(0xFFFF6B2B),
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 2.5,
@@ -450,7 +617,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                         Container(
                           width: 4, height: 4,
                           decoration: const BoxDecoration(
-                            color: Color(0xFFFFD700),
+                            color: Color(0xFFFF6B2B),
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -464,18 +631,18 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                           width: 52, height: 52,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: const Color(0xFF1A1D2E),
+                            color: const Color(0xFFFFF0E8),
                             border: Border.all(
                               color: myHunter != null
                                   ? _rankColor(myHunter['level'] ?? 1)
-                                  : const Color(0xFF64C8FF),
+                                  : const Color(0xFFFF6B2B),
                               width: 2,
                             ),
                             boxShadow: [
                               BoxShadow(
                                 color: myHunter != null
                                     ? _rankColor(myHunter['level'] ?? 1).withOpacity(0.3)
-                                    : const Color(0xFF64C8FF).withOpacity(0.3),
+                                    : const Color(0xFFFF6B2B).withOpacity(0.3),
                                 blurRadius: 12,
                               ),
                             ],
@@ -484,7 +651,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                             Icons.person,
                             color: myHunter != null
                                 ? _rankColor(myHunter['level'] ?? 1)
-                                : const Color(0xFF64C8FF),
+                                : const Color(0xFFFF6B2B),
                             size: 28,
                           ),
                         ),
@@ -496,7 +663,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                               Text(
                                 myHunter?['hunterName'] ?? 'Unknown Hunter',
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  color: Color(0xFF1A1A1A),
                                   fontSize: 17,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -506,7 +673,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                 myHunter != null
                                     ? '${getRankTitle(myHunter['level'] ?? 1)}  ·  Level ${myHunter['level']}'
                                     : '',
-                                style: const TextStyle(color: Colors.white38, fontSize: 12),
+                                style: const TextStyle(color: Color(0xFF666666), fontSize: 12),
                               ),
                             ],
                           ),
@@ -517,7 +684,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                             Text(
                               myHunter != null ? '${myHunter['xp']} XP' : '',
                               style: const TextStyle(
-                                color: Color(0xFF2ECC71),
+                                color: Color(0xFFFF6B2B),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
@@ -526,16 +693,16 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFFD700).withOpacity(0.1),
+                                color: const Color(0xFFFF6B2B).withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: const Color(0xFFFFD700).withOpacity(0.35),
+                                  color: const Color(0xFFFF6B2B).withOpacity(0.35),
                                 ),
                               ),
                               child: Text(
                                 myRank > 0 ? '# $myRank' : 'UNRANKED',
                                 style: const TextStyle(
-                                  color: Color(0xFFFFD700),
+                                  color: Color(0xFFFF6B2B),
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1.5,
@@ -550,249 +717,240 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                 ),
               ),
 
+              // ── Podium (Top 3) ─────────────────────────────────────
+              if (hunters.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      _buildPodiumItem(context, hunters, 1, currentUid), // 2nd - left
+                      _buildPodiumItem(context, hunters, 0, currentUid), // 1st - center
+                      _buildPodiumItem(context, hunters, 2, currentUid), // 3rd - right
+                    ],
+                  ),
+                ),
+
               // ── Divider with label ─────────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: Row(
                   children: [
-                    Expanded(child: Container(height: 1, color: Colors.white.withOpacity(0.06))),
+                    Expanded(child: Container(height: 1, color: const Color(0xFF1A1A1A).withOpacity(0.08))),
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 12),
                       child: Text(
                         'LEADERBOARD',
                         style: TextStyle(
-                          color: Colors.white24,
+                          color: Color(0xFF999999),
                           fontSize: 10,
                           letterSpacing: 2,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                    Expanded(child: Container(height: 1, color: Colors.white.withOpacity(0.06))),
+                    Expanded(child: Container(height: 1, color: const Color(0xFF1A1A1A).withOpacity(0.08))),
                   ],
                 ),
               ),
 
               const SizedBox(height: 8),
 
-              // ── Leaderboard list ───────────────────────────────────
+              // ── Leaderboard list (rank 4 onwards) ──────────────────
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemCount: hunters.length,
-                  itemBuilder: (context, index) {
+                  itemCount: hunters.length > 3 ? hunters.length - 3 : 0,
+                  itemBuilder: (context, listIndex) {
+                    final index = listIndex + 3;
                     final hunter = hunters[index].data() as Map<String, dynamic>;
                     final isMe = hunters[index].id == currentUid;
                     final level = (hunter['level'] ?? 1) as int;
                     final rc = _rankColor(level);
-                    final posColor = _positionColor(index);
-                    final isTop3 = index < 3;
 
                     return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => PublicHunterProfileScreen(
-                                hunterUid: hunters[index].id,
-                              ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PublicHunterProfileScreen(
+                              hunterUid: hunters[index].id,
                             ),
-                          );
-                        },
-                        child: Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: isTop3 ? 14 : 11,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isMe
-                            ? const Color(0xFF0D1525)
-                            : isTop3
-                            ? const Color(0xFF0F1420)
-                            : const Color(0xFF111523),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
+                          ),
+                        );
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 11,
+                        ),
+                        decoration: BoxDecoration(
                           color: isMe
-                              ? const Color(0xFF64C8FF).withOpacity(0.4)
-                              : isTop3
-                              ? posColor.withOpacity(0.3)
-                              : Colors.white.withOpacity(0.06),
-                          width: isTop3 ? 1.5 : 1,
-                        ),
-                        boxShadow: isTop3
-                            ? [
-                          BoxShadow(
-                            color: posColor.withOpacity(0.08),
-                            blurRadius: 16,
-                            spreadRadius: 1,
+                              ? const Color(0xFFFFF0E8)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isMe
+                                ? const Color(0xFFFF6B2B).withOpacity(0.4)
+                                : const Color(0xFF1A1A1A).withOpacity(0.06),
+                            width: 1,
                           ),
-                        ]
-                            : null,
-                      ),
-                      child: Row(
-                        children: [
-                          // ── Rank badge ──
-                          SizedBox(
-                            width: 40,
-                            child: Center(
-                              child: isTop3
-                                  ? TopRankBadge(
-                                position: index + 1,
-                                color: posColor,
-                                size: 34,
-                              )
-                                  : Container(
-                                width: 28, height: 28,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isMe
-                                      ? const Color(0xFF64C8FF).withOpacity(0.1)
-                                      : Colors.white.withOpacity(0.04),
-                                  border: Border.all(
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFF6B2B).withOpacity(0.04),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            // ── Rank badge ──
+                            SizedBox(
+                              width: 40,
+                              child: Center(
+                                child: Container(
+                                  width: 28, height: 28,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
                                     color: isMe
-                                        ? const Color(0xFF64C8FF).withOpacity(0.3)
-                                        : Colors.white.withOpacity(0.08),
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '${index + 1}',
-                                    style: TextStyle(
+                                        ? const Color(0xFFFF6B2B).withOpacity(0.12)
+                                        : const Color(0xFF1A1A1A).withOpacity(0.04),
+                                    border: Border.all(
                                       color: isMe
-                                          ? const Color(0xFF64C8FF)
-                                          : Colors.white38,
-                                      fontSize: index < 9 ? 13 : 11,
-                                      fontWeight: FontWeight.bold,
+                                          ? const Color(0xFFFF6B2B).withOpacity(0.4)
+                                          : const Color(0xFF1A1A1A).withOpacity(0.08),
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '${index + 1}',
+                                      style: TextStyle(
+                                        color: isMe
+                                            ? const Color(0xFFFF6B2B)
+                                            : const Color(0xFF666666),
+                                        fontSize: index < 9 ? 13 : 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
 
-                          const SizedBox(width: 10),
+                            const SizedBox(width: 10),
 
-                          // ── Avatar ──
-                          Container(
-                            width: 38, height: 38,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: rc.withOpacity(0.08),
-                              border: Border.all(
-                                color: rc.withOpacity(isTop3 ? 0.6 : 0.35),
-                                width: isTop3 ? 1.5 : 1,
+                            // ── Avatar ──
+                            Container(
+                              width: 38, height: 38,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: rc.withOpacity(0.08),
+                                border: Border.all(
+                                  color: rc.withOpacity(0.35),
+                                  width: 1,
+                                ),
                               ),
-                              boxShadow: isTop3
-                                  ? [BoxShadow(color: rc.withOpacity(0.2), blurRadius: 8)]
-                                  : null,
-                            ),
-                            child: hunter['profilePicture'] != null &&
-                                hunter['profilePicture'].toString().isNotEmpty
-                                ? ClipOval(
-                              child: Image.memory(
-                                base64Decode(hunter['profilePicture']),
-                                width: 38,
-                                height: 38,
-                                fit: BoxFit.cover,
+                              child: hunter['profilePicture'] != null &&
+                                  hunter['profilePicture'].toString().isNotEmpty
+                                  ? ClipOval(
+                                child: Image.memory(
+                                  base64Decode(hunter['profilePicture']),
+                                  width: 38,
+                                  height: 38,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                                  : Icon(
+                                Icons.person,
+                                color: rc,
+                                size: 20,
                               ),
-                            )
-                                : Icon(
-                              Icons.person,
-                              color: rc,
-                              size: 20,
                             ),
-                          ),
 
-                          const SizedBox(width: 12),
+                            const SizedBox(width: 12),
 
-                          // ── Name + rank ──
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        hunter['hunterName'] ?? 'Unknown',
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: isMe
-                                              ? const Color(0xFF64C8FF)
-                                              : isTop3
-                                              ? Colors.white
-                                              : Colors.white.withOpacity(0.85),
-                                          fontSize: isTop3 ? 15 : 14,
-                                          fontWeight: isTop3 ? FontWeight.w700 : FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                    if (isMe) ...[
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF64C8FF).withOpacity(0.12),
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(
-                                            color: const Color(0xFF64C8FF).withOpacity(0.3),
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'YOU',
+                            // ── Name + rank ──
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          hunter['hunterName'] ?? 'Unknown',
+                                          overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
-                                            color: Color(0xFF64C8FF),
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 1,
+                                            color: isMe
+                                                ? const Color(0xFFFF6B2B)
+                                                : const Color(0xFF1A1A1A),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ),
+                                      if (isMe) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFF6B2B).withOpacity(0.12),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(
+                                              color: const Color(0xFFFF6B2B).withOpacity(0.3),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'YOU',
+                                            style: TextStyle(
+                                              color: Color(0xFFFF6B2B),
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 1,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
-                                  ],
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  '${getRankTitle(level)}  ·  Lv.$level',
-                                  style: TextStyle(
-                                    color: rc.withOpacity(0.7),
-                                    fontSize: 11,
-                                    letterSpacing: 0.3,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    '${getRankTitle(level)}  ·  Lv.$level',
+                                    style: TextStyle(
+                                      color: rc.withOpacity(0.7),
+                                      fontSize: 11,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
 
-                          // ── XP chip ──
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: isTop3
-                                  ? posColor.withOpacity(0.1)
-                                  : const Color(0xFF2ECC71).withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: isTop3
-                                    ? posColor.withOpacity(0.3)
-                                    : const Color(0xFF2ECC71).withOpacity(0.2),
+                            // ── XP chip ──
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFF6B2B).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: const Color(0xFFFF6B2B).withOpacity(0.3),
+                                ),
+                              ),
+                              child: Text(
+                                '${hunter['xp'] ?? 0} XP',
+                                style: const TextStyle(
+                                  color: Color(0xFFFF6B2B),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
-                            child: Text(
-                              '${hunter['xp'] ?? 0} XP',
-                              style: TextStyle(
-                                color: isTop3 ? posColor : const Color(0xFF2ECC71),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                          ],
                         ),
+                      ),
                     );
                   },
                 ),

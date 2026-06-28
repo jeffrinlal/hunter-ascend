@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
-import 'calorie_tracker_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'ai_quest_service.dart';
 import 'global_rankings_screen.dart';
 import 'profile_screen.dart';
 import 'duel_screen.dart';
@@ -293,7 +293,93 @@ class _DashboardScreenState extends State<DashboardScreen> {
   DateTime? questEndTime;
   Timer? _questCountdownTimer;
   Duration questRemaining = Duration.zero;
+  Duration timeUntilReset = Duration.zero;
+  Timer? countdownTimer;
+  void updateQuestCountdown() {
+    final now = DateTime.now();
+
+    final tomorrow = DateTime(
+      now.year,
+      now.month,
+      now.day + 1,
+    );
+
+    setState(() {
+      timeUntilReset = tomorrow.difference(now);
+    });
+  }
+
+
+
   List<Map<String, dynamic>> generatedQuests = [];
+  Future<void> _loadAIQuests() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(uid)
+        .get();
+
+    final data = doc.data() ?? {};
+
+    final today = DateTime.now()
+        .toIso8601String()
+        .split('T')
+        .first;
+
+    final savedDate = data['aiQuestDate'] ?? '';
+
+
+    if (savedDate == today) {
+
+
+      final quests = List<Map<String, dynamic>>.from(
+        data['aiQuests'] ?? [],
+      );
+
+      setState(() {
+        generatedQuests = quests.map<Map<String, dynamic>>((q) {
+          return {
+            "name": q["title"],
+            "xp": q["xp"],
+            "icon": Icons.auto_awesome,
+          };
+        }).toList();
+      });
+
+      return;
+    }
+
+
+    final hunter = doc.data()!;
+
+    List<String> goals = [];
+
+    if (hunter['fatLoss'] == true) goals.add('Fat Loss');
+    if (hunter['discipline'] == true) goals.add('Discipline');
+    if (hunter['muscleGain'] == true) goals.add('Muscle Gain');
+    if (hunter['selfImprovement'] == true) goals.add('Self Improvement');
+
+    final goalString = goals.join(', ');
+
+    final quests = await AIQuestService.generateQuests(
+      level: hunter['level'] ?? 1,
+      streak: hunter['streak'] ?? 0,
+      weight: (hunter['weight'] ?? 85).toDouble(),
+      height: (hunter['height'] ?? 167).toDouble(),
+      goals: goalString,
+    );
+
+    setState(() {
+      generatedQuests = quests.map<Map<String, dynamic>>((q) {
+        return {
+          "name": q["title"],
+          "xp": q["xp"],
+          "icon": Icons.auto_awesome,
+        };
+      }).toList();
+    });
+  }
   List<String> completedQuests = [];
 
   final TextEditingController customQuestController = TextEditingController();
@@ -364,55 +450,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    updateQuestCountdown();
+
+    countdownTimer = Timer.periodic(
+      const Duration(minutes: 1),
+          (_) => updateQuestCountdown(),
+    );
+
     loadBannerAd();
     loadRewardedAd();
     loadPunishmentAd();
     initStepCounter();
+
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       checkBrokenStreak();
       checkDisciplinePunishment();
     });
 
-    if (widget.fatLoss) {
-      generatedQuests.addAll([
-        {"name": "Walk 2000 Steps",    "xp": 20,  "icon": Icons.directions_walk},
-        {"name": "Drink 3L Water",     "xp": 50,  "icon": Icons.water_drop},
-        {"name": "Eat 120g Protein",   "xp": 100, "icon": Icons.restaurant},
-        {"name": "No Junk Food Today", "xp": 50,  "icon": Icons.no_food},
-      ]);
-    }
-    if (widget.discipline) {
-      generatedQuests.addAll([
-        {"name": "No Porn Today",             "xp": 100, "icon": Icons.shield},
-        {"name": "No Masturbation Today",     "xp": 100, "icon": Icons.self_improvement},
-        {"name": "Screen Time Under 4 Hours", "xp": 75,  "icon": Icons.phone_android},
-      ]);
-    }
-    if (widget.muscleGain) {
-      generatedQuests.addAll([
-        {"name": "Workout 60 Minutes", "xp": 150, "icon": Icons.fitness_center},
-        {"name": "Eat 120g Protein",   "xp": 100, "icon": Icons.restaurant},
-        {"name": "Sleep 8 Hours",      "xp": 50,  "icon": Icons.bed},
-      ]);
-    }
-    if (widget.selfImprovement) {
-      generatedQuests.addAll([
-        {"name": "Read 20 Minutes",         "xp": 30, "icon": Icons.menu_book},
-        {"name": "Learn Coding 30 Minutes", "xp": 75, "icon": Icons.code},
-        {"name": "Meditation 10 Minutes",   "xp": 25, "icon": Icons.self_improvement},
-      ]);
-    }
-    for (final quest in widget.bioQuests) {
-      final exists = generatedQuests.any(
-            (q) => q['name'] == quest['name'],
-      );
-
-      if (!exists) {
-        generatedQuests.add(quest);
-      }
-    }
-    loadHunterData();
+    loadHunterData().then((_) async {
+      await _loadAIQuests();
+      await checkDailyReset();
+    });
     _restoreDashboardActiveQuest();
   }
 
@@ -420,6 +479,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void dispose() {
     _questCountdownTimer?.cancel();
     _stepSubscription?.cancel();
+    countdownTimer?.cancel();
+
     rewardedAd?.dispose();
     punishmentAd?.dispose();
     super.dispose();
@@ -516,7 +577,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> initStepCounter() async {
     final status = await Permission.activityRecognition.request();
     if (!status.isGranted) {
-      print("❌ ACTIVITY_RECOGNITION denied");
       return;
     }
 
@@ -1444,7 +1504,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       completedQuests = List<String>.from(data['completedQuests'] ?? []);
     });
     await checkDisciplineMode();
-    await checkDailyReset();
   }
 
   Future<void> checkDailyReset() async {
@@ -1825,12 +1884,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             // Header
             Row(children: [
-              const Text("Daily Quests", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(width: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(20)),
-                child: Text("$completedCount/$totalQuests", style: const TextStyle(color: _blue, fontSize: 13, fontWeight: FontWeight.bold)),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+
+                  Row(
+                    children: [
+                      const Text(
+                        "DAILY QUESTS (AI)",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(width: 10),
+
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _blueDim,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          "$completedCount/$totalQuests",
+                          style: const TextStyle(
+                            color: _blue,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 4),
+
+                  Container(
+                    margin: const EdgeInsets.only(top: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00E5FF).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '⏳ ${timeUntilReset.inHours}h ${timeUntilReset.inMinutes.remainder(60)}m',
+                      style: const TextStyle(
+                        color: Color(0xFF00E5FF),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const Spacer(),
               StreamBuilder<DocumentSnapshot>(

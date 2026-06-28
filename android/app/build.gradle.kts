@@ -16,8 +16,8 @@ if (keyPropertiesFile.exists()) {
 
 android {
     namespace = "com.hunterascend.hunter_ascend"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    compileSdk = 36
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -28,7 +28,7 @@ android {
     defaultConfig {
         applicationId = "com.hunterascend.hunter_ascend"
         minSdk = 27
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -61,6 +61,7 @@ dependencies {
     implementation("com.unity3d.ads:unity-ads:4.18.0")
     implementation("com.google.ads.mediation:unity:4.18.0.0")
     implementation("com.google.ads.mediation:inmobi:10.6.7.0")
+    implementation("androidx.core:core-ktx:1.16.0")
 }
 
 flutter {

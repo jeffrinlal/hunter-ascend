@@ -6,7 +6,7 @@ import 'awakening_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:math' as math;
 
-import 'dashboard_screen.dart';
+import 'main_shell.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -59,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen>
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => DashboardScreen(
+          builder: (_) => MainShell(
             fatLoss: data?['fatLoss'] ?? false,
             discipline: data?['discipline'] ?? false,
             muscleGain: data?['muscleGain'] ?? false,

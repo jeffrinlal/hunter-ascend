@@ -1547,7 +1547,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _themedBuild(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
-      bottomNavigationBar: _buildBottomNav(),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 16),

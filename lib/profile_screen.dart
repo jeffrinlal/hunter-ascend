@@ -179,14 +179,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                IconButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  icon: Icon(
-                                    Icons.arrow_back_ios,
-                                    color: HunterTheme.textSecondary,
-                                    size: 20,
-                                  ),
-                                ),
+                                const SizedBox.shrink(),
 
                                 IconButton(
                                   onPressed: () {

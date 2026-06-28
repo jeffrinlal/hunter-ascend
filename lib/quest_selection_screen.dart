@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'Theme/hunter_theme.dart';
-import 'dashboard_screen.dart';
+import 'main_shell.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -406,7 +406,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                               Navigator.pushAndRemoveUntil(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => DashboardScreen(
+                                  builder: (_) => MainShell(
                                     fatLoss: fatLoss,
                                     discipline: discipline,
                                     muscleGain: muscleGain,

@@ -364,81 +364,90 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
     );
   }
 
-  Widget _themedBuild(BuildContext context) {
-    return Scaffold(
-      backgroundColor: HunterTheme.background,
-      appBar: AppBar(
-        backgroundColor: HunterTheme.background,
-        elevation: 0,
-
-        actions: [
+  Widget _rankHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: _searchMode
+                ? TextField(
+                    controller: _searchController,
+                    autofocus: true,
+                    onChanged: (value) {
+                      setState(() {
+                        _searchText = value.trim();
+                      });
+                    },
+                    style: TextStyle(color: HunterTheme.textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Enter Hunter ID...',
+                      hintStyle: TextStyle(color: HunterTheme.textSecondary),
+                      border: InputBorder.none,
+                    ),
+                  )
+                : Row(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: HunterTheme.primary.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: HunterTheme.primary.withOpacity(0.4),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.military_tech,
+                          color: HunterTheme.primary,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'GLOBAL RANKINGS',
+                        style: TextStyle(
+                          color: HunterTheme.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
           IconButton(
             icon: Icon(
-              Icons.search,
+              _searchMode ? Icons.close : Icons.search,
               color: HunterTheme.textSecondary,
             ),
             onPressed: () {
               setState(() {
-                _searchMode = true;
+                if (_searchMode) {
+                  _searchMode = false;
+                  _searchText = '';
+                  _searchController.clear();
+                } else {
+                  _searchMode = true;
+                }
               });
             },
           ),
         ],
-
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: HunterTheme.textSecondary, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: _searchMode
-            ? TextField(
-          controller: _searchController,
-          autofocus: true,
-          onChanged: (value) {
-            setState(() {
-              _searchText = value.trim();
-            });
-          },
-
-          style: TextStyle(color: HunterTheme.textPrimary),
-          decoration: InputDecoration(
-            hintText: 'Enter Hunter ID...',
-            hintStyle: TextStyle(color: HunterTheme.textSecondary),
-            border: InputBorder.none,
-          ),
-        )
-
-            : Row(
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: HunterTheme.primary.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: HunterTheme.primary.withOpacity(0.4),
-                ),
-              ),
-              child: Icon(
-                Icons.military_tech,
-                color: HunterTheme.primary,
-                size: 18,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              'GLOBAL RANKINGS',
-              style: TextStyle(
-                color: HunterTheme.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
-              ),
-            ),
-          ],
-        ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
+    );
+  }
+
+  Widget _themedBuild(BuildContext context) {
+    return Scaffold(
+      backgroundColor: HunterTheme.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _rankHeader(),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('hunters')
             .orderBy('level', descending: true)
@@ -966,6 +975,10 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
             ],
           );
         },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

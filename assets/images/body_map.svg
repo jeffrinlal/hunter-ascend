@@ -1,64 +1,99 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 440" width="220" height="440">
-  <!--
-    Original anterior (front-view) muscle map for Hunter Ascend.
-    Muscle-group fills use tokens that are replaced at runtime in Dart:
-      {{STR}} chest + biceps   {{VIT}} abs/core   {{AGI}} quads + calves
-      {{INT}} head/brain       {{END}} full-body base tint
-  -->
+<svg width="100%" viewBox="0 0 680 820" role="img" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <radialGradient id="muscleGrad" cx="30%" cy="30%" r="70%">
+    <stop offset="0%" stop-color="#FF8C55"/>
+    <stop offset="100%" stop-color="#FF6B2B"/>
+  </radialGradient>
+  <radialGradient id="dimGrad" cx="30%" cy="30%" r="70%">
+    <stop offset="0%" stop-color="#E8E8E8"/>
+    <stop offset="100%" stop-color="#CCCCCC"/>
+  </radialGradient>
+</defs>
 
-  <!-- Base silhouette (static light grey) -->
-  <g id="body" fill="#E0E0E0">
-    <circle cx="110" cy="40" r="26"/>
-    <rect x="98" y="62" width="24" height="18" rx="6"/>
-    <path d="M70 82 L150 82 L150 96 L142 200 Q140 214 126 214 L94 214 Q80 214 78 200 L70 96 Z"/>
-    <rect x="42" y="86" width="24" height="150" rx="12"/>
-    <rect x="154" y="86" width="24" height="150" rx="12"/>
-    <rect x="80" y="214" width="26" height="196" rx="13"/>
-    <rect x="114" y="214" width="26" height="196" rx="13"/>
-  </g>
+<!-- HEAD -->
+<ellipse cx="340" cy="72" rx="34" ry="40" fill="url(#dimGrad)" stroke="#BBBBBB" stroke-width="1"/>
+<ellipse cx="328" cy="68" rx="5" ry="6" fill="#BBBBBB" opacity="0.5"/>
+<ellipse cx="352" cy="68" rx="5" ry="6" fill="#BBBBBB" opacity="0.5"/>
+<path d="M328 82 Q340 90 352 82" fill="none" stroke="#BBBBBB" stroke-width="1.5" stroke-linecap="round"/>
 
-  <!-- END: full-body base tint (mirrors the silhouette) -->
-  <g id="endTint">
-    <circle cx="110" cy="40" r="26" fill="{{END}}"/>
-    <path d="M70 82 L150 82 L150 96 L142 200 Q140 214 126 214 L94 214 Q80 214 78 200 L70 96 Z" fill="{{END}}"/>
-    <rect x="42" y="86" width="24" height="150" rx="12" fill="{{END}}"/>
-    <rect x="154" y="86" width="24" height="150" rx="12" fill="{{END}}"/>
-    <rect x="80" y="214" width="26" height="196" rx="13" fill="{{END}}"/>
-    <rect x="114" y="214" width="26" height="196" rx="13" fill="{{END}}"/>
-  </g>
+<!-- NECK -->
+<path d="M326 108 Q326 98 340 96 Q354 98 354 108 L356 132 Q340 136 324 132 Z" fill="#CCCCCC" stroke="#BBBBBB" stroke-width="0.5"/>
 
-  <!-- INT: head / brain -->
-  <g id="head">
-    <circle cx="110" cy="38" r="18" fill="{{INT}}"/>
-  </g>
+<!-- TRAPEZIUS -->
+<path d="M324 132 Q300 128 278 148 Q290 140 310 142 L326 138 Z" fill="url(#muscleGrad)" opacity="0.85"/>
+<path d="M356 132 Q380 128 402 148 Q390 140 370 142 L354 138 Z" fill="url(#muscleGrad)" opacity="0.85"/>
 
-  <!-- STR: chest (pectorals) + biceps -->
-  <g id="chest">
-    <ellipse cx="96" cy="106" rx="18" ry="12" fill="{{STR}}"/>
-    <ellipse cx="124" cy="106" rx="18" ry="12" fill="{{STR}}"/>
-  </g>
-  <g id="biceps">
-    <ellipse cx="54" cy="120" rx="11" ry="22" fill="{{STR}}"/>
-    <ellipse cx="166" cy="120" rx="11" ry="22" fill="{{STR}}"/>
-  </g>
+<!-- CHEST -->
+<path d="M310 138 Q296 142 290 158 Q288 172 296 180 Q316 186 336 182 L338 138 Z" fill="url(#muscleGrad)" opacity="0.9"/>
+<path d="M370 138 Q384 142 390 158 Q392 172 384 180 Q364 186 344 182 L342 138 Z" fill="url(#muscleGrad)" opacity="0.9"/>
+<line x1="340" y1="138" x2="340" y2="182" stroke="#FF6B2B" stroke-width="1" opacity="0.4"/>
 
-  <!-- VIT: abs / core -->
-  <g id="abs">
-    <rect x="99" y="130" width="10" height="20" rx="3" fill="{{VIT}}"/>
-    <rect x="111" y="130" width="10" height="20" rx="3" fill="{{VIT}}"/>
-    <rect x="99" y="154" width="10" height="20" rx="3" fill="{{VIT}}"/>
-    <rect x="111" y="154" width="10" height="20" rx="3" fill="{{VIT}}"/>
-    <rect x="99" y="178" width="10" height="20" rx="3" fill="{{VIT}}"/>
-    <rect x="111" y="178" width="10" height="20" rx="3" fill="{{VIT}}"/>
-  </g>
+<!-- DELTOIDS -->
+<ellipse cx="284" cy="152" rx="22" ry="26" fill="url(#muscleGrad)" opacity="0.85"/>
+<ellipse cx="396" cy="152" rx="22" ry="26" fill="url(#muscleGrad)" opacity="0.85"/>
 
-  <!-- AGI: quadriceps + calves -->
-  <g id="quads">
-    <rect x="82" y="220" width="20" height="80" rx="10" fill="{{AGI}}"/>
-    <rect x="118" y="220" width="20" height="80" rx="10" fill="{{AGI}}"/>
-  </g>
-  <g id="calves">
-    <ellipse cx="92" cy="345" rx="11" ry="30" fill="{{AGI}}"/>
-    <ellipse cx="128" cy="345" rx="11" ry="30" fill="{{AGI}}"/>
-  </g>
+<!-- BICEPS -->
+<path d="M262 174 Q252 180 248 200 Q248 220 256 234 Q264 240 272 236 Q280 228 280 210 Q280 188 270 176 Z" fill="url(#muscleGrad)" opacity="0.85"/>
+<path d="M418 174 Q428 180 432 200 Q432 220 424 234 Q416 240 408 236 Q400 228 400 210 Q400 188 410 176 Z" fill="url(#muscleGrad)" opacity="0.85"/>
+
+<!-- TRICEPS -->
+<path d="M260 178 Q248 186 244 206 Q244 224 252 236 Q244 230 240 212 Q238 190 250 174 Z" fill="url(#dimGrad)" stroke="#CCCCCC" stroke-width="0.5"/>
+<path d="M420 178 Q432 186 436 206 Q436 224 428 236 Q436 230 440 212 Q442 190 430 174 Z" fill="url(#dimGrad)" stroke="#CCCCCC" stroke-width="0.5"/>
+
+<!-- FOREARMS -->
+<path d="M250 238 Q242 248 240 268 Q240 288 246 300 Q252 306 260 304 Q268 300 270 284 Q272 264 266 244 Z" fill="url(#dimGrad)" stroke="#CCCCCC" stroke-width="0.5"/>
+<path d="M430 238 Q438 248 440 268 Q440 288 434 300 Q428 306 420 304 Q412 300 410 284 Q408 264 414 244 Z" fill="url(#dimGrad)" stroke="#CCCCCC" stroke-width="0.5"/>
+
+<!-- HANDS -->
+<ellipse cx="252" cy="316" rx="14" ry="18" fill="#CCCCCC" stroke="#BBBBBB" stroke-width="0.5"/>
+<ellipse cx="428" cy="316" rx="14" ry="18" fill="#CCCCCC" stroke="#BBBBBB" stroke-width="0.5"/>
+
+<!-- SERRATUS -->
+<path d="M290 178 Q278 192 276 210 Q278 228 286 236 Q294 230 296 212 Q298 194 292 180 Z" fill="url(#dimGrad)" stroke="#CCCCCC" stroke-width="0.5"/>
+<path d="M390 178 Q402 192 404 210 Q402 228 394 236 Q386 230 384 212 Q382 194 388 180 Z" fill="url(#dimGrad)" stroke="#CCCCCC" stroke-width="0.5"/>
+
+<!-- ABS -->
+<rect x="316" y="186" width="20" height="22" rx="6" fill="url(#muscleGrad)" opacity="0.9"/>
+<rect x="316" y="212" width="20" height="22" rx="6" fill="url(#muscleGrad)" opacity="0.85"/>
+<rect x="316" y="238" width="20" height="22" rx="6" fill="url(#muscleGrad)" opacity="0.8"/>
+<rect x="344" y="186" width="20" height="22" rx="6" fill="url(#muscleGrad)" opacity="0.9"/>
+<rect x="344" y="212" width="20" height="22" rx="6" fill="url(#muscleGrad)" opacity="0.85"/>
+<rect x="344" y="238" width="20" height="22" rx="6" fill="url(#muscleGrad)" opacity="0.8"/>
+
+<!-- OBLIQUES -->
+<path d="M296 212 Q290 228 292 248 Q296 262 306 264 Q312 256 312 238 Q312 218 304 208 Z" fill="url(#dimGrad)" stroke="#CCCCCC" stroke-width="0.5"/>
+<path d="M384 212 Q390 228 388 248 Q384 262 374 264 Q368 256 368 238 Q368 218 376 208 Z" fill="url(#dimGrad)" stroke="#CCCCCC" stroke-width="0.5"/>
+
+<!-- HIP -->
+<path d="M306 266 Q300 272 298 284 Q298 294 308 298 L340 300 L372 298 Q382 294 382 284 Q380 272 374 266 Q360 270 340 270 Q320 270 306 266 Z" fill="#CCCCCC" stroke="#BBBBBB" stroke-width="0.5"/>
+
+<!-- QUADS LEFT -->
+<path d="M308 298 Q296 308 292 330 Q290 354 292 374 Q296 390 308 396 Q320 398 326 388 Q332 374 330 350 Q328 326 322 306 Z" fill="url(#muscleGrad)" opacity="0.9"/>
+<path d="M316 302 Q310 320 310 345 Q310 368 316 384" fill="none" stroke="#FF6B2B" stroke-width="1" opacity="0.35"/>
+
+<!-- QUADS RIGHT -->
+<path d="M372 298 Q384 308 388 330 Q390 354 388 374 Q384 390 372 396 Q360 398 354 388 Q348 374 350 350 Q352 326 358 306 Z" fill="url(#muscleGrad)" opacity="0.9"/>
+<path d="M364 302 Q370 320 370 345 Q370 368 364 384" fill="none" stroke="#FF6B2B" stroke-width="1" opacity="0.35"/>
+
+<!-- INNER THIGH GAP -->
+<path d="M332 298 L340 302 L348 298 L346 380 L340 384 L334 380 Z" fill="#F5F5F5"/>
+
+<!-- KNEE CAPS -->
+<ellipse cx="316" cy="402" rx="16" ry="12" fill="#CCCCCC" stroke="#BBBBBB" stroke-width="0.5"/>
+<ellipse cx="364" cy="402" rx="16" ry="12" fill="#CCCCCC" stroke="#BBBBBB" stroke-width="0.5"/>
+
+<!-- CALVES LEFT -->
+<path d="M306 414 Q296 424 294 446 Q294 468 300 482 Q306 490 314 488 Q322 484 324 466 Q326 444 320 422 Z" fill="url(#dimGrad)" stroke="#CCCCCC" stroke-width="0.5"/>
+<!-- CALVES RIGHT -->
+<path d="M374 414 Q384 424 386 446 Q386 468 380 482 Q374 490 366 488 Q358 484 356 466 Q354 444 360 422 Z" fill="url(#dimGrad)" stroke="#CCCCCC" stroke-width="0.5"/>
+
+<!-- SHIN LEFT -->
+<path d="M320 414 Q326 424 328 446 Q328 470 322 486 Q316 492 310 490 Q316 486 318 466 Q320 444 318 422 Z" fill="#E0E0E0" stroke="#CCCCCC" stroke-width="0.5"/>
+<!-- SHIN RIGHT -->
+<path d="M360 414 Q354 424 352 446 Q352 470 358 486 Q364 492 370 490 Q364 486 362 466 Q360 444 362 422 Z" fill="#E0E0E0" stroke="#CCCCCC" stroke-width="0.5"/>
+
+<!-- FEET -->
+<ellipse cx="312" cy="500" rx="20" ry="10" fill="#CCCCCC" stroke="#BBBBBB" stroke-width="0.5"/>
+<ellipse cx="368" cy="500" rx="20" ry="10" fill="#CCCCCC" stroke="#BBBBBB" stroke-width="0.5"/>
+
 </svg>

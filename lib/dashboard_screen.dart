@@ -2034,7 +2034,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      '⏳ ${timeUntilReset.inHours}h ${timeUntilReset.inMinutes.remainder(60)}m',
+                      '\u23f3 Resets in ${timeUntilReset.inHours}h ${timeUntilReset.inMinutes.remainder(60)}m',
                       style: TextStyle(
                         color: HunterTheme.primary,
                         fontSize: 12,

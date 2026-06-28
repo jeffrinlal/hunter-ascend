@@ -369,7 +369,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                               children: [
                                 _statPill('$level', 'LEVEL'),
                                 _vDivider(),
-                                _statPill('$questsDone', 'QUESTS'),
+                                _statPill('$questsDone', 'MISSIONS'),
                                 _vDivider(),
                                 _statPill('$duelWins', 'DUELS WON'),
                               ],

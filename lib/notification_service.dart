@@ -30,19 +30,19 @@ void callbackDispatcher() {
     switch (task) {
       case morningTask:
         await notifications.show(1, '⚔️ Rise & Conquer, Hunter!',
-            'Your daily quests await. Begin your training now!', details);
+            'Your daily missions await. Begin your training now!', details);
         break;
       case afternoonTask:
         await notifications.show(2, '☀️ Midday Check-in',
-            'Have you completed your quests today? Stay on track!', details);
+            'Have you completed your missions today? Stay on track!', details);
         break;
       case eveningTask:
         await notifications.show(3, '🌙 Evening Mission Alert',
-            'Last chance to complete today\'s quests. Don\'t give up!', details);
+            'Last chance to complete today\'s missions. Don\'t give up!', details);
         break;
       case streakTask:
         await notifications.show(4, '🔥 Streak at Risk!',
-            'Complete a quest before midnight or lose your streak!', details);
+            'Complete a mission before midnight or lose your streak!', details);
         break;
     }
     return Future.value(true);

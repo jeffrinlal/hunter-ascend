@@ -40,14 +40,14 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
 
     if (alreadyExists) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Quest already added")),
+        const SnackBar(content: Text("Mission already added")),
       );
       return;
     }
 
     if (duelQuests.length >= 10) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Maximum 10 quests allowed")),
+        const SnackBar(content: Text("Maximum 10 missions allowed")),
       );
       return;
     }
@@ -83,7 +83,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
 
     if (duelQuests.length < 4) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Minimum 4 quests required")),
+        const SnackBar(content: Text("Minimum 4 missions required")),
       );
       return;
     }
@@ -370,14 +370,14 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                     const SizedBox(height: 20),
 
                     // ── Add Quest ──────────────────────────────────
-                    _sectionLabel('ADD QUEST'),
+                    _sectionLabel('ADD MISSION'),
                     const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
                           child: _darkTextField(
                             controller: questController,
-                            hint: 'Quest name',
+                            hint: 'Mission name',
                             icon: Icons.gps_fixed,
                           ),
                         ),
@@ -406,7 +406,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                     // ── Quest list header ──────────────────────────
                     Row(
                       children: [
-                        _sectionLabel('CUSTOM DUEL QUESTS'),
+                        _sectionLabel('CUSTOM DUEL MISSIONS'),
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -456,7 +456,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                                 color: HunterTheme.textFaint, size: 36),
                             const SizedBox(height: 8),
                             Text(
-                              'Add at least 4 quests to challenge',
+                              'Add at least 4 missions to challenge',
                               style: TextStyle(
                                   color: HunterTheme.textTertiary, fontSize: 13),
                             ),

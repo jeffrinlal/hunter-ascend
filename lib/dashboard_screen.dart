@@ -1033,7 +1033,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text("CASUAL", style: TextStyle(color: HunterTheme.success, fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 1)),
                           SizedBox(height: 3),
-                          Text("Penalty only if zero quests done", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12)),
+                          Text("Penalty only if zero missions done", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12)),
                         ]),
                       ),
                       Icon(Icons.chevron_right, color: HunterTheme.success, size: 20),
@@ -1074,7 +1074,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text("STRICT", style: TextStyle(color: HunterTheme.danger, fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 1)),
                           SizedBox(height: 3),
-                          Text("Penalty if any quest is missed", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12)),
+                          Text("Penalty if any mission is missed", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12)),
                         ]),
                       ),
                       Icon(Icons.chevron_right, color: HunterTheme.danger, size: 20),
@@ -1156,7 +1156,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                "QUEST REMINDER",
+                "MISSION REMINDER",
                 style: TextStyle(
                   color: HunterTheme.textPrimary,
                   fontSize: 18,
@@ -1166,7 +1166,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                "Choose when to be reminded\nto complete your daily quests.",
+                "Choose when to be reminded\nto complete your daily missions.",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: HunterTheme.textTertiary, fontSize: 13, height: 1.5),
               ),
@@ -1295,7 +1295,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: _card,
-        title: Text("START QUEST", style: TextStyle(color: _blue)),
+        title: Text("START MISSION", style: TextStyle(color: _blue)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1304,7 +1304,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 6),
 
             const SizedBox(height: 16),
-            Text("Choose a time to complete this quest", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12)),
+            Text("Choose a time to complete this mission", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12)),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
@@ -1326,7 +1326,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 border: Border.all(color: Colors.orange.withOpacity(0.3)),
               ),
               child: const Text(
-                "⚠️ You must wait for the timer before you can complete this quest.",
+                "⚠️ You must wait for the timer before you can complete this mission.",
                 style: TextStyle(color: Colors.orange, fontSize: 11),
               ),
             ),
@@ -1462,7 +1462,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.emoji_events, color: Colors.amber, size: 80),
           const SizedBox(height: 20),
-          Text("QUEST COMPLETE", style: TextStyle(color: _blue, fontSize: 24, fontWeight: FontWeight.bold)),
+          Text("MISSION COMPLETE", style: TextStyle(color: _blue, fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
           Text("+$questReward XP", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
         ]),
@@ -1802,7 +1802,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         boxShadow: [BoxShadow(color: _blue.withOpacity(0.2), blurRadius: 16)],
       ),
       child: Column(children: [
-        Text("⚡ ACTIVE QUEST ⚡", style: TextStyle(color: _blue, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2)),
+        Text("⚡ ACTIVE MISSION ⚡", style: TextStyle(color: _blue, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2)),
         const SizedBox(height: 8),
         Text(
           questRemaining == Duration.zero ? "Status: Ready to Complete" : "Status: In Progress",
@@ -1840,7 +1840,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             style: ElevatedButton.styleFrom(backgroundColor: questRemaining == Duration.zero ? _blue : _blueDim, padding: const EdgeInsets.symmetric(vertical: 14)),
             onPressed: questRemaining != Duration.zero ? () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("⚠️ Timer not finished yet — quest cannot be completed.")),
+                const SnackBar(content: Text("⚠️ Timer not finished yet — mission cannot be completed.")),
               );
             } : () {
               showDialog(context: context, builder: (_) {
@@ -1848,7 +1848,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   "⚔️ Only you know whether this mission is complete.",
                   "🔥 Shortcuts create weak Hunters.",
                   "🏆 Discipline separates Hunters from legends.",
-                  "⚡ Every completed quest should represent real effort.",
+                  "⚡ Every completed mission should represent real effort.",
                 ];
                 messages.shuffle();
                 return AlertDialog(
@@ -1856,19 +1856,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   title: const Text("Hunter Verification", style: TextStyle(color: Colors.amber)),
                   content: Text("Are you sure you completed this mission honestly?\n\nOnly you know the truth.\n\n${messages.first}", style: TextStyle(color: HunterTheme.textPrimary)),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text("CONTINUE QUEST")),
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text("CONTINUE MISSION")),
                     ElevatedButton(onPressed: () { Navigator.pop(context); completeQuest(); }, child: const Text("COMPLETE")),
                   ],
                 );
               });
             },
-            child: Text("COMPLETE QUEST", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, letterSpacing: 2)),
+            child: Text("COMPLETE MISSION", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, letterSpacing: 2)),
           ),
         ),
         const SizedBox(height: 10),
         GestureDetector(
           onTap: _cancelActiveQuest,
-          child: Text("Cancel quest", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12, decoration: TextDecoration.underline)),
+          child: Text("Cancel mission", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12, decoration: TextDecoration.underline)),
         ),
         if (isBannerReady) ...[
           const SizedBox(height: 12),
@@ -1898,7 +1898,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Row(
                     children: [
                       Text(
-                        "DAILY QUESTS (AI)",
+                        "DAILY MISSIONS (AI)",
                         style: TextStyle(
                           color: HunterTheme.textPrimary,
                           fontSize: 20,
@@ -1995,9 +1995,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(children: [
                   Icon(Icons.bolt, color: _blue, size: 40),
                   SizedBox(height: 10),
-                  Text("No quests yet", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text("No missions yet", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
                   SizedBox(height: 6),
-                  Text("Tap + to create your first custom quest.", textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textSecondary)),
+                  Text("Tap + to create your first custom mission.", textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textSecondary)),
                 ]),
               ),
 
@@ -2024,7 +2024,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 onDelete: () => showDialog(
                   context: context,
                   builder: (_) => AlertDialog(
-                    title: const Text("Delete Quest?"),
+                    title: const Text("Delete Mission?"),
                     content: Text(data['name']),
                     actions: [
                       TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL")),
@@ -2168,10 +2168,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Create Custom Quest"),
+        title: const Text("Create Custom Mission"),
         content: StatefulBuilder(
           builder: (context, setDialogState) => Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(controller: customQuestController, decoration: const InputDecoration(hintText: "Quest Name")),
+            TextField(controller: customQuestController, decoration: const InputDecoration(hintText: "Mission Name")),
 
           ]),
         ),
@@ -2189,7 +2189,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               customQuestController.clear();
               if (mounted) Navigator.pop(context);
             },
-            child: const Text("ADD QUEST"),
+            child: const Text("ADD MISSION"),
           ),
         ],
       ),

@@ -442,7 +442,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                                   ),
                                   SizedBox(width: 6),
                                   Text(
-                                    'GENERATE MY QUESTS',
+                                    'GENERATE MY MISSIONS',
                                     style: TextStyle(
                                       color: HunterTheme.background,
                                       fontSize: 12,

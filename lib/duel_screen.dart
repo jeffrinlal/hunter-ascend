@@ -214,13 +214,13 @@ class _DuelScreenState extends State<DuelScreen> {
               child: Icon(Icons.timer_outlined, color: _blue, size: 28),
             ),
             const SizedBox(height: 16),
-            Text("START QUEST", style: TextStyle(color: _blue, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+            Text("START MISSION", style: TextStyle(color: _blue, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
             const SizedBox(height: 10),
             Text(questName, textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             Text("XP based on time chosen", style: TextStyle(color: HunterTheme.success, fontWeight: FontWeight.bold, fontSize: 12)),
             const SizedBox(height: 20),
-            Text("Choose a time to complete this quest", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12)),
+            Text("Choose a time to complete this mission", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12)),
             const SizedBox(height: 14),
             Wrap(
               spacing: 10,
@@ -291,7 +291,7 @@ class _DuelScreenState extends State<DuelScreen> {
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
-                    "You must wait for the timer to finish before you can complete this quest.",
+                    "You must wait for the timer to finish before you can complete this mission.",
                     style: TextStyle(color: Colors.orange, fontSize: 11, height: 1.4),
                   ),
                 ),
@@ -317,7 +317,7 @@ class _DuelScreenState extends State<DuelScreen> {
   Future<void> _completeActiveQuest(Map<String, dynamic> duel) async {
     if (remaining > Duration.zero) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("⚠️ Timer not finished yet — quest cannot be completed.")),
+        const SnackBar(content: Text("⚠️ Timer not finished yet — mission cannot be completed.")),
       );
       return;
     }
@@ -354,7 +354,7 @@ class _DuelScreenState extends State<DuelScreen> {
         boxShadow: [BoxShadow(color: _blue.withValues(alpha: 0.2), blurRadius: 16)],
       ),
       child: Column(children: [
-        Text("⚡ ACTIVE QUEST ⚡", style: TextStyle(color: _blue, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2)),
+        Text("⚡ ACTIVE MISSION ⚡", style: TextStyle(color: _blue, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2)),
         const SizedBox(height: 8),
         Text(
           ready ? "Status: Ready to Complete" : "Status: In Progress",
@@ -395,7 +395,7 @@ class _DuelScreenState extends State<DuelScreen> {
             ),
             onPressed: () => _completeActiveQuest(duel),
             child: Text(
-              "COMPLETE QUEST",
+              "COMPLETE MISSION",
               style: TextStyle(color: ready ? Colors.white : HunterTheme.textTertiary, fontWeight: FontWeight.bold, letterSpacing: 2),
             ),
           ),
@@ -403,7 +403,7 @@ class _DuelScreenState extends State<DuelScreen> {
         const SizedBox(height: 10),
         GestureDetector(
           onTap: _cancelActiveQuest,
-          child: Text("Cancel quest", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12, decoration: TextDecoration.underline)),
+          child: Text("Cancel mission", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12, decoration: TextDecoration.underline)),
         ),
         if (isBannerReady) ...[
           const SizedBox(height: 12),
@@ -444,7 +444,7 @@ class _DuelScreenState extends State<DuelScreen> {
         ),
         const SizedBox(height: 14),
         Text(
-          "ALL QUESTS DONE FOR TODAY",
+          "ALL MISSIONS DONE FOR TODAY",
           style: TextStyle(color: HunterTheme.success, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1.5),
         ),
         const SizedBox(height: 8),
@@ -819,7 +819,7 @@ class _DuelScreenState extends State<DuelScreen> {
 
                 // ── Shared quests header ──
                 Row(children: [
-                  Text("Shared Quests", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text("Shared Missions", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(width: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -903,7 +903,7 @@ class _DuelScreenState extends State<DuelScreen> {
                           GestureDetector(
                             onTap: activeQuestName != null
                                 ? () => ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("⚠️ Finish your current active quest first.")))
+                                const SnackBar(content: Text("⚠️ Finish your current active mission first.")))
                                 : () => _showStartQuestDialog(quest['name'], quest['xp']),
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

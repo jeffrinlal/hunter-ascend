@@ -162,7 +162,7 @@ class _MainShellState extends State<MainShell> {
               NavigationDestination(
                 icon: Icon(Icons.checklist_outlined),
                 selectedIcon: Icon(Icons.checklist),
-                label: 'Quests',
+                label: 'Missions',
               ),
               NavigationDestination(
                 icon: Icon(Icons.leaderboard_outlined),

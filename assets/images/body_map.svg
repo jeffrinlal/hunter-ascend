@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 440" width="220" height="440">
+  <!--
+    Original anterior (front-view) muscle map for Hunter Ascend.
+    Muscle-group fills use tokens that are replaced at runtime in Dart:
+      {{STR}} chest + biceps   {{VIT}} abs/core   {{AGI}} quads + calves
+      {{INT}} head/brain       {{END}} full-body base tint
+  -->
+
+  <!-- Base silhouette (static light grey) -->
+  <g id="body" fill="#E0E0E0">
+    <circle cx="110" cy="40" r="26"/>
+    <rect x="98" y="62" width="24" height="18" rx="6"/>
+    <path d="M70 82 L150 82 L150 96 L142 200 Q140 214 126 214 L94 214 Q80 214 78 200 L70 96 Z"/>
+    <rect x="42" y="86" width="24" height="150" rx="12"/>
+    <rect x="154" y="86" width="24" height="150" rx="12"/>
+    <rect x="80" y="214" width="26" height="196" rx="13"/>
+    <rect x="114" y="214" width="26" height="196" rx="13"/>
+  </g>
+
+  <!-- END: full-body base tint (mirrors the silhouette) -->
+  <g id="endTint">
+    <circle cx="110" cy="40" r="26" fill="{{END}}"/>
+    <path d="M70 82 L150 82 L150 96 L142 200 Q140 214 126 214 L94 214 Q80 214 78 200 L70 96 Z" fill="{{END}}"/>
+    <rect x="42" y="86" width="24" height="150" rx="12" fill="{{END}}"/>
+    <rect x="154" y="86" width="24" height="150" rx="12" fill="{{END}}"/>
+    <rect x="80" y="214" width="26" height="196" rx="13" fill="{{END}}"/>
+    <rect x="114" y="214" width="26" height="196" rx="13" fill="{{END}}"/>
+  </g>
+
+  <!-- INT: head / brain -->
+  <g id="head">
+    <circle cx="110" cy="38" r="18" fill="{{INT}}"/>
+  </g>
+
+  <!-- STR: chest (pectorals) + biceps -->
+  <g id="chest">
+    <ellipse cx="96" cy="106" rx="18" ry="12" fill="{{STR}}"/>
+    <ellipse cx="124" cy="106" rx="18" ry="12" fill="{{STR}}"/>
+  </g>
+  <g id="biceps">
+    <ellipse cx="54" cy="120" rx="11" ry="22" fill="{{STR}}"/>
+    <ellipse cx="166" cy="120" rx="11" ry="22" fill="{{STR}}"/>
+  </g>
+
+  <!-- VIT: abs / core -->
+  <g id="abs">
+    <rect x="99" y="130" width="10" height="20" rx="3" fill="{{VIT}}"/>
+    <rect x="111" y="130" width="10" height="20" rx="3" fill="{{VIT}}"/>
+    <rect x="99" y="154" width="10" height="20" rx="3" fill="{{VIT}}"/>
+    <rect x="111" y="154" width="10" height="20" rx="3" fill="{{VIT}}"/>
+    <rect x="99" y="178" width="10" height="20" rx="3" fill="{{VIT}}"/>
+    <rect x="111" y="178" width="10" height="20" rx="3" fill="{{VIT}}"/>
+  </g>
+
+  <!-- AGI: quadriceps + calves -->
+  <g id="quads">
+    <rect x="82" y="220" width="20" height="80" rx="10" fill="{{AGI}}"/>
+    <rect x="118" y="220" width="20" height="80" rx="10" fill="{{AGI}}"/>
+  </g>
+  <g id="calves">
+    <ellipse cx="92" cy="345" rx="11" ry="30" fill="{{AGI}}"/>
+    <ellipse cx="128" cy="345" rx="11" ry="30" fill="{{AGI}}"/>
+  </g>
+</svg>

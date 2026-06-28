@@ -5,6 +5,7 @@ import 'Theme/hunter_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'settings_screen.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'dart:convert';
@@ -441,28 +442,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                             ),
                           ),
                           const SizedBox(height: 12),
-                          Center(
-                            child: SizedBox(
-                              height: 380,
-                              width: double.infinity,
-                              child: CustomPaint(
-                                size: Size.infinite,
-                                painter: MuscleMapPainter(
-                                  str: str.toDouble(),
-                                  end: end_.toDouble(),
-                                  agi: agi.toDouble(),
-                                  vit: vit.toDouble(),
-                                  intel: int_.toDouble(),
-                                  luk: luk.toDouble(),
-                                  glow: HunterTheme.primary,
-                                  silhouette:
-                                      HunterTheme.textPrimary.withOpacity(0.10),
-                                  inactive:
-                                      HunterTheme.textPrimary.withOpacity(0.20),
-                                  label: HunterTheme.textPrimary,
-                                ),
-                              ),
-                            ),
+                          _MuscleBodySvg(
+                            str: str.toDouble(),
+                            vit: vit.toDouble(),
+                            agi: agi.toDouble(),
+                            intel: int_.toDouble(),
+                            end: end_.toDouble(),
                           ),
                           const SizedBox(height: 20),
                           _muscleLegend('STR', 'Chest + Arms', str),
@@ -1092,201 +1077,128 @@ class HexRadarPainter extends CustomPainter {
 }
 
 
-// ── AI Muscle Body Map ──────────────────────────────────────────────────
+// ── AI Muscle Body Map (SVG) ─────────────────────────────────────────────
 //
-// Front-view silhouette whose muscle groups glow based on existing Firestore
-// stats (read-only). Mapping:
-//   STR -> Chest + Arms   END -> Full-body base tint   AGI -> Legs
-//   VIT -> Core/Abs       INT -> Head                  LUK -> Aura sparkles
-class MuscleMapPainter extends CustomPainter {
-  final double str, end, agi, vit, intel, luk;
-  final Color glow;       // active muscle glow (#FF6B2B in light)
-  final Color silhouette; // body base
-  final Color inactive;   // low-stat muscle
-  final Color label;      // text labels
+// Renders assets/images/body_map.svg via flutter_svg and recolors muscle-group
+// fills at runtime by replacing tokens in the SVG string (read-only; uses the
+// existing Firestore-derived stats). Mapping:
+//   STR -> chest + biceps   VIT -> abs/core   AGI -> quads + calves
+//   INT -> head/brain       END -> full-body base tint
+//
+// Opacity of each group = stat / 100 (END uses a softer base tint).
+class _MuscleBodySvg extends StatelessWidget {
+  final double str, vit, agi, intel, end;
 
-  MuscleMapPainter({
+  const _MuscleBodySvg({
     required this.str,
-    required this.end,
-    required this.agi,
     required this.vit,
+    required this.agi,
     required this.intel,
-    required this.luk,
-    required this.glow,
-    required this.silhouette,
-    required this.inactive,
-    required this.label,
+    required this.end,
   });
 
-  Color _muscle(double pct) =>
-      Color.lerp(inactive, glow, pct.clamp(0.0, 1.0))!;
-
-  void _fill(Canvas c, Path p, Color color, {double glowSigma = 0}) {
-    if (glowSigma > 0.5) {
-      c.drawPath(
-        p,
-        Paint()
-          ..color = color
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, glowSigma),
-      );
+  static String _recolor(
+    String svg, {
+    required double str,
+    required double vit,
+    required double agi,
+    required double intel,
+    required double end,
+  }) {
+    String paint(double stat, {double scale = 1.0}) {
+      final o = (stat / 100 * scale).clamp(0.0, 1.0);
+      return 'fill="#FF6B2B" fill-opacity="${o.toStringAsFixed(3)}"';
     }
-    c.drawPath(p, Paint()..color = color..style = PaintingStyle.fill);
+
+    return svg
+        .replaceAll('fill="{{STR}}"', paint(str))
+        .replaceAll('fill="{{VIT}}"', paint(vit))
+        .replaceAll('fill="{{AGI}}"', paint(agi))
+        .replaceAll('fill="{{INT}}"', paint(intel))
+        .replaceAll('fill="{{END}}"', paint(end, scale: 0.30));
   }
 
-  void _sparkle(Canvas c, Offset o, double r, Color col) {
-    final p = Paint()
-      ..color = col
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
-    final path = Path()
-      ..moveTo(o.dx, o.dy - r)
-      ..lineTo(o.dx + r * 0.25, o.dy - r * 0.25)
-      ..lineTo(o.dx + r, o.dy)
-      ..lineTo(o.dx + r * 0.25, o.dy + r * 0.25)
-      ..lineTo(o.dx, o.dy + r)
-      ..lineTo(o.dx - r * 0.25, o.dy + r * 0.25)
-      ..lineTo(o.dx - r, o.dy)
-      ..lineTo(o.dx - r * 0.25, o.dy - r * 0.25)
-      ..close();
-    c.drawPath(path, p);
-  }
+  // [name, leftFraction, topFraction] within the 200x400 box.
+  static const List<List<dynamic>> _anchors = [
+    ['END', 0.02, 0.02],
+    ['INT', 0.60, 0.03],
+    ['STR', 0.02, 0.22],
+    ['VIT', 0.64, 0.32],
+    ['AGI', 0.02, 0.62],
+  ];
 
-  void _text(Canvas c, String s, Offset o) {
-    final tp = TextPainter(
-      text: TextSpan(
-        text: s,
+  Widget _label(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: HunterTheme.cardColor.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: HunterTheme.primary.withOpacity(0.3)),
+      ),
+      child: Text(
+        text,
         style: TextStyle(
-          color: label,
-          fontSize: 11,
+          color: HunterTheme.textPrimary,
+          fontSize: 10,
           fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
         ),
       ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(c, o);
+    );
   }
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width, h = size.height;
-    final cx = w / 2;
-    final strP = (str / 100).clamp(0.0, 1.0);
-    final agiP = (agi / 100).clamp(0.0, 1.0);
-    final vitP = (vit / 100).clamp(0.0, 1.0);
-    final intP = (intel / 100).clamp(0.0, 1.0);
-    final endP = (end / 100).clamp(0.0, 1.0);
-    final lukP = (luk / 100).clamp(0.0, 1.0);
+  Widget build(BuildContext context) {
+    const boxW = 200.0, boxH = 400.0;
+    final values = <String, double>{
+      'STR': str,
+      'VIT': vit,
+      'AGI': agi,
+      'INT': intel,
+      'END': end,
+    };
 
-    // ── Body part paths ──
-    final head = Path()
-      ..addOval(Rect.fromCircle(center: Offset(cx, h * 0.085), radius: h * 0.055));
-    final neck = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-          Rect.fromCenter(
-              center: Offset(cx, h * 0.155), width: w * 0.07, height: h * 0.045),
-          const Radius.circular(4)));
-    final torso = Path()
-      ..moveTo(cx - w * 0.20, h * 0.19)
-      ..lineTo(cx + w * 0.20, h * 0.19)
-      ..lineTo(cx + w * 0.15, h * 0.50)
-      ..lineTo(cx - w * 0.15, h * 0.50)
-      ..close();
-    final leftArm = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-          Rect.fromLTWH(cx - w * 0.285, h * 0.195, w * 0.085, h * 0.30),
-          Radius.circular(w * 0.04)));
-    final rightArm = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-          Rect.fromLTWH(cx + w * 0.20, h * 0.195, w * 0.085, h * 0.30),
-          Radius.circular(w * 0.04)));
-    final leftLeg = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-          Rect.fromLTWH(cx - w * 0.145, h * 0.50, w * 0.12, h * 0.42),
-          Radius.circular(w * 0.05)));
-    final rightLeg = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-          Rect.fromLTWH(cx + w * 0.025, h * 0.50, w * 0.12, h * 0.42),
-          Radius.circular(w * 0.05)));
-    final chestL = Path()
-      ..addOval(Rect.fromCenter(
-          center: Offset(cx - w * 0.085, h * 0.255),
-          width: w * 0.16,
-          height: h * 0.085));
-    final chestR = Path()
-      ..addOval(Rect.fromCenter(
-          center: Offset(cx + w * 0.085, h * 0.255),
-          width: w * 0.16,
-          height: h * 0.085));
-    final abs = Path();
-    for (int row = 0; row < 3; row++) {
-      for (int col = 0; col < 2; col++) {
-        final ax = cx + (col == 0 ? -w * 0.055 : w * 0.005);
-        final ay = h * 0.335 + row * h * 0.052;
-        abs.addRRect(RRect.fromRectAndRadius(
-            Rect.fromLTWH(ax, ay, w * 0.05, h * 0.042),
-            const Radius.circular(3)));
-      }
-    }
-
-    // ── 1. Base silhouette (END tints the whole body) ──
-    final baseColor = Color.lerp(silhouette, glow, endP * 0.30)!;
-    for (final p in [head, neck, torso, leftArm, rightArm, leftLeg, rightLeg]) {
-      _fill(canvas, p, baseColor);
-    }
-
-    // ── 2. Muscle overlays ──
-    _fill(canvas, head, _muscle(intP).withOpacity(0.85), glowSigma: 6 * intP); // INT
-    _fill(canvas, chestL, _muscle(strP), glowSigma: 10 * strP);                // STR
-    _fill(canvas, chestR, _muscle(strP), glowSigma: 10 * strP);
-    _fill(canvas, leftArm, _muscle(strP * 0.9), glowSigma: 8 * strP);
-    _fill(canvas, rightArm, _muscle(strP * 0.9), glowSigma: 8 * strP);
-    _fill(canvas, abs, _muscle(vitP), glowSigma: 8 * vitP);                    // VIT
-    _fill(canvas, leftLeg, _muscle(agiP), glowSigma: 10 * agiP);               // AGI
-    _fill(canvas, rightLeg, _muscle(agiP), glowSigma: 10 * agiP);
-
-    // Outline for definition
-    final stroke = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..color = glow.withOpacity(0.25);
-    for (final p in [head, torso, leftArm, rightArm, leftLeg, rightLeg]) {
-      canvas.drawPath(p, stroke);
-    }
-
-    // ── 3. LUK aura sparkles ──
-    final sparkN = (lukP * 8).round();
-    final spots = [
-      Offset(cx - w * 0.34, h * 0.12),
-      Offset(cx + w * 0.34, h * 0.16),
-      Offset(cx - w * 0.32, h * 0.56),
-      Offset(cx + w * 0.33, h * 0.50),
-      Offset(cx - w * 0.06, h * 0.02),
-      Offset(cx + w * 0.30, h * 0.82),
-      Offset(cx - w * 0.34, h * 0.80),
-      Offset(cx + w * 0.12, h * 0.01),
-    ];
-    for (int i = 0; i < sparkN && i < spots.length; i++) {
-      _sparkle(canvas, spots[i], w * 0.02, glow.withOpacity(0.5 + lukP * 0.5));
-    }
-
-    // ── 4. Labels (percentage out of 100) ──
-    _text(canvas, 'INT ${intel.round()}%', Offset(cx + w * 0.12, h * 0.04));
-    _text(canvas, 'STR ${str.round()}%', Offset(cx - w * 0.49, h * 0.24));
-    _text(canvas, 'VIT ${vit.round()}%', Offset(cx + w * 0.17, h * 0.40));
-    _text(canvas, 'AGI ${agi.round()}%', Offset(cx - w * 0.49, h * 0.66));
-    _text(canvas, 'END ${end.round()}%', Offset(cx - w * 0.49, h * 0.04));
-    _text(canvas, 'LUK ${luk.round()}%', Offset(cx + w * 0.17, h * 0.82));
+    return Center(
+      child: SizedBox(
+        width: boxW,
+        height: boxH,
+        child: FutureBuilder<String>(
+          future: rootBundle.loadString('assets/images/body_map.svg'),
+          builder: (context, snap) {
+            if (!snap.hasData) {
+              return const Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              );
+            }
+            final svg = _recolor(
+              snap.data!,
+              str: str,
+              vit: vit,
+              agi: agi,
+              intel: intel,
+              end: end,
+            );
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: SvgPicture.string(svg, fit: BoxFit.contain),
+                ),
+                for (final a in _anchors)
+                  Positioned(
+                    left: (a[1] as double) * boxW,
+                    top: (a[2] as double) * boxH,
+                    child: _label(
+                        '${a[0]} ${values[a[0] as String]!.round()}%'),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant MuscleMapPainter old) =>
-      old.str != str ||
-      old.end != end ||
-      old.agi != agi ||
-      old.vit != vit ||
-      old.intel != intel ||
-      old.luk != luk ||
-      old.glow != glow ||
-      old.silhouette != silhouette ||
-      old.inactive != inactive ||
-      old.label != label;
 }

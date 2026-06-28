@@ -29,6 +29,7 @@ dependencies:
   image_picker: ^1.1.2
   flutter_image_compress: ^2.3.0
   http: ^1.2.0
+  flutter_svg: ^2.0.10+1
 
 
 
@@ -47,6 +48,7 @@ flutter:
 
   assets:
     - assets/images/awakening_bg.png
+    - assets/images/body_map.svg
     - assets/avatars/
 
 flutter_launcher_icons:

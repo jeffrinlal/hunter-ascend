@@ -295,6 +295,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ── Weekly missions ──────────────────────────────────────
   List<Map<String, dynamic>> weeklyMissions = [];
   bool _weeklyLoading = false;
+  bool weeklyQuestStarted = false;
+  String weeklyActiveTitle = "";
+  int weeklyQuestReward = 0;
+  DateTime? weeklyQuestEndTime;
+  Timer? _weeklyCountdownTimer;
+  Duration weeklyQuestRemaining = Duration.zero;
   int questReward = 0;
   DateTime? questEndTime;
   Timer? _questCountdownTimer;
@@ -481,6 +487,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _restoreDashboardActiveQuest();
     if (!widget.questsOnly) _loadWaterIntake();
     if (widget.questsOnly) _loadWeeklyMissions();
+    if (widget.questsOnly) _restoreWeeklyActiveQuest();
   }
 
   @override
@@ -1579,6 +1586,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               if (widget.questsOnly) ...[
                 if (questStarted) _buildActiveQuestCard(),
                 _buildQuestsSection(),
+                if (weeklyQuestStarted) _buildActiveWeeklyQuestCard(),
                 _buildWeeklyMissionsSection(),
                 const SizedBox(height: 30),
               ],
@@ -2593,227 +2601,342 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  void _confirmCompleteWeekly(int index) {
+  void startWeeklyQuest(String title) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (context) => AlertDialog(
         backgroundColor: _card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Complete Weekly Mission?',
-            style: TextStyle(
-                color: HunterTheme.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.bold)),
-        content: Text(
-            'Only mark this complete if you truly finished it this week.',
-            style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
+        title: Text("START MISSION", style: TextStyle(color: _blue)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            const SizedBox(height: 16),
+            Text("Choose a time to complete this mission", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12)),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              children: [2, 5, 10, 15, 30, 45, 60].map((mins) => ChoiceChip(
+                label: Text("$mins min"),
+                selected: false,
+                onSelected: (_) {
+                  Navigator.pop(context);
+                  _startWeeklyQuestWithTimer(title, mins);
+                },
+              )).toList(),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              ),
+              child: const Text(
+                "\u26a0\ufe0f You must wait for the timer before you can complete this mission.",
+                style: TextStyle(color: Colors.orange, fontSize: 11),
+              ),
+            ),
+          ],
+        ),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('CANCEL')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: HunterTheme.primary,
-                foregroundColor: Colors.white),
-            onPressed: () {
-              Navigator.pop(context);
-              _completeWeeklyMission(index);
-            },
-            child: const Text('COMPLETE'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL")),
         ],
       ),
     );
   }
 
-  Future<void> _completeWeeklyMission(int index) async {
-    if (index < 0 || index >= weeklyMissions.length) return;
-    if (weeklyMissions[index]['completed'] == true) return;
-    final reward = ((weeklyMissions[index]['xpReward'] ?? 150) as num).toInt();
+  void _startWeeklyQuestWithTimer(String title, int minutes) {
+    final endTime = DateTime.now().add(Duration(minutes: minutes));
+    int boostedReward;
+    if (minutes >= 60)      boostedReward = 50;
+    else if (minutes >= 45) boostedReward = 40;
+    else if (minutes >= 30) boostedReward = 30;
+    else if (minutes >= 15) boostedReward = 20;
+    else if (minutes >= 10) boostedReward = 15;
+    else if (minutes >= 5)  boostedReward = 10;
+    else                    boostedReward = 5;
+    boostedReward *= 3; // weekly missions reward 3x daily
+
     setState(() {
-      weeklyMissions[index]['completed'] = true;
-      xp += reward;
-      while (xp >= 500) {
-        level++;
-        xp -= 500;
-      }
+      weeklyQuestStarted = true;
+      weeklyActiveTitle = title;
+      weeklyQuestReward = boostedReward;
+      weeklyQuestEndTime = endTime;
+      weeklyQuestRemaining = Duration(minutes: minutes);
     });
-    await updateHunterOnline(); // persists xp + level (same as daily)
+
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      await FirebaseFirestore.instance
-          .collection('hunters')
-          .doc(user.uid)
-          .update({'weeklyMissions': weeklyMissions});
+      FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
+        'activeWeeklyMissionTitle': title,
+        'activeWeeklyMissionXp': weeklyQuestReward,
+        'activeWeeklyMissionEndTime': Timestamp.fromDate(endTime),
+      });
     }
-    if (mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          backgroundColor: _card,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.local_fire_department,
-                color: Colors.deepOrange, size: 70),
-            const SizedBox(height: 16),
-            Text('WEEKLY MISSION COMPLETE',
-                style: TextStyle(
-                    color: _blue, fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('+$reward XP',
-                style: TextStyle(
-                    color: HunterTheme.textPrimary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold)),
-          ]),
-        ),
-      );
-      Future.delayed(const Duration(seconds: 1),
-          () => context.mounted ? Navigator.pop(context) : null);
+
+    _weeklyCountdownTimer?.cancel();
+    _weeklyCountdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      if (weeklyQuestEndTime == null) return;
+      final diff = weeklyQuestEndTime!.difference(DateTime.now());
+      setState(() => weeklyQuestRemaining = diff.isNegative ? Duration.zero : diff);
+    });
+  }
+
+  Future<void> _cancelActiveWeeklyQuest() async {
+    _weeklyCountdownTimer?.cancel();
+    setState(() {
+      weeklyQuestStarted = false;
+      weeklyActiveTitle = "";
+      weeklyQuestReward = 0;
+      weeklyQuestEndTime = null;
+      weeklyQuestRemaining = Duration.zero;
+    });
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
+        'activeWeeklyMissionTitle': FieldValue.delete(),
+        'activeWeeklyMissionXp': FieldValue.delete(),
+        'activeWeeklyMissionEndTime': FieldValue.delete(),
+      });
     }
   }
 
+  Future<void> _restoreWeeklyActiveQuest() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
+    if (!doc.exists) return;
+    final data = doc.data()!;
+    final title = data['activeWeeklyMissionTitle'];
+    final reward = data['activeWeeklyMissionXp'];
+    final endTimeStamp = data['activeWeeklyMissionEndTime'] as Timestamp?;
+    if (title == null) return;
+    final endTime = endTimeStamp?.toDate();
+    if (!mounted) return;
+    setState(() {
+      weeklyQuestStarted = true;
+      weeklyActiveTitle = title;
+      weeklyQuestReward = reward ?? 0;
+      weeklyQuestEndTime = endTime;
+      weeklyQuestRemaining = endTime == null ? Duration.zero : (endTime.isBefore(DateTime.now()) ? Duration.zero : endTime.difference(DateTime.now()));
+    });
+    if (endTime != null && endTime.isAfter(DateTime.now())) {
+      _weeklyCountdownTimer?.cancel();
+      _weeklyCountdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) return;
+        if (weeklyQuestEndTime == null) return;
+        final diff = weeklyQuestEndTime!.difference(DateTime.now());
+        setState(() => weeklyQuestRemaining = diff.isNegative ? Duration.zero : diff);
+      });
+    }
+  }
+
+  Future<void> completeWeeklyQuest() async {
+    bool leveledUp = false;
+    _weeklyCountdownTimer?.cancel();
+    final completedTitle = weeklyActiveTitle;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
+        'activeWeeklyMissionTitle': FieldValue.delete(),
+        'activeWeeklyMissionXp': FieldValue.delete(),
+        'activeWeeklyMissionEndTime': FieldValue.delete(),
+      });
+    }
+    setState(() {
+      xp += weeklyQuestReward;
+      weeklyQuestStarted = false;
+      for (final m in weeklyMissions) {
+        if (m['title'] == completedTitle) m['completed'] = true;
+      }
+      if (xp >= 500) { level++; xp -= 500; leveledUp = true; }
+    });
+    await updateHunterOnline();
+    if (user != null) {
+      await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
+        'weeklyMissions': weeklyMissions,
+      });
+    }
+
+    showDialog(
+      context: context, barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        backgroundColor: _card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.emoji_events, color: Colors.amber, size: 80),
+          const SizedBox(height: 20),
+          Text("MISSION COMPLETE", style: TextStyle(color: _blue, fontSize: 24, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          Text("+$weeklyQuestReward XP", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
+        ]),
+      ),
+    );
+    Future.delayed(const Duration(seconds: 1), () { if (context.mounted) Navigator.pop(context); });
+
+    if (leveledUp) {
+      showDialog(
+        context: context, barrierDismissible: false,
+        builder: (_) => Scaffold(
+          backgroundColor: HunterTheme.background,
+          body: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.bolt, color: _blue, size: 140),
+            const SizedBox(height: 30),
+            Text("LEVEL UP", style: TextStyle(color: _blue, fontSize: 40, fontWeight: FontWeight.bold, letterSpacing: 4)),
+            const SizedBox(height: 20),
+            Text("LEVEL $level", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 28)),
+          ])),
+        ),
+      );
+      Future.delayed(const Duration(seconds: 2), () { if (context.mounted) Navigator.pop(context); });
+    }
+  }
+
+  Widget _buildActiveWeeklyQuestCard() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _blue, width: 1.5),
+        color: _card,
+        boxShadow: [BoxShadow(color: _blue.withOpacity(0.2), blurRadius: 16)],
+      ),
+      child: Column(children: [
+        Text("\u26a1 ACTIVE MISSION \u26a1", style: TextStyle(color: _blue, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2)),
+        const SizedBox(height: 8),
+        Text(
+          weeklyQuestRemaining == Duration.zero ? "Status: Ready to Complete" : "Status: In Progress",
+          style: TextStyle(color: weeklyQuestRemaining == Duration.zero ? HunterTheme.success : Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Text(weeklyActiveTitle, textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(color: Colors.green.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+          child: Text("Reward: +$weeklyQuestReward XP", style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          decoration: BoxDecoration(
+            color: _blueDim,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: weeklyQuestRemaining == Duration.zero ? HunterTheme.success.withOpacity(0.5) : _blue.withOpacity(0.4)),
+          ),
+          margin: const EdgeInsets.only(bottom: 16),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(weeklyQuestRemaining == Duration.zero ? Icons.check_circle_outline : Icons.timer_outlined, color: weeklyQuestRemaining == Duration.zero ? HunterTheme.success : _blue, size: 22),
+            const SizedBox(width: 10),
+            Text(
+              weeklyQuestRemaining == Duration.zero ? "TIME'S UP!" : _formatQuestTime(weeklyQuestRemaining),
+              style: TextStyle(color: weeklyQuestRemaining == Duration.zero ? HunterTheme.success : HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1),
+            ),
+          ]),
+        ),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: weeklyQuestRemaining == Duration.zero ? _blue : _blueDim, padding: const EdgeInsets.symmetric(vertical: 14)),
+            onPressed: weeklyQuestRemaining != Duration.zero ? () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("\u26a0\ufe0f Timer not finished yet \u2014 mission cannot be completed.")),
+              );
+            } : () {
+              showDialog(context: context, builder: (_) {
+                final messages = [
+                  "\u2694\ufe0f Only you know whether this mission is complete.",
+                  "\ud83d\udd25 Shortcuts create weak Hunters.",
+                  "\ud83c\udfc6 Discipline separates Hunters from legends.",
+                  "\u26a1 Every completed mission should represent real effort.",
+                ];
+                messages.shuffle();
+                return AlertDialog(
+                  backgroundColor: HunterTheme.background,
+                  title: const Text("Hunter Verification", style: TextStyle(color: Colors.amber)),
+                  content: Text("Are you sure you completed this mission honestly?\n\nOnly you know the truth.\n\n${messages.first}", style: TextStyle(color: HunterTheme.textPrimary)),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text("CONTINUE MISSION")),
+                    ElevatedButton(onPressed: () { Navigator.pop(context); completeWeeklyQuest(); }, child: const Text("COMPLETE")),
+                  ],
+                );
+              });
+            },
+            child: Text("COMPLETE MISSION", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, letterSpacing: 2)),
+          ),
+        ),
+        const SizedBox(height: 10),
+        GestureDetector(
+          onTap: _cancelActiveWeeklyQuest,
+          child: Text("Cancel mission", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12, decoration: TextDecoration.underline)),
+        ),
+      ]),
+    );
+  }
+
   Widget _buildWeeklyMissionsSection() {
-    final completedCount =
-        weeklyMissions.where((m) => m['completed'] == true).length;
+    final completedCount = weeklyMissions.where((m) => m['completed'] == true).length;
     final total = weeklyMissions.isEmpty ? 3 : weeklyMissions.length;
     final reset = _untilNextMonday();
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 28),
         Row(children: [
-          Text('WEEKLY MISSIONS (AI)',
-              style: TextStyle(
-                  color: HunterTheme.textPrimary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-                color: _blueDim, borderRadius: BorderRadius.circular(20)),
-            child: Text('$completedCount/$total',
-                style: TextStyle(
-                    color: _blue, fontSize: 13, fontWeight: FontWeight.bold)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Text("WEEKLY MISSIONS (AI)", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(20)),
+                  child: Text("$completedCount/$total", style: TextStyle(color: _blue, fontSize: 13, fontWeight: FontWeight.bold)),
+                ),
+              ]),
+              const SizedBox(height: 4),
+              Container(
+                margin: const EdgeInsets.only(top: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: HunterTheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                child: Text(
+                  '\u23f3 Resets in ${reset.inDays}d ${reset.inHours.remainder(24)}h ${reset.inMinutes.remainder(60)}m',
+                  style: TextStyle(color: HunterTheme.primary, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
           ),
         ]),
-        const SizedBox(height: 6),
-        Text(
-            'Resets in ${reset.inDays}d ${reset.inHours.remainder(24)}h ${reset.inMinutes.remainder(60)}m',
-            style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12)),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         if (_weeklyLoading)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Center(
-                child:
-                    CircularProgressIndicator(color: HunterTheme.primary)),
-          )
+          Padding(padding: const EdgeInsets.symmetric(vertical: 20), child: Center(child: CircularProgressIndicator(color: HunterTheme.primary)))
         else if (weeklyMissions.isEmpty)
           Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _border)),
-            child: Center(
-                child: Text('No weekly missions yet',
-                    style: TextStyle(
-                        color: HunterTheme.textSecondary, fontSize: 13))),
+            width: double.infinity, padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: _border)),
+            child: Column(children: [
+              Icon(Icons.local_fire_department, color: _blue, size: 40),
+              const SizedBox(height: 10),
+              Text("No weekly missions yet", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+            ]),
           )
         else
-          ...weeklyMissions
-              .asMap()
-              .entries
-              .map((e) => _buildWeeklyTile(e.key, e.value)),
+          ...weeklyMissions.map((m) => _buildQuestTile(
+            name: (m['title'] ?? '').toString(),
+            xp: ((m['xpReward'] ?? 0) as num).toInt(),
+            icon: Icons.local_fire_department,
+            isCompleted: m['completed'] == true,
+            isCustom: false,
+            onTap: () => startWeeklyQuest((m['title'] ?? '').toString()),
+          )),
       ],
-    );
-  }
-
-  Widget _buildWeeklyTile(int index, Map<String, dynamic> mission) {
-    final completed = mission['completed'] == true;
-    final title = (mission['title'] ?? '').toString();
-    final reward = ((mission['xpReward'] ?? 0) as num).toInt();
-
-    return GestureDetector(
-      onTap: completed ? null : () => _confirmCompleteWeekly(index),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: _card,
-          border: Border.all(
-            color: completed
-                ? Colors.green.withOpacity(0.4)
-                : HunterTheme.primary.withOpacity(0.4),
-            width: 1.2,
-          ),
-        ),
-        child: Row(children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: completed
-                  ? Colors.green.withOpacity(0.1)
-                  : HunterTheme.primary.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              completed ? Icons.check_circle : Icons.local_fire_department,
-              color: completed ? Colors.green : HunterTheme.primary,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    completed ? '✓ $title' : title,
-                    style: TextStyle(
-                      color: completed
-                          ? HunterTheme.textTertiary
-                          : HunterTheme.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      decoration:
-                          completed ? TextDecoration.lineThrough : null,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text('🔥 +$reward XP',
-                      style: TextStyle(
-                          color: HunterTheme.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600)),
-                ]),
-          ),
-          if (completed)
-            const Text('DONE',
-                style: TextStyle(
-                    color: Colors.green,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold))
-          else
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                  color: HunterTheme.primary.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(8)),
-              child: Text('TAP TO START',
-                  style: TextStyle(
-                      color: HunterTheme.primary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold)),
-            ),
-        ]),
-      ),
     );
   }
 

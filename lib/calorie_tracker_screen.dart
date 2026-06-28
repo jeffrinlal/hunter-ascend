@@ -316,14 +316,14 @@ class CalorieTrackerCard extends StatefulWidget {
 }
 
 class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
-  static final _bg = HunterTheme.surface; // soft surface
-  static final _card = HunterTheme.cardColor; // white card
-  static final _blue = HunterTheme.primary; // accent → orange
-  static final _blueDim = HunterTheme.surface; // light secondary surface / track
-  static const _border  = Color(0x33FF6B2B); // orange low-opacity border
-  static final _green = HunterTheme.successDeep; // carbs
-  static final _red = HunterTheme.dangerDeep; // fat / over-goal
-  static final _orange = HunterTheme.primary; // brand orange
+  static Color get _bg => HunterTheme.surface; // soft surface
+  static Color get _card => HunterTheme.cardColor; // white card
+  static Color get _blue => HunterTheme.primary; // accent → orange/cyan
+  static Color get _blueDim => HunterTheme.surface; // secondary surface / track
+  static Color get _border => HunterTheme.primary.withOpacity(0.2); // tinted border
+  static Color get _green => HunterTheme.successDeep; // carbs
+  static Color get _red => HunterTheme.dangerDeep; // fat / over-goal
+  static Color get _orange => HunterTheme.primary; // brand accent
 
   final TextEditingController _foodController = TextEditingController();
   bool _isLoading = false;
@@ -837,7 +837,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                   // ── Meal history ───────────────────────────────────
                   ...[
                     const SizedBox(height: 16),
-                    const Divider(color: _border),
+                    Divider(color: _border),
                     const SizedBox(height: 12),
                     Row(children: [
                       Text("Today's Meals",

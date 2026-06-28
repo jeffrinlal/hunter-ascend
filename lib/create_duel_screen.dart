@@ -187,6 +187,13 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, _, __) => _themedBuild(context),
+    );
+  }
+
+  Widget _themedBuild(BuildContext context) {
     return Scaffold(
       backgroundColor: HunterTheme.background,
       appBar: AppBar(

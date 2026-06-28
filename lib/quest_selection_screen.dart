@@ -193,6 +193,13 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
 
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, _, __) => _themedBuild(context),
+    );
+  }
+
+  Widget _themedBuild(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(

@@ -91,6 +91,13 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, _, __) => _themedBuild(context),
+    );
+  }
+
+  Widget _themedBuild(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(

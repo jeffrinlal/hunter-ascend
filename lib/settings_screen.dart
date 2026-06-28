@@ -175,6 +175,13 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, _, __) => _themedBuild(context),
+    );
+  }
+
+  Widget _themedBuild(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
@@ -535,8 +542,8 @@ class _DarkModeTile extends StatelessWidget {
   const _DarkModeTile();
 
   Future<void> _setDark(bool value) async {
-    themeNotifier.value = value ? ThemeMode.dark : ThemeMode.light;
     HunterTheme.isDark = value;
+    themeNotifier.value = value ? ThemeMode.dark : ThemeMode.light;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('darkMode', value);
   }
@@ -625,6 +632,13 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, _, __) => _themedBuild(context),
+    );
+  }
+
+  Widget _themedBuild(BuildContext context) {
     return Scaffold(
       backgroundColor: HunterTheme.background,
       body: SafeArea(

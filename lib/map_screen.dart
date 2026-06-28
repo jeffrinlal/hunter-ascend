@@ -329,6 +329,13 @@ class _MapScreenState extends State<MapScreen> {
   // ── Build ────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, _, __) => _themedBuild(context),
+    );
+  }
+
+  Widget _themedBuild(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(

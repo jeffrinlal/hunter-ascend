@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'Theme/hunter_theme.dart';
 import 'utils/hunter_calculations.dart';
+import 'services/ads_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -332,23 +333,19 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   bool _isBannerReady = false;
 
   void loadBannerAd() {
-    _bannerAd = BannerAd(
+    _bannerAd = AdsService.createBannerAd(
       adUnitId: 'ca-app-pub-5435480116436845/4699186117',
-      size: AdSize.banner,
-      request: const AdRequest(),
-      listener: BannerAdListener(
-        onAdLoaded: (_) {
-          if (mounted) {
-            setState(() {
-              _isBannerReady = true;
-            });
-          }
-        },
-        onAdFailedToLoad: (ad, error) {
-          ad.dispose();
-          print('Banner failed: $error');
-        },
-      ),
+      onAdLoaded: (_) {
+        if (mounted) {
+          setState(() {
+            _isBannerReady = true;
+          });
+        }
+      },
+      onAdFailedToLoad: (ad, error) {
+        ad.dispose();
+        print('Banner failed: $error');
+      },
     );
 
     _bannerAd!.load();

@@ -10,6 +10,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'services/ads_service.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -87,21 +88,17 @@ class _MapScreenState extends State<MapScreen> {
     // TODO: Replace with your real iOS banner ad unit ID for production
         : 'ca-app-pub-3940256099942544/2934735716';
 
-    _bannerAd = BannerAd(
+    _bannerAd = AdsService.createBannerAd(
       adUnitId: adUnitId,
-      size: AdSize.banner,
-      request: const AdRequest(),
-      listener: BannerAdListener(
-        onAdLoaded: (ad) {
-          if (mounted) {
-            setState(() => _isBannerLoaded = true);
-          }
-        },
-        onAdFailedToLoad: (ad, error) {
-          ad.dispose();
-          debugPrint('Banner ad failed to load: $error');
-        },
-      ),
+      onAdLoaded: (ad) {
+        if (mounted) {
+          setState(() => _isBannerLoaded = true);
+        }
+      },
+      onAdFailedToLoad: (ad, error) {
+        ad.dispose();
+        debugPrint('Banner ad failed to load: $error');
+      },
     );
 
     _bannerAd!.load();

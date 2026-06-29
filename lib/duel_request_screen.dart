@@ -3,6 +3,7 @@ import 'Theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'services/ads_service.dart';
 
 class DuelRequestScreen extends StatefulWidget {
   const DuelRequestScreen({super.key});
@@ -28,13 +29,9 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
   }
 
   void loadBannerAd() {
-    bannerAd = BannerAd(
+    bannerAd = AdsService.createBannerAd(
       adUnitId: 'ca-app-pub-5435480116436845/4699186117',
-      request: const AdRequest(),
-      size: AdSize.banner,
-      listener: BannerAdListener(
-        onAdLoaded: (ad) => setState(() => isBannerReady = true),
-      ),
+      onAdLoaded: (ad) => setState(() => isBannerReady = true),
     );
     bannerAd!.load();
   }

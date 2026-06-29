@@ -423,6 +423,8 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                                 ),
                                     (route) => false,
                               );
+                              } catch (e) {
+                                debugPrint("generateMissions: $e");
                               } finally {
                                 _isGenerating = false;
                               }

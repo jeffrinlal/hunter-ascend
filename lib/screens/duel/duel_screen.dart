@@ -337,6 +337,8 @@ class _DuelScreenState extends State<DuelScreen> {
       );
     }
     await _cancelActiveQuest();
+    } catch (e) {
+      debugPrint("completeActiveQuest: $e");
     } finally {
       _completingActiveQuest = false;
     }

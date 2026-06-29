@@ -633,6 +633,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("🔥 Streak Restored ($previousStreak Days)")));
     });
     rewardedAd = null; isRewardedAdReady = false; loadRewardedAd();
+    } catch (e) {
+      debugPrint("showStreakRecoveryAd: $e");
     } finally {
       _isRecoveringStreak = false;
     }
@@ -1556,6 +1558,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
       Future.delayed(const Duration(seconds: 2), () { if (context.mounted) Navigator.pop(context); });
     }
+    } catch (e) {
+      debugPrint("completeQuest: $e");
     } finally {
       _isCompletingQuest = false;
     }
@@ -2811,6 +2815,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
       Future.delayed(const Duration(seconds: 2), () { if (context.mounted) Navigator.pop(context); });
     }
+    } catch (e) {
+      debugPrint("completeWeeklyQuest: $e");
     } finally {
       _isCompletingWeeklyQuest = false;
     }

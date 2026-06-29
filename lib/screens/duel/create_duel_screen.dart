@@ -188,6 +188,8 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
       );
       Navigator.pop(context);
     }
+    } catch (e) {
+      debugPrint("submitDuel: $e");
     } finally {
       _isSubmitting = false;
     }

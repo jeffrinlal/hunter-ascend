@@ -310,6 +310,8 @@ class _MapScreenState extends State<MapScreen> {
         SnackBar(content: Text("✅ Run saved! +$_xpEarned XP earned!")),
       );
     }
+    } catch (e) {
+      debugPrint("saveRun: $e");
     } finally {
       _isSavingRun = false;
     }

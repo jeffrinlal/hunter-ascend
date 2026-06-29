@@ -287,6 +287,8 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                             try {
                             await duel.reference.update({'status': 'declined'});
                             if (context.mounted) Navigator.pop(context);
+                            } catch (e) {
+                              debugPrint("declineDuel: $e");
                             } finally {
                               _isResponding = false;
                             }
@@ -347,6 +349,8 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                             });
                             await duel.reference.update({'status': 'accepted'});
                             if (context.mounted) Navigator.pop(context);
+                            } catch (e) {
+                              debugPrint("acceptDuel: $e");
                             } finally {
                               _isResponding = false;
                             }

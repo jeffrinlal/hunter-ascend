@@ -26,6 +26,7 @@ Future<void> createHunterProfile() async {
 
     final docRef =
     FirebaseFirestore.instance.collection('hunters').doc(user.uid);
+    try {
     final doc = await docRef.get();
 
     if (!doc.exists) {
@@ -36,6 +37,9 @@ Future<void> createHunterProfile() async {
             'streak': 0,
             'lastQuestDate': '',
         });
+    }
+    } catch (e) {
+      debugPrint("createHunterProfile: $e");
     }
 }
 
@@ -53,6 +57,8 @@ void main() async {
         systemNavigationBarDividerColor: Colors.transparent,
     ));
 
+    bool hasCompletedSetup = false;
+    try {
     await Firebase.initializeApp();
     await NotificationService().init();
     await NotificationService().scheduleAllNotifications();
@@ -63,11 +69,14 @@ void main() async {
     await MobileAds.instance.initialize();
 
     final prefs = await SharedPreferences.getInstance();
-    final hasCompletedSetup = prefs.getBool('hasCompletedSetup') ?? false;
+    hasCompletedSetup = prefs.getBool('hasCompletedSetup') ?? false;
 
     final isDarkMode = prefs.getBool('darkMode') ?? false;
     HunterTheme.isDark = isDarkMode;
     themeNotifier.value = isDarkMode ? ThemeMode.dark : ThemeMode.light;
+    } catch (e) {
+      debugPrint("startup: $e");
+    }
 
     runApp(HunterAscendApp(hasCompletedSetup: hasCompletedSetup));
 }

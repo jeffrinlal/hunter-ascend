@@ -63,6 +63,7 @@ class _MainShellState extends State<MainShell> {
   Future<void> _openDuels() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    try {
     final duelSnapshot = await FirebaseFirestore.instance
         .collection('duels')
         .where('participants', arrayContains: user.uid)
@@ -102,6 +103,9 @@ class _MainShellState extends State<MainShell> {
     }
     Navigator.push(
         context, MaterialPageRoute(builder: (_) => const CreateDuelScreen()));
+    } catch (e) {
+      debugPrint("openDuels: $e");
+    }
   }
 
   @override

@@ -451,19 +451,27 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     if (user == null) return;
     final today = DateTime.now().toString().substring(0, 10);
 
+    try {
     await FirebaseFirestore.instance.collection('calorie_logs').add({
       ...meal.toMap(),
       'uid': user.uid,
       'date': today,
     });
+    } catch (e) {
+      debugPrint("saveMeal: $e");
+    }
   }
 
   // ── Delete meal ───────────────────────────────────────────────────────
   Future<void> _deleteMeal(String docId) async {
+    try {
     await FirebaseFirestore.instance
         .collection('calorie_logs')
         .doc(docId)
         .delete();
+    } catch (e) {
+      debugPrint("deleteMeal: $e");
+    }
   }
 
   // ── Analyze text ─────────────────────────────────────────────────────

@@ -19,6 +19,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
   bool discipline = false;
   bool muscleGain = false;
   bool selfImprovement = false;
+  bool _isGenerating = false;
 
   double _weight = 0;
   double _height = 0;
@@ -390,6 +391,9 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                                 );
                                 return;
                               }
+                              if (_isGenerating) return;
+                              _isGenerating = true;
+                              try {
                               final prefs =
                               await SharedPreferences.getInstance();
                               await prefs.setBool('hasCompletedSetup', true);
@@ -419,6 +423,9 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                                 ),
                                     (route) => false,
                               );
+                              } finally {
+                                _isGenerating = false;
+                              }
                             },
                             child: Container(
                               height: 50,

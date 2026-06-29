@@ -296,6 +296,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int todaySteps = 0;
   bool questStarted = false;
   String activeQuest = "";
+  bool _isCompletingQuest = false;
+  bool _isCompletingWeeklyQuest = false;
+  bool _isRecoveringStreak = false;
 
   // ── Water intake ─────────────────────────────────────────
   int waterIntakeMl = 0;
@@ -580,6 +583,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void showStreakRecoveryAd() async {
+    if (_isRecoveringStreak) return;
+    _isRecoveringStreak = true;
+    try {
     if (!isRewardedAdReady || rewardedAd == null) {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
@@ -627,6 +633,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("🔥 Streak Restored ($previousStreak Days)")));
     });
     rewardedAd = null; isRewardedAdReady = false; loadRewardedAd();
+    } finally {
+      _isRecoveringStreak = false;
+    }
   }
 
   // ── Steps ────────────────────────────────────────────────
@@ -1494,6 +1503,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 
   Future<void> completeQuest() async {
+    if (_isCompletingQuest) return;
+    _isCompletingQuest = true;
+    try {
     bool leveledUp = false;
     _questCountdownTimer?.cancel();
     final user = FirebaseAuth.instance.currentUser;
@@ -1543,6 +1555,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       );
       Future.delayed(const Duration(seconds: 2), () { if (context.mounted) Navigator.pop(context); });
+    }
+    } finally {
+      _isCompletingQuest = false;
     }
   }
 
@@ -2734,6 +2749,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> completeWeeklyQuest() async {
+    if (_isCompletingWeeklyQuest) return;
+    _isCompletingWeeklyQuest = true;
+    try {
     bool leveledUp = false;
     _weeklyCountdownTimer?.cancel();
     final completedTitle = weeklyActiveTitle;
@@ -2792,6 +2810,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       );
       Future.delayed(const Duration(seconds: 2), () { if (context.mounted) Navigator.pop(context); });
+    }
+    } finally {
+      _isCompletingWeeklyQuest = false;
     }
   }
 

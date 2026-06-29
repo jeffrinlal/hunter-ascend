@@ -35,6 +35,7 @@ class _MapScreenState extends State<MapScreen> {
   bool _isPaused = false;
   StreamSubscription<Position>? _positionStream;
   Timer? _timer;
+  bool _isSavingRun = false;
   int _elapsedSeconds = 0;
   double _distanceKm = 0;
   int _selectedTab = 0; // 0 = map, 1 = history
@@ -261,6 +262,9 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _saveRun() async {
+    if (_isSavingRun) return;
+    _isSavingRun = true;
+    try {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
@@ -305,6 +309,9 @@ class _MapScreenState extends State<MapScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("✅ Run saved! +$_xpEarned XP earned!")),
       );
+    }
+    } finally {
+      _isSavingRun = false;
     }
   }
 

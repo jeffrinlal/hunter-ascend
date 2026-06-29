@@ -468,6 +468,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
 
   // ── Analyze text ─────────────────────────────────────────────────────
   Future<void> _analyzeText() async {
+    if (_isLoading) return;
     final text = _foodController.text.trim();
     if (text.isEmpty) return;
 
@@ -492,6 +493,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
 
   // ── Analyze photo ─────────────────────────────────────────────────────
   Future<void> _analyzePhoto(ImageSource source) async {
+    if (_isLoading) return;
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: source, imageQuality: 70);
     if (picked == null) return;

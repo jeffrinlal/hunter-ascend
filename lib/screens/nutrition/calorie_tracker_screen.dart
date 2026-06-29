@@ -72,14 +72,14 @@ class CalorieAIService {
       final result = await _geminiText(foodName);
       if (result != null) return result;
     } catch (e) {
-      print("GEMINI ERROR: $e");
+      debugPrint("GEMINI ERROR: $e");
     }
 
     try {
       final result = await _groqText(foodName);
       if (result != null) return result;
     } catch (e) {
-      print("GROQ ERROR: $e");
+      debugPrint("GROQ ERROR: $e");
     }
     return null;
   }
@@ -92,14 +92,14 @@ class CalorieAIService {
       final result = await _geminiPhoto(base64Image);
       if (result != null) return result;
     } catch (e) {
-      print("GEMINI PHOTO ERROR: $e");
+      debugPrint("GEMINI PHOTO ERROR: $e");
     }
 
     try {
       final result = await _groqPhoto(base64Image);
       if (result != null) return result;
     } catch (e) {
-      print("GROQ PHOTO ERROR: $e");
+      debugPrint("GROQ PHOTO ERROR: $e");
     }
 
     return null;
@@ -360,7 +360,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
       },
       onAdFailedToLoad: (ad, error) {
         ad.dispose();
-        print('Banner failed: $error');
+        debugPrint('Banner failed: $error');
       },
     );
 

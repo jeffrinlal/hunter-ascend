@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -22,7 +23,7 @@ class AIQuestService {
     required double height,
     required String goals,
   }) async {
-    print("⚡ Generating AI Quests...");
+    debugPrint("⚡ Generating AI Quests...");
     final bmi = weight / ((height / 100) * (height / 100));
     try {
       final response = await http.post(
@@ -108,7 +109,7 @@ Return JSON only.
         }),
       );
 
-      print("STATUS: ${response.statusCode}");
+      debugPrint("STATUS: ${response.statusCode}");
       final data = jsonDecode(response.body);
 
       String content =
@@ -121,9 +122,9 @@ Return JSON only.
 
       final quests = jsonDecode(content);
 
-      print("AI QUESTS:");
-      print(quests);
-      print("QUEST COUNT: ${quests.length}");
+      debugPrint("AI QUESTS:");
+      debugPrint(quests.toString());
+      debugPrint("QUEST COUNT: ${quests.length}");
       final uid = FirebaseAuth.instance.currentUser!.uid;
 
       await FirebaseFirestore.instance
@@ -137,13 +138,13 @@ Return JSON only.
         'aiQuests': quests,
       });
 
-      print("✅ AI Quests Saved");
+      debugPrint("✅ AI Quests Saved");
 
       return quests;
 
 
     } catch (e) {
-      print("ERROR: $e");
+      debugPrint("ERROR: $e");
       return [];
     }
 
@@ -158,7 +159,7 @@ Return JSON only.
     required String goals,
     required int level,
   }) async {
-    print("⚡ Generating AI Weekly Missions...");
+    debugPrint("⚡ Generating AI Weekly Missions...");
     try {
       final response = await http.post(
         Uri.parse('https://hunter-ascend-ai.jefferinlal.workers.dev/mistral'),
@@ -197,10 +198,10 @@ Rules:
       content =
           content.replaceAll('```json', '').replaceAll('```', '').trim();
       final missions = jsonDecode(content);
-      print("AI WEEKLY MISSIONS: $missions");
+      debugPrint("AI WEEKLY MISSIONS: $missions");
       return missions is List ? missions : [];
     } catch (e) {
-      print("WEEKLY ERROR: $e");
+      debugPrint("WEEKLY ERROR: $e");
       return [];
     }
   }

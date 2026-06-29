@@ -57,7 +57,7 @@ void main() async {
     await NotificationService().init();
     await NotificationService().scheduleAllNotifications();
 
-    print("USER ON STARTUP: ${FirebaseAuth.instance.currentUser?.uid}");
+    debugPrint("USER ON STARTUP: ${FirebaseAuth.instance.currentUser?.uid}");
 
     await createHunterProfile();
     await MobileAds.instance.initialize();
@@ -112,7 +112,7 @@ class HunterAscendApp extends StatelessWidget {
             home: StreamBuilder<User?>(
                 stream: FirebaseAuth.instance.authStateChanges(),
                 builder: (context, snapshot) {
-                    print("AUTH USER: ${snapshot.data?.uid}");
+                    debugPrint("AUTH USER: ${snapshot.data?.uid}");
 
                     if (snapshot.connectionState == ConnectionState.waiting) {
                         return const _LoadingScreen();

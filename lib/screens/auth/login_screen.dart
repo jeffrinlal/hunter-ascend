@@ -110,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen>
 
       _navigate(context, data, onboardingDone);
     } catch (e) {
-      print("✗ Guest Sign In error: $e");
+      debugPrint("✗ Guest Sign In error: $e");
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Sign in failed. Please try again.")),
@@ -170,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen>
 
       _navigate(context, data, onboardingDone);
     } catch (e) {
-      print("✗ Google Sign In error: $e");
+      debugPrint("✗ Google Sign In error: $e");
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Sign in failed. Please try again.")),

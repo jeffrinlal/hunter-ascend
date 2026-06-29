@@ -538,7 +538,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     bannerAd = AdsService.createBannerAd(
       adUnitId: AppConstants.dashboardBannerAdUnitId,
       onAdLoaded: (ad) => setState(() => isBannerReady = true),
-      onAdFailedToLoad: (ad, error) { print("BANNER FAILED: $error"); ad.dispose(); },
+      onAdFailedToLoad: (ad, error) { debugPrint("BANNER FAILED: $error"); ad.dispose(); },
     );
     bannerAd!.load();
   }
@@ -548,7 +548,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       adUnitId: AppConstants.dashboardBannerAdUnitId,
       onAdLoaded: (ad) => setState(() => weeklyBannerReady = true),
       onAdFailedToLoad: (ad, error) {
-        print("WEEKLY BANNER FAILED: $error");
+        debugPrint("WEEKLY BANNER FAILED: $error");
         ad.dispose();
       },
     );
@@ -561,7 +561,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) { rewardedAd = ad; setState(() => isRewardedAdReady = true); },
-        onAdFailedToLoad: (error) { print("REWARDED FAILED: $error"); isRewardedAdReady = false; },
+        onAdFailedToLoad: (error) { debugPrint("REWARDED FAILED: $error"); isRewardedAdReady = false; },
       ),
     );
   }
@@ -572,7 +572,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) { punishmentAd = ad; setState(() => isPunishmentAdReady = true); },
-        onAdFailedToLoad: (error) { print("PUNISHMENT AD FAILED: $error"); isPunishmentAdReady = false; },
+        onAdFailedToLoad: (error) { debugPrint("PUNISHMENT AD FAILED: $error"); isPunishmentAdReady = false; },
       ),
     );
   }
@@ -683,7 +683,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         setState(() => todaySteps = todayCount);
       },
-      onError: (error) => print("❌ Step counter error: $error"),
+      onError: (error) => debugPrint("❌ Step counter error: $error"),
       cancelOnError: false,
     );
   }

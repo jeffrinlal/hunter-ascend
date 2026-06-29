@@ -106,7 +106,7 @@ class _DuelScreenState extends State<DuelScreen> {
         if (!mounted) return;
         setState(() => isBannerReady = true);
       },
-      onAdFailedToLoad: (ad, error) { print("BANNER FAILED: $error"); ad.dispose(); },
+      onAdFailedToLoad: (ad, error) { debugPrint("BANNER FAILED: $error"); ad.dispose(); },
     );
     bannerAd!.load();
   }

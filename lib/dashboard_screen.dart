@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'Theme/hunter_theme.dart';
+import 'widgets/dashboard/steps_card.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -1649,7 +1650,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         _buildHunterCard(),
                         const SizedBox(height: 16),
-                        _buildStepsCard(),
+                        StepsCard(steps: todaySteps),
                         const SizedBox(height: 16),
                         _buildQuickActions(),
                         const SizedBox(height: 16),
@@ -1838,56 +1839,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ── Steps Card ───────────────────────────────────────────
-  Widget _buildStepsCard() {
-    final percent = ((todaySteps / 10000) * 100).clamp(0, 100).toInt();
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _border, width: 1.5),
-        boxShadow: [BoxShadow(color: _blue.withOpacity(0.1), blurRadius: 16)],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(10)),
-              child: Icon(Icons.directions_walk, color: _blue, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Text("TODAY'S MISSION", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, letterSpacing: 1)),
-            const Spacer(),
-            Text("$percent%", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
-          ]),
-          const SizedBox(height: 10),
-          Text("10,000 STEPS", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: LinearProgressIndicator(
-              value: (todaySteps / 10000).clamp(0.0, 1.0),
-              minHeight: 10,
-              backgroundColor: _blueDim,
-              valueColor: AlwaysStoppedAnimation<Color>(_blue),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text("$todaySteps / 10,000", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
-            Text(
-              todaySteps >= 10000 ? "🏆 Goal Completed! +25 XP" : "🎯 Keep going!",
-              style: TextStyle(color: todaySteps >= 10000 ? Colors.amber : HunterTheme.textTertiary, fontSize: 12),
-            ),
-          ]),
-        ],
-      ),
-    );
-  }
-
   // ── Active Quest Card ────────────────────────────────────
   Widget _buildActiveQuestCard() {
     return Container(

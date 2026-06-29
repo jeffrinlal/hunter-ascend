@@ -295,6 +295,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int xp = 0;
   int level = 1;
   int todaySteps = 0;
+
+  // ── Step reward / offset state (cached in memory) ────────
+  // Loaded once during initStepCounter and refreshed on day change so we do
+  // not issue a Firestore .get() on every pedometer event. The guard flag
+  // ensures the +25 XP daily reward is granted at most once per day even if
+  // several pedometer events arrive before Firestore finishes updating.
+  bool _stepRewardGrantedToday = false;
+  int _stepOffset = 0;
+  String _stepOffsetDate = '';
+
   bool questStarted = false;
   String activeQuest = "";
   bool _isCompletingQuest = false;
@@ -638,42 +648,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
+    // Load today's step offset + reward state ONCE up front so the per-event
+    // handler does not need a Firestore .get() on every pedometer event.
+    await _loadStepState();
+
     _stepSubscription = Pedometer.stepCountStream.listen(
           (StepCount event) async {
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) return;
 
         final today = DateTime.now().toString().substring(0, 10);
-        final doc = await FirebaseFirestore.instance
-            .collection('hunters')
-            .doc(user.uid)
-            .get();
-        final data = doc.data() ?? {};
 
-        int offset = data['stepOffset'] ?? 0;
-        String offsetDate = data['stepOffsetDate'] ?? '';
-
-        // New day — save boot-count as today's offset
-        if (offsetDate != today) {
-          offset = event.steps;
+        // New day — save boot-count as today's offset and refresh reward state.
+        if (_stepOffsetDate != today) {
+          _stepOffset = event.steps;
+          _stepOffsetDate = today;
+          _stepRewardGrantedToday = false;
           await FirebaseFirestore.instance
               .collection('hunters')
               .doc(user.uid)
               .update({
-            'stepOffset': offset,
+            'stepOffset': _stepOffset,
             'stepOffsetDate': today,
           });
         }
 
-        final todayCount = (event.steps - offset).clamp(0, 999999);
+        final todayCount = (event.steps - _stepOffset).clamp(0, 999999);
 
-        // Award XP at 10k
-        if (todayCount >= 10000 && data['lastStepRewardDate'] != today) {
+        // Award XP at 10k. The in-memory guard is flipped synchronously before
+        // the await, so any further events queued behind this one see it set
+        // and cannot grant a second reward for the same day.
+        if (todayCount >= 10000 && !_stepRewardGrantedToday) {
+          _stepRewardGrantedToday = true;
           await FirebaseFirestore.instance
               .collection('hunters')
               .doc(user.uid)
               .update({
-            'xp': (data['xp'] ?? 0) + 25,
+            'xp': FieldValue.increment(25),
             'lastStepRewardDate': today,
           });
           if (mounted) {
@@ -689,6 +700,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
       onError: (error) => debugPrint("❌ Step counter error: $error"),
       cancelOnError: false,
     );
+  }
+
+  // Loads today's cached step offset + reward state from Firestore. Called once
+  // during initialization (and effectively refreshed in-memory on day change),
+  // replacing the previous per-event .get().
+  Future<void> _loadStepState() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final today = DateTime.now().toString().substring(0, 10);
+    final doc = await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(user.uid)
+        .get();
+    final data = doc.data() ?? {};
+
+    _stepOffset = data['stepOffset'] ?? 0;
+    _stepOffsetDate = data['stepOffsetDate'] ?? '';
+    _stepRewardGrantedToday = data['lastStepRewardDate'] == today;
   }
   // ── Streak ───────────────────────────────────────────────
   Future<void> checkBrokenStreak() async {

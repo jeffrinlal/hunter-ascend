@@ -1827,7 +1827,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(width: 14),
               Expanded(
                 child: StreamBuilder<DocumentSnapshot>(
-                  stream: _hunterStream,
+                  stream: FirebaseFirestore.instance.collection('hunters').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
                   builder: (context, snapshot) {
                     String name = "Hunter";
                     if (snapshot.hasData && snapshot.data!.exists) {

@@ -503,7 +503,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     loadBannerAd();
     loadRewardedAd();
     loadPunishmentAd();
-    initStepCounter();
+    if (!widget.questsOnly) {
+      initStepCounter();
+    }
 
 
     WidgetsBinding.instance.addPostFrameCallback((_) {

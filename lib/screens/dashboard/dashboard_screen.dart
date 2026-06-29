@@ -17,6 +17,7 @@ import 'package:in_app_review/in_app_review.dart';
 import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'package:hunter_ascend/screens/map/map_screen.dart';
 import 'package:hunter_ascend/screens/nutrition/nutrition_screen.dart';
+import 'dart:typed_data';
 
 
 // ── Shield Rank Badge Painter ──────────────────────────────────────────────

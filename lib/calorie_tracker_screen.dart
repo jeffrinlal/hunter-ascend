@@ -316,19 +316,53 @@ class CalorieTrackerCard extends StatefulWidget {
 }
 
 class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
-  static Color get _bg => HunterTheme.surface; // soft surface
-  static Color get _card => HunterTheme.cardColor; // white card
-  static Color get _blue => HunterTheme.primary; // accent → orange/cyan
-  static Color get _blueDim => HunterTheme.surface; // secondary surface / track
-  static Color get _border => HunterTheme.primary.withOpacity(0.2); // tinted border
-  static Color get _green => HunterTheme.successDeep; // carbs
-  static Color get _red => HunterTheme.dangerDeep; // fat / over-goal
-  static Color get _orange => HunterTheme.primary; // brand accent
+  // ── Premium light palette (fixed) ─────────────────────────────────────
+  static const Color _bg = Color(0xFFFAFAFA); // page / input background
+  static const Color _card = Color(0xFFFFFFFF); // white card
+  static const Color _blue = Color(0xFFFF6B2B); // protein accent (orange)
+  static const Color _blueDim = Color(0xFFEFEFEF); // track / secondary surface
+  static Color get _border =>
+      const Color(0xFFFF6B2B).withOpacity(0.2); // tinted border
+  static const Color _green = Color(0xFF34C759); // carbs
+  static const Color _red = Color(0xFFFF5A5F); // fats / over-goal (coral)
+  static const Color _orange = Color(0xFFFF6B2B); // brand accent
+  static const Color _textPrimary = Color(0xFF1A1A1A);
+  static const Color _textSecondary = Color(0xFF666666);
+  static const Color _textTertiary = Color(0xFF999999);
 
   final TextEditingController _foodController = TextEditingController();
   bool _isLoading = false;
   BannerAd? _bannerAd;
   bool _isBannerReady = false;
+
+  // Collapsed meal sections (by category key).
+  final Set<String> _collapsedMeals = {};
+
+  // Meal categories in display order with their time windows.
+  static const List<Map<String, String>> _mealCategories = [
+    {'key': 'breakfast', 'emoji': '🌅', 'label': 'Breakfast'},
+    {'key': 'midMorning', 'emoji': '🍎', 'label': 'Mid Morning Snack'},
+    {'key': 'lunch', 'emoji': '🍱', 'label': 'Lunch'},
+    {'key': 'eveningSnack', 'emoji': '🌆', 'label': 'Evening Snack'},
+    {'key': 'dinner', 'emoji': '🍽️', 'label': 'Dinner'},
+    {'key': 'lateNight', 'emoji': '🌙', 'label': 'Late Night'},
+  ];
+
+  // Cached streams so collapsing/expanding sections (setState) doesn't
+  // re-subscribe and flicker. Same queries — created once.
+  late final Stream<DocumentSnapshot> _hunterStream;
+  late final Stream<List<MealEntry>> _mealsStream;
+
+  // Auto-categorize a meal purely from the time it was logged.
+  String _categoryForTime(DateTime t) {
+    final m = t.hour * 60 + t.minute;
+    if (m >= 360 && m < 630) return 'breakfast'; // 6:00–10:30
+    if (m >= 630 && m < 750) return 'midMorning'; // 10:30–12:30
+    if (m >= 750 && m < 930) return 'lunch'; // 12:30–15:30
+    if (m >= 930 && m < 1110) return 'eveningSnack'; // 15:30–18:30
+    if (m >= 1110) return 'dinner'; // 18:30–23:59
+    return 'lateNight'; // 0:00–5:59
+  }
 
   void loadBannerAd() {
     _bannerAd = BannerAd(
@@ -357,6 +391,10 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   void initState() {
     super.initState();
     loadBannerAd();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    _hunterStream =
+        FirebaseFirestore.instance.collection('hunters').doc(uid).snapshots();
+    _mealsStream = _todayMealsStream();
   }
 
   @override
@@ -533,7 +571,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
             const SizedBox(height: 16),
             Text(meal.name,
                 style: TextStyle(
-                    color: HunterTheme.textPrimary,
+                    color: _textPrimary,
                     fontSize: 18,
                     fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center),
@@ -558,7 +596,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                     child: Center(
                         child: Text("CANCEL",
                             style: TextStyle(
-                                color: HunterTheme.textSecondary,
+                                color: _textSecondary,
                                 fontWeight: FontWeight.bold))),
                   ),
                 ),
@@ -589,7 +627,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                     child: Center(
                         child: Text("LOG MEAL",
                             style: TextStyle(
-                                color: HunterTheme.textPrimary,
+                                color: _textPrimary,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 1))),
                   ),
@@ -610,7 +648,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
       const SizedBox(height: 2),
       Text(label,
           style: TextStyle(
-              color: HunterTheme.textSecondary, fontSize: 10, letterSpacing: 1)),
+              color: _textSecondary, fontSize: 10, letterSpacing: 1)),
     ]);
   }
 
@@ -628,15 +666,14 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     if (user == null) return const SizedBox();
 
     return StreamBuilder<DocumentSnapshot>(
-      stream:
-      FirebaseFirestore.instance.collection('hunters').doc(user.uid).snapshots(),
+      stream: _hunterStream,
       builder: (context, hunterSnap) {
         final hunterData =
             hunterSnap.data?.data() as Map<String, dynamic>? ?? {};
         final calorieGoal = _getCalorieGoal(hunterData);
 
         return StreamBuilder<List<MealEntry>>(
-          stream: _todayMealsStream(),
+          stream: _mealsStream,
           builder: (context, mealSnap) {
             final meals = mealSnap.data ?? [];
             final totalCals = meals.fold(0, (sum, m) => sum + m.calories);
@@ -644,264 +681,166 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
             final totalCarbs = meals.fold(0.0, (sum, m) => sum + m.carbs);
             final totalFat = meals.fold(0.0, (sum, m) => sum + m.fat);
             final progress = (totalCals / calorieGoal).clamp(0.0, 1.0);
+            final remaining =
+                (calorieGoal - totalCals) < 0 ? 0 : (calorieGoal - totalCals);
+            final hunterName =
+                (hunterData['hunterName'] ?? 'Hunter').toString();
 
-            return Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: _card,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _border, width: 1.5),
-                boxShadow: [
-                  BoxShadow(color: _orange.withOpacity(0.1), blurRadius: 16)
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 12),
+            // Display-only macro targets derived from the calorie goal
+            // (protein 30%, carbs 40%, fat 30%). Presentation only — no logic.
+            final proteinGoal = (calorieGoal * 0.30 / 4).round();
+            final carbsGoal = (calorieGoal * 0.40 / 4).round();
+            final fatGoal = (calorieGoal * 0.30 / 9).round();
 
-                  // ── Calories big number ───────────────────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 4),
+                // 1. Header
+                _buildHeader(hunterName),
+                const SizedBox(height: 20),
+                // 2. Calorie ring card
+                _buildCalorieRingCard(
+                  totalCals: totalCals,
+                  calorieGoal: calorieGoal,
+                  remaining: remaining,
+                  progress: progress,
+                  protein: totalProtein,
+                  proteinGoal: proteinGoal,
+                  fat: totalFat,
+                  fatGoal: fatGoal,
+                  carbs: totalCarbs,
+                  carbsGoal: carbsGoal,
+                ),
+                const SizedBox(height: 16),
+                // 3. Food search + tips (card)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: _cardDecoration(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      RichText(
-                        text: TextSpan(children: [
-                          TextSpan(
-                              text: "$totalCals",
-                              style: TextStyle(
-                                  color: HunterTheme.textPrimary,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold)),
-                          TextSpan(
-                              text: " / $calorieGoal kcal",
-                              style: TextStyle(
-                                  color: HunterTheme.textSecondary, fontSize: 14)),
-                        ]),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _orange.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: _orange.withOpacity(0.3)),
-                        ),
-                        child: Text(
-                          "${(progress * 100).toInt()}%",
-                          style: TextStyle(
-                              color: _orange,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // ── Progress bar ──────────────────────────────────────
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 8,
-                      backgroundColor: _blueDim,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        progress >= 1.0 ? _red : _orange,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // ── Macros row ────────────────────────────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _macroBar("Protein", totalProtein, _blue),
-                      _macroBar("Carbs", totalCarbs, _green),
-                      _macroBar("Fat", totalFat, _red),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // ── Input row ─────────────────────────────────────────
-                  Row(children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _foodController,
-                        style: TextStyle(color: HunterTheme.textPrimary, fontSize: 14),
-                        decoration: InputDecoration(
-                          hintText: "Type food name...",
-                          hintStyle:
-                          TextStyle(color: HunterTheme.textSecondary, fontSize: 13),
-                          filled: true,
-                          fillColor: _bg,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 10),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: _border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                            BorderSide(color: _orange, width: 1.5),
+                      Row(children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _foodController,
+                            style: const TextStyle(
+                                color: _textPrimary, fontSize: 14),
+                            decoration: InputDecoration(
+                              hintText: "Type food name...",
+                              hintStyle: const TextStyle(
+                                  color: _textSecondary, fontSize: 13),
+                              filled: true,
+                              fillColor: _bg,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: _border),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: _orange, width: 1.5),
+                              ),
+                            ),
+                            onSubmitted: (_) => _analyzeText(),
                           ),
                         ),
-                        onSubmitted: (_) => _analyzeText(),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Search button
-                    GestureDetector(
-                      onTap: _isLoading ? null : _analyzeText,
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                            color: _orange, borderRadius: BorderRadius.circular(12)),
-                        child: _isLoading
-                            ? SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                color: HunterTheme.textPrimary, strokeWidth: 2))
-                            : Icon(Icons.search,
-                            color: HunterTheme.textPrimary, size: 20),
-                      ),
-                    ),
-
-                    const SizedBox(width: 8),
-
-                    // Camera button
-                    GestureDetector(
-                      onTap: _isLoading ? null : () => _showPhotoOptions(),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                            color: _orange.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: _orange.withOpacity(0.4))),
-                        child: Icon(Icons.camera_alt,
-                            color: _orange, size: 20),
-                      ),
-                    ),
-                  ]),
-
-                  ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _bg,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _border),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "💡 FOOD SEARCH TIPS",
-                            style: TextStyle(
-                              color: _orange,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                          SizedBox(height: 6),
-                          Text(
-                            "Examples: 2 idli • 100g chicken breast •"
-                            " 3 eggs and 2 chapati •"
-                            "1 bowl curd rice",
-                            style: TextStyle(
-                              color: HunterTheme.textSecondary,
-                              fontSize: 13,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            "⚠️ AI estimates calories and macros. Results may vary.",
-                            style: TextStyle(
-                              color: HunterTheme.textTertiary,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-
-                  // ── Meal history ───────────────────────────────────
-                  ...[
-                    const SizedBox(height: 16),
-                    Divider(color: _border),
-                    const SizedBox(height: 12),
-                    Row(children: [
-                      Text("Today's Meals",
-                          style: TextStyle(
-                              color: HunterTheme.textPrimary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                            color: _blueDim,
-                            borderRadius: BorderRadius.circular(20)),
-                        child: Text("${meals.length}",
-                            style: TextStyle(
+                        const SizedBox(width: 8),
+                        // Search button
+                        GestureDetector(
+                          onTap: _isLoading ? null : _analyzeText,
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
                                 color: _orange,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold)),
-                      ),
-                    ]),
-                    const SizedBox(height: 10),
-
-                    if (meals.isEmpty)
+                                borderRadius: BorderRadius.circular(12)),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white, strokeWidth: 2))
+                                : const Icon(Icons.search,
+                                    color: Colors.white, size: 20),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Camera button
+                        GestureDetector(
+                          onTap:
+                              _isLoading ? null : () => _showPhotoOptions(),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                                color: _orange.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: _orange.withOpacity(0.4))),
+                            child: const Icon(Icons.camera_alt,
+                                color: _orange, size: 20),
+                          ),
+                        ),
+                      ]),
+                      const SizedBox(height: 12),
                       Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: _border)),
-                        child: Center(
-                          child: Column(children: [
-                            Icon(Icons.restaurant_menu,
-                                color: HunterTheme.textTertiary, size: 32),
-                            SizedBox(height: 8),
-                            Text("No meals logged yet",
-                                style: TextStyle(
-                                    color: HunterTheme.textSecondary, fontSize: 13)),
-                            Text("Type food or take a photo!",
-                                style: TextStyle(
-                                    color: HunterTheme.textTertiary, fontSize: 11)),
-                          ]),
+                          color: _bg,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: _border),
                         ),
-                      )
-                    else
-                      ...mealSnap.data!.asMap().entries.map((entry) {
-                        final meal = entry.value;
-                        return _buildMealTile(meal, mealSnap);
-                      }),
-
-                    const SizedBox(height: 20),
-
-                    if (_isBannerReady)
-                      Center(
-                        child: SizedBox(
-                          width: _bannerAd!.size.width.toDouble(),
-                          height: _bannerAd!.size.height.toDouble(),
-                          child: AdWidget(ad: _bannerAd!),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              "💡 FOOD SEARCH TIPS",
+                              style: TextStyle(
+                                color: _orange,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                            SizedBox(height: 6),
+                            Text(
+                              "Examples: 2 idli • 100g chicken breast •"
+                              " 3 eggs and 2 chapati •"
+                              "1 bowl curd rice",
+                              style: TextStyle(
+                                color: _textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              "⚠️ AI estimates calories and macros. Results may vary.",
+                              style: TextStyle(
+                                color: _textTertiary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-
-                    const SizedBox(height: 10),
-                  ],
-                ],
-              ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // 4. Auto-categorized meals (by log time)
+                _buildMealCategories(meals, mealSnap),
+                const SizedBox(height: 20),
+                // 5. Ad banner
+                if (_isBannerReady)
+                  Center(
+                    child: SizedBox(
+                      width: _bannerAd!.size.width.toDouble(),
+                      height: _bannerAd!.size.height.toDouble(),
+                      child: AdWidget(ad: _bannerAd!),
+                    ),
+                  ),
+                const SizedBox(height: 10),
+              ],
             );
           },
         );
@@ -909,14 +848,161 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     );
   }
 
-  Widget _macroBar(String label, double value, Color color) {
-    return Column(children: [
-      Text("${value.toStringAsFixed(0)}g",
+  // ── Header: greeting ──────────────────────────────────────────────────
+  Widget _buildHeader(String hunterName) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            "Hello $hunterName!",
+            style: const TextStyle(
+              color: _textPrimary,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  BoxDecoration _cardDecoration() => BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border, width: 1.5),
+        boxShadow: [
+          BoxShadow(color: _orange.withOpacity(0.06), blurRadius: 14),
+        ],
+      );
+
+  // ── Calorie ring card ─────────────────────────────────────────────────
+  Widget _buildCalorieRingCard({
+    required int totalCals,
+    required int calorieGoal,
+    required int remaining,
+    required double progress,
+    required double protein,
+    required int proteinGoal,
+    required double fat,
+    required int fatGoal,
+    required double carbs,
+    required int carbsGoal,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      decoration: _cardDecoration(),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(child: _kcalSideInfo("Consumed", totalCals, _orange)),
+              SizedBox(
+                width: 160,
+                height: 160,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 160,
+                      height: 160,
+                      child: CircularProgressIndicator(
+                        value: progress,
+                        strokeWidth: 14,
+                        backgroundColor: _blueDim,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          progress >= 1.0 ? _red : _orange,
+                        ),
+                        strokeCap: StrokeCap.round,
+                      ),
+                    ),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          "$totalCals",
+                          style: const TextStyle(
+                            color: _textPrimary,
+                            fontSize: 38,
+                            fontWeight: FontWeight.bold,
+                            height: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "of $calorieGoal kcal",
+                          style: const TextStyle(
+                            color: _textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                  child: _kcalSideInfo("Remaining", remaining, _textPrimary)),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // 3 macro bars side by side
+          Row(
+            children: [
+              Expanded(
+                  child: _macroBar("Protein", protein, proteinGoal, _orange)),
+              const SizedBox(width: 12),
+              Expanded(child: _macroBar("Fats", fat, fatGoal, _red)),
+              const SizedBox(width: 12),
+              Expanded(child: _macroBar("Carbs", carbs, carbsGoal, _green)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _kcalSideInfo(String label, int value, Color color) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          "$value",
           style: TextStyle(
-              color: color, fontSize: 14, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 2),
-      Text(label, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 10)),
-    ]);
+              color: color, fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const Text("kcal",
+            style: TextStyle(color: _textSecondary, fontSize: 11)),
+        const SizedBox(height: 4),
+        Text(label,
+            style: const TextStyle(color: _textTertiary, fontSize: 11)),
+      ],
+    );
+  }
+
+  Widget _macroBar(String label, double value, int goal, Color color) {
+    final pct = goal > 0 ? (value / goal).clamp(0.0, 1.0) : 0.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: TextStyle(
+                color: color, fontSize: 12, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: LinearProgressIndicator(
+            value: pct,
+            minHeight: 6,
+            backgroundColor: _blueDim,
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text("${value.toStringAsFixed(0)}g / ${goal}g",
+            style: const TextStyle(color: _textSecondary, fontSize: 11)),
+      ],
+    );
   }
 
   Widget _buildMealTile(MealEntry meal, AsyncSnapshot<List<MealEntry>> snap) {
@@ -947,12 +1033,12 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(meal.name,
                 style: TextStyle(
-                    color: HunterTheme.textPrimary,
+                    color: _textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.w600)),
             Text(
               "${meal.protein.toStringAsFixed(0)}g P  •  ${meal.carbs.toStringAsFixed(0)}g C  •  ${meal.fat.toStringAsFixed(0)}g F",
-              style: TextStyle(color: HunterTheme.textSecondary, fontSize: 11),
+              style: TextStyle(color: _textSecondary, fontSize: 11),
             ),
           ]),
         ),
@@ -960,7 +1046,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
             style: TextStyle(
                 color: _orange, fontSize: 15, fontWeight: FontWeight.bold)),
         const SizedBox(width: 4),
-        Text("kcal", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 10)),
+        Text("kcal", style: TextStyle(color: _textSecondary, fontSize: 10)),
         const SizedBox(width: 8),
         GestureDetector(
           onTap: () async {
@@ -968,9 +1054,105 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
               await _deleteMeal(meal.id!);
             }
           },
-          child: Icon(Icons.delete_outline, color: HunterTheme.textTertiary, size: 18),
+          child: Icon(Icons.delete_outline, color: _textTertiary, size: 18),
         ),
       ]),
+    );
+  }
+
+  // ── Auto-categorized meal sections (grouped by each meal's log time) ──
+  Widget _buildMealCategories(
+      List<MealEntry> meals, AsyncSnapshot<List<MealEntry>> mealSnap) {
+    final Map<String, List<MealEntry>> grouped = {
+      for (final c in _mealCategories) c['key']!: <MealEntry>[]
+    };
+    for (final m in meals) {
+      grouped[_categoryForTime(m.time)]!.add(m);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final c in _mealCategories)
+          _buildMealSection(
+            c['key']!,
+            c['emoji']!,
+            c['label']!,
+            grouped[c['key']!]!,
+            mealSnap,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMealSection(String key, String emoji, String label,
+      List<MealEntry> items, AsyncSnapshot<List<MealEntry>> snap) {
+    final sectionTotal = items.fold(0, (s, m) => s + m.calories);
+    final collapsed = _collapsedMeals.contains(key);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: _bg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header — tap to collapse / expand (no + button)
+          InkWell(
+            onTap: () => setState(() {
+              if (collapsed) {
+                _collapsedMeals.remove(key);
+              } else {
+                _collapsedMeals.add(key);
+              }
+            }),
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(children: [
+                Expanded(
+                  child: Text("$emoji  $label",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: _textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold)),
+                ),
+                Text("$sectionTotal kcal",
+                    style: TextStyle(
+                        color: _orange,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                Icon(
+                  collapsed
+                      ? Icons.keyboard_arrow_down
+                      : Icons.keyboard_arrow_up,
+                  color: _textTertiary,
+                  size: 22,
+                ),
+              ]),
+            ),
+          ),
+          if (!collapsed)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: items.isEmpty
+                  ? Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text("No foods added",
+                          style: TextStyle(
+                              color: _textTertiary, fontSize: 13)),
+                    )
+                  : Column(
+                      children:
+                          items.map((m) => _buildMealTile(m, snap)).toList(),
+                    ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -985,7 +1167,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Text("Add Food Photo",
               style: TextStyle(
-                  color: HunterTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+                  color: _textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           Row(children: [
             Expanded(

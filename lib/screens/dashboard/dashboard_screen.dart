@@ -1815,11 +1815,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       );
                     }
-                    return ClipOval(
-                      child: Image.asset(
-                        'assets/avatars/avatar_1.png',
-                        fit: BoxFit.cover,
-                      ),
+                    return Center(
+                      child: Icon(Icons.person, color: _blue, size: 40),
                     );
                   },
                 ),

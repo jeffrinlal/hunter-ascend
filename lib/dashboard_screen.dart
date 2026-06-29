@@ -409,6 +409,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   RewardedAd? punishmentAd;
   bool isPunishmentAdReady = false;
 
+  // ── Cached Firestore streams ─────────────────────────────
+  // Created ONCE so per-second/per-minute setState rebuilds don't recreate
+  // the stream subscriptions (which reset StreamBuilder to waiting and cause
+  // the random blink/flash). Same data, same queries — just not re-subscribed.
+  Stream<DocumentSnapshot<Object?>>? _hunterStream;
+  Stream<QuerySnapshot<Object?>>? _customQuestsStream;
+
   // ── Helpers ──────────────────────────────────────────────
   String get hunterRank {
     if (level >= 30) return "S RANK";
@@ -466,6 +473,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    _hunterStream = FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(uid)
+        .snapshots();
+    _customQuestsStream = FirebaseFirestore.instance
+        .collection('custom_quests')
+        .where('uid', isEqualTo: uid)
+        .snapshots();
+
     updateQuestCountdown();
 
     countdownTimer = Timer.periodic(
@@ -1622,14 +1640,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 _buildTopBar(),
                 const SizedBox(height: 20),
                 StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('hunters')
-                      .doc(FirebaseAuth.instance.currentUser?.uid)
-                      .snapshots(),
+                  stream: _hunterStream,
                   builder: (context, snap) {
-                    final loading =
-                        snap.connectionState == ConnectionState.waiting ||
-                            !snap.hasData;
+                    final loading = !snap.hasData;
                     if (loading) return buildDashboardSkeleton();
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1670,10 +1683,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         GestureDetector(
           onTap: () => _showNotificationDialog(),
           child: StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('hunters')
-                .doc(FirebaseAuth.instance.currentUser?.uid)
-                .snapshots(),
+            stream: _hunterStream,
             builder: (context, snapshot) {
               bool hasNotif = false;
               if (snapshot.hasData && snapshot.data!.exists) {
@@ -1712,7 +1722,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const Spacer(),
         StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance.collection('hunters').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
+          stream: _hunterStream,
           builder: (context, snapshot) {
             int streak = 0;
             if (snapshot.hasData && snapshot.data!.exists) {
@@ -1753,10 +1763,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   boxShadow: [BoxShadow(color: _blue.withOpacity(0.4), blurRadius: 16)],
                 ),
                 child: StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('hunters')
-                      .doc(FirebaseAuth.instance.currentUser?.uid)
-                      .snapshots(),
+                  stream: _hunterStream,
                   builder: (context, snap) {
                     final data = snap.data?.data() as Map<String, dynamic>?;
                     final pic = data?['profilePicture'];
@@ -1782,7 +1789,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(width: 14),
               Expanded(
                 child: StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance.collection('hunters').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
+                  stream: _hunterStream,
                   builder: (context, snapshot) {
                     String name = "Hunter";
                     if (snapshot.hasData && snapshot.data!.exists) {
@@ -1973,7 +1980,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ── Quests Section ───────────────────────────────────────
   Widget _buildQuestsSection() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('custom_quests').where('uid', isEqualTo: FirebaseAuth.instance.currentUser?.uid).snapshots(),
+      stream: _customQuestsStream,
       builder: (context, customSnapshot) {
         final customDocs = customSnapshot.data?.docs ?? [];
         final totalQuests = generatedQuests.length + customDocs.length;
@@ -2046,7 +2053,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const Spacer(),
               StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance.collection('hunters').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
+                stream: _hunterStream,
                 builder: (context, snapshot) {
                   String mode = "MODE";
                   if (snapshot.hasData && snapshot.data!.exists) {

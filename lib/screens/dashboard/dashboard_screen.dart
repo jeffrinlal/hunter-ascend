@@ -1859,26 +1859,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           const SizedBox(height: 16),
 
-          // Level + XP
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text("LEVEL $level", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 30, fontWeight: FontWeight.bold)),
-            Text("$xp / 500 XP", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
-          ]),
+          // Level + XP — read live from the hunter document so XP/level update
+          // immediately when Firestore changes, instead of using the local
+          // fields which are only refreshed on (re)initialization.
+          StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance.collection('hunters').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
+            builder: (context, snapshot) {
+              final data = snapshot.data?.data() as Map<String, dynamic>?;
+              final liveXp = (data?['xp'] ?? xp) as int;
+              final liveLevel = (data?['level'] ?? level) as int;
+              return Column(
+                children: [
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Text("LEVEL $liveLevel", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 30, fontWeight: FontWeight.bold)),
+                    Text("$liveXp / 500 XP", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
+                  ]),
 
-          const SizedBox(height: 8),
+                  const SizedBox(height: 8),
 
-          // XP bar
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: xp / 500),
-            duration: const Duration(milliseconds: 800),
-            builder: (context, value, _) => ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: LinearProgressIndicator(
-                value: value, minHeight: 8,
-                backgroundColor: _blueDim,
-                valueColor: AlwaysStoppedAnimation<Color>(_blue),
-              ),
-            ),
+                  // XP bar
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: liveXp / 500),
+                    duration: const Duration(milliseconds: 800),
+                    builder: (context, value, _) => ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: LinearProgressIndicator(
+                        value: value, minHeight: 8,
+                        backgroundColor: _blueDim,
+                        valueColor: AlwaysStoppedAnimation<Color>(_blue),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),

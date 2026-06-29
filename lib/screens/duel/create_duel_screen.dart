@@ -20,6 +20,7 @@ class CreateDuelScreen extends StatefulWidget {
 class _CreateDuelScreenState extends State<CreateDuelScreen> {
   final TextEditingController hunterNameController = TextEditingController();
   final TextEditingController questController = TextEditingController();
+  bool _isSubmitting = false;
   List<Map<String, dynamic>> duelQuests = [];
   @override
   void initState() {
@@ -73,6 +74,9 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
   }
 
   Future<void> _submitDuel() async {
+    if (_isSubmitting) return;
+    _isSubmitting = true;
+    try {
     // ── Auth check first ──────────────────────────────────────────
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -188,6 +192,9 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
         const SnackBar(content: Text("⚔️ Duel challenge sent!")),
       );
       Navigator.pop(context);
+    }
+    } finally {
+      _isSubmitting = false;
     }
   }
 

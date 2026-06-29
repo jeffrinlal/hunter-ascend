@@ -414,6 +414,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   @override
   void dispose() {
     _foodController.dispose();
+    _bannerAd?.dispose();
     super.dispose();
   }
 

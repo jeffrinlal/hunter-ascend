@@ -530,11 +530,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     _questCountdownTimer?.cancel();
+    _weeklyCountdownTimer?.cancel();
     _stepSubscription?.cancel();
     countdownTimer?.cancel();
 
+    bannerAd?.dispose();
+    weeklyBannerAd?.dispose();
     rewardedAd?.dispose();
     punishmentAd?.dispose();
+    customQuestController.dispose();
     super.dispose();
   }
 

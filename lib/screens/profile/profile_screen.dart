@@ -1222,7 +1222,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Future<void> _uploadProfilePicture() async {    final picker = ImagePicker();
+  Future<void> _uploadProfilePicture() async {
+    try {
+    final picker = ImagePicker();
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 50,
@@ -1258,6 +1260,9 @@ class _ProfileScreenState extends State<ProfileScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✅ Profile picture updated!')),
       );
+    }
+    } catch (e) {
+      debugPrint("uploadProfilePicture: $e");
     }
   }
 
@@ -1313,6 +1318,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 final user = FirebaseAuth.instance.currentUser;
                 if (user == null) return;
 
+                try {
                 await FirebaseFirestore.instance
                     .collection('hunters')
                     .doc(user.uid)
@@ -1329,6 +1335,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                 if (mounted) {
                   Navigator.pop(context);
                   setState(() {});
+                }
+                } catch (e) {
+                  debugPrint("updateWeight: $e");
                 }
               },
               child: const Text('SAVE',

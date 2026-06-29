@@ -35,6 +35,7 @@ class _MapScreenState extends State<MapScreen> {
   bool _isPaused = false;
   StreamSubscription<Position>? _positionStream;
   Timer? _timer;
+  bool _isSavingRun = false;
   int _elapsedSeconds = 0;
   double _distanceKm = 0;
   int _selectedTab = 0; // 0 = map, 1 = history
@@ -124,6 +125,7 @@ class _MapScreenState extends State<MapScreen> {
     }
 
     final position = await Geolocator.getCurrentPosition();
+    if (!mounted) return;
     setState(() {
       _currentPosition = LatLng(position.latitude, position.longitude);
     });
@@ -260,10 +262,12 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _saveRun() async {
+    if (_isSavingRun) return;
+    _isSavingRun = true;
+    try {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    try {
     // Save run to Firestore
     await FirebaseFirestore.instance.collection('runs').add({
       'uid': user.uid,
@@ -307,7 +311,9 @@ class _MapScreenState extends State<MapScreen> {
       );
     }
     } catch (e) {
-      debugPrint("Save run error: $e");
+      debugPrint("saveRun: $e");
+    } finally {
+      _isSavingRun = false;
     }
   }
 

@@ -19,6 +19,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
   bool discipline = false;
   bool muscleGain = false;
   bool selfImprovement = false;
+  bool _isGenerating = false;
 
   double _weight = 0;
   double _height = 0;
@@ -73,6 +74,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
 
     final data = doc.data()!;
 
+    if (!mounted) return;
     setState(() {
       _weight = (data['weight'] ?? 70).toDouble();
       _height = (data['height'] ?? 170).toDouble();
@@ -389,6 +391,9 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                                 );
                                 return;
                               }
+                              if (_isGenerating) return;
+                              _isGenerating = true;
+                              try {
                               final prefs =
                               await SharedPreferences.getInstance();
                               await prefs.setBool('hasCompletedSetup', true);
@@ -404,6 +409,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                                 'muscleGain': muscleGain,
                                 'selfImprovement': selfImprovement,
                               });
+                              if (!mounted) return;
                               Navigator.pushAndRemoveUntil(
                                 context,
                                 MaterialPageRoute(
@@ -417,6 +423,11 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                                 ),
                                     (route) => false,
                               );
+                              } catch (e) {
+                                debugPrint("generateMissions: $e");
+                              } finally {
+                                _isGenerating = false;
+                              }
                             },
                             child: Container(
                               height: 50,

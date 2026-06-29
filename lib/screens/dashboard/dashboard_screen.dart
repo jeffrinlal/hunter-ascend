@@ -298,6 +298,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String activeQuest = "";
   bool _isCompletingQuest = false;
   bool _isCompletingWeeklyQuest = false;
+  bool _isRecoveringStreak = false;
 
   // ── Water intake ─────────────────────────────────────────
   int waterIntakeMl = 0;
@@ -344,6 +345,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .doc(uid)
         .get();
 
+    if (!mounted) return;
     final data = doc.data() ?? {};
 
     final today = DateTime.now()
@@ -394,6 +396,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       goals: goalString,
     );
 
+    if (!mounted) return;
     setState(() {
       generatedQuests = quests.map<Map<String, dynamic>>((q) {
         return {
@@ -584,6 +587,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void showStreakRecoveryAd() async {
+    if (_isRecoveringStreak) return;
+    _isRecoveringStreak = true;
+    try {
     if (!isRewardedAdReady || rewardedAd == null) {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
@@ -631,6 +637,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("🔥 Streak Restored ($previousStreak Days)")));
     });
     rewardedAd = null; isRewardedAdReady = false; loadRewardedAd();
+    } catch (e) {
+      debugPrint("showStreakRecoveryAd: $e");
+    } finally {
+      _isRecoveringStreak = false;
+    }
   }
 
   // ── Steps ────────────────────────────────────────────────
@@ -964,6 +975,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       locked = daysPassed < 30;
       if (locked) remainingDays = 30 - daysPassed;
     }
+    if (!mounted) return;
     showDialog(
       context: context, barrierDismissible: false,
       builder: (_) => Dialog(
@@ -1073,6 +1085,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       'disciplineMode': 'casual',
                       'disciplineModeChangedAt': Timestamp.now(),
                     });
+                    if (!mounted) return;
                     Navigator.pop(context);
                   },
                   child: Container(
@@ -1114,6 +1127,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       'disciplineMode': 'strict',
                       'disciplineModeChangedAt': Timestamp.now(),
                     });
+                    if (!mounted) return;
                     Navigator.pop(context);
                   },
                   child: Container(
@@ -1190,6 +1204,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       },
     ];
 
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -1515,7 +1530,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await updateHunterOnline(); await updateStreak(); await saveCompletedQuest(completedQuestName);
 
     if (!mounted) return;
-
     showDialog(
       context: context, barrierDismissible: false,
       builder: (_) => AlertDialog(
@@ -1548,6 +1562,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
       Future.delayed(const Duration(seconds: 2), () { if (context.mounted) Navigator.pop(context); });
     }
+    } catch (e) {
+      debugPrint("completeQuest: $e");
     } finally {
       _isCompletingQuest = false;
     }
@@ -1609,6 +1625,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'completedQuests': [],
       'lastQuestResetDate': today,
     });
+    if (!mounted) return;
     setState(() => completedQuests.clear());
   }
 
@@ -2770,7 +2787,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     if (!mounted) return;
-
     showDialog(
       context: context, barrierDismissible: false,
       builder: (_) => AlertDialog(
@@ -2803,6 +2819,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
       Future.delayed(const Duration(seconds: 2), () { if (context.mounted) Navigator.pop(context); });
     }
+    } catch (e) {
+      debugPrint("completeWeeklyQuest: $e");
     } finally {
       _isCompletingWeeklyQuest = false;
     }

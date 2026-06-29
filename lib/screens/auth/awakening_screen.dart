@@ -396,6 +396,7 @@ class _AwakeningScreenState extends State<AwakeningScreen>
 
                         await Future.delayed(const Duration(seconds: 1));
 
+                        if (!mounted) return;
                         Navigator.push(
                           context,
                           MaterialPageRoute(

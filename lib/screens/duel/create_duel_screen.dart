@@ -110,6 +110,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
         .limit(1)
         .get();
 
+    if (!mounted) return;
     if (targetResult.docs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Hunter not found")),
@@ -153,6 +154,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
         .where('status', isEqualTo: 'pending')
         .get();
 
+    if (!mounted) return;
     if (targetHasActiveDuel) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Hunter is already in a duel")),
@@ -193,6 +195,8 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
       );
       Navigator.pop(context);
     }
+    } catch (e) {
+      debugPrint("submitDuel: $e");
     } finally {
       _isSubmitting = false;
     }

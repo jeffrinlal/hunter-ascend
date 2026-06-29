@@ -452,23 +452,32 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     if (user == null) return;
     final today = DateTime.now().toString().substring(0, 10);
 
+    try {
     await FirebaseFirestore.instance.collection('calorie_logs').add({
       ...meal.toMap(),
       'uid': user.uid,
       'date': today,
     });
+    } catch (e) {
+      debugPrint("saveMeal: $e");
+    }
   }
 
   // ── Delete meal ───────────────────────────────────────────────────────
   Future<void> _deleteMeal(String docId) async {
+    try {
     await FirebaseFirestore.instance
         .collection('calorie_logs')
         .doc(docId)
         .delete();
+    } catch (e) {
+      debugPrint("deleteMeal: $e");
+    }
   }
 
   // ── Analyze text ─────────────────────────────────────────────────────
   Future<void> _analyzeText() async {
+    if (_isLoading) return;
     final text = _foodController.text.trim();
     if (text.isEmpty) return;
 
@@ -476,6 +485,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
 
     final meal = await CalorieAIService.analyzeText(text);
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (meal != null) {
@@ -492,10 +502,12 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
 
   // ── Analyze photo ─────────────────────────────────────────────────────
   Future<void> _analyzePhoto(ImageSource source) async {
+    if (_isLoading) return;
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: source, imageQuality: 70);
     if (picked == null) return;
 
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     final file = File(picked.path);
@@ -508,6 +520,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     );
 
     if (compressed == null) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       return;
     }
@@ -515,6 +528,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     final base64Image = base64Encode(compressed);
     final meal = await CalorieAIService.analyzePhoto(base64Image);
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (meal != null) {

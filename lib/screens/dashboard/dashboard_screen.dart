@@ -299,6 +299,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isCompletingQuest = false;
   bool _isCompletingWeeklyQuest = false;
   bool _isRecoveringStreak = false;
+  String? _cachedProfilePicData;
+  Uint8List? _cachedProfileBytes;
 
   // ── Water intake ─────────────────────────────────────────
   int waterIntakeMl = 0;
@@ -1763,6 +1765,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // Decodes the profile-picture Base64 only when the data actually changes and
+  // caches the result, so the avatar image is not re-decoded (and recreated) on
+  // every StreamBuilder emission / parent rebuild.
+  Uint8List _profilePicBytes(String base64Data) {
+    if (base64Data != _cachedProfilePicData) {
+      _cachedProfilePicData = base64Data;
+      _cachedProfileBytes = base64Decode(base64Data);
+    }
+    return _cachedProfileBytes!;
+  }
+
   // ── Hunter Card ──────────────────────────────────────────
   Widget _buildHunterCard() {
     return Container(
@@ -1794,7 +1807,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     if (pic != null) {
                       return ClipOval(
                         child: Image.memory(
-                          base64Decode(pic),
+                          _profilePicBytes(pic),
                           fit: BoxFit.cover,
                           width: 72,
                           height: 72,

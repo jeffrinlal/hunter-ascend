@@ -17,6 +17,7 @@ import 'package:in_app_review/in_app_review.dart';
 import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'package:hunter_ascend/screens/map/map_screen.dart';
 import 'package:hunter_ascend/screens/nutrition/nutrition_screen.dart';
+import 'dart:typed_data';
 
 
 // ── Shield Rank Badge Painter ──────────────────────────────────────────────
@@ -299,6 +300,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isCompletingQuest = false;
   bool _isCompletingWeeklyQuest = false;
   bool _isRecoveringStreak = false;
+  String? _cachedProfilePicData;
+  Uint8List? _cachedProfileBytes;
 
   // ── Water intake ─────────────────────────────────────────
   int waterIntakeMl = 0;
@@ -1763,6 +1766,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // Decodes the profile-picture Base64 only when the data actually changes and
+  // caches the result, so the avatar image is not re-decoded (and recreated) on
+  // every StreamBuilder emission / parent rebuild.
+  Uint8List _profilePicBytes(String base64Data) {
+    if (base64Data != _cachedProfilePicData) {
+      _cachedProfilePicData = base64Data;
+      _cachedProfileBytes = base64Decode(base64Data);
+    }
+    return _cachedProfileBytes!;
+  }
+
   // ── Hunter Card ──────────────────────────────────────────
   Widget _buildHunterCard() {
     return Container(
@@ -1794,18 +1808,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     if (pic != null) {
                       return ClipOval(
                         child: Image.memory(
-                          base64Decode(pic),
+                          _profilePicBytes(pic),
                           fit: BoxFit.cover,
                           width: 72,
                           height: 72,
                         ),
                       );
                     }
-                    return ClipOval(
-                      child: Image.asset(
-                        'assets/avatars/avatar_1.png',
-                        fit: BoxFit.cover,
-                      ),
+                    return Center(
+                      child: Icon(Icons.person, color: _blue, size: 40),
                     );
                   },
                 ),
@@ -1813,7 +1824,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(width: 14),
               Expanded(
                 child: StreamBuilder<DocumentSnapshot>(
-                  stream: _hunterStream,
+                  stream: FirebaseFirestore.instance.collection('hunters').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
                   builder: (context, snapshot) {
                     String name = "Hunter";
                     if (snapshot.hasData && snapshot.data!.exists) {

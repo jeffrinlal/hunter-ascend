@@ -15,6 +15,8 @@ class _ScanningScreenState extends State<ScanningScreen>
     with TickerProviderStateMixin {
   double progress = 0;
 
+  Timer? _progressTimer;
+
   late AnimationController _scanLineController;
   late AnimationController _pulseController;
   late AnimationController _fadeController;
@@ -63,7 +65,8 @@ class _ScanningScreenState extends State<ScanningScreen>
     );
 
     // Progress timer — same logic as original
-    Timer.periodic(const Duration(milliseconds: 100), (timer) {
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if (!mounted) return;
       setState(() {
         progress += 0.025;
 
@@ -78,6 +81,7 @@ class _ScanningScreenState extends State<ScanningScreen>
 
       if (progress >= 1) {
         timer.cancel();
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const QuestSelectionScreen()),
@@ -88,6 +92,7 @@ class _ScanningScreenState extends State<ScanningScreen>
 
   @override
   void dispose() {
+    _progressTimer?.cancel();
     _scanLineController.dispose();
     _pulseController.dispose();
     _fadeController.dispose();

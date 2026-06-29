@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:hunter_ascend/services/ads_service.dart';
+import 'package:hunter_ascend/core/constants/app_constants.dart';
 
+/// Shows an incoming duel challenge so the hunter can accept or decline.
 class DuelRequestScreen extends StatefulWidget {
   const DuelRequestScreen({super.key});
 
@@ -28,13 +31,9 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
   }
 
   void loadBannerAd() {
-    bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-5435480116436845/4699186117',
-      request: const AdRequest(),
-      size: AdSize.banner,
-      listener: BannerAdListener(
-        onAdLoaded: (ad) => setState(() => isBannerReady = true),
-      ),
+    bannerAd = AdsService.createBannerAd(
+      adUnitId: AppConstants.challengeBannerAdUnitId,
+      onAdLoaded: (ad) => setState(() => isBannerReady = true),
     );
     bannerAd!.load();
   }

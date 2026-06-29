@@ -3,14 +3,16 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:hunter_ascend/services/ads_service.dart';
 
+/// Live GPS run-tracking screen with route stats and saved-run history.
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -87,21 +89,17 @@ class _MapScreenState extends State<MapScreen> {
     // TODO: Replace with your real iOS banner ad unit ID for production
         : 'ca-app-pub-3940256099942544/2934735716';
 
-    _bannerAd = BannerAd(
+    _bannerAd = AdsService.createBannerAd(
       adUnitId: adUnitId,
-      size: AdSize.banner,
-      request: const AdRequest(),
-      listener: BannerAdListener(
-        onAdLoaded: (ad) {
-          if (mounted) {
-            setState(() => _isBannerLoaded = true);
-          }
-        },
-        onAdFailedToLoad: (ad, error) {
-          ad.dispose();
-          debugPrint('Banner ad failed to load: $error');
-        },
-      ),
+      onAdLoaded: (ad) {
+        if (mounted) {
+          setState(() => _isBannerLoaded = true);
+        }
+      },
+      onAdFailedToLoad: (ad, error) {
+        ad.dispose();
+        debugPrint('Banner ad failed to load: $error');
+      },
     );
 
     _bannerAd!.load();

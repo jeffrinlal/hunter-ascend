@@ -1,10 +1,21 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 
+/// Generates AI-personalized fitness missions via the Cloudflare Worker proxy.
+///
+/// All model API keys live server-side in the worker (never in the client),
+/// so this service only sends the user's profile/goals and parses the JSON
+/// the worker returns. Returns an empty list on any failure so callers can
+/// fall back gracefully without crashing.
 class AIQuestService {
+  /// Generates and persists the 6 daily AI missions for the current hunter.
+  ///
+  /// Tailors difficulty to the user's BMI/goals. Persisted to Firestore by the
+  /// caller's flow; returns the parsed quest list (or `[]` if generation fails).
   static Future<List<dynamic>> generateQuests({
     required int level,
     required int streak,
@@ -12,7 +23,7 @@ class AIQuestService {
     required double height,
     required String goals,
   }) async {
-    print("⚡ Generating AI Quests...");
+    debugPrint("⚡ Generating AI Quests...");
     final bmi = weight / ((height / 100) * (height / 100));
     try {
       final response = await http.post(
@@ -98,7 +109,7 @@ Return JSON only.
         }),
       );
 
-      print("STATUS: ${response.statusCode}");
+      debugPrint("STATUS: ${response.statusCode}");
       final data = jsonDecode(response.body);
 
       String content =
@@ -111,9 +122,9 @@ Return JSON only.
 
       final quests = jsonDecode(content);
 
-      print("AI QUESTS:");
-      print(quests);
-      print("QUEST COUNT: ${quests.length}");
+      debugPrint("AI QUESTS:");
+      debugPrint(quests.toString());
+      debugPrint("QUEST COUNT: ${quests.length}");
       final uid = FirebaseAuth.instance.currentUser!.uid;
 
       await FirebaseFirestore.instance
@@ -127,24 +138,28 @@ Return JSON only.
         'aiQuests': quests,
       });
 
-      print("✅ AI Quests Saved");
+      debugPrint("✅ AI Quests Saved");
 
       return quests;
 
 
     } catch (e) {
-      print("ERROR: $e");
+      debugPrint("ERROR: $e");
       return [];
     }
 
   }
 
   // ── Weekly missions (harder, 7-day goals) ──────────────────────────────
+  /// Generates the 3 harder weekly missions (reset every Monday).
+  ///
+  /// Separate from [generateQuests] because weekly goals use a different prompt
+  /// (longer, tougher targets) and a 3× reward scale. Returns `[]` on failure.
   static Future<List<dynamic>> generateWeeklyQuests({
     required String goals,
     required int level,
   }) async {
-    print("⚡ Generating AI Weekly Missions...");
+    debugPrint("⚡ Generating AI Weekly Missions...");
     try {
       final response = await http.post(
         Uri.parse('https://hunter-ascend-ai.jefferinlal.workers.dev/mistral'),
@@ -183,10 +198,10 @@ Rules:
       content =
           content.replaceAll('```json', '').replaceAll('```', '').trim();
       final missions = jsonDecode(content);
-      print("AI WEEKLY MISSIONS: $missions");
+      debugPrint("AI WEEKLY MISSIONS: $missions");
       return missions is List ? missions : [];
     } catch (e) {
-      print("WEEKLY ERROR: $e");
+      debugPrint("WEEKLY ERROR: $e");
       return [];
     }
   }

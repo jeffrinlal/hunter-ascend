@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/utils/hunter_calculations.dart';
+import 'package:hunter_ascend/services/ads_service.dart';
+import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,6 +14,10 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 // ── Data model ────────────────────────────────────────────────────────────
 
+/// A single logged food entry (one meal/snack item) for the calorie tracker.
+///
+/// Backed by the `calorie_logs` Firestore collection; [toMap]/[fromMap]
+/// define that wire format. Immutable so list rebuilds stay cheap.
 class MealEntry {
   final String? id;
   final String name;
@@ -51,39 +58,48 @@ class MealEntry {
 
 // ── AI Service ────────────────────────────────────────────────────────────
 
+/// Estimates nutrition for a food (by text or photo) via the AI worker proxy.
+///
+/// Tries Gemini first, then falls back to Groq, so a single provider outage
+/// doesn't break logging. Keys live server-side; this only sends input and
+/// parses the returned JSON into a [MealEntry] (null if both providers fail).
 class CalorieAIService {
   // ── Text: Gemini first, Groq fallback ────────────────────────────────
+  /// Estimates nutrition from a free-text description (e.g. "2 idli").
+  /// Gemini first, Groq fallback. Returns null if both fail.
   static Future<MealEntry?> analyzeText(String foodName) async {
     try {
       final result = await _geminiText(foodName);
       if (result != null) return result;
     } catch (e) {
-      print("GEMINI ERROR: $e");
+      debugPrint("GEMINI ERROR: $e");
     }
 
     try {
       final result = await _groqText(foodName);
       if (result != null) return result;
     } catch (e) {
-      print("GROQ ERROR: $e");
+      debugPrint("GROQ ERROR: $e");
     }
     return null;
   }
 
   // ── Photo: Gemini first, Groq fallback ───────────────────────────────
+  /// Estimates nutrition from a base64 meal photo.
+  /// Gemini first, Groq fallback. Returns null if both fail.
   static Future<MealEntry?> analyzePhoto(String base64Image) async {
     try {
       final result = await _geminiPhoto(base64Image);
       if (result != null) return result;
     } catch (e) {
-      print("GEMINI PHOTO ERROR: $e");
+      debugPrint("GEMINI PHOTO ERROR: $e");
     }
 
     try {
       final result = await _groqPhoto(base64Image);
       if (result != null) return result;
     } catch (e) {
-      print("GROQ PHOTO ERROR: $e");
+      debugPrint("GROQ PHOTO ERROR: $e");
     }
 
     return null;
@@ -308,6 +324,8 @@ Return ONLY valid JSON, nothing else, no markdown fences, no explanation:
 
 // ── Calorie Tracker Card Widget ───────────────────────────────────────────
 
+/// The calorie-tracking surface embedded in the Nutrition screen: daily totals,
+/// AI food logging (text/photo), today's meal list, and a banner ad.
 class CalorieTrackerCard extends StatefulWidget {
   const CalorieTrackerCard({super.key});
 
@@ -365,23 +383,19 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   }
 
   void loadBannerAd() {
-    _bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-5435480116436845/4699186117',
-      size: AdSize.banner,
-      request: const AdRequest(),
-      listener: BannerAdListener(
-        onAdLoaded: (_) {
-          if (mounted) {
-            setState(() {
-              _isBannerReady = true;
-            });
-          }
-        },
-        onAdFailedToLoad: (ad, error) {
-          ad.dispose();
-          print('Banner failed: $error');
-        },
-      ),
+    _bannerAd = AdsService.createBannerAd(
+      adUnitId: AppConstants.challengeBannerAdUnitId,
+      onAdLoaded: (_) {
+        if (mounted) {
+          setState(() {
+            _isBannerReady = true;
+          });
+        }
+      },
+      onAdFailedToLoad: (ad, error) {
+        ad.dispose();
+        debugPrint('Banner failed: $error');
+      },
     );
 
     _bannerAd!.load();
@@ -405,17 +419,6 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   }
 
   // ── Get calorie goal from BMI ─────────────────────────────────────────
-  int _getCalorieGoal(Map<String, dynamic> data) {
-    final height = (data['height'] ?? 0).toDouble();
-    final weight = (data['weight'] ?? 0).toDouble();
-    if (height <= 0 || weight <= 0) return 2000;
-    final bmi = weight / ((height / 100) * (height / 100));
-    if (bmi < 18.5) return 2500;
-    if (bmi < 25)   return 2000;
-    if (bmi < 30)   return 1700;
-    return 1500;
-  }
-
   // ── Get today's meals from Firestore ─────────────────────────────────
   Stream<List<MealEntry>> _todayMealsStream() {
     final user = FirebaseAuth.instance.currentUser;
@@ -671,7 +674,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
       builder: (context, hunterSnap) {
         final hunterData =
             hunterSnap.data?.data() as Map<String, dynamic>? ?? {};
-        final calorieGoal = _getCalorieGoal(hunterData);
+        final calorieGoal = calorieGoalFromData(hunterData);
 
         return StreamBuilder<List<MealEntry>>(
           stream: _mealsStream,

@@ -2,21 +2,26 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/widgets/dashboard/steps_card.dart';
+import 'package:hunter_ascend/core/utils/hunter_calculations.dart';
+import 'package:hunter_ascend/services/ads_service.dart';
+import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'ai_quest_service.dart';
+import 'package:hunter_ascend/services/ai_quest_service.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:in_app_review/in_app_review.dart';
-import 'skeleton_loaders.dart';
-import 'map_screen.dart';
-import 'nutrition_screen.dart';
+import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
+import 'package:hunter_ascend/screens/map/map_screen.dart';
+import 'package:hunter_ascend/screens/nutrition/nutrition_screen.dart';
 
 
 // ── Shield Rank Badge Painter ──────────────────────────────────────────────
 
+/// Draws the rank shield badge behind a hunter's rank letter.
 class RankShieldPainter extends CustomPainter {
   final String rank; // "E", "D", "C", "B", "A", "S"
 
@@ -235,6 +240,7 @@ class RankShieldPainter extends CustomPainter {
 
 // ── Shield Widget ──────────────────────────────────────────────────────────
 
+/// Compact rank-shield badge widget (wraps [RankShieldPainter]).
 class RankShieldBadge extends StatelessWidget {
   final String rankLetter;
   final double size;
@@ -252,6 +258,8 @@ class RankShieldBadge extends StatelessWidget {
 
 // ── Dashboard Screen ───────────────────────────────────────────────────────
 
+/// Home dashboard: hunter stats, steps, water, and daily/weekly missions.
+/// The [questsOnly] flag renders the Missions-tab variant (missions only).
 class DashboardScreen extends StatefulWidget {
   final bool fatLoss;
   final bool discipline;
@@ -531,30 +539,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // ── Ads ──────────────────────────────────────────────────
   void loadBannerAd() {
-    bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-5435480116436845/4995463929',
-      request: const AdRequest(),
-      size: AdSize.banner,
-      listener: BannerAdListener(
-        onAdLoaded: (ad) => setState(() => isBannerReady = true),
-        onAdFailedToLoad: (ad, error) { print("BANNER FAILED: $error"); ad.dispose(); },
-      ),
+    bannerAd = AdsService.createBannerAd(
+      adUnitId: AppConstants.dashboardBannerAdUnitId,
+      onAdLoaded: (ad) => setState(() => isBannerReady = true),
+      onAdFailedToLoad: (ad, error) { debugPrint("BANNER FAILED: $error"); ad.dispose(); },
     );
     bannerAd!.load();
   }
 
   void loadWeeklyBannerAd() {
-    weeklyBannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-5435480116436845/4995463929',
-      request: const AdRequest(),
-      size: AdSize.banner,
-      listener: BannerAdListener(
-        onAdLoaded: (ad) => setState(() => weeklyBannerReady = true),
-        onAdFailedToLoad: (ad, error) {
-          print("WEEKLY BANNER FAILED: $error");
-          ad.dispose();
-        },
-      ),
+    weeklyBannerAd = AdsService.createBannerAd(
+      adUnitId: AppConstants.dashboardBannerAdUnitId,
+      onAdLoaded: (ad) => setState(() => weeklyBannerReady = true),
+      onAdFailedToLoad: (ad, error) {
+        debugPrint("WEEKLY BANNER FAILED: $error");
+        ad.dispose();
+      },
     );
     weeklyBannerAd!.load();
   }
@@ -565,7 +565,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) { rewardedAd = ad; setState(() => isRewardedAdReady = true); },
-        onAdFailedToLoad: (error) { print("REWARDED FAILED: $error"); isRewardedAdReady = false; },
+        onAdFailedToLoad: (error) { debugPrint("REWARDED FAILED: $error"); isRewardedAdReady = false; },
       ),
     );
   }
@@ -576,7 +576,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) { punishmentAd = ad; setState(() => isPunishmentAdReady = true); },
-        onAdFailedToLoad: (error) { print("PUNISHMENT AD FAILED: $error"); isPunishmentAdReady = false; },
+        onAdFailedToLoad: (error) { debugPrint("PUNISHMENT AD FAILED: $error"); isPunishmentAdReady = false; },
       ),
     );
   }
@@ -687,7 +687,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         setState(() => todaySteps = todayCount);
       },
-      onError: (error) => print("❌ Step counter error: $error"),
+      onError: (error) => debugPrint("❌ Step counter error: $error"),
       cancelOnError: false,
     );
   }
@@ -1438,13 +1438,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  String _formatQuestTime(Duration d) {
-    final m = d.inMinutes.toString().padLeft(2, '0');
-    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
-    return "$m:$s";
-  }
-
-
   Future<void> _cancelActiveQuest() async {
     _questCountdownTimer?.cancel();
     setState(() {
@@ -1653,7 +1646,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         _buildHunterCard(),
                         const SizedBox(height: 16),
-                        _buildStepsCard(),
+                        StepsCard(steps: todaySteps),
                         const SizedBox(height: 16),
                         _buildQuickActions(),
                         const SizedBox(height: 16),
@@ -1842,56 +1835,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ── Steps Card ───────────────────────────────────────────
-  Widget _buildStepsCard() {
-    final percent = ((todaySteps / 10000) * 100).clamp(0, 100).toInt();
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _border, width: 1.5),
-        boxShadow: [BoxShadow(color: _blue.withOpacity(0.1), blurRadius: 16)],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(10)),
-              child: Icon(Icons.directions_walk, color: _blue, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Text("TODAY'S MISSION", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, letterSpacing: 1)),
-            const Spacer(),
-            Text("$percent%", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
-          ]),
-          const SizedBox(height: 10),
-          Text("10,000 STEPS", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: LinearProgressIndicator(
-              value: (todaySteps / 10000).clamp(0.0, 1.0),
-              minHeight: 10,
-              backgroundColor: _blueDim,
-              valueColor: AlwaysStoppedAnimation<Color>(_blue),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text("$todaySteps / 10,000", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
-            Text(
-              todaySteps >= 10000 ? "🏆 Goal Completed! +25 XP" : "🎯 Keep going!",
-              style: TextStyle(color: todaySteps >= 10000 ? Colors.amber : HunterTheme.textTertiary, fontSize: 12),
-            ),
-          ]),
-        ],
-      ),
-    );
-  }
-
   // ── Active Quest Card ────────────────────────────────────
   Widget _buildActiveQuestCard() {
     return Container(
@@ -1932,7 +1875,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Icon(questRemaining == Duration.zero ? Icons.check_circle_outline : Icons.timer_outlined, color: questRemaining == Duration.zero ? HunterTheme.success : _blue, size: 22),
             const SizedBox(width: 10),
             Text(
-              questRemaining == Duration.zero ? "TIME'S UP!" : _formatQuestTime(questRemaining),
+              questRemaining == Duration.zero ? "TIME'S UP!" : formatMinutesSeconds(questRemaining),
               style: TextStyle(color: questRemaining == Duration.zero ? HunterTheme.success : HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1),
             ),
           ]),
@@ -2571,33 +2514,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ── Weekly missions (AI, reset every Monday 00:00) ───────
-  int _isoWeekNumber(DateTime date) {
-    final d = DateTime(date.year, date.month, date.day);
-    final dayOfYear = d.difference(DateTime(date.year, 1, 1)).inDays + 1;
-    final week = ((dayOfYear - d.weekday + 10) / 7).floor();
-    if (week < 1) return _isoWeekNumber(DateTime(date.year - 1, 12, 31));
-    if (week > 52) {
-      final dec31 = DateTime(date.year, 12, 31);
-      if (week == 53 && dec31.weekday < 4) return 1;
-    }
-    return week;
-  }
-
-  String _currentWeekId() {
-    final now = DateTime.now();
-    final w = _isoWeekNumber(now);
-    return '${now.year}-W${w.toString().padLeft(2, '0')}';
-  }
-
-  Duration _untilNextMonday() {
-    final now = DateTime.now();
-    final daysUntilMonday = (8 - now.weekday) % 7;
-    final days = daysUntilMonday == 0 ? 7 : daysUntilMonday;
-    final nextMonday =
-        DateTime(now.year, now.month, now.day).add(Duration(days: days));
-    return nextMonday.difference(now);
-  }
-
   Future<void> _loadWeeklyMissions() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -2606,7 +2522,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final doc = await docRef.get();
     if (!doc.exists) return;
     final data = doc.data() as Map<String, dynamic>;
-    final currentWeek = _currentWeekId();
+    final currentWeek = currentWeekId();
     final savedWeek = (data['weeklyMissionsDate'] ?? '').toString();
     final generated = data['weeklyMissionsGenerated'] == true;
 
@@ -2913,7 +2829,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Icon(weeklyQuestRemaining == Duration.zero ? Icons.check_circle_outline : Icons.timer_outlined, color: weeklyQuestRemaining == Duration.zero ? HunterTheme.success : _blue, size: 22),
             const SizedBox(width: 10),
             Text(
-              weeklyQuestRemaining == Duration.zero ? "TIME'S UP!" : _formatQuestTime(weeklyQuestRemaining),
+              weeklyQuestRemaining == Duration.zero ? "TIME'S UP!" : formatMinutesSeconds(weeklyQuestRemaining),
               style: TextStyle(color: weeklyQuestRemaining == Duration.zero ? HunterTheme.success : HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1),
             ),
           ]),
@@ -2965,7 +2881,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildWeeklyMissionsSection() {
     final completedCount = weeklyMissions.where((m) => m['completed'] == true).length;
     final total = weeklyMissions.isEmpty ? 3 : weeklyMissions.length;
-    final reset = _untilNextMonday();
+    final reset = untilNextMonday();
 
     return Column(
       children: [

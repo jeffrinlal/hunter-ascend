@@ -1,11 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/utils/hunter_calculations.dart';
+import 'package:hunter_ascend/services/ads_service.dart';
+import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+/// Live 1v1 duel screen: shows progress, countdown, and result for [duelId].
 class DuelScreen extends StatefulWidget {
   final String duelId;
 
@@ -96,17 +100,13 @@ class _DuelScreenState extends State<DuelScreen> {
   }
 
   void loadBannerAd() {
-    bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-5435480116436845/4995463929',
-      request: const AdRequest(),
-      size: AdSize.banner,
-      listener: BannerAdListener(
-        onAdLoaded: (ad) {
-          if (!mounted) return;
-          setState(() => isBannerReady = true);
-        },
-        onAdFailedToLoad: (ad, error) { print("BANNER FAILED: $error"); ad.dispose(); },
-      ),
+    bannerAd = AdsService.createBannerAd(
+      adUnitId: AppConstants.dashboardBannerAdUnitId,
+      onAdLoaded: (ad) {
+        if (!mounted) return;
+        setState(() => isBannerReady = true);
+      },
+      onAdFailedToLoad: (ad, error) { debugPrint("BANNER FAILED: $error"); ad.dispose(); },
     );
     bannerAd!.load();
   }
@@ -181,12 +181,6 @@ class _DuelScreenState extends State<DuelScreen> {
         'activeDuelQuestEndTime': FieldValue.delete(),
       });
     }
-  }
-
-  String _formatDuration(Duration d) {
-    final m = d.inMinutes.toString().padLeft(2, '0');
-    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
-    return "$m:$s";
   }
 
   // ── Show time-selection dialog ────────────────────────────
@@ -380,7 +374,7 @@ class _DuelScreenState extends State<DuelScreen> {
             Icon(ready ? Icons.check_circle_outline : Icons.timer_outlined, color: ready ? HunterTheme.success : _blue, size: 22),
             const SizedBox(width: 10),
             Text(
-              ready ? "TIME'S UP!" : _formatDuration(remaining),
+              ready ? "TIME'S UP!" : formatMinutesSeconds(remaining),
               style: TextStyle(color: ready ? HunterTheme.success : HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1),
             ),
           ]),

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 
+/// Side-by-side stat comparison of two hunters.
 class CompareHuntersScreen extends StatelessWidget {
   final String hunterUid;
 

@@ -475,6 +475,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
 
     final meal = await CalorieAIService.analyzeText(text);
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (meal != null) {
@@ -495,6 +496,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     final picked = await picker.pickImage(source: source, imageQuality: 70);
     if (picked == null) return;
 
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     final file = File(picked.path);
@@ -507,6 +509,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     );
 
     if (compressed == null) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       return;
     }
@@ -514,6 +517,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     final base64Image = base64Encode(compressed);
     final meal = await CalorieAIService.analyzePhoto(base64Image);
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (meal != null) {

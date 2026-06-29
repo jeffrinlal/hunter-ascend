@@ -567,6 +567,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                         .limit(1)
                                                         .get();
 
+                                                    if (!mounted) return;
                                                     if (existing.docs.isNotEmpty) {
                                                         ScaffoldMessenger.of(context).showSnackBar(
                                                             const SnackBar(
@@ -589,6 +590,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                     });
                                                 }
 
+                                                if (!mounted) return;
                                                 Navigator.push(
                                                     context,
                                                     MaterialPageRoute(

@@ -124,6 +124,7 @@ class _MapScreenState extends State<MapScreen> {
     }
 
     final position = await Geolocator.getCurrentPosition();
+    if (!mounted) return;
     setState(() {
       _currentPosition = LatLng(position.latitude, position.longitude);
     });
@@ -237,6 +238,7 @@ class _MapScreenState extends State<MapScreen> {
                   onPressed: () async {
                     Navigator.pop(context);
                     await _saveRun();
+                    if (!mounted) return;
                     setState(() { _isTracking = false; _isPaused = false; });
                   },
                   child: Text("SAVE RUN ⚡", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 2)),

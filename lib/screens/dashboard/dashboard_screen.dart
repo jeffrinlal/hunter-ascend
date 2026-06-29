@@ -342,6 +342,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .doc(uid)
         .get();
 
+    if (!mounted) return;
     final data = doc.data() ?? {};
 
     final today = DateTime.now()
@@ -392,6 +393,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       goals: goalString,
     );
 
+    if (!mounted) return;
     setState(() {
       generatedQuests = quests.map<Map<String, dynamic>>((q) {
         return {
@@ -958,6 +960,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       locked = daysPassed < 30;
       if (locked) remainingDays = 30 - daysPassed;
     }
+    if (!mounted) return;
     showDialog(
       context: context, barrierDismissible: false,
       builder: (_) => Dialog(
@@ -1067,6 +1070,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       'disciplineMode': 'casual',
                       'disciplineModeChangedAt': Timestamp.now(),
                     });
+                    if (!mounted) return;
                     Navigator.pop(context);
                   },
                   child: Container(
@@ -1108,6 +1112,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       'disciplineMode': 'strict',
                       'disciplineModeChangedAt': Timestamp.now(),
                     });
+                    if (!mounted) return;
                     Navigator.pop(context);
                   },
                   child: Container(
@@ -1184,6 +1189,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       },
     ];
 
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -1505,6 +1511,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
     await updateHunterOnline(); await updateStreak(); await saveCompletedQuest(completedQuestName);
 
+    if (!mounted) return;
     showDialog(
       context: context, barrierDismissible: false,
       builder: (_) => AlertDialog(
@@ -1595,6 +1602,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'completedQuests': [],
       'lastQuestResetDate': today,
     });
+    if (!mounted) return;
     setState(() => completedQuests.clear());
   }
 
@@ -2752,6 +2760,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       });
     }
 
+    if (!mounted) return;
     showDialog(
       context: context, barrierDismissible: false,
       builder: (_) => AlertDialog(

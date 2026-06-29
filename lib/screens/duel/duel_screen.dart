@@ -50,6 +50,7 @@ class _DuelScreenState extends State<DuelScreen> {
 
     final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
     if (!doc.exists) return;
+    if (!mounted) return;
 
     final data = doc.data()!;
     final activeDuelId = data['activeDuelQuestDuelId'];
@@ -933,6 +934,7 @@ class _DuelScreenState extends State<DuelScreen> {
                         'cancelRequestedBy': u?.uid,
                         'cancelStatus': 'pending',
                       });
+                      if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text("Cancel request sent")),
                       );

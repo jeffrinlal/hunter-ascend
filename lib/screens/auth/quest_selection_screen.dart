@@ -73,6 +73,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
 
     final data = doc.data()!;
 
+    if (!mounted) return;
     setState(() {
       _weight = (data['weight'] ?? 70).toDouble();
       _height = (data['height'] ?? 170).toDouble();
@@ -404,6 +405,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                                 'muscleGain': muscleGain,
                                 'selfImprovement': selfImprovement,
                               });
+                              if (!mounted) return;
                               Navigator.pushAndRemoveUntil(
                                 context,
                                 MaterialPageRoute(

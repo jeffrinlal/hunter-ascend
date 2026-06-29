@@ -53,7 +53,6 @@ flutter:
   assets:
     - assets/images/awakening_bg.png
     - assets/images/body_map.svg
-    - assets/avatars/
 
 flutter_launcher_icons:
   android: true

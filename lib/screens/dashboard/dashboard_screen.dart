@@ -21,6 +21,7 @@ import 'package:hunter_ascend/screens/nutrition/nutrition_screen.dart';
 
 // ── Shield Rank Badge Painter ──────────────────────────────────────────────
 
+/// Draws the rank shield badge behind a hunter's rank letter.
 class RankShieldPainter extends CustomPainter {
   final String rank; // "E", "D", "C", "B", "A", "S"
 
@@ -239,6 +240,7 @@ class RankShieldPainter extends CustomPainter {
 
 // ── Shield Widget ──────────────────────────────────────────────────────────
 
+/// Compact rank-shield badge widget (wraps [RankShieldPainter]).
 class RankShieldBadge extends StatelessWidget {
   final String rankLetter;
   final double size;
@@ -256,6 +258,8 @@ class RankShieldBadge extends StatelessWidget {
 
 // ── Dashboard Screen ───────────────────────────────────────────────────────
 
+/// Home dashboard: hunter stats, steps, water, and daily/weekly missions.
+/// The [questsOnly] flag renders the Missions-tab variant (missions only).
 class DashboardScreen extends StatefulWidget {
   final bool fatLoss;
   final bool discipline;

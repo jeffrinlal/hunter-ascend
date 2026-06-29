@@ -12,6 +12,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/services/ads_service.dart';
 
+/// Live GPS run-tracking screen with route stats and saved-run history.
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 

@@ -12,6 +12,7 @@ import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
 /// Persistent shell hosting the main app screens behind a bottom NavigationBar.
 /// Tabs: Home (Dashboard), Quests, Leaderboard, Duels, Profile.
 /// Login + onboarding (Awakening/Assessment) are NOT wrapped by this shell.
+/// Persistent bottom-nav shell hosting the five main tabs.
 class MainShell extends StatefulWidget {
   final bool fatLoss;
   final bool discipline;

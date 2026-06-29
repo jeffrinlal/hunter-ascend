@@ -14,6 +14,10 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 // ── Data model ────────────────────────────────────────────────────────────
 
+/// A single logged food entry (one meal/snack item) for the calorie tracker.
+///
+/// Backed by the `calorie_logs` Firestore collection; [toMap]/[fromMap]
+/// define that wire format. Immutable so list rebuilds stay cheap.
 class MealEntry {
   final String? id;
   final String name;
@@ -54,8 +58,15 @@ class MealEntry {
 
 // ── AI Service ────────────────────────────────────────────────────────────
 
+/// Estimates nutrition for a food (by text or photo) via the AI worker proxy.
+///
+/// Tries Gemini first, then falls back to Groq, so a single provider outage
+/// doesn't break logging. Keys live server-side; this only sends input and
+/// parses the returned JSON into a [MealEntry] (null if both providers fail).
 class CalorieAIService {
   // ── Text: Gemini first, Groq fallback ────────────────────────────────
+  /// Estimates nutrition from a free-text description (e.g. "2 idli").
+  /// Gemini first, Groq fallback. Returns null if both fail.
   static Future<MealEntry?> analyzeText(String foodName) async {
     try {
       final result = await _geminiText(foodName);
@@ -74,6 +85,8 @@ class CalorieAIService {
   }
 
   // ── Photo: Gemini first, Groq fallback ───────────────────────────────
+  /// Estimates nutrition from a base64 meal photo.
+  /// Gemini first, Groq fallback. Returns null if both fail.
   static Future<MealEntry?> analyzePhoto(String base64Image) async {
     try {
       final result = await _geminiPhoto(base64Image);
@@ -311,6 +324,8 @@ Return ONLY valid JSON, nothing else, no markdown fences, no explanation:
 
 // ── Calorie Tracker Card Widget ───────────────────────────────────────────
 
+/// The calorie-tracking surface embedded in the Nutrition screen: daily totals,
+/// AI food logging (text/photo), today's meal list, and a banner ad.
 class CalorieTrackerCard extends StatefulWidget {
   const CalorieTrackerCard({super.key});
 

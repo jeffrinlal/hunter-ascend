@@ -6,6 +6,7 @@ import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/screens/leaderboard/compare_hunters_screen.dart';
 import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
 
+/// Read-only profile of another hunter (viewed from rankings/duels).
 class PublicHunterProfileScreen extends StatelessWidget {
   final String hunterUid;
 

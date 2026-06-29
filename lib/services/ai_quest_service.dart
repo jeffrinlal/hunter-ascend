@@ -4,7 +4,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 
+/// Generates AI-personalized fitness missions via the Cloudflare Worker proxy.
+///
+/// All model API keys live server-side in the worker (never in the client),
+/// so this service only sends the user's profile/goals and parses the JSON
+/// the worker returns. Returns an empty list on any failure so callers can
+/// fall back gracefully without crashing.
 class AIQuestService {
+  /// Generates and persists the 6 daily AI missions for the current hunter.
+  ///
+  /// Tailors difficulty to the user's BMI/goals. Persisted to Firestore by the
+  /// caller's flow; returns the parsed quest list (or `[]` if generation fails).
   static Future<List<dynamic>> generateQuests({
     required int level,
     required int streak,
@@ -140,6 +150,10 @@ Return JSON only.
   }
 
   // ── Weekly missions (harder, 7-day goals) ──────────────────────────────
+  /// Generates the 3 harder weekly missions (reset every Monday).
+  ///
+  /// Separate from [generateQuests] because weekly goals use a different prompt
+  /// (longer, tougher targets) and a 3× reward scale. Returns `[]` on failure.
   static Future<List<dynamic>> generateWeeklyQuests({
     required String goals,
     required int level,

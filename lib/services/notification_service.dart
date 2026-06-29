@@ -8,6 +8,11 @@ const String streakTask = 'streakNotification';
 
 // This runs in background
 @pragma('vm:entry-point')
+/// Entry point for the WorkManager background isolate.
+///
+/// Runs in a separate isolate with no access to app state, so it re-initializes
+/// notifications independently to fire scheduled reminders even when the app
+/// process is not running.
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     final notifications = FlutterLocalNotificationsPlugin();
@@ -49,6 +54,10 @@ void callbackDispatcher() {
   });
 }
 
+/// Singleton wrapper around local + scheduled notifications.
+///
+/// Centralizes plugin setup and the app's reminder schedule so screens can
+/// trigger notifications without knowing the underlying plugin configuration.
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
@@ -57,6 +66,8 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _notifications =
   FlutterLocalNotificationsPlugin();
 
+  /// Initializes the notifications plugin and timezone data. Must be awaited
+  /// once at startup before any notification can be scheduled or shown.
   Future<void> init() async {
     const AndroidInitializationSettings androidSettings =
     AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -77,6 +88,8 @@ class NotificationService {
     await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
   }
 
+  /// (Re)schedules all recurring daily reminders. Safe to call repeatedly —
+  /// it replaces existing schedules rather than stacking duplicates.
   Future<void> scheduleAllNotifications() async {
     await Workmanager().cancelAll();
 

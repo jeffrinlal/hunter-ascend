@@ -8,6 +8,7 @@ import 'dart:math' as math;
 
 import 'package:hunter_ascend/screens/dashboard/main_shell.dart';
 
+/// Email/Google sign-in entry screen; routes to onboarding or the main shell.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 

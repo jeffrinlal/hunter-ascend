@@ -9,6 +9,7 @@ import 'dart:convert';
 
 // ── Top 3 Crown Painter ────────────────────────────────────────────────────
 
+/// Draws the decorative badge behind a top-3 leaderboard position.
 class TopRankPainter extends CustomPainter {
   final int position; // 1, 2, 3
   final Color color;
@@ -134,6 +135,7 @@ class TopRankPainter extends CustomPainter {
 
 // ── Top Rank Badge Widget ──────────────────────────────────────────────────
 
+/// Top-3 rank badge widget (wraps [TopRankPainter]).
 class TopRankBadge extends StatelessWidget {
   final int position;
   final Color color;
@@ -157,6 +159,7 @@ class TopRankBadge extends StatelessWidget {
 
 // ── Global Rankings Screen ─────────────────────────────────────────────────
 
+/// Global leaderboard ranked by level then XP, with search.
 class GlobalRankingsScreen extends StatefulWidget {
   const GlobalRankingsScreen({super.key});
 

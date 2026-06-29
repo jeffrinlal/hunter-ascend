@@ -3,6 +3,7 @@ import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+/// Read-only list of the hunter's past duels and their outcomes.
 class DuelHistoryScreen extends StatelessWidget {
   const DuelHistoryScreen({super.key});
 

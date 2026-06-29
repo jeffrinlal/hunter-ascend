@@ -10,6 +10,10 @@ final ValueNotifier<ThemeMode> themeNotifier =
 /// Light = white + orange premium theme. Dark = original dark palette
 /// (#080C14 background, #00E5FF cyan accent). Screens read the dynamic getters
 /// below, so flipping [isDark] (driven by [themeNotifier]) re-colors the app.
+/// Central design system: color tokens and light/dark [ThemeData].
+///
+/// Tokens are dynamic getters keyed off [isDark] (set once per build by the
+/// app-level theme listener) so a single source drives every screen's palette.
 class HunterTheme {
   HunterTheme._();
 

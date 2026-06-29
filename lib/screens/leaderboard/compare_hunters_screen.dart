@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 
+/// Side-by-side stat comparison of two hunters.
 class CompareHuntersScreen extends StatelessWidget {
   final String hunterUid;
 

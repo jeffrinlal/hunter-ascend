@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+/// Live 1v1 duel screen: shows progress, countdown, and result for [duelId].
 class DuelScreen extends StatefulWidget {
   final String duelId;
 

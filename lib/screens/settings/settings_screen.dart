@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hunter_ascend/screens/auth/login_screen.dart';
 
+/// App settings: theme toggle, account, and links.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -627,6 +628,7 @@ class _DarkModeTile extends StatelessWidget {
 
 // ── Privacy Policy Screen ─────────────────────────────────────────────────────
 
+/// Static privacy-policy page linked from settings.
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 

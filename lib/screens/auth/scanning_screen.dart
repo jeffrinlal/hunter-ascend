@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/screens/auth/quest_selection_screen.dart';
 
+/// Animated "scanning" onboarding transition before quest selection.
 class ScanningScreen extends StatefulWidget {
   const ScanningScreen({super.key});
 

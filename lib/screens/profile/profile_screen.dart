@@ -15,6 +15,7 @@ import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'dart:convert';
 import 'dart:io';
 
+/// The signed-in hunter's own profile: stats, physique, history, and sharing.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -1451,6 +1452,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
 // ── Hex Radar Chart ────────────────────────────────────────────────────
 
+/// Draws the hexagonal radar chart of a hunter's six core stats.
 class HexRadarPainter extends CustomPainter {
   final List<double> values;
 

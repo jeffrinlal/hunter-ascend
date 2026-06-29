@@ -34,6 +34,7 @@ Widget _circle(double size) => Container(
 
 /// Dashboard skeleton: profile card, level/XP bar, stats row,
 /// mission card, water card, nutrition/map buttons.
+/// Shimmer placeholder for the dashboard while hunter data loads.
 Widget buildDashboardSkeleton() {
   return _shimmerWrap(
     Column(
@@ -91,6 +92,7 @@ Widget buildDashboardSkeleton() {
 }
 
 /// Leaderboard skeleton: top-3 podium (3 boxes) + list of rows.
+/// Shimmer placeholder for the leaderboard while rankings load.
 Widget buildLeaderboardSkeleton() {
   return _shimmerWrap(
     Column(
@@ -139,6 +141,7 @@ Widget buildLeaderboardSkeleton() {
 }
 
 /// Profile skeleton: circle avatar, name + rank bars, level/XP bar, stats.
+/// Shimmer placeholder for the profile while profile data loads.
 Widget buildProfileSkeleton() {
   return _shimmerWrap(
     Column(

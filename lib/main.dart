@@ -39,6 +39,8 @@ Future<void> createHunterProfile() async {
     }
 }
 
+/// App entry point: initializes Firebase, notifications, ads, and theme prefs
+/// before running [HunterAscendApp].
 void main() async {
     WidgetsFlutterBinding.ensureInitialized();
 
@@ -70,6 +72,7 @@ void main() async {
     runApp(HunterAscendApp(hasCompletedSetup: hasCompletedSetup));
 }
 
+/// Root widget: wires global theme + auth gating into [MaterialApp].
 class HunterAscendApp extends StatelessWidget {
     final bool hasCompletedSetup;
 
@@ -175,6 +178,7 @@ class _LoadingScreen extends StatelessWidget {
     }
 }
 
+/// Pre-onboarding welcome/landing screen shown before assessment.
 class WelcomeScreen extends StatelessWidget {
     const WelcomeScreen({super.key});
 
@@ -305,6 +309,7 @@ class WelcomeScreen extends StatelessWidget {
     }
 }
 
+/// Collects the hunter's initial physical data (name/age/height/weight).
 class AssessmentScreen extends StatefulWidget {
     const AssessmentScreen({super.key});
 

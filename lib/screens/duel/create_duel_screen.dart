@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hunter_ascend/screens/duel/duel_history_screen.dart';
 
+/// Form to create/send a duel challenge to another hunter.
 class CreateDuelScreen extends StatefulWidget {
   final String? hunterName;
 

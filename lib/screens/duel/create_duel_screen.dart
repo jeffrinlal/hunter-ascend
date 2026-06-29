@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'duel_history_screen.dart';
+import 'package:hunter_ascend/screens/duel/duel_history_screen.dart';
 
 class CreateDuelScreen extends StatefulWidget {
   final String? hunterName;

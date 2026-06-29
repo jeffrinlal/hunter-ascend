@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../Theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 
 /// Today's step-goal progress card.
 ///

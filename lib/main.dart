@@ -1,17 +1,17 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:flutter/services.dart';
-import 'awakening_screen.dart';
-import 'scanning_screen.dart';
-import 'main_shell.dart';
+import 'package:hunter_ascend/screens/auth/awakening_screen.dart';
+import 'package:hunter_ascend/screens/auth/scanning_screen.dart';
+import 'package:hunter_ascend/screens/dashboard/main_shell.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'login_screen.dart';
-import 'notification_service.dart';
+import 'package:hunter_ascend/screens/auth/login_screen.dart';
+import 'package:hunter_ascend/services/notification_service.dart';
 import 'dart:math' as math;
 
 Future<void> signInAnonymously() async {

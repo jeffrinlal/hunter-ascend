@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
-import 'utils/hunter_calculations.dart';
-import 'services/ads_service.dart';
-import 'core/constants/app_constants.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/utils/hunter_calculations.dart';
+import 'package:hunter_ascend/services/ads_service.dart';
+import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';

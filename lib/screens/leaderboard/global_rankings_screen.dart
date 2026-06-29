@@ -1,10 +1,10 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'public_hunter_profile_screen.dart';
-import 'skeleton_loaders.dart';
+import 'package:hunter_ascend/screens/profile/public_hunter_profile_screen.dart';
+import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'dart:convert';
 
 // ── Top 3 Crown Painter ────────────────────────────────────────────────────

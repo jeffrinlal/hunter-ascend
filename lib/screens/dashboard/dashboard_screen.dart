@@ -2,21 +2,21 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
-import 'widgets/dashboard/steps_card.dart';
-import 'utils/hunter_calculations.dart';
-import 'services/ads_service.dart';
-import 'core/constants/app_constants.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/widgets/dashboard/steps_card.dart';
+import 'package:hunter_ascend/core/utils/hunter_calculations.dart';
+import 'package:hunter_ascend/services/ads_service.dart';
+import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'ai_quest_service.dart';
+import 'package:hunter_ascend/services/ai_quest_service.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:in_app_review/in_app_review.dart';
-import 'skeleton_loaders.dart';
-import 'map_screen.dart';
-import 'nutrition_screen.dart';
+import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
+import 'package:hunter_ascend/screens/map/map_screen.dart';
+import 'package:hunter_ascend/screens/nutrition/nutrition_screen.dart';
 
 
 // ── Shield Rank Badge Painter ──────────────────────────────────────────────

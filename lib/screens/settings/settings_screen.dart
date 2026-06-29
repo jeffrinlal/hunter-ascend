@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'login_screen.dart';
+import 'package:hunter_ascend/screens/auth/login_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});

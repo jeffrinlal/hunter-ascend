@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'settings_screen.dart';
+import 'package:hunter_ascend/screens/settings/settings_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,7 +11,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
-import 'skeleton_loaders.dart';
+import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'dart:convert';
 import 'dart:io';
 

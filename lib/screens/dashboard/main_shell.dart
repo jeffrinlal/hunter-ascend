@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'Theme/hunter_theme.dart';
-import 'dashboard_screen.dart';
-import 'global_rankings_screen.dart';
-import 'profile_screen.dart';
-import 'duel_screen.dart';
-import 'duel_request_screen.dart';
-import 'create_duel_screen.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/screens/dashboard/dashboard_screen.dart';
+import 'package:hunter_ascend/screens/leaderboard/global_rankings_screen.dart';
+import 'package:hunter_ascend/screens/profile/profile_screen.dart';
+import 'package:hunter_ascend/screens/duel/duel_screen.dart';
+import 'package:hunter_ascend/screens/duel/duel_request_screen.dart';
+import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
 
 /// Persistent shell hosting the main app screens behind a bottom NavigationBar.
 /// Tabs: Home (Dashboard), Quests, Leaderboard, Duels, Profile.

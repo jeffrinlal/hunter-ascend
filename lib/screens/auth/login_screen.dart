@@ -1,12 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'awakening_screen.dart';
+import 'package:hunter_ascend/screens/auth/awakening_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:math' as math;
 
-import 'main_shell.dart';
+import 'package:hunter_ascend/screens/dashboard/main_shell.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

@@ -30,6 +30,7 @@ class _DuelScreenState extends State<DuelScreen> {
   int activeQuestXp = 0;
   DateTime? questEndTime;
   Timer? _countdownTimer;
+  bool _completingActiveQuest = false;
   Duration remaining = Duration.zero;
 
   // ── Ad ──────────────────────────────────────────────────
@@ -318,6 +319,9 @@ class _DuelScreenState extends State<DuelScreen> {
 
     final u = FirebaseAuth.instance.currentUser;
     if (u == null) return;
+    if (_completingActiveQuest) return;
+    _completingActiveQuest = true;
+    try {
     final bool ip1 = duel['player1'] == u.uid;
     final String cf = ip1 ? 'player1CompletedToday' : 'player2CompletedToday';
 
@@ -332,6 +336,9 @@ class _DuelScreenState extends State<DuelScreen> {
       );
     }
     await _cancelActiveQuest();
+    } finally {
+      _completingActiveQuest = false;
+    }
   }
 
   // ── Active quest card ─────────────────────────────────────

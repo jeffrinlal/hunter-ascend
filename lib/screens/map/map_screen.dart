@@ -237,6 +237,7 @@ class _MapScreenState extends State<MapScreen> {
                   onPressed: () async {
                     Navigator.pop(context);
                     await _saveRun();
+                    if (!mounted) return;
                     setState(() { _isTracking = false; _isPaused = false; });
                   },
                   child: Text("SAVE RUN ⚡", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 2)),
@@ -262,6 +263,7 @@ class _MapScreenState extends State<MapScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
+    try {
     // Save run to Firestore
     await FirebaseFirestore.instance.collection('runs').add({
       'uid': user.uid,
@@ -303,6 +305,9 @@ class _MapScreenState extends State<MapScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("✅ Run saved! +$_xpEarned XP earned!")),
       );
+    }
+    } catch (e) {
+      debugPrint("Save run error: $e");
     }
   }
 

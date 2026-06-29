@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hunter_ascend/screens/profile/public_hunter_profile_screen.dart';
 import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'dart:convert';
+import 'dart:typed_data';
 
 // ── Top 3 Crown Painter ────────────────────────────────────────────────────
 

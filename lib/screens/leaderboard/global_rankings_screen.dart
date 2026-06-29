@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hunter_ascend/screens/profile/public_hunter_profile_screen.dart';
 import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'dart:convert';
+import 'dart:typed_data';
 
 // ── Top 3 Crown Painter ────────────────────────────────────────────────────
 
@@ -174,6 +175,14 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchText = '';
 
+  // Caches decoded avatar bytes keyed by the Base64 string, so each unique
+  // profile picture is decoded only once and the same Uint8List is reused
+  // across scrolls/rebuilds (re-decodes only when the Base64 string changes).
+  final Map<String, Uint8List> _avatarCache = {};
+
+  Uint8List _decodedAvatar(String base64Data) =>
+      _avatarCache[base64Data] ??= base64Decode(base64Data);
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -270,7 +279,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                     hunter['profilePicture'].toString().isNotEmpty
                     ? ClipOval(
                   child: Image.memory(
-                    base64Decode(hunter['profilePicture']),
+                    _decodedAvatar(hunter['profilePicture']),
                     width: avatarSize,
                     height: avatarSize,
                     fit: BoxFit.cover,
@@ -548,7 +557,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                             ? CircleAvatar(
                           radius: 30,
                           backgroundImage: MemoryImage(
-                            base64Decode(hunter['profilePicture']),
+                            _decodedAvatar(hunter['profilePicture']),
                           ),
                         )
                             : Icon(
@@ -876,7 +885,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                   hunter['profilePicture'].toString().isNotEmpty
                                   ? ClipOval(
                                 child: Image.memory(
-                                  base64Decode(hunter['profilePicture']),
+                                  _decodedAvatar(hunter['profilePicture']),
                                   width: 38,
                                   height: 38,
                                   fit: BoxFit.cover,

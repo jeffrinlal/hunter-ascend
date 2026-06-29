@@ -31,6 +31,8 @@ class _DuelScreenState extends State<DuelScreen> {
   DateTime? questEndTime;
   Timer? _countdownTimer;
   bool _completingActiveQuest = false;
+  // Guards the auto-completion path so it runs at most once per device.
+  bool _completingDuel = false;
   Duration remaining = Duration.zero;
 
   // ── Ad ──────────────────────────────────────────────────
@@ -117,6 +119,71 @@ class _DuelScreenState extends State<DuelScreen> {
     String loserUid = winnerUid == duel['player1'] ? duel['player2'] : duel['player1'];
     await FirebaseFirestore.instance.collection('hunters').doc(winnerUid).update({'duelWins': FieldValue.increment(1)});
     await FirebaseFirestore.instance.collection('hunters').doc(loserUid).update({'duelLosses': FieldValue.increment(1)});
+  }
+
+  // ── Auto-complete duel when its time is up ────────────────
+  // Runs OUTSIDE build() (scheduled via a post-frame callback) and is guarded
+  // so it executes at most once per device. A Firestore transaction re-reads
+  // the duel and only transitions it when status is still "active", so two
+  // devices racing to finish the same duel can never both complete it.
+  Future<void> _autoCompleteDuel(String duelId) async {
+    if (_completingDuel) return;
+    _completingDuel = true;
+
+    final duelRef = FirebaseFirestore.instance.collection('duels').doc(duelId);
+    String winnerUid = '';
+    Map<String, dynamic>? completedDuel; // non-null only if THIS call completed the duel
+
+    try {
+      await FirebaseFirestore.instance.runTransaction((txn) async {
+        // Reset on every attempt — the transaction body may be retried, and
+        // only the values from the final committed attempt must survive.
+        winnerUid = '';
+        completedDuel = null;
+
+        final snap = await txn.get(duelRef);
+        if (!snap.exists) return;
+        final data = snap.data() as Map<String, dynamic>;
+
+        // Only complete if still active — this is the atomic check that
+        // prevents duplicate completion across builds and across devices.
+        if (data['status'] != 'active') return;
+        if ((data['winner'] ?? '').toString().isNotEmpty) return;
+
+        // Re-verify the duel is actually over using the stored schema fields.
+        final startDate = (data['startDate'] as Timestamp).toDate();
+        final daysPassed = DateTime.now().difference(startDate).inDays;
+        final daysRemaining = data['durationDays'] - daysPassed;
+        if (daysRemaining > 0) return;
+
+        // Winner calculation — unchanged from the original logic.
+        if ((data['player1Score'] ?? 0) > (data['player2Score'] ?? 0)) {
+          winnerUid = data['player1'];
+        } else if ((data['player2Score'] ?? 0) > (data['player1Score'] ?? 0)) {
+          winnerUid = data['player2'];
+        }
+
+        txn.update(duelRef, {
+          'status': 'completed',
+          'winner': winnerUid,
+          'player1ViewedResult': false,
+          'player2ViewedResult': false,
+        });
+
+        // Marks that this transaction performed the completion.
+        completedDuel = data;
+      });
+
+      // Only the device whose transaction actually flipped active -> completed
+      // reaches here with completedDuel set, so stats update at most once.
+      // A tie leaves winnerUid empty — skip updateDuelStats to avoid doc('').
+      if (completedDuel != null && winnerUid.isNotEmpty) {
+        await updateDuelStats(completedDuel!, winnerUid);
+      }
+    } catch (e) {
+      debugPrint("autoCompleteDuel: $e");
+      _completingDuel = false; // allow a retry on a transient failure
+    }
   }
 
   // ── Daily reset — clears completedToday at midnight ────────
@@ -548,7 +615,9 @@ class _DuelScreenState extends State<DuelScreen> {
             final String vField = isPlayer1 ? 'player1ViewedResult' : 'player2ViewedResult';
 
             if (duel[vField] == false) {
-              FirebaseFirestore.instance.collection('duels').doc(widget.duelId).update({vField: true});
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                FirebaseFirestore.instance.collection('duels').doc(widget.duelId).update({vField: true});
+              });
             }
 
             return Container(
@@ -616,16 +685,12 @@ class _DuelScreenState extends State<DuelScreen> {
           final currentDay    = daysPassed + 1;
           final daysRemaining = duel['durationDays'] - daysPassed;
 
-          // Auto-complete when time is up
+          // Auto-complete when time is up. The write is deferred out of build()
+          // and runs through a guarded transaction (see _autoCompleteDuel).
           if (daysRemaining <= 0 && duel['status'] == 'active' && (duel['winner'] ?? '').toString().isEmpty) {
-            String winnerUid = '';
-            if ((duel['player1Score'] ?? 0) > (duel['player2Score'] ?? 0)) winnerUid = duel['player1'];
-            else if ((duel['player2Score'] ?? 0) > (duel['player1Score'] ?? 0)) winnerUid = duel['player2'];
-            FirebaseFirestore.instance.collection('duels').doc(widget.duelId).update({
-              'status': 'completed', 'winner': winnerUid,
-              'player1ViewedResult': false, 'player2ViewedResult': false,
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _autoCompleteDuel(widget.duelId);
             });
-            updateDuelStats(duel, winnerUid);
           }
 
           final myScore  = isPlayer1 ? (duel['player1Score'] ?? 0) : (duel['player2Score'] ?? 0);

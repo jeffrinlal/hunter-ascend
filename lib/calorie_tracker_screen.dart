@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'Theme/hunter_theme.dart';
+import 'utils/hunter_calculations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -366,17 +367,6 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   }
 
   // ── Get calorie goal from BMI ─────────────────────────────────────────
-  int _getCalorieGoal(Map<String, dynamic> data) {
-    final height = (data['height'] ?? 0).toDouble();
-    final weight = (data['weight'] ?? 0).toDouble();
-    if (height <= 0 || weight <= 0) return 2000;
-    final bmi = weight / ((height / 100) * (height / 100));
-    if (bmi < 18.5) return 2500;
-    if (bmi < 25)   return 2000;
-    if (bmi < 30)   return 1700;
-    return 1500;
-  }
-
   // ── Get today's meals from Firestore ─────────────────────────────────
   Stream<List<MealEntry>> _todayMealsStream() {
     final user = FirebaseAuth.instance.currentUser;
@@ -633,7 +623,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
       builder: (context, hunterSnap) {
         final hunterData =
             hunterSnap.data?.data() as Map<String, dynamic>? ?? {};
-        final calorieGoal = _getCalorieGoal(hunterData);
+        final calorieGoal = calorieGoalFromData(hunterData);
 
         return StreamBuilder<List<MealEntry>>(
           stream: _todayMealsStream(),

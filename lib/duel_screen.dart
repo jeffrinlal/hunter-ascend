@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'Theme/hunter_theme.dart';
+import 'utils/hunter_calculations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -181,12 +182,6 @@ class _DuelScreenState extends State<DuelScreen> {
         'activeDuelQuestEndTime': FieldValue.delete(),
       });
     }
-  }
-
-  String _formatDuration(Duration d) {
-    final m = d.inMinutes.toString().padLeft(2, '0');
-    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
-    return "$m:$s";
   }
 
   // ── Show time-selection dialog ────────────────────────────
@@ -380,7 +375,7 @@ class _DuelScreenState extends State<DuelScreen> {
             Icon(ready ? Icons.check_circle_outline : Icons.timer_outlined, color: ready ? HunterTheme.success : _blue, size: 22),
             const SizedBox(width: 10),
             Text(
-              ready ? "TIME'S UP!" : _formatDuration(remaining),
+              ready ? "TIME'S UP!" : formatMinutesSeconds(remaining),
               style: TextStyle(color: ready ? HunterTheme.success : HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1),
             ),
           ]),

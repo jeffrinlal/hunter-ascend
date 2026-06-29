@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'Theme/hunter_theme.dart';
 import 'widgets/dashboard/steps_card.dart';
+import 'utils/hunter_calculations.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -1435,13 +1436,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  String _formatQuestTime(Duration d) {
-    final m = d.inMinutes.toString().padLeft(2, '0');
-    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
-    return "$m:$s";
-  }
-
-
   Future<void> _cancelActiveQuest() async {
     _questCountdownTimer?.cancel();
     setState(() {
@@ -1879,7 +1873,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Icon(questRemaining == Duration.zero ? Icons.check_circle_outline : Icons.timer_outlined, color: questRemaining == Duration.zero ? HunterTheme.success : _blue, size: 22),
             const SizedBox(width: 10),
             Text(
-              questRemaining == Duration.zero ? "TIME'S UP!" : _formatQuestTime(questRemaining),
+              questRemaining == Duration.zero ? "TIME'S UP!" : formatMinutesSeconds(questRemaining),
               style: TextStyle(color: questRemaining == Duration.zero ? HunterTheme.success : HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1),
             ),
           ]),
@@ -2518,33 +2512,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ── Weekly missions (AI, reset every Monday 00:00) ───────
-  int _isoWeekNumber(DateTime date) {
-    final d = DateTime(date.year, date.month, date.day);
-    final dayOfYear = d.difference(DateTime(date.year, 1, 1)).inDays + 1;
-    final week = ((dayOfYear - d.weekday + 10) / 7).floor();
-    if (week < 1) return _isoWeekNumber(DateTime(date.year - 1, 12, 31));
-    if (week > 52) {
-      final dec31 = DateTime(date.year, 12, 31);
-      if (week == 53 && dec31.weekday < 4) return 1;
-    }
-    return week;
-  }
-
-  String _currentWeekId() {
-    final now = DateTime.now();
-    final w = _isoWeekNumber(now);
-    return '${now.year}-W${w.toString().padLeft(2, '0')}';
-  }
-
-  Duration _untilNextMonday() {
-    final now = DateTime.now();
-    final daysUntilMonday = (8 - now.weekday) % 7;
-    final days = daysUntilMonday == 0 ? 7 : daysUntilMonday;
-    final nextMonday =
-        DateTime(now.year, now.month, now.day).add(Duration(days: days));
-    return nextMonday.difference(now);
-  }
-
   Future<void> _loadWeeklyMissions() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -2553,7 +2520,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final doc = await docRef.get();
     if (!doc.exists) return;
     final data = doc.data() as Map<String, dynamic>;
-    final currentWeek = _currentWeekId();
+    final currentWeek = currentWeekId();
     final savedWeek = (data['weeklyMissionsDate'] ?? '').toString();
     final generated = data['weeklyMissionsGenerated'] == true;
 
@@ -2860,7 +2827,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Icon(weeklyQuestRemaining == Duration.zero ? Icons.check_circle_outline : Icons.timer_outlined, color: weeklyQuestRemaining == Duration.zero ? HunterTheme.success : _blue, size: 22),
             const SizedBox(width: 10),
             Text(
-              weeklyQuestRemaining == Duration.zero ? "TIME'S UP!" : _formatQuestTime(weeklyQuestRemaining),
+              weeklyQuestRemaining == Duration.zero ? "TIME'S UP!" : formatMinutesSeconds(weeklyQuestRemaining),
               style: TextStyle(color: weeklyQuestRemaining == Duration.zero ? HunterTheme.success : HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1),
             ),
           ]),
@@ -2912,7 +2879,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildWeeklyMissionsSection() {
     final completedCount = weeklyMissions.where((m) => m['completed'] == true).length;
     final total = weeklyMissions.isEmpty ? 3 : weeklyMissions.length;
-    final reset = _untilNextMonday();
+    final reset = untilNextMonday();
 
     return Column(
       children: [

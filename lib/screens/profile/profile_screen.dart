@@ -5,7 +5,6 @@ import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hunter_ascend/screens/settings/settings_screen.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -86,7 +85,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -153,13 +152,10 @@ class _ProfileScreenState extends State<ProfileScreen>
 
           // Derived stats
           final str  = math.min(100, duelWins * 3 + level * 2);
-          final end_ = math.min(100, level * 4 + (weight > 0 ? 10 : 0));
           final agi  = bmi > 0 && bmi < 25
               ? math.min(100, (100 - bmi * 2).round())
               : 50;
           final vit  = weight > 0 ? 65 : 40;
-          final int_ = math.min(100, questsDone * 2 + level);
-          final luk  = math.min(100, duelWins * 5);
 
           return CustomScrollView(
             slivers: [
@@ -528,7 +524,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                       letterSpacing: 1.5,
                     ),
                     tabs: const [
-                      Tab(text: 'OVERVIEW'),
                       Tab(text: 'PHYSIQUE'),
                       Tab(text: 'HISTORY'),
                     ],
@@ -541,48 +536,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-
-                    // ── OVERVIEW ──────────────────────────────────────
-                    SingleChildScrollView(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'MUSCLE MAP',
-                            style: TextStyle(
-                              color: HunterTheme.textSecondary,
-                              fontSize: 12,
-                              letterSpacing: 2,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Your physique, powered by hunter stats',
-                            style: TextStyle(
-                              color: HunterTheme.textTertiary,
-                              fontSize: 11,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          _MuscleBodySvg(
-                            str: str.toDouble(),
-                            vit: vit.toDouble(),
-                            agi: agi.toDouble(),
-                            intel: int_.toDouble(),
-                            end: end_.toDouble(),
-                          ),
-                          const SizedBox(height: 20),
-                          _muscleLegend('STR', 'Chest + Arms', str),
-                          _muscleLegend('VIT', 'Core / Abs', vit),
-                          _muscleLegend('AGI', 'Legs', agi),
-                          _muscleLegend('INT', 'Head', int_),
-                          _muscleLegend('END', 'Full Body', end_),
-                          _muscleLegend('LUK', 'Aura', luk),
-                        ],
-                      ),
-                    ),
 
                     // ── PHYSIQUE ──────────────────────────────────────
                     SingleChildScrollView(
@@ -896,68 +849,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     ),
     child: child,
   );
-
-  Widget _muscleLegend(String stat, String muscle, int value) {
-    final pct = (value / 100).clamp(0.0, 1.0);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 42,
-            child: Text(
-              stat,
-              style: TextStyle(
-                color: HunterTheme.textPrimary,
-                fontWeight: FontWeight.w800,
-                fontSize: 13,
-                letterSpacing: 1,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      muscle,
-                      style: TextStyle(
-                        color: HunterTheme.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                    Text(
-                      '$value%',
-                      style: TextStyle(
-                        color: HunterTheme.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: pct,
-                    minHeight: 6,
-                    backgroundColor: HunterTheme.textPrimary.withOpacity(0.08),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      HunterTheme.primary.withOpacity(0.4 + pct * 0.6),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _physiqueInfo(String label, String value, IconData icon) {
     return Column(
@@ -1554,128 +1445,3 @@ class HexRadarPainter extends CustomPainter {
 }
 
 
-// ── AI Muscle Body Map (SVG) ─────────────────────────────────────────────
-//
-// Renders assets/images/body_map.svg via flutter_svg and recolors muscle-group
-// fills at runtime by replacing tokens in the SVG string (read-only; uses the
-// existing Firestore-derived stats). Mapping:
-//   STR -> chest + biceps   VIT -> abs/core   AGI -> quads + calves
-//   INT -> head/brain       END -> full-body base tint
-//
-// Opacity of each group = stat / 100 (END uses a softer base tint).
-class _MuscleBodySvg extends StatelessWidget {
-  final double str, vit, agi, intel, end;
-
-  const _MuscleBodySvg({
-    required this.str,
-    required this.vit,
-    required this.agi,
-    required this.intel,
-    required this.end,
-  });
-
-  static String _recolor(
-    String svg, {
-    required double str,
-    required double vit,
-    required double agi,
-    required double intel,
-    required double end,
-  }) {
-    String paint(double stat, {double scale = 1.0}) {
-      final o = (stat / 100 * scale).clamp(0.0, 1.0);
-      return 'fill="#FF6B2B" fill-opacity="${o.toStringAsFixed(3)}"';
-    }
-
-    return svg
-        .replaceAll('fill="{{STR}}"', paint(str))
-        .replaceAll('fill="{{VIT}}"', paint(vit))
-        .replaceAll('fill="{{AGI}}"', paint(agi))
-        .replaceAll('fill="{{INT}}"', paint(intel))
-        .replaceAll('fill="{{END}}"', paint(end, scale: 0.30));
-  }
-
-  // [name, leftFraction, topFraction] within the 200x400 box.
-  static const List<List<dynamic>> _anchors = [
-    ['END', 0.02, 0.02],
-    ['INT', 0.60, 0.03],
-    ['STR', 0.02, 0.22],
-    ['VIT', 0.64, 0.32],
-    ['AGI', 0.02, 0.62],
-  ];
-
-  Widget _label(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: HunterTheme.cardColor.withOpacity(0.85),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: HunterTheme.primary.withOpacity(0.3)),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: HunterTheme.textPrimary,
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const boxW = 200.0, boxH = 400.0;
-    final values = <String, double>{
-      'STR': str,
-      'VIT': vit,
-      'AGI': agi,
-      'INT': intel,
-      'END': end,
-    };
-
-    return Center(
-      child: SizedBox(
-        width: boxW,
-        height: boxH,
-        child: FutureBuilder<String>(
-          future: rootBundle.loadString('assets/images/body_map.svg'),
-          builder: (context, snap) {
-            if (!snap.hasData) {
-              return const Center(
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              );
-            }
-            final svg = _recolor(
-              snap.data!,
-              str: str,
-              vit: vit,
-              agi: agi,
-              intel: intel,
-              end: end,
-            );
-            return Stack(
-              children: [
-                Positioned.fill(
-                  child: SvgPicture.string(svg, fit: BoxFit.contain),
-                ),
-                for (final a in _anchors)
-                  Positioned(
-                    left: (a[1] as double) * boxW,
-                    top: (a[2] as double) * boxH,
-                    child: _label(
-                        '${a[0]} ${values[a[0] as String]!.round()}%'),
-                  ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}

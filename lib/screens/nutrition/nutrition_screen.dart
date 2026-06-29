@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/screens/nutrition/calorie_tracker_screen.dart';
 
 /// Nutrition tab: hosts the [CalorieTrackerCard] on a scrollable page.
@@ -8,24 +7,20 @@ class NutritionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (context, _, __) => _themedBuild(context),
-    );
-  }
-
-  Widget _themedBuild(BuildContext context) {
     return Scaffold(
-      backgroundColor: HunterTheme.background,
+      backgroundColor: const Color(0xFFFAFAFA),
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        backgroundColor: HunterTheme.cardColor,
-        foregroundColor: HunterTheme.textPrimary,
+        backgroundColor: const Color(0xFFFAFAFA),
+        foregroundColor: const Color(0xFF1A1A1A),
         elevation: 0,
-        title: const Text("Nutrition"),
+        scrolledUnderElevation: 0,
       ),
       body: SafeArea(
+        top: false,
         child: SingleChildScrollView(
-          child: CalorieTrackerCard(),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: const CalorieTrackerCard(),
         ),
       ),
     );

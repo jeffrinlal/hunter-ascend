@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'Theme/hunter_theme.dart';
 import 'utils/hunter_calculations.dart';
 import 'services/ads_service.dart';
+import 'core/constants/app_constants.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -334,7 +335,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
 
   void loadBannerAd() {
     _bannerAd = AdsService.createBannerAd(
-      adUnitId: 'ca-app-pub-5435480116436845/4699186117',
+      adUnitId: AppConstants.challengeBannerAdUnitId,
       onAdLoaded: (_) {
         if (mounted) {
           setState(() {

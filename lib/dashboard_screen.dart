@@ -6,6 +6,7 @@ import 'Theme/hunter_theme.dart';
 import 'widgets/dashboard/steps_card.dart';
 import 'utils/hunter_calculations.dart';
 import 'services/ads_service.dart';
+import 'core/constants/app_constants.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -531,7 +532,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ── Ads ──────────────────────────────────────────────────
   void loadBannerAd() {
     bannerAd = AdsService.createBannerAd(
-      adUnitId: 'ca-app-pub-5435480116436845/4995463929',
+      adUnitId: AppConstants.dashboardBannerAdUnitId,
       onAdLoaded: (ad) => setState(() => isBannerReady = true),
       onAdFailedToLoad: (ad, error) { print("BANNER FAILED: $error"); ad.dispose(); },
     );
@@ -540,7 +541,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void loadWeeklyBannerAd() {
     weeklyBannerAd = AdsService.createBannerAd(
-      adUnitId: 'ca-app-pub-5435480116436845/4995463929',
+      adUnitId: AppConstants.dashboardBannerAdUnitId,
       onAdLoaded: (ad) => setState(() => weeklyBannerReady = true),
       onAdFailedToLoad: (ad, error) {
         print("WEEKLY BANNER FAILED: $error");

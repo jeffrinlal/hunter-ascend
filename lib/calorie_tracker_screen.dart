@@ -330,6 +330,35 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   BannerAd? _bannerAd;
   bool _isBannerReady = false;
 
+  // Collapsed meal sections (by category key).
+  final Set<String> _collapsedMeals = {};
+
+  // Meal categories in display order with their time windows.
+  static const List<Map<String, String>> _mealCategories = [
+    {'key': 'breakfast', 'emoji': '🌅', 'label': 'Breakfast'},
+    {'key': 'midMorning', 'emoji': '🍎', 'label': 'Mid Morning Snack'},
+    {'key': 'lunch', 'emoji': '🍱', 'label': 'Lunch'},
+    {'key': 'eveningSnack', 'emoji': '🌆', 'label': 'Evening Snack'},
+    {'key': 'dinner', 'emoji': '🍽️', 'label': 'Dinner'},
+    {'key': 'lateNight', 'emoji': '🌙', 'label': 'Late Night'},
+  ];
+
+  // Cached streams so collapsing/expanding sections (setState) doesn't
+  // re-subscribe and flicker. Same queries — created once.
+  late final Stream<DocumentSnapshot> _hunterStream;
+  late final Stream<List<MealEntry>> _mealsStream;
+
+  // Auto-categorize a meal purely from the time it was logged.
+  String _categoryForTime(DateTime t) {
+    final m = t.hour * 60 + t.minute;
+    if (m >= 360 && m < 630) return 'breakfast'; // 6:00–10:30
+    if (m >= 630 && m < 750) return 'midMorning'; // 10:30–12:30
+    if (m >= 750 && m < 930) return 'lunch'; // 12:30–15:30
+    if (m >= 930 && m < 1110) return 'eveningSnack'; // 15:30–18:30
+    if (m >= 1110) return 'dinner'; // 18:30–23:59
+    return 'lateNight'; // 0:00–5:59
+  }
+
   void loadBannerAd() {
     _bannerAd = BannerAd(
       adUnitId: 'ca-app-pub-5435480116436845/4699186117',
@@ -357,6 +386,10 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   void initState() {
     super.initState();
     loadBannerAd();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    _hunterStream =
+        FirebaseFirestore.instance.collection('hunters').doc(uid).snapshots();
+    _mealsStream = _todayMealsStream();
   }
 
   @override
@@ -628,15 +661,14 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     if (user == null) return const SizedBox();
 
     return StreamBuilder<DocumentSnapshot>(
-      stream:
-      FirebaseFirestore.instance.collection('hunters').doc(user.uid).snapshots(),
+      stream: _hunterStream,
       builder: (context, hunterSnap) {
         final hunterData =
             hunterSnap.data?.data() as Map<String, dynamic>? ?? {};
         final calorieGoal = _getCalorieGoal(hunterData);
 
         return StreamBuilder<List<MealEntry>>(
-          stream: _todayMealsStream(),
+          stream: _mealsStream,
           builder: (context, mealSnap) {
             final meals = mealSnap.data ?? [];
             final totalCals = meals.fold(0, (sum, m) => sum + m.calories);
@@ -834,72 +866,24 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                     ),
                   ],
 
-                  // ── Meal history ───────────────────────────────────
-                  ...[
-                    const SizedBox(height: 16),
-                    Divider(color: _border),
-                    const SizedBox(height: 12),
-                    Row(children: [
-                      Text("Today's Meals",
-                          style: TextStyle(
-                              color: HunterTheme.textPrimary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                            color: _blueDim,
-                            borderRadius: BorderRadius.circular(20)),
-                        child: Text("${meals.length}",
-                            style: TextStyle(
-                                color: _orange,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold)),
+                  // ── Meal history (auto-categorized by log time) ─────
+                  const SizedBox(height: 16),
+                  Divider(color: _border),
+                  const SizedBox(height: 12),
+                  _buildMealCategories(meals, mealSnap),
+
+                  const SizedBox(height: 20),
+
+                  if (_isBannerReady)
+                    Center(
+                      child: SizedBox(
+                        width: _bannerAd!.size.width.toDouble(),
+                        height: _bannerAd!.size.height.toDouble(),
+                        child: AdWidget(ad: _bannerAd!),
                       ),
-                    ]),
-                    const SizedBox(height: 10),
+                    ),
 
-                    if (meals.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: _border)),
-                        child: Center(
-                          child: Column(children: [
-                            Icon(Icons.restaurant_menu,
-                                color: HunterTheme.textTertiary, size: 32),
-                            SizedBox(height: 8),
-                            Text("No meals logged yet",
-                                style: TextStyle(
-                                    color: HunterTheme.textSecondary, fontSize: 13)),
-                            Text("Type food or take a photo!",
-                                style: TextStyle(
-                                    color: HunterTheme.textTertiary, fontSize: 11)),
-                          ]),
-                        ),
-                      )
-                    else
-                      ...mealSnap.data!.asMap().entries.map((entry) {
-                        final meal = entry.value;
-                        return _buildMealTile(meal, mealSnap);
-                      }),
-
-                    const SizedBox(height: 20),
-
-                    if (_isBannerReady)
-                      Center(
-                        child: SizedBox(
-                          width: _bannerAd!.size.width.toDouble(),
-                          height: _bannerAd!.size.height.toDouble(),
-                          child: AdWidget(ad: _bannerAd!),
-                        ),
-                      ),
-
-                    const SizedBox(height: 10),
-                  ],
+                  const SizedBox(height: 10),
                 ],
               ),
             );
@@ -971,6 +955,102 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
           child: Icon(Icons.delete_outline, color: HunterTheme.textTertiary, size: 18),
         ),
       ]),
+    );
+  }
+
+  // ── Auto-categorized meal sections (grouped by each meal's log time) ──
+  Widget _buildMealCategories(
+      List<MealEntry> meals, AsyncSnapshot<List<MealEntry>> mealSnap) {
+    final Map<String, List<MealEntry>> grouped = {
+      for (final c in _mealCategories) c['key']!: <MealEntry>[]
+    };
+    for (final m in meals) {
+      grouped[_categoryForTime(m.time)]!.add(m);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final c in _mealCategories)
+          _buildMealSection(
+            c['key']!,
+            c['emoji']!,
+            c['label']!,
+            grouped[c['key']!]!,
+            mealSnap,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMealSection(String key, String emoji, String label,
+      List<MealEntry> items, AsyncSnapshot<List<MealEntry>> snap) {
+    final sectionTotal = items.fold(0, (s, m) => s + m.calories);
+    final collapsed = _collapsedMeals.contains(key);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: _bg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header — tap to collapse / expand (no + button)
+          InkWell(
+            onTap: () => setState(() {
+              if (collapsed) {
+                _collapsedMeals.remove(key);
+              } else {
+                _collapsedMeals.add(key);
+              }
+            }),
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(children: [
+                Expanded(
+                  child: Text("$emoji  $label",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: HunterTheme.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold)),
+                ),
+                Text("$sectionTotal kcal",
+                    style: TextStyle(
+                        color: _orange,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                Icon(
+                  collapsed
+                      ? Icons.keyboard_arrow_down
+                      : Icons.keyboard_arrow_up,
+                  color: HunterTheme.textTertiary,
+                  size: 22,
+                ),
+              ]),
+            ),
+          ),
+          if (!collapsed)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: items.isEmpty
+                  ? Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text("No foods added",
+                          style: TextStyle(
+                              color: HunterTheme.textTertiary, fontSize: 13)),
+                    )
+                  : Column(
+                      children:
+                          items.map((m) => _buildMealTile(m, snap)).toList(),
+                    ),
+            ),
+        ],
+      ),
     );
   }
 

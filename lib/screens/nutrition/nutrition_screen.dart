@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'calorie_tracker_screen.dart';
+import 'package:hunter_ascend/screens/nutrition/calorie_tracker_screen.dart';
 
+/// Nutrition tab: hosts the [CalorieTrackerCard] on a scrollable page.
 class NutritionScreen extends StatelessWidget {
   const NutritionScreen({super.key});
 

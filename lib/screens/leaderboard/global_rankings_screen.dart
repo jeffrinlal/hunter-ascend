@@ -1,14 +1,15 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'public_hunter_profile_screen.dart';
-import 'skeleton_loaders.dart';
+import 'package:hunter_ascend/screens/profile/public_hunter_profile_screen.dart';
+import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'dart:convert';
 
 // ── Top 3 Crown Painter ────────────────────────────────────────────────────
 
+/// Draws the decorative badge behind a top-3 leaderboard position.
 class TopRankPainter extends CustomPainter {
   final int position; // 1, 2, 3
   final Color color;
@@ -134,6 +135,7 @@ class TopRankPainter extends CustomPainter {
 
 // ── Top Rank Badge Widget ──────────────────────────────────────────────────
 
+/// Top-3 rank badge widget (wraps [TopRankPainter]).
 class TopRankBadge extends StatelessWidget {
   final int position;
   final Color color;
@@ -157,6 +159,7 @@ class TopRankBadge extends StatelessWidget {
 
 // ── Global Rankings Screen ─────────────────────────────────────────────────
 
+/// Global leaderboard ranked by level then XP, with search.
 class GlobalRankingsScreen extends StatefulWidget {
   const GlobalRankingsScreen({super.key});
 

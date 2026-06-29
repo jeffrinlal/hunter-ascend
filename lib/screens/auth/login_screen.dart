@@ -1,13 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'awakening_screen.dart';
+import 'package:hunter_ascend/screens/auth/awakening_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:math' as math;
 
-import 'main_shell.dart';
+import 'package:hunter_ascend/screens/dashboard/main_shell.dart';
 
+/// Email/Google sign-in entry screen; routes to onboarding or the main shell.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -109,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen>
 
       _navigate(context, data, onboardingDone);
     } catch (e) {
-      print("✗ Guest Sign In error: $e");
+      debugPrint("✗ Guest Sign In error: $e");
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Sign in failed. Please try again.")),
@@ -169,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen>
 
       _navigate(context, data, onboardingDone);
     } catch (e) {
-      print("✗ Google Sign In error: $e");
+      debugPrint("✗ Google Sign In error: $e");
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Sign in failed. Please try again.")),

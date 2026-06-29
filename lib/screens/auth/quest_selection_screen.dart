@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
-import 'main_shell.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/screens/dashboard/main_shell.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Onboarding step where the hunter picks their focus path(s) to seed quests.
 class QuestSelectionScreen extends StatefulWidget {
   const QuestSelectionScreen({super.key});
 

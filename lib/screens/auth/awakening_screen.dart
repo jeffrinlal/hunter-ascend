@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'Theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'dart:math' as math;
-import 'main.dart';
+import 'package:hunter_ascend/main.dart';
 
+/// First onboarding step ("system awakening") shown to brand-new hunters.
 class AwakeningScreen extends StatefulWidget {
   const AwakeningScreen({super.key});
 

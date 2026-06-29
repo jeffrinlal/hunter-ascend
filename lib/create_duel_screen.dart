@@ -29,6 +29,13 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    hunterNameController.dispose();
+    questController.dispose();
+    super.dispose();
+  }
+
   void addQuest() {
     String questName = questController.text.trim();
     if (questName.isEmpty) return;

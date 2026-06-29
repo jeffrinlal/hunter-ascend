@@ -171,6 +171,12 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchText = '';
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   String getRankTitle(int level) {
     if (level >= 30) return 'S Rank';
     if (level >= 20) return 'A Rank';

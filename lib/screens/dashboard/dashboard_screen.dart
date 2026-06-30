@@ -419,6 +419,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         };
       }).toList();
     });
+
+    // First time this user ever receives missions: record an immutable
+    // discipline-start date (write-once). savedDate.isEmpty means the user has
+    // never had missions generated before (a genuine new user), so existing
+    // users — who already have an aiQuestDate — are never backfilled, and the
+    // field is never written again once set.
+    if (savedDate.toString().isEmpty && data['disciplineStartDate'] == null) {
+      await FirebaseFirestore.instance.collection('hunters').doc(uid).update({
+        'disciplineStartDate': DateTime.now().toString().substring(0, 10),
+      });
+    }
   }
   List<String> completedQuests = [];
 
@@ -803,6 +814,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!doc.exists) return;
     final data = doc.data()!;
     final today = DateTime.now().toString().substring(0, 10);
+    // Genuine new users are not eligible for discipline until they have had a
+    // real previous mission day. disciplineStartDate is the immutable first day
+    // missions were received; discipline begins the day AFTER it (today must be
+    // strictly past it). A missing field means a legacy/existing user, whose
+    // behavior is left exactly as before.
+    final disciplineStartDate = (data['disciplineStartDate'] ?? '').toString();
+    if (disciplineStartDate.isNotEmpty && today.compareTo(disciplineStartDate) <= 0) return;
     if (data['lastPunishmentDate'] == today) return;
     final mode = data['disciplineMode'] ?? 'casual';
     final lastReset = data['lastQuestResetDate'];

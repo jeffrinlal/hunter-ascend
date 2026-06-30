@@ -125,19 +125,39 @@ class _MapScreenState extends State<MapScreen> {
       return;
     }
 
-    final position = await Geolocator.getCurrentPosition();
-    if (!mounted) return;
-    setState(() {
-      _currentPosition = LatLng(position.latitude, position.longitude);
-    });
-
     try {
-      _mapController.move(_currentPosition!, 16);
-    } catch (_) {}
+      final position = await Geolocator.getCurrentPosition();
+      if (!mounted) return;
+      setState(() {
+        _currentPosition = LatLng(position.latitude, position.longitude);
+      });
+      try {
+        _mapController.move(_currentPosition!, 16);
+      } catch (_) {}
+    } catch (e) {
+      debugPrint("getCurrentPosition error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not determine location. Please try again.")),
+        );
+      }
+    }
   }
 
   // ── Tracking ─────────────────────────────────────────────
-  void _startTracking() {
+  Future<void> _startTracking() async {
+    // Re-verify location permission and services immediately before tracking.
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enable location services to start a run.")));
+      return;
+    }
+    final permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Location permission required to start a run.")));
+      return;
+    }
+
     setState(() {
       _isTracking = true;
       _isPaused = false;
@@ -154,24 +174,41 @@ class _MapScreenState extends State<MapScreen> {
     // GPS Stream
     _positionStream = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 5),
-    ).listen((position) {
-      final newPoint = LatLng(position.latitude, position.longitude);
+    ).listen(
+      (position) {
+        final newPoint = LatLng(position.latitude, position.longitude);
 
-      if (_routePoints.isNotEmpty && !_isPaused) {
-        final lastPoint = _routePoints.last;
-        final distance = const Distance().as(LengthUnit.Kilometer, lastPoint, newPoint);
-        setState(() => _distanceKm += distance);
-      }
+        if (_routePoints.isNotEmpty && !_isPaused) {
+          final lastPoint = _routePoints.last;
+          final distance = const Distance().as(LengthUnit.Kilometer, lastPoint, newPoint);
+          setState(() => _distanceKm += distance);
+        }
 
-      setState(() {
-        _currentPosition = newPoint;
-        if (!_isPaused) _routePoints.add(newPoint);
-      });
+        setState(() {
+          _currentPosition = newPoint;
+          if (!_isPaused) _routePoints.add(newPoint);
+        });
 
-      try {
-        _mapController.move(newPoint, _mapController.camera.zoom);
-      } catch (_) {}
-    });
+        try {
+          _mapController.move(newPoint, _mapController.camera.zoom);
+        } catch (_) {}
+      },
+      onError: (error) {
+        debugPrint("GPS stream error: $error");
+        // Stop tracking safely on stream error (e.g., permission revoked mid-run).
+        _positionStream?.cancel();
+        _timer?.cancel();
+        if (mounted) {
+          setState(() {
+            _isTracking = false;
+            _isPaused = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Location tracking stopped due to an error.")),
+          );
+        }
+      },
+    );
   }
 
   void _pauseTracking() {

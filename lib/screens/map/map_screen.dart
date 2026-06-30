@@ -292,17 +292,18 @@ class _MapScreenState extends State<MapScreen> {
       }
     }
 
-    // Award XP
-    final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
-    final data = doc.data() ?? {};
-    final currentXp = data['xp'] ?? 0;
-    int newXp = currentXp + _xpEarned;
-    int newLevel = data['level'] ?? 1;
-    if (newXp >= 500) { newLevel++; newXp -= 500; }
-
-    await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
-      'xp': newXp,
-      'level': newLevel,
+    // Award XP atomically (matches completeQuest's transaction pattern).
+    // Reads the LATEST Firestore xp/level, applies the reward, and writes
+    // atomically so concurrent rewards (step, mission, penalty) cannot be lost.
+    final ref = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
+    await FirebaseFirestore.instance.runTransaction((txn) async {
+      final snap = await txn.get(ref);
+      final data = snap.data() ?? {};
+      int curXp = (data['xp'] ?? 0) as int;
+      int curLevel = (data['level'] ?? 1) as int;
+      curXp += _xpEarned;
+      while (curXp >= 500) { curXp -= 500; curLevel++; }
+      txn.update(ref, {'xp': curXp, 'level': curLevel});
     });
 
     if (mounted) {

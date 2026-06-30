@@ -356,7 +356,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final today = now.toString().substring(0, 10);
     if (today != _missionDay) {
       _missionDay = today;
-      _loadAIQuests().then((_) => checkDailyReset());
+      // Both DashboardScreen instances (Home + Missions) run this timer, so
+      // gate the reload to the Missions tab — the only one that displays daily
+      // missions. Without this, both instances would hit _loadAIQuests() at
+      // midnight and generate AI quests twice (two AI calls + two Firestore
+      // writes), since each reads aiQuestDate == yesterday before either write.
+      if (widget.questsOnly) {
+        _loadAIQuests().then((_) => checkDailyReset());
+      }
     }
   }
 

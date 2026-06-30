@@ -12,6 +12,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hunter_ascend/screens/auth/login_screen.dart';
 import 'package:hunter_ascend/services/notification_service.dart';
+import 'package:hunter_ascend/services/connectivity_service.dart';
+import 'package:hunter_ascend/widgets/connectivity_banner.dart';
 import 'dart:math' as math;
 
 Future<void> signInAnonymously() async {
@@ -47,6 +49,7 @@ Future<void> createHunterProfile() async {
 /// before running [HunterAscendApp].
 void main() async {
     WidgetsFlutterBinding.ensureInitialized();
+    ConnectivityService.instance.start();
 
     SystemChrome.setEnabledSystemUIMode(
         SystemUiMode.manual,
@@ -101,7 +104,8 @@ class HunterAscendApp extends StatelessWidget {
             themeMode: mode,
 
             builder: (context, child) {
-                return MediaQuery(
+                return ConnectivityBanner(
+                  child: MediaQuery(
                     data: MediaQuery.of(context).copyWith(
                         padding: MediaQuery.of(context).padding.copyWith(
                             bottom: math.max(
@@ -115,6 +119,7 @@ class HunterAscendApp extends StatelessWidget {
                         bottom: true,
                         child: child!,
                     ),
+                  ),
                 );
             },
 
@@ -134,6 +139,14 @@ class HunterAscendApp extends StatelessWidget {
                                 .doc(snapshot.data!.uid)
                                 .get(),
                             builder: (context, hunterSnapshot) {
+                                if (hunterSnapshot.hasError) {
+                                    return _NoInternetScreen(
+                                      onRetry: () {
+                                        // Force a rebuild to re-run the FutureBuilder
+                                        (context as Element).markNeedsBuild();
+                                      },
+                                    );
+                                }
                                 if (!hunterSnapshot.hasData) {
                                     return const _LoadingScreen();
                                 }
@@ -181,6 +194,58 @@ class _LoadingScreen extends StatelessWidget {
                 child: CircularProgressIndicator(
                     color: HunterTheme.primary,
                     strokeWidth: 1.5,
+                ),
+            ),
+        );
+    }
+}
+
+/// Shown when the app starts with no internet and no cached Firestore data.
+class _NoInternetScreen extends StatelessWidget {
+    final VoidCallback onRetry;
+    const _NoInternetScreen({required this.onRetry});
+
+    @override
+    Widget build(BuildContext context) {
+        return Scaffold(
+            backgroundColor: HunterTheme.background,
+            body: Center(
+                child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                            Icon(Icons.wifi_off, size: 64, color: HunterTheme.textSecondary),
+                            const SizedBox(height: 24),
+                            Text(
+                                "No Internet Connection",
+                                style: TextStyle(
+                                    color: HunterTheme.textPrimary,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                                "Hunter Ascend requires an internet connection to play.",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    color: HunterTheme.textSecondary,
+                                    fontSize: 14,
+                                ),
+                            ),
+                            const SizedBox(height: 32),
+                            ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: HunterTheme.primary,
+                                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                ),
+                                onPressed: onRetry,
+                                child: const Text("Retry", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                            ),
+                        ],
+                    ),
                 ),
             ),
         );

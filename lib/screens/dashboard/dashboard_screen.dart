@@ -18,6 +18,7 @@ import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'package:hunter_ascend/screens/map/map_screen.dart';
 import 'package:hunter_ascend/screens/nutrition/nutrition_screen.dart';
 import 'dart:typed_data';
+import 'package:hunter_ascend/services/connectivity_service.dart';
 
 
 // ── Shield Rank Badge Painter ──────────────────────────────────────────────
@@ -1571,6 +1572,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> completeQuest() async {
     if (_isCompletingQuest) return;
+    if (!await ConnectivityService.isOnline()) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Internet connection required.")));
+      return;
+    }
     _isCompletingQuest = true;
     try {
     bool leveledUp = false;
@@ -2865,6 +2870,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> completeWeeklyQuest() async {
     if (_isCompletingWeeklyQuest) return;
+    if (!await ConnectivityService.isOnline()) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Internet connection required.")));
+      return;
+    }
     _isCompletingWeeklyQuest = true;
     try {
     bool leveledUp = false;

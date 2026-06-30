@@ -8,6 +8,7 @@ import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:hunter_ascend/services/connectivity_service.dart';
 
 /// Live 1v1 duel screen: shows progress, countdown, and result for [duelId].
 class DuelScreen extends StatefulWidget {
@@ -388,6 +389,10 @@ class _DuelScreenState extends State<DuelScreen> {
     final u = FirebaseAuth.instance.currentUser;
     if (u == null) return;
     if (_completingActiveQuest) return;
+    if (!await ConnectivityService.isOnline()) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Internet connection required.")));
+      return;
+    }
     _completingActiveQuest = true;
     try {
     final bool ip1 = duel['player1'] == u.uid;

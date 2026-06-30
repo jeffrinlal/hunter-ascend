@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/services/ads_service.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
+import 'package:hunter_ascend/services/connectivity_service.dart';
 
 /// Shows an incoming duel challenge so the hunter can accept or decline.
 class DuelRequestScreen extends StatefulWidget {
@@ -283,6 +284,10 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                         child: GestureDetector(
                           onTap: () async {
                             if (_isResponding) return;
+                            if (!await ConnectivityService.isOnline()) {
+                              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Internet connection required.")));
+                              return;
+                            }
                             _isResponding = true;
                             try {
                             await duel.reference.update({'status': 'declined'});
@@ -322,6 +327,10 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                         child: GestureDetector(
                           onTap: () async {
                             if (_isResponding) return;
+                            if (!await ConnectivityService.isOnline()) {
+                              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Internet connection required.")));
+                              return;
+                            }
                             _isResponding = true;
                             try {
                             final user = FirebaseAuth.instance.currentUser;

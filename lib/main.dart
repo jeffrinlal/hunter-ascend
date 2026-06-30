@@ -38,6 +38,7 @@ Future<void> createHunterProfile() async {
             'xp': 0,
             'streak': 0,
             'lastQuestDate': '',
+            'onboardingComplete': false,
         });
     }
     } catch (e) {

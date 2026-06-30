@@ -17,15 +17,15 @@ class SettingsScreen extends StatelessWidget {
       if (user == null) return;
 
       if (user.isAnonymous) {
-        // Delete Firestore data first
-        await FirebaseFirestore.instance
-            .collection('hunters')
-            .doc(user.uid)
-            .delete();
-
-        // Then delete the anonymous Firebase Auth account
+        // Delete the anonymous Firebase Auth account first. If this fails,
+        // no data is lost. Only after auth is gone do we clean up Firestore.
+        final uid = user.uid;
         await user.delete();
         // user.delete() also signs out automatically
+        await FirebaseFirestore.instance
+            .collection('hunters')
+            .doc(uid)
+            .delete();
       } else {
         // Google user — sign out from Google + Firebase
         await GoogleSignIn().signOut();

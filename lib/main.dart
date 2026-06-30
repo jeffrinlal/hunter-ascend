@@ -133,51 +133,82 @@ class HunterAscendApp extends StatelessWidget {
                     }
 
                     if (snapshot.hasData) {
-                        return FutureBuilder<DocumentSnapshot>(
-                            future: FirebaseFirestore.instance
-                                .collection('hunters')
-                                .doc(snapshot.data!.uid)
-                                .get(),
-                            builder: (context, hunterSnapshot) {
-                                if (hunterSnapshot.hasError) {
-                                    return _NoInternetScreen(
-                                      onRetry: () {
-                                        // Force a rebuild to re-run the FutureBuilder
-                                        (context as Element).markNeedsBuild();
-                                      },
-                                    );
-                                }
-                                if (!hunterSnapshot.hasData) {
-                                    return const _LoadingScreen();
-                                }
-
-                                final data =
-                                hunterSnapshot.data!.data() as Map<String, dynamic>?;
-
-                                final onboardingComplete = data?['onboardingComplete'] ??
-                                    (data?['height'] != null &&
-                                        data?['weight'] != null &&
-                                        data?['age'] != null);
-
-                                if (onboardingComplete) {
-                                    return MainShell(
-                                        fatLoss: false,
-                                        discipline: false,
-                                        muscleGain: false,
-                                        selfImprovement: false,
-                                        bioQuests: [],
-                                    );
-                                }
-
-                                return const AwakeningScreen();
-                            },
-                        );
+                        return _HunterProfileLoader(uid: snapshot.data!.uid);
                     }
 
                     return const LoginScreen();
                 },
             ),
                 );
+            },
+        );
+    }
+}
+
+/// Loads the hunter profile from Firestore with a working Retry mechanism.
+/// Stateful so that [_retry] creates a genuinely new Future (not reusing the
+/// FutureBuilder's cached failed snapshot).
+class _HunterProfileLoader extends StatefulWidget {
+    final String uid;
+    const _HunterProfileLoader({required this.uid});
+
+    @override
+    State<_HunterProfileLoader> createState() => _HunterProfileLoaderState();
+}
+
+class _HunterProfileLoaderState extends State<_HunterProfileLoader> {
+    late Future<DocumentSnapshot> _future;
+
+    @override
+    void initState() {
+        super.initState();
+        _future = _loadProfile();
+    }
+
+    Future<DocumentSnapshot> _loadProfile() {
+        return FirebaseFirestore.instance
+            .collection('hunters')
+            .doc(widget.uid)
+            .get();
+    }
+
+    void _retry() {
+        setState(() {
+            _future = _loadProfile();
+        });
+    }
+
+    @override
+    Widget build(BuildContext context) {
+        return FutureBuilder<DocumentSnapshot>(
+            future: _future,
+            builder: (context, hunterSnapshot) {
+                if (hunterSnapshot.hasError) {
+                    return _NoInternetScreen(onRetry: _retry);
+                }
+                if (!hunterSnapshot.hasData) {
+                    return const _LoadingScreen();
+                }
+
+                final data =
+                    hunterSnapshot.data!.data() as Map<String, dynamic>?;
+
+                final onboardingComplete = data?['onboardingComplete'] ??
+                    (data?['height'] != null &&
+                        data?['weight'] != null &&
+                        data?['age'] != null);
+
+                if (onboardingComplete) {
+                    return MainShell(
+                        fatLoss: false,
+                        discipline: false,
+                        muscleGain: false,
+                        selfImprovement: false,
+                        bioQuests: [],
+                    );
+                }
+
+                return const AwakeningScreen();
             },
         );
     }

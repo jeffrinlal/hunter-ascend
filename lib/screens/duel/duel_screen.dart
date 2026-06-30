@@ -612,8 +612,8 @@ class _DuelScreenState extends State<DuelScreen> {
           // ── Daily reset check (once per calendar day) ──
           final _today = DateTime.now().toString().substring(0, 10);
           if (_lastResetCheckDay != _today) {
+            _lastResetCheckDay = _today;
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              _lastResetCheckDay = _today;
               _checkDailyReset(duel);
             });
           }

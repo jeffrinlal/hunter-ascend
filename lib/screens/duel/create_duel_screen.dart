@@ -3,6 +3,7 @@ import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hunter_ascend/screens/duel/duel_history_screen.dart';
+import 'package:hunter_ascend/services/connectivity_service.dart';
 
 /// Form to create/send a duel challenge to another hunter.
 class CreateDuelScreen extends StatefulWidget {
@@ -75,6 +76,10 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
 
   Future<void> _submitDuel() async {
     if (_isSubmitting) return;
+    if (!await ConnectivityService.isOnline()) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Internet connection required.")));
+      return;
+    }
     _isSubmitting = true;
     try {
     // ── Auth check first ──────────────────────────────────────────

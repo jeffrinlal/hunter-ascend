@@ -12,6 +12,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hunter_ascend/screens/auth/login_screen.dart';
 import 'package:hunter_ascend/services/notification_service.dart';
+import 'package:hunter_ascend/services/connectivity_service.dart';
+import 'package:hunter_ascend/widgets/connectivity_banner.dart';
 import 'dart:math' as math;
 
 Future<void> signInAnonymously() async {
@@ -47,6 +49,7 @@ Future<void> createHunterProfile() async {
 /// before running [HunterAscendApp].
 void main() async {
     WidgetsFlutterBinding.ensureInitialized();
+    ConnectivityService.instance.start();
 
     SystemChrome.setEnabledSystemUIMode(
         SystemUiMode.manual,
@@ -101,7 +104,8 @@ class HunterAscendApp extends StatelessWidget {
             themeMode: mode,
 
             builder: (context, child) {
-                return MediaQuery(
+                return ConnectivityBanner(
+                  child: MediaQuery(
                     data: MediaQuery.of(context).copyWith(
                         padding: MediaQuery.of(context).padding.copyWith(
                             bottom: math.max(
@@ -115,6 +119,7 @@ class HunterAscendApp extends StatelessWidget {
                         bottom: true,
                         child: child!,
                     ),
+                  ),
                 );
             },
 
@@ -128,43 +133,82 @@ class HunterAscendApp extends StatelessWidget {
                     }
 
                     if (snapshot.hasData) {
-                        return FutureBuilder<DocumentSnapshot>(
-                            future: FirebaseFirestore.instance
-                                .collection('hunters')
-                                .doc(snapshot.data!.uid)
-                                .get(),
-                            builder: (context, hunterSnapshot) {
-                                if (!hunterSnapshot.hasData) {
-                                    return const _LoadingScreen();
-                                }
-
-                                final data =
-                                hunterSnapshot.data!.data() as Map<String, dynamic>?;
-
-                                final onboardingComplete = data?['onboardingComplete'] ??
-                                    (data?['height'] != null &&
-                                        data?['weight'] != null &&
-                                        data?['age'] != null);
-
-                                if (onboardingComplete) {
-                                    return MainShell(
-                                        fatLoss: false,
-                                        discipline: false,
-                                        muscleGain: false,
-                                        selfImprovement: false,
-                                        bioQuests: [],
-                                    );
-                                }
-
-                                return const AwakeningScreen();
-                            },
-                        );
+                        return _HunterProfileLoader(uid: snapshot.data!.uid);
                     }
 
                     return const LoginScreen();
                 },
             ),
                 );
+            },
+        );
+    }
+}
+
+/// Loads the hunter profile from Firestore with a working Retry mechanism.
+/// Stateful so that [_retry] creates a genuinely new Future (not reusing the
+/// FutureBuilder's cached failed snapshot).
+class _HunterProfileLoader extends StatefulWidget {
+    final String uid;
+    const _HunterProfileLoader({required this.uid});
+
+    @override
+    State<_HunterProfileLoader> createState() => _HunterProfileLoaderState();
+}
+
+class _HunterProfileLoaderState extends State<_HunterProfileLoader> {
+    late Future<DocumentSnapshot> _future;
+
+    @override
+    void initState() {
+        super.initState();
+        _future = _loadProfile();
+    }
+
+    Future<DocumentSnapshot> _loadProfile() {
+        return FirebaseFirestore.instance
+            .collection('hunters')
+            .doc(widget.uid)
+            .get();
+    }
+
+    void _retry() {
+        setState(() {
+            _future = _loadProfile();
+        });
+    }
+
+    @override
+    Widget build(BuildContext context) {
+        return FutureBuilder<DocumentSnapshot>(
+            future: _future,
+            builder: (context, hunterSnapshot) {
+                if (hunterSnapshot.hasError) {
+                    return _NoInternetScreen(onRetry: _retry);
+                }
+                if (!hunterSnapshot.hasData) {
+                    return const _LoadingScreen();
+                }
+
+                final data =
+                    hunterSnapshot.data!.data() as Map<String, dynamic>?;
+
+                final onboardingComplete = data?['onboardingComplete'] ??
+                    (data?['height'] != null &&
+                        data?['weight'] != null &&
+                        data?['age'] != null);
+
+                if (onboardingComplete) {
+                    return MainShell(
+                        fatLoss: false,
+                        discipline: false,
+                        muscleGain: false,
+                        selfImprovement: false,
+                        bioQuests: [],
+                    );
+                }
+
+                return const AwakeningScreen();
             },
         );
     }
@@ -181,6 +225,58 @@ class _LoadingScreen extends StatelessWidget {
                 child: CircularProgressIndicator(
                     color: HunterTheme.primary,
                     strokeWidth: 1.5,
+                ),
+            ),
+        );
+    }
+}
+
+/// Shown when the app starts with no internet and no cached Firestore data.
+class _NoInternetScreen extends StatelessWidget {
+    final VoidCallback onRetry;
+    const _NoInternetScreen({required this.onRetry});
+
+    @override
+    Widget build(BuildContext context) {
+        return Scaffold(
+            backgroundColor: HunterTheme.background,
+            body: Center(
+                child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                            Icon(Icons.wifi_off, size: 64, color: HunterTheme.textSecondary),
+                            const SizedBox(height: 24),
+                            Text(
+                                "No Internet Connection",
+                                style: TextStyle(
+                                    color: HunterTheme.textPrimary,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                                "Hunter Ascend requires an internet connection to play.",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    color: HunterTheme.textSecondary,
+                                    fontSize: 14,
+                                ),
+                            ),
+                            const SizedBox(height: 32),
+                            ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: HunterTheme.primary,
+                                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                ),
+                                onPressed: onRetry,
+                                child: const Text("Retry", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                            ),
+                        ],
+                    ),
                 ),
             ),
         );

@@ -807,13 +807,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final mode = data['disciplineMode'] ?? 'casual';
     final lastReset = data['lastQuestResetDate'];
     if (lastReset == null || lastReset.toString().isEmpty) return;
-    // Genuine first-time / new users: their only daily reset happened today
-    // (their first ever), so the "yesterday" snapshot is really today's freshly
-    // generated missions, not a real previous day. Skip so brand-new accounts
-    // are never punished right after signup / first login. Existing users reach
-    // this check before today's reset runs, so their lastReset is a prior day
-    // and they are unaffected.
-    if (lastReset.toString() == today) return;
     final completed = data['yesterdayCompletedCount'] ?? 0;
     final total = data['yesterdayTotalQuests'] ?? 0;
 

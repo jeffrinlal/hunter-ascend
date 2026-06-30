@@ -164,27 +164,56 @@ class _MainShellState extends State<MainShell> {
               }
               setState(() => _index = i);
             },
-            destinations: const [
-              NavigationDestination(
+            destinations: [
+              const NavigationDestination(
                 icon: Icon(Icons.home_outlined),
                 selectedIcon: Icon(Icons.home_filled),
                 label: 'Home',
               ),
-              NavigationDestination(
+              const NavigationDestination(
                 icon: Icon(Icons.checklist_outlined),
                 selectedIcon: Icon(Icons.checklist),
                 label: 'Missions',
               ),
-              NavigationDestination(
+              const NavigationDestination(
                 icon: Icon(Icons.leaderboard_outlined),
                 selectedIcon: Icon(Icons.leaderboard),
                 label: 'Leaderboard',
               ),
               NavigationDestination(
-                icon: Icon(Icons.sports_kabaddi),
+                icon: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('duel_requests')
+                      .where('toUid', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+                      .where('status', isEqualTo: 'pending')
+                      .limit(1)
+                      .snapshots(),
+                  builder: (context, snap) {
+                    final hasPending = snap.hasData && snap.data!.docs.isNotEmpty;
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Icon(Icons.sports_kabaddi),
+                        if (hasPending)
+                          Positioned(
+                            right: -4,
+                            top: -4,
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
                 label: 'Duels',
               ),
-              NavigationDestination(
+              const NavigationDestination(
                 icon: Icon(Icons.person_outline),
                 selectedIcon: Icon(Icons.person),
                 label: 'Profile',

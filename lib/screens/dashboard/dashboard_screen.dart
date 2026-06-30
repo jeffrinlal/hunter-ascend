@@ -895,7 +895,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 // ── Ad available → must watch, no escape ──
     showDialog(
       context: context, barrierDismissible: false,
-      builder: (_) => Dialog(
+      builder: (_) => PopScope(
+        // Strict Mode: block the Android hardware back button so the only way
+        // to continue is to watch the rewarded ad. Casual stays dismissible.
+        canPop: mode != 'strict',
+        child: Dialog(
         backgroundColor: Colors.transparent,
         child: Container(
           padding: const EdgeInsets.all(24),
@@ -982,6 +986,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ]),
         ),
+      ),
       ),
     );
   }

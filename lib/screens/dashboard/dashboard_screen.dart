@@ -333,6 +333,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Duration questRemaining = Duration.zero;
   Duration timeUntilReset = Duration.zero;
   Timer? countdownTimer;
+  // The calendar day the missions are currently loaded for. Used by the
+  // already-running per-minute countdown timer to detect a midnight rollover
+  // and refresh today's missions exactly once when the day changes.
+  String _missionDay = DateTime.now().toString().substring(0, 10);
   void updateQuestCountdown() {
     final now = DateTime.now();
 
@@ -345,6 +349,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {
       timeUntilReset = tomorrow.difference(now);
     });
+
+    // Day rollover: when the calendar day changes, reload today's missions and
+    // run the daily reset once. _missionDay is updated first so this never
+    // fires more than once per day, even if the timer ticks again mid-refresh.
+    final today = now.toString().substring(0, 10);
+    if (today != _missionDay) {
+      _missionDay = today;
+      _loadAIQuests().then((_) => checkDailyReset());
+    }
   }
 
 

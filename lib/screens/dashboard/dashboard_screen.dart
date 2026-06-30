@@ -333,6 +333,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Duration questRemaining = Duration.zero;
   Duration timeUntilReset = Duration.zero;
   Timer? countdownTimer;
+  // The calendar day the missions are currently loaded for. Used by the
+  // already-running per-minute countdown timer to detect a midnight rollover
+  // and refresh today's missions exactly once when the day changes.
+  String _missionDay = DateTime.now().toString().substring(0, 10);
   void updateQuestCountdown() {
     final now = DateTime.now();
 
@@ -345,6 +349,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {
       timeUntilReset = tomorrow.difference(now);
     });
+
+    // Day rollover: when the calendar day changes, reload today's missions and
+    // run the daily reset once. _missionDay is updated first so this never
+    // fires more than once per day, even if the timer ticks again mid-refresh.
+    final today = now.toString().substring(0, 10);
+    if (today != _missionDay) {
+      _missionDay = today;
+      // Both DashboardScreen instances (Home + Missions) run this timer, so
+      // gate the reload to the Missions tab — the only one that displays daily
+      // missions. Without this, both instances would hit _loadAIQuests() at
+      // midnight and generate AI quests twice (two AI calls + two Firestore
+      // writes), since each reads aiQuestDate == yesterday before either write.
+      if (widget.questsOnly) {
+        _loadAIQuests().then((_) => checkDailyReset());
+      }
+    }
   }
 
 

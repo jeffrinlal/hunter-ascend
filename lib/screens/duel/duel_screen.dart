@@ -635,7 +635,7 @@ class _DuelScreenState extends State<DuelScreen> {
           final List completedToday = isPlayer1
               ? (duel['player1CompletedToday'] ?? [])
               : (duel['player2CompletedToday'] ?? []);
-          final List allQuests = duel['duelQuests'] as List;
+          final List allQuests = (duel['duelQuests'] ?? []) as List;
           final bool allDoneToday = allQuests.isNotEmpty &&
               allQuests.every((q) => completedToday.contains(q['name']));
 

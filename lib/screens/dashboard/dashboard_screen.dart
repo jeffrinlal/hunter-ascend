@@ -863,15 +863,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!isPunishmentAdReady || punishmentAd == null) {
       int penalty = mode == 'strict' ? 100 : 25;
       final ref = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
+      bool applied = false;
       await FirebaseFirestore.instance.runTransaction((txn) async {
+        applied = false;
         final snap = await txn.get(ref);
         final d = snap.data() ?? {};
+        // Re-check inside the transaction: if another client already applied
+        // the penalty, skip to guarantee exactly-once-per-day semantics.
+        if (d['lastPunishmentDate'] == today) return;
         int curXp = (d['xp'] ?? 0) as int;
         curXp = (curXp - penalty).clamp(0, 999999);
         txn.update(ref, {'xp': curXp, 'lastPunishmentDate': today});
+        applied = true;
       });
       await loadHunterData();
       if (!mounted) return;
+      if (!applied) return;
       showDialog(
         context: context, barrierDismissible: false,
         builder: (_) => Dialog(

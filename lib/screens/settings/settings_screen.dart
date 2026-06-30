@@ -17,13 +17,13 @@ class SettingsScreen extends StatelessWidget {
       if (user == null) return;
 
       if (user.isAnonymous) {
-        // Delete Firestore data first
+        // Delete Firestore data first (while auth token is still valid),
+        // then delete the anonymous Firebase Auth account.
         await FirebaseFirestore.instance
             .collection('hunters')
             .doc(user.uid)
             .delete();
 
-        // Then delete the anonymous Firebase Auth account
         await user.delete();
         // user.delete() also signs out automatically
       } else {

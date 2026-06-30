@@ -920,8 +920,22 @@ class _ProfileScreenState extends State<ProfileScreen>
     } catch (e) {
       if (mounted) {
         setState(() => _linkingGoogle = false);
+        String message = 'Could not link account. Please try again.';
+        if (e is FirebaseAuthException) {
+          switch (e.code) {
+            case 'credential-already-in-use':
+              message = 'This Google account is already linked to another Hunter.';
+              break;
+            case 'provider-already-linked':
+              message = 'This Google account is already linked.';
+              break;
+            case 'network-request-failed':
+              message = 'Network error. Please try again.';
+              break;
+          }
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not link account: $e')),
+          SnackBar(content: Text(message)),
         );
       }
     }

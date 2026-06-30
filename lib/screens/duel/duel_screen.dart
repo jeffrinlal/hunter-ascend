@@ -32,9 +32,10 @@ class _DuelScreenState extends State<DuelScreen> {
   DateTime? questEndTime;
   Timer? _countdownTimer;
   bool _completingActiveQuest = false;
-  // Ensures _checkDailyReset runs at most once per widget lifecycle, not on
-  // every StreamBuilder emission (the stream fires on every duel doc change).
-  bool _hasCheckedDuelReset = false;
+  // The calendar day for which _checkDailyReset has already run. Prevents
+  // repeated execution on every StreamBuilder emission while still allowing
+  // the check to re-fire if the screen stays open across midnight.
+  String _lastResetCheckDay = '';
   // Guards the auto-completion path so it runs at most once per device.
   bool _completingDuel = false;
   Duration remaining = Duration.zero;
@@ -608,10 +609,11 @@ class _DuelScreenState extends State<DuelScreen> {
 
           final duel = snapshot.data!.data() as Map<String, dynamic>;
 
-          // ── Daily reset check ──
-          if (!_hasCheckedDuelReset) {
+          // ── Daily reset check (once per calendar day) ──
+          final _today = DateTime.now().toString().substring(0, 10);
+          if (_lastResetCheckDay != _today) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              _hasCheckedDuelReset = true;
+              _lastResetCheckDay = _today;
               _checkDailyReset(duel);
             });
           }

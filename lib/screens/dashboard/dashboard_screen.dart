@@ -1699,7 +1699,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> saveCompletedQuest(String questName) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({'completedQuests': FieldValue.arrayUnion([questName])});
+    await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({'completedQuests': FieldValue.arrayUnion([questName]), 'questsDone': FieldValue.increment(1)});
   }
 
   // ── Build ────────────────────────────────────────────────
@@ -2866,6 +2866,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (user != null) {
       await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
         'weeklyMissions': weeklyMissions,
+        'questsDone': FieldValue.increment(1),
       });
     }
 

@@ -1584,11 +1584,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
       });
     }
     final completedQuestName = activeQuest; // save before clearing
+    final int reward = questReward; // capture before any state changes
     setState(() {
-      xp += questReward; questStarted = false; completedQuests.add(activeQuest);
-      if (xp >= 500) { level++; xp -= 500; leveledUp = true; }
+      questStarted = false; completedQuests.add(activeQuest);
     });
-    await updateHunterOnline(); await updateStreak(); await saveCompletedQuest(completedQuestName);
+
+    // Persist XP/level atomically. The reward is applied to the LATEST Firestore
+    // values inside a transaction (not stale local state), so newer XP from the
+    // step reward, map run, or discipline penalty can never be overwritten.
+    if (user != null) {
+      final ref = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
+      int newXp = xp;
+      int newLevel = level;
+      await FirebaseFirestore.instance.runTransaction((txn) async {
+        final snap = await txn.get(ref);
+        final data = snap.data() ?? {};
+        int curXp = (data['xp'] ?? 0) as int;
+        int curLevel = (data['level'] ?? 1) as int;
+        final int startLevel = curLevel;
+        curXp += reward;
+        while (curXp >= 500) { curXp -= 500; curLevel++; }
+        txn.update(ref, {'xp': curXp, 'level': curLevel});
+        newXp = curXp;
+        newLevel = curLevel;
+        leveledUp = curLevel > startLevel;
+      });
+      if (mounted) setState(() { xp = newXp; level = newLevel; });
+      else { xp = newXp; level = newLevel; }
+    }
+    await updateStreak(); await saveCompletedQuest(completedQuestName);
 
     if (!mounted) return;
     showDialog(
@@ -2854,16 +2878,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
         'activeWeeklyMissionEndTime': FieldValue.delete(),
       });
     }
+    final int reward = weeklyQuestReward; // capture before any state changes
     setState(() {
-      xp += weeklyQuestReward;
       weeklyQuestStarted = false;
       for (final m in weeklyMissions) {
         if (m['title'] == completedTitle) m['completed'] = true;
       }
-      if (xp >= 500) { level++; xp -= 500; leveledUp = true; }
     });
-    await updateHunterOnline();
+
+    // Persist XP/level atomically (see completeQuest): apply the reward to the
+    // LATEST Firestore values in a transaction so newer XP from the step reward,
+    // map run, or discipline penalty is never overwritten by stale local state.
     if (user != null) {
+      final ref = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
+      int newXp = xp;
+      int newLevel = level;
+      await FirebaseFirestore.instance.runTransaction((txn) async {
+        final snap = await txn.get(ref);
+        final data = snap.data() ?? {};
+        int curXp = (data['xp'] ?? 0) as int;
+        int curLevel = (data['level'] ?? 1) as int;
+        final int startLevel = curLevel;
+        curXp += reward;
+        while (curXp >= 500) { curXp -= 500; curLevel++; }
+        txn.update(ref, {'xp': curXp, 'level': curLevel});
+        newXp = curXp;
+        newLevel = curLevel;
+        leveledUp = curLevel > startLevel;
+      });
+      if (mounted) setState(() { xp = newXp; level = newLevel; });
+      else { xp = newXp; level = newLevel; }
       await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
         'weeklyMissions': weeklyMissions,
         'questsDone': FieldValue.increment(1),

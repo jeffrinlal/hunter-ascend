@@ -613,6 +613,7 @@ class _DuelScreenState extends State<DuelScreen> {
           // ── Cancelled ──
           if (duel['status'] == 'cancelled') {
             WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text("Duel has been cancelled")),

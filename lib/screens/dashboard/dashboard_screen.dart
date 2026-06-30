@@ -540,10 +540,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      checkBrokenStreak();
-      checkDisciplinePunishment();
-    });
+    if (!widget.questsOnly) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        checkBrokenStreak();
+        checkDisciplinePunishment();
+      });
+    }
 
     loadHunterData().then((_) async {
       await _loadAIQuests();
@@ -1671,7 +1673,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       level = data['level'] ?? 1;
       completedQuests = List<String>.from(data['completedQuests'] ?? []);
     });
-    await checkDisciplineMode();
+    if (!widget.questsOnly) await checkDisciplineMode();
   }
 
   // ── App Review prompt ────────────────────────────────────

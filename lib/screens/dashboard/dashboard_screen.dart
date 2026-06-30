@@ -635,13 +635,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final mode = data['disciplineMode'] ?? 'casual';
 
       if (mode == 'strict') {
-        int currentXp = data['xp'] ?? 0;
-
-        await FirebaseFirestore.instance
-            .collection('hunters')
-            .doc(user.uid)
-            .update({
-          'xp': (currentXp - 100).clamp(0, 999999),
+        final ref = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
+        await FirebaseFirestore.instance.runTransaction((txn) async {
+          final snap = await txn.get(ref);
+          final d = snap.data() ?? {};
+          int curXp = (d['xp'] ?? 0) as int;
+          curXp = (curXp - 100).clamp(0, 999999);
+          txn.update(ref, {'xp': curXp});
         });
 
         if (mounted) {
@@ -861,13 +861,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 // ── Ad not available → deduct XP once ──
     if (!isPunishmentAdReady || punishmentAd == null) {
-      int currentXp = data['xp'] ?? 0;
       int penalty = mode == 'strict' ? 100 : 25;
-      currentXp = (currentXp - penalty).clamp(0, 999999);
-      await FirebaseFirestore.instance
-          .collection('hunters')
-          .doc(user.uid)
-          .update({'xp': currentXp, 'lastPunishmentDate': today});
+      final ref = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
+      await FirebaseFirestore.instance.runTransaction((txn) async {
+        final snap = await txn.get(ref);
+        final d = snap.data() ?? {};
+        int curXp = (d['xp'] ?? 0) as int;
+        curXp = (curXp - penalty).clamp(0, 999999);
+        txn.update(ref, {'xp': curXp, 'lastPunishmentDate': today});
+      });
       await loadHunterData();
       if (!mounted) return;
       showDialog(

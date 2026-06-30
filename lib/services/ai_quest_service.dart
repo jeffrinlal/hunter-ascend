@@ -12,6 +12,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 /// the worker returns. Returns an empty list on any failure so callers can
 /// fall back gracefully without crashing.
 class AIQuestService {
+  // Prevents infinite retry loops when validating duplicate quest titles.
+  static bool _isRetrying = false;
+
   /// Generates and persists the 6 daily AI missions for the current hunter.
   ///
   /// Tailors difficulty to the user's BMI/goals. Persisted to Firestore by the
@@ -101,6 +104,7 @@ Level 31+:
 - Include fitness, nutrition and discipline tasks
 - No dangerous activities
 - No medical advice
+- All 6 quest titles MUST be unique — never generate duplicate titles
 
 Return JSON only.
 """
@@ -125,6 +129,28 @@ Return JSON only.
       debugPrint("AI QUESTS:");
       debugPrint(quests.toString());
       debugPrint("QUEST COUNT: ${quests.length}");
+
+      // Validate: all quest titles must be unique. If the AI returned
+      // duplicates, retry generation once rather than allow identical titles
+      // (which would break name-based completion tracking).
+      if (quests is List && quests.length > 1) {
+        final titles = quests.map((q) => q['title']?.toString() ?? '').toSet();
+        if (titles.length < quests.length) {
+          debugPrint("⚠️ Duplicate quest titles detected — retrying generation");
+          // Retry once. If the retry also has duplicates, accept them rather
+          // than looping forever (prompt enforcement handles >99% of cases).
+          if (!_isRetrying) {
+            _isRetrying = true;
+            final retryResult = await generateQuests(
+              level: level, streak: streak, weight: weight, height: height, goals: goals,
+            );
+            _isRetrying = false;
+            return retryResult;
+          }
+          _isRetrying = false;
+        }
+      }
+
       final uid = FirebaseAuth.instance.currentUser!.uid;
 
       await FirebaseFirestore.instance

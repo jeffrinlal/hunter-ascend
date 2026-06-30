@@ -35,6 +35,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _index = 0;
+  bool _isOpeningDuels = false;
 
   late final List<Widget> _tabs = [
     DashboardScreen(
@@ -61,8 +62,10 @@ class _MainShellState extends State<MainShell> {
   // active duel -> DuelScreen, pending request -> DuelRequestScreen,
   // otherwise -> CreateDuelScreen. Pushed as a route (keeps its own AppBar).
   Future<void> _openDuels() async {
+    if (_isOpeningDuels) return;
+    _isOpeningDuels = true;
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) { _isOpeningDuels = false; return; }
     try {
     final duelSnapshot = await FirebaseFirestore.instance
         .collection('duels')
@@ -105,6 +108,8 @@ class _MainShellState extends State<MainShell> {
         context, MaterialPageRoute(builder: (_) => const CreateDuelScreen()));
     } catch (e) {
       debugPrint("openDuels: $e");
+    } finally {
+      _isOpeningDuels = false;
     }
   }
 

@@ -392,10 +392,26 @@ class _DuelScreenState extends State<DuelScreen> {
     try {
     final bool ip1 = duel['player1'] == u.uid;
     final String cf = ip1 ? 'player1CompletedToday' : 'player2CompletedToday';
+    final String sf = ip1 ? 'player1Score' : 'player2Score';
+    final String? questName = activeQuestName;
+    final int questXp = activeQuestXp;
 
-    await FirebaseFirestore.instance.collection('duels').doc(widget.duelId).update({
-      cf: FieldValue.arrayUnion([activeQuestName]),
-      ip1 ? 'player1Score' : 'player2Score': FieldValue.increment(activeQuestXp),
+    // Atomic completion (mirrors _autoCompleteDuel's transaction style): re-read
+    // the duel and only add the quest + increment the score if it is not already
+    // in completedToday. arrayUnion is idempotent but FieldValue.increment is
+    // not, so this prevents the same account completing the same duel quest on
+    // two devices from incrementing the score twice.
+    final duelRef = FirebaseFirestore.instance.collection('duels').doc(widget.duelId);
+    await FirebaseFirestore.instance.runTransaction((txn) async {
+      final snap = await txn.get(duelRef);
+      if (!snap.exists) return;
+      final data = snap.data() as Map<String, dynamic>;
+      final List done = (data[cf] ?? []) as List;
+      if (done.contains(questName)) return; // already completed — skip increment
+      txn.update(duelRef, {
+        cf: FieldValue.arrayUnion([questName]),
+        sf: FieldValue.increment(questXp),
+      });
     });
 
     if (mounted) {

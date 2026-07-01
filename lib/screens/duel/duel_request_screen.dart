@@ -6,6 +6,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/services/ads_service.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
+import 'package:hunter_ascend/screens/duel/duel_screen.dart';
 
 /// Shows an incoming duel challenge so the hunter can accept or decline.
 class DuelRequestScreen extends StatefulWidget {
@@ -290,8 +291,8 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                             }
                             _isResponding = true;
                             try {
-                            await duel.reference.update({'status': 'declined'});
-                            if (context.mounted) Navigator.pop(context);
+                              await duel.reference.update({'status': 'declined'});
+                              if (context.mounted) Navigator.pop(context);
                             } catch (e) {
                               debugPrint("declineDuel: $e");
                             } finally {
@@ -333,31 +334,38 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                             }
                             _isResponding = true;
                             try {
-                            final user = FirebaseAuth.instance.currentUser;
-                            if (user == null) return;
-                            await FirebaseFirestore.instance.collection('duels').add({
-                              'player1': duelData['fromUid'],
-                              'player2': user.uid,
-                              'participants':          [duelData['fromUid'], user.uid],
-                              'player1Name': duelData['fromHunterName'] ?? '',
-                              'player2Name': duelData['toHunterName'] ?? '',
-                              'player1Score':          0,
-                              'player2Score':          0,
-                              'player1CompletedToday': [],
-                              'player2CompletedToday': [],
-                              'status':                'active',
-                              'winner':                '',
-                              'cancelRequestedBy':     '',
-                              'cancelStatus':          '',
-                              'player1ViewedResult':   false,
-                              'player2ViewedResult':   false,
-                              'durationDays':          duelData['durationDays'] ?? 6,
-                              'startDate':             Timestamp.now(),
-                              'duelQuests':            duelData['duelQuests'],
-                              'createdAt':             Timestamp.now(),
-                            });
-                            await duel.reference.update({'status': 'accepted'});
-                            if (context.mounted) Navigator.pop(context);
+                              final user = FirebaseAuth.instance.currentUser;
+                              if (user == null) return;
+                              final newDuelRef = await FirebaseFirestore.instance.collection('duels').add({
+                                'player1': duelData['fromUid'],
+                                'player2': user.uid,
+                                'participants':          [duelData['fromUid'], user.uid],
+                                'player1Name': duelData['fromHunterName'] ?? '',
+                                'player2Name': duelData['toHunterName'] ?? '',
+                                'player1Score':          0,
+                                'player2Score':          0,
+                                'player1CompletedToday': [],
+                                'player2CompletedToday': [],
+                                'status':                'active',
+                                'winner':                '',
+                                'cancelRequestedBy':     '',
+                                'cancelStatus':          '',
+                                'player1ViewedResult':   false,
+                                'player2ViewedResult':   false,
+                                'durationDays':          duelData['durationDays'] ?? 6,
+                                'startDate':             Timestamp.now(),
+                                'duelQuests':            duelData['duelQuests'],
+                                'createdAt':             Timestamp.now(),
+                              });
+                              await duel.reference.update({'status': 'accepted'});
+                              if (context.mounted) {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => DuelScreen(duelId: newDuelRef.id),
+                                  ),
+                                );
+                              }
                             } catch (e) {
                               debugPrint("acceptDuel: $e");
                             } finally {

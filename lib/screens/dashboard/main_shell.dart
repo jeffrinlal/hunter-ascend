@@ -67,45 +67,63 @@ class _MainShellState extends State<MainShell> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) { _isOpeningDuels = false; return; }
     try {
-    final duelSnapshot = await FirebaseFirestore.instance
-        .collection('duels')
-        .where('participants', arrayContains: user.uid)
-        .limit(1)
-        .get();
-    bool hasActiveDuel = false;
-    String? duelId;
-    if (duelSnapshot.docs.isNotEmpty) {
-      final doc = duelSnapshot.docs.first;
-      final data = doc.data();
-      bool isPlayer1 = data['player1'] == user.uid;
-      bool shouldShowResult = data['status'] == 'completed' &&
-          ((isPlayer1 && data['player1ViewedResult'] == false) ||
-              (!isPlayer1 && data['player2ViewedResult'] == false));
-      if (data['status'] == 'active' || shouldShowResult) {
+      bool hasActiveDuel = false;
+      String? duelId;
+
+      // 1) Look for a currently active duel first.
+      final activeSnapshot = await FirebaseFirestore.instance
+          .collection('duels')
+          .where('participants', arrayContains: user.uid)
+          .where('status', isEqualTo: 'active')
+          .limit(1)
+          .get();
+
+      if (activeSnapshot.docs.isNotEmpty) {
         hasActiveDuel = true;
-        duelId = doc.id;
+        duelId = activeSnapshot.docs.first.id;
+      } else {
+        // 2) No active duel — check for a completed duel this user hasn't
+        //    viewed the result of yet.
+        final completedSnapshot = await FirebaseFirestore.instance
+            .collection('duels')
+            .where('participants', arrayContains: user.uid)
+            .where('status', isEqualTo: 'completed')
+            .get();
+
+        for (final doc in completedSnapshot.docs) {
+          final data = doc.data();
+          final bool isPlayer1 = data['player1'] == user.uid;
+          final bool shouldShowResult = isPlayer1
+              ? data['player1ViewedResult'] == false
+              : data['player2ViewedResult'] == false;
+          if (shouldShowResult) {
+            hasActiveDuel = true;
+            duelId = doc.id;
+            break;
+          }
+        }
       }
-    }
-    if (!mounted) return;
-    if (hasActiveDuel) {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => DuelScreen(duelId: duelId!)));
-      return;
-    }
-    final pendingRequest = await FirebaseFirestore.instance
-        .collection('duel_requests')
-        .where('toUid', isEqualTo: user.uid)
-        .where('status', isEqualTo: 'pending')
-        .limit(1)
-        .get();
-    if (!mounted) return;
-    if (pendingRequest.docs.isNotEmpty) {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const DuelRequestScreen()));
-      return;
-    }
-    Navigator.push(
-        context, MaterialPageRoute(builder: (_) => const CreateDuelScreen()));
+
+      if (!mounted) return;
+      if (hasActiveDuel) {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => DuelScreen(duelId: duelId!)));
+        return;
+      }
+      final pendingRequest = await FirebaseFirestore.instance
+          .collection('duel_requests')
+          .where('toUid', isEqualTo: user.uid)
+          .where('status', isEqualTo: 'pending')
+          .limit(1)
+          .get();
+      if (!mounted) return;
+      if (pendingRequest.docs.isNotEmpty) {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const DuelRequestScreen()));
+        return;
+      }
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const CreateDuelScreen()));
     } catch (e) {
       debugPrint("openDuels: $e");
     } finally {
@@ -142,7 +160,7 @@ class _MainShellState extends State<MainShell> {
             backgroundColor: HunterTheme.cardColor,
             indicatorColor: HunterTheme.primary.withOpacity(0.14),
             labelTextStyle: WidgetStateProperty.resolveWith(
-              (states) => TextStyle(
+                  (states) => TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: states.contains(WidgetState.selected)
@@ -151,7 +169,7 @@ class _MainShellState extends State<MainShell> {
               ),
             ),
             iconTheme: WidgetStateProperty.resolveWith(
-              (states) => IconThemeData(
+                  (states) => IconThemeData(
                 color: states.contains(WidgetState.selected)
                     ? HunterTheme.primary
                     : inactive,

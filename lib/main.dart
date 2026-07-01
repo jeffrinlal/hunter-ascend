@@ -29,20 +29,20 @@ Future<void> createHunterProfile() async {
     final docRef =
     FirebaseFirestore.instance.collection('hunters').doc(user.uid);
     try {
-    final doc = await docRef.get();
+        final doc = await docRef.get();
 
-    if (!doc.exists) {
-        await docRef.set({
-            'hunterName': 'Hunter_${user.uid.substring(0, 6)}',
-            'level': 1,
-            'xp': 0,
-            'streak': 0,
-            'lastQuestDate': '',
-            'onboardingComplete': false,
-        });
-    }
+        if (!doc.exists) {
+            await docRef.set({
+                'hunterName': 'Hunter_${user.uid.substring(0, 6)}',
+                'level': 1,
+                'xp': 0,
+                'streak': 0,
+                'lastQuestDate': '',
+                'onboardingComplete': false,
+            });
+        }
     } catch (e) {
-      debugPrint("createHunterProfile: $e");
+        debugPrint("createHunterProfile: $e");
     }
 }
 
@@ -63,23 +63,23 @@ void main() async {
 
     bool hasCompletedSetup = false;
     try {
-    await Firebase.initializeApp();
-    await NotificationService().init();
-    await NotificationService().scheduleAllNotifications();
+        await Firebase.initializeApp();
+        await NotificationService().init();
+        await NotificationService().scheduleAllNotifications();
 
-    debugPrint("USER ON STARTUP: ${FirebaseAuth.instance.currentUser?.uid}");
+        debugPrint("USER ON STARTUP: ${FirebaseAuth.instance.currentUser?.uid}");
 
-    await createHunterProfile();
-    await MobileAds.instance.initialize();
+        await createHunterProfile();
+        await MobileAds.instance.initialize();
 
-    final prefs = await SharedPreferences.getInstance();
-    hasCompletedSetup = prefs.getBool('hasCompletedSetup') ?? false;
+        final prefs = await SharedPreferences.getInstance();
+        hasCompletedSetup = prefs.getBool('hasCompletedSetup') ?? false;
 
-    final isDarkMode = prefs.getBool('darkMode') ?? false;
-    HunterTheme.isDark = isDarkMode;
-    themeNotifier.value = isDarkMode ? ThemeMode.dark : ThemeMode.light;
+        final isDarkMode = prefs.getBool('darkMode') ?? false;
+        HunterTheme.isDark = isDarkMode;
+        themeNotifier.value = isDarkMode ? ThemeMode.dark : ThemeMode.light;
     } catch (e) {
-      debugPrint("startup: $e");
+        debugPrint("startup: $e");
     }
 
     runApp(HunterAscendApp(hasCompletedSetup: hasCompletedSetup));
@@ -98,48 +98,48 @@ class HunterAscendApp extends StatelessWidget {
             builder: (context, mode, _) {
                 HunterTheme.isDark = mode == ThemeMode.dark;
                 return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            title: 'Hunter Ascend',
-            theme: HunterTheme.lightTheme,
-            darkTheme: HunterTheme.darkTheme,
-            themeMode: mode,
+                    debugShowCheckedModeBanner: false,
+                    title: 'Hunter Ascend',
+                    theme: HunterTheme.lightTheme,
+                    darkTheme: HunterTheme.darkTheme,
+                    themeMode: mode,
 
-            builder: (context, child) {
-                return ConnectivityBanner(
-                  child: MediaQuery(
-                    data: MediaQuery.of(context).copyWith(
-                        padding: MediaQuery.of(context).padding.copyWith(
-                            bottom: math.max(
-                                MediaQuery.of(context).padding.bottom,
-                                MediaQuery.of(context).viewPadding.bottom,
+                    builder: (context, child) {
+                        return ConnectivityBanner(
+                            child: MediaQuery(
+                                data: MediaQuery.of(context).copyWith(
+                                    padding: MediaQuery.of(context).padding.copyWith(
+                                        bottom: math.max(
+                                            MediaQuery.of(context).padding.bottom,
+                                            MediaQuery.of(context).viewPadding.bottom,
+                                        ),
+                                    ),
+                                ),
+                                child: SafeArea(
+                                    top: false,
+                                    bottom: true,
+                                    child: child!,
+                                ),
                             ),
-                        ),
+                        );
+                    },
+
+                    home: StreamBuilder<User?>(
+                        stream: FirebaseAuth.instance.authStateChanges(),
+                        builder: (context, snapshot) {
+                            debugPrint("AUTH USER: ${snapshot.data?.uid}");
+
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const _LoadingScreen();
+                            }
+
+                            if (snapshot.hasData) {
+                                return _HunterProfileLoader(uid: snapshot.data!.uid);
+                            }
+
+                            return const LoginScreen();
+                        },
                     ),
-                    child: SafeArea(
-                        top: false,
-                        bottom: true,
-                        child: child!,
-                    ),
-                  ),
-                );
-            },
-
-            home: StreamBuilder<User?>(
-                stream: FirebaseAuth.instance.authStateChanges(),
-                builder: (context, snapshot) {
-                    debugPrint("AUTH USER: ${snapshot.data?.uid}");
-
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const _LoadingScreen();
-                    }
-
-                    if (snapshot.hasData) {
-                        return _HunterProfileLoader(uid: snapshot.data!.uid);
-                    }
-
-                    return const LoginScreen();
-                },
-            ),
                 );
             },
         );
@@ -192,7 +192,7 @@ class _HunterProfileLoaderState extends State<_HunterProfileLoader> {
                 }
 
                 final data =
-                    hunterSnapshot.data!.data() as Map<String, dynamic>?;
+                hunterSnapshot.data!.data() as Map<String, dynamic>?;
 
                 final onboardingComplete = data?['onboardingComplete'] ??
                     (data?['height'] != null &&
@@ -667,14 +667,63 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                 if (user != null) {
                                                     final hunterName = nameController.text.trim();
 
-                                                    final existing = await FirebaseFirestore.instance
+                                                    // Doc IDs can't contain '/', so reject names that would
+                                                    // break the reservation lookup instead of silently mangling them.
+                                                    if (hunterName.contains('/')) {
+                                                        if (!mounted) return;
+                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                            const SnackBar(
+                                                                content: Text('Hunter name cannot contain "/"'),
+                                                            ),
+                                                        );
+                                                        return;
+                                                    }
+
+                                                    // Case-insensitive uniqueness key. Doc ID = the name itself,
+                                                    // so only one transaction can ever successfully create it —
+                                                    // this closes the race the old query-then-write check had.
+                                                    final nameKey = hunterName.toLowerCase();
+                                                    final nameRef = FirebaseFirestore.instance
+                                                        .collection('hunterNames')
+                                                        .doc(nameKey);
+                                                    final hunterRef = FirebaseFirestore.instance
                                                         .collection('hunters')
-                                                        .where('hunterName', isEqualTo: hunterName)
-                                                        .limit(1)
-                                                        .get();
+                                                        .doc(user.uid);
+
+                                                    bool nameTaken = false;
+                                                    try {
+                                                        await FirebaseFirestore.instance.runTransaction((txn) async {
+                                                            final nameSnap = await txn.get(nameRef);
+                                                            if (nameSnap.exists) {
+                                                                nameTaken = true;
+                                                                return;
+                                                            }
+                                                            txn.set(nameRef, {
+                                                                'uid': user.uid,
+                                                                'hunterName': hunterName,
+                                                            });
+                                                            txn.update(hunterRef, {
+                                                                'hunterName': hunterName,
+                                                                'age': int.parse(ageController.text),
+                                                                'height': double.parse(heightController.text),
+                                                                'weight': double.parse(weightController.text),
+                                                                'startingWeight': double.parse(weightController.text),
+                                                                'onboardingComplete': true,
+                                                            });
+                                                        });
+                                                    } catch (e) {
+                                                        debugPrint("hunterName transaction: $e");
+                                                        if (!mounted) return;
+                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                            const SnackBar(
+                                                                content: Text('Something went wrong. Please try again.'),
+                                                            ),
+                                                        );
+                                                        return;
+                                                    }
 
                                                     if (!mounted) return;
-                                                    if (existing.docs.isNotEmpty) {
+                                                    if (nameTaken) {
                                                         ScaffoldMessenger.of(context).showSnackBar(
                                                             const SnackBar(
                                                                 content: Text('Hunter name already exists'),
@@ -682,18 +731,6 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                         );
                                                         return;
                                                     }
-
-                                                    await FirebaseFirestore.instance
-                                                        .collection('hunters')
-                                                        .doc(user.uid)
-                                                        .update({
-                                                        'hunterName': hunterName,
-                                                        'age': int.parse(ageController.text),
-                                                        'height': double.parse(heightController.text),
-                                                        'weight': double.parse(weightController.text),
-                                                        'startingWeight': double.parse(weightController.text),
-                                                        'onboardingComplete': true,
-                                                    });
                                                 }
 
                                                 if (!mounted) return;

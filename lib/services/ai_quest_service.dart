@@ -28,6 +28,8 @@ class AIQuestService {
   }) async {
     debugPrint("⚡ Generating AI Quests...");
     final bmi = weight / ((height / 100) * (height / 100));
+    final String userId =
+        FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
     try {
       final response = await http.post(
         Uri.parse(
@@ -35,7 +37,7 @@ class AIQuestService {
         ),
         headers: {
           'Content-Type': 'application/json',
-          'X-User-Id': 'test-user',
+          'X-User-Id': userId,
         },
         body: jsonEncode({
           "model": "mistral-small-latest",
@@ -186,12 +188,14 @@ Return JSON only.
     required int level,
   }) async {
     debugPrint("⚡ Generating AI Weekly Missions...");
+    final String userId =
+        FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
     try {
       final response = await http.post(
         Uri.parse('https://hunter-ascend-ai.jefferinlal.workers.dev/mistral'),
         headers: {
           'Content-Type': 'application/json',
-          'X-User-Id': 'test-user',
+          'X-User-Id': userId,
         },
         body: jsonEncode({
           "model": "mistral-small-latest",

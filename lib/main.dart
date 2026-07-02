@@ -62,12 +62,14 @@ void main() async {
     ));
 
     bool hasCompletedSetup = false;
+    User? initialUser;
     try {
         await Firebase.initializeApp();
         await NotificationService().init();
         await NotificationService().scheduleAllNotifications();
 
-        debugPrint("USER ON STARTUP: ${FirebaseAuth.instance.currentUser?.uid}");
+        initialUser = FirebaseAuth.instance.currentUser;
+        debugPrint("USER ON STARTUP: ${initialUser?.uid}");
 
         await createHunterProfile();
         await MobileAds.instance.initialize();
@@ -82,14 +84,15 @@ void main() async {
         debugPrint("startup: $e");
     }
 
-    runApp(HunterAscendApp(hasCompletedSetup: hasCompletedSetup));
+    runApp(HunterAscendApp(hasCompletedSetup: hasCompletedSetup, initialUser: initialUser));
 }
 
 /// Root widget: wires global theme + auth gating into [MaterialApp].
 class HunterAscendApp extends StatelessWidget {
     final bool hasCompletedSetup;
+    final User? initialUser;
 
-    const HunterAscendApp({super.key, required this.hasCompletedSetup});
+    const HunterAscendApp({super.key, required this.hasCompletedSetup, this.initialUser});
 
     @override
     Widget build(BuildContext context) {
@@ -124,7 +127,9 @@ class HunterAscendApp extends StatelessWidget {
                         );
                     },
 
-                    home: StreamBuilder<User?>(
+                    home: initialUser != null
+                        ? _HunterProfileLoader(uid: initialUser!.uid)
+                        : StreamBuilder<User?>(
                         stream: FirebaseAuth.instance.authStateChanges(),
                         builder: (context, snapshot) {
                             debugPrint("AUTH USER: ${snapshot.data?.uid}");

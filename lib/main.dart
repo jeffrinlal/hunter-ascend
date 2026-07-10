@@ -15,6 +15,7 @@ import 'package:hunter_ascend/services/notification_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/widgets/connectivity_banner.dart';
 import 'dart:math' as math;
+import 'package:facebook_app_events/facebook_app_events.dart';
 
 Future<void> signInAnonymously() async {
     if (FirebaseAuth.instance.currentUser == null) {
@@ -72,6 +73,7 @@ void main() async {
         debugPrint("USER ON STARTUP: ${initialUser?.uid}");
 
         await createHunterProfile();
+        await FacebookAppEvents().logEvent(name: 'fb_mobile_activate_app');
         await MobileAds.instance.initialize();
 
         final prefs = await SharedPreferences.getInstance();

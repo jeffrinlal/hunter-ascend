@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hunter_ascend/screens/duel/duel_history_screen.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
+import 'package:share_plus/share_plus.dart';
 
 /// Form to create/send a duel challenge to another hunter.
 class CreateDuelScreen extends StatefulWidget {
@@ -207,6 +208,17 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
     }
   }
 
+
+  Future<void> _inviteFriends() async {
+    await Share.share(
+      "⚔️ I've challenged you!\n\n"
+          "Think you can beat me?\n\n"
+          "Download Hunter Ascend, complete real-life fitness quests, earn XP, level up, and challenge me in a duel!\n\n"
+          "📲 Download now:\n"
+          "https://play.google.com/store/apps/details?id=com.hunterascend.hunter_ascend",
+      subject: "Join me on Hunter Ascend!",
+    );
+  }
   // ── UI ────────────────────────────────────────────────────────────
 
   @override
@@ -332,6 +344,78 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── Your Hunter ID ─────────────────────────────
+                    // 👇 Invite Friends Button
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 20),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _inviteFriends,
+                          borderRadius: BorderRadius.circular(16),
+                          child: Ink(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  HunterTheme.primary,
+                                  HunterTheme.primary.withOpacity(0.85),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: HunterTheme.primary.withOpacity(0.30),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.group_add,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+
+                                const SizedBox(width: 14),
+
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Invite Friends",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        "Tap here to challenge them to a duel",
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                const Icon(
+                                  Icons.arrow_forward_ios,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
                     _sectionLabel('YOUR HUNTER NAME'),
                     const SizedBox(height: 8),
                     Container(

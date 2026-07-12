@@ -19,6 +19,8 @@ import 'package:hunter_ascend/screens/map/map_screen.dart';
 import 'package:hunter_ascend/screens/nutrition/nutrition_screen.dart';
 import 'dart:typed_data';
 import 'package:hunter_ascend/services/connectivity_service.dart';
+import 'package:hunter_ascend/services/update_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 
 // ── Shield Rank Badge Painter ──────────────────────────────────────────────
@@ -557,6 +559,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (widget.questsOnly) _loadWeeklyMissions();
     if (widget.questsOnly) _restoreWeeklyActiveQuest();
     if (widget.questsOnly) loadWeeklyBannerAd();
+
+    if (!widget.questsOnly) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkForAppUpdate();
+      });
+    }
   }
 
   @override
@@ -861,7 +869,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 // ── Ad not available → deduct XP once ──
     if (!isPunishmentAdReady || punishmentAd == null) {
-      int penalty = mode == 'strict' ? 100 : 25;
+      int penalty = mode == 'strict' ? 20 : 5;
       final ref = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
       bool applied = false;
       await FirebaseFirestore.instance.runTransaction((txn) async {
@@ -897,7 +905,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   style: TextStyle(color: HunterTheme.danger, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
               const SizedBox(height: 10),
               Text(
-                "You failed yesterday's mission.\n\n-${mode == 'strict' ? 100 : 25} XP has been deducted.",
+                "You failed yesterday's mission.\n\n-${mode == 'strict' ? 20 : 5} XP has been deducted.",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, height: 1.5),
               ),
@@ -1711,6 +1719,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // Review prompt is non-critical; ignore any failures.
     }
   }
+  Future<void> _checkForAppUpdate() async {
+    final update = await UpdateService.checkForUpdate();
+
+    if (update == null || !mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: !(update['forceUpdate'] ?? false),
+      builder: (context) {
+        return AlertDialog(
+          title: Text(update['title'] ?? "Update Available"),
+          content: Text(update['message'] ?? "A new version is available."),
+          actions: [
+            if (!(update['forceUpdate'] ?? false))
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Later"),
+              ),
+            ElevatedButton(
+              onPressed: () async {
+                final uri = Uri.parse(
+                  "https://play.google.com/store/apps/details?id=com.hunterascend.hunter_ascend",
+                );
+
+                await launchUrl(
+                  uri,
+                  mode: LaunchMode.externalApplication,
+                );
+
+                if (!(update['forceUpdate'] ?? false) && mounted) {
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text("Update Now"),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Future<void> checkDailyReset() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -1720,9 +1768,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final data = doc.data()!;
     final today = DateTime.now().toString().substring(0, 10);
     if ((data['lastQuestResetDate'] ?? '') == today) return;
+
+    // Read yesterday's actual completed/total counts straight from Firestore
+    // instead of local widget state — local state may already reflect TODAY's
+    // regenerated quest list by the time this runs (see _loadAIQuests), and
+    // relying on Firestore also avoids any mismatch between the Home tab's
+    // and Missions tab's separate local copies of this data.
+    final yesterdaysCompleted = List.from(data['completedQuests'] ?? []);
+    final yesterdaysAiQuests = List.from(data['aiQuests'] ?? []);
+    final customCount = (await FirebaseFirestore.instance.collection('custom_quests').where('uid', isEqualTo: user.uid).get()).docs.length;
+
     await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
-      'yesterdayCompletedCount': completedQuests.length,
-      'yesterdayTotalQuests': generatedQuests.length + (await FirebaseFirestore.instance.collection('custom_quests').where('uid', isEqualTo: user.uid).get()).docs.length,
+      'yesterdayCompletedCount': yesterdaysCompleted.length,
+      'yesterdayTotalQuests': yesterdaysAiQuests.length + customCount,
       'completedQuests': [],
       'lastQuestResetDate': today,
     });

@@ -34,6 +34,8 @@ dependencies:
   share_plus: ^10.1.4
   in_app_review: ^2.0.10
   shimmer: ^3.0.0
+  package_info_plus: ^8.0.2
+  url_launcher: ^6.3.0
 
 
 

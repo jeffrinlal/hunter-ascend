@@ -61,15 +61,10 @@ void main() async {
     User? initialUser;
     try {
         await Firebase.initializeApp();
-        NotificationService().init();
-        NotificationService().scheduleAllNotifications();
-
         initialUser = FirebaseAuth.instance.currentUser;
         debugPrint("USER ON STARTUP: ${initialUser?.uid}");
 
         await createHunterProfile();
-        FacebookAppEvents().logEvent(name: 'fb_mobile_activate_app');
-        MobileAds.instance.initialize();
 
         final prefs = await SharedPreferences.getInstance();
         hasCompletedSetup = prefs.getBool('hasCompletedSetup') ?? false;
@@ -82,6 +77,21 @@ void main() async {
     }
 
     runApp(HunterAscendApp(hasCompletedSetup: hasCompletedSetup, initialUser: initialUser));
+
+    // Runs after the first frame is already showing — these aren't needed
+    // to create the account or render the app, so they no longer block startup.
+    _deferredInit();
+}
+
+Future<void> _deferredInit() async {
+    try {
+        await NotificationService().init();
+        await NotificationService().scheduleAllNotifications();
+        await FacebookAppEvents().logEvent(name: 'fb_mobile_activate_app');
+        await MobileAds.instance.initialize();
+    } catch (e) {
+        debugPrint("deferredInit: $e");
+    }
 }
 
 /// Root widget: wires global theme + auth gating into [MaterialApp].

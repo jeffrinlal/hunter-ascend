@@ -13,6 +13,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'package:hunter_ascend/screens/profile/membership_screen.dart';
+import 'package:hunter_ascend/widgets/membership_badge.dart';
+import 'package:hunter_ascend/services/membership_service.dart';
 
 /// The signed-in hunter's own profile: stats, physique, history, and sharing.
 class ProfileScreen extends StatefulWidget {
@@ -381,43 +384,52 @@ class _ProfileScreenState extends State<ProfileScreen>
                             const SizedBox(height: 14),
 
                             // ── Name — pencil icon REMOVED ──
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  hunterName,
-                                  style: TextStyle(
-                                    color: HunterTheme.textPrimary,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
+          Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+          Flexible(
+          child: Text(
+          hunterName,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+          color: HunterTheme.textPrimary,
+          fontSize: 24,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+          ),
+          ),
+          ),
 
-                                const SizedBox(width: 8),
+          const SizedBox(width: 8),
 
-                                GestureDetector(
-                                  onTap: () async {
-                                    await Clipboard.setData(
-                                      ClipboardData(text: hunterName),
-                                    );
+            MembershipBadge(
+              membership: MembershipService.instance.membershipName.toLowerCase(),
+            ),
 
-                                    if (!mounted) return;
+          const SizedBox(width: 8),
 
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Hunter name copied!'),
-                                      ),
-                                    );
-                                  },
-                                  child: Icon(
-                                    Icons.copy,
-                                    color: HunterTheme.primary,
-                                    size: 18,
-                                  ),
-                                ),
-                              ],
-                            ),
+          GestureDetector(
+          onTap: () async {
+          await Clipboard.setData(
+          ClipboardData(text: hunterName),
+          );
+
+          if (!mounted) return;
+
+          ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+          content: Text('Hunter name copied!'),
+          ),
+          );
+          },
+          child: Icon(
+          Icons.copy,
+          color: HunterTheme.primary,
+          size: 18,
+          ),
+          ),
+          ],
+          ),
 
                             const SizedBox(height: 6),
                             Container(
@@ -482,6 +494,78 @@ class _ProfileScreenState extends State<ProfileScreen>
                               ],
                             ),
                             const SizedBox(height: 22),
+
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const MembershipScreen(),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      HunterTheme.primary.withOpacity(0.15),
+                                      HunterTheme.gold.withOpacity(0.12),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: HunterTheme.primary.withOpacity(0.4),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.workspace_premium,
+                                      color: HunterTheme.gold,
+                                      size: 28,
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            "Hunter Membership",
+                                            style: TextStyle(
+                                              color: HunterTheme.textPrimary,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            "Unlock PRO & MAX rewards",
+                                            style: TextStyle(
+                                              color: HunterTheme.textSecondary,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      color: HunterTheme.primary,
+                                      size: 18,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 22),
+
+// Level / Quests / Duels row
 
                             // Level / Quests / Duels row
                             Row(

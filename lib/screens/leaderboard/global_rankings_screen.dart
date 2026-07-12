@@ -7,6 +7,9 @@ import 'package:hunter_ascend/screens/profile/public_hunter_profile_screen.dart'
 import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:hunter_ascend/widgets/membership_badge.dart';
+
+import '../../widgets/premium_avatar.dart';
 
 // ── Top 3 Crown Painter ────────────────────────────────────────────────────
 
@@ -257,51 +260,43 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                 size: isFirst ? 40 : 32,
               ),
               const SizedBox(height: 8),
-              Container(
-                width: avatarSize,
-                height: avatarSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: HunterTheme.surface,
-                  border: Border.all(
-                    color: posColor,
-                    width: isFirst ? 2.5 : 2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: posColor.withOpacity(0.3),
-                      blurRadius: 14,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-                child: hunter['profilePicture'] != null &&
-                    hunter['profilePicture'].toString().isNotEmpty
-                    ? ClipOval(
-                  child: Image.memory(
-                    _decodedAvatar(hunter['profilePicture']),
-                    width: avatarSize,
-                    height: avatarSize,
-                    fit: BoxFit.cover,
-                  ),
-                )
-                    : Icon(
-                  Icons.person,
-                  color: rc,
-                  size: isFirst ? 38 : 30,
-                ),
+            PremiumAvatar(
+              membership: (hunter['membership'] ?? 'basic').toString(),
+              radius: avatarSize / 2,
+              image: hunter['profilePicture'] != null &&
+                  hunter['profilePicture'].toString().isNotEmpty
+                  ? MemoryImage(
+                _decodedAvatar(hunter['profilePicture']),
+              )
+                  : null,
+              child: Icon(
+                Icons.person,
+                color: rc,
+                size: isFirst ? 38 : 30,
               ),
+            ),
               const SizedBox(height: 8),
-              Text(
-                hunter['hunterName'] ?? 'Unknown',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: isMe ? HunterTheme.primary : HunterTheme.textPrimary,
-                  fontSize: isFirst ? 15 : 13,
-                  fontWeight: FontWeight.w700,
-                ),
+              Column(
+                children: [
+                  Text(
+                    hunter['hunterName'] ?? 'Unknown',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: isMe ? HunterTheme.primary : HunterTheme.textPrimary,
+                      fontSize: isFirst ? 15 : 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+
+                  const SizedBox(height: 4),
+
+                  MembershipBadge(
+                    membership: (hunter['membership'] ?? 'basic').toString(),
+                    fontSize: 7,
+                  ),
+                ],
               ),
               const SizedBox(height: 2),
               Text(
@@ -871,32 +866,21 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                             const SizedBox(width: 10),
 
                             // ── Avatar ──
-                            Container(
-                              width: 38, height: 38,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: rc.withOpacity(0.08),
-                                border: Border.all(
-                                  color: rc.withOpacity(0.35),
-                                  width: 1,
-                                ),
-                              ),
-                              child: hunter['profilePicture'] != null &&
-                                  hunter['profilePicture'].toString().isNotEmpty
-                                  ? ClipOval(
-                                child: Image.memory(
-                                  _decodedAvatar(hunter['profilePicture']),
-                                  width: 38,
-                                  height: 38,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                                  : Icon(
-                                Icons.person,
-                                color: rc,
-                                size: 20,
-                              ),
+                          PremiumAvatar(
+                            membership: (hunter['membership'] ?? 'basic').toString(),
+                            radius: 19,
+                            image: hunter['profilePicture'] != null &&
+                                hunter['profilePicture'].toString().isNotEmpty
+                                ? MemoryImage(
+                              _decodedAvatar(hunter['profilePicture']),
+                            )
+                                : null,
+                            child: Icon(
+                              Icons.person,
+                              color: rc,
+                              size: 20,
                             ),
+                          ),
 
                             const SizedBox(width: 12),
 
@@ -920,11 +904,21 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                           ),
                                         ),
                                       ),
+
+                                      const SizedBox(width: 6),
+
+                                      MembershipBadge(
+                                        membership: hunter['membership'] ?? 'basic',
+                                        fontSize: 8,
+                                      ),
+
                                       if (isMe) ...[
                                         const SizedBox(width: 6),
                                         Container(
                                           padding: const EdgeInsets.symmetric(
-                                              horizontal: 6, vertical: 2),
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
                                           decoration: BoxDecoration(
                                             color: HunterTheme.primary.withOpacity(0.12),
                                             borderRadius: BorderRadius.circular(6),

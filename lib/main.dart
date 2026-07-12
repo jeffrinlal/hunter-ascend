@@ -54,27 +54,22 @@ void main() async {
     ConnectivityService.instance.start();
 
     SystemChrome.setEnabledSystemUIMode(
-        SystemUiMode.manual,
-        overlays: SystemUiOverlay.values,
+        SystemUiMode.edgeToEdge,
     );
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-        systemNavigationBarColor: Colors.transparent,
-        systemNavigationBarDividerColor: Colors.transparent,
-    ));
 
     bool hasCompletedSetup = false;
     User? initialUser;
     try {
         await Firebase.initializeApp();
-        await NotificationService().init();
-        await NotificationService().scheduleAllNotifications();
+        NotificationService().init();
+        NotificationService().scheduleAllNotifications();
 
         initialUser = FirebaseAuth.instance.currentUser;
         debugPrint("USER ON STARTUP: ${initialUser?.uid}");
 
         await createHunterProfile();
-        await FacebookAppEvents().logEvent(name: 'fb_mobile_activate_app');
-        await MobileAds.instance.initialize();
+        FacebookAppEvents().logEvent(name: 'fb_mobile_activate_app');
+        MobileAds.instance.initialize();
 
         final prefs = await SharedPreferences.getInstance();
         hasCompletedSetup = prefs.getBool('hasCompletedSetup') ?? false;
@@ -102,7 +97,13 @@ class HunterAscendApp extends StatelessWidget {
             valueListenable: themeNotifier,
             builder: (context, mode, _) {
                 HunterTheme.isDark = mode == ThemeMode.dark;
-                return MaterialApp(
+                return AnnotatedRegion<SystemUiOverlayStyle>(
+                    value: SystemUiOverlayStyle(
+                        statusBarColor: Colors.transparent,
+                        statusBarIconBrightness: HunterTheme.isDark ? Brightness.light : Brightness.dark,
+                        systemNavigationBarIconBrightness: HunterTheme.isDark ? Brightness.light : Brightness.dark,
+                    ),
+                    child: MaterialApp(
                     debugShowCheckedModeBanner: false,
                     title: 'Hunter Ascend',
                     theme: HunterTheme.lightTheme,
@@ -146,6 +147,7 @@ class HunterAscendApp extends StatelessWidget {
 
                             return const LoginScreen();
                         },
+                    ),
                     ),
                 );
             },

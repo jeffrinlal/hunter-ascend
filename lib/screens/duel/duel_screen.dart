@@ -399,36 +399,36 @@ class _DuelScreenState extends State<DuelScreen> {
     }
     _completingActiveQuest = true;
     try {
-    final bool ip1 = duel['player1'] == u.uid;
-    final String cf = ip1 ? 'player1CompletedToday' : 'player2CompletedToday';
-    final String sf = ip1 ? 'player1Score' : 'player2Score';
-    final String? questName = activeQuestName;
-    final int questXp = activeQuestXp;
+      final bool ip1 = duel['player1'] == u.uid;
+      final String cf = ip1 ? 'player1CompletedToday' : 'player2CompletedToday';
+      final String sf = ip1 ? 'player1Score' : 'player2Score';
+      final String? questName = activeQuestName;
+      final int questXp = activeQuestXp;
 
-    // Atomic completion (mirrors _autoCompleteDuel's transaction style): re-read
-    // the duel and only add the quest + increment the score if it is not already
-    // in completedToday. arrayUnion is idempotent but FieldValue.increment is
-    // not, so this prevents the same account completing the same duel quest on
-    // two devices from incrementing the score twice.
-    final duelRef = FirebaseFirestore.instance.collection('duels').doc(widget.duelId);
-    await FirebaseFirestore.instance.runTransaction((txn) async {
-      final snap = await txn.get(duelRef);
-      if (!snap.exists) return;
-      final data = snap.data() as Map<String, dynamic>;
-      final List done = (data[cf] ?? []) as List;
-      if (done.contains(questName)) return; // already completed — skip increment
-      txn.update(duelRef, {
-        cf: FieldValue.arrayUnion([questName]),
-        sf: FieldValue.increment(questXp),
+      // Atomic completion (mirrors _autoCompleteDuel's transaction style): re-read
+      // the duel and only add the quest + increment the score if it is not already
+      // in completedToday. arrayUnion is idempotent but FieldValue.increment is
+      // not, so this prevents the same account completing the same duel quest on
+      // two devices from incrementing the score twice.
+      final duelRef = FirebaseFirestore.instance.collection('duels').doc(widget.duelId);
+      await FirebaseFirestore.instance.runTransaction((txn) async {
+        final snap = await txn.get(duelRef);
+        if (!snap.exists) return;
+        final data = snap.data() as Map<String, dynamic>;
+        final List done = (data[cf] ?? []) as List;
+        if (done.contains(questName)) return; // already completed — skip increment
+        txn.update(duelRef, {
+          cf: FieldValue.arrayUnion([questName]),
+          sf: FieldValue.increment(questXp),
+        });
       });
-    });
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("$activeQuestName completed!")),
-      );
-    }
-    await _cancelActiveQuest();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("$activeQuestName completed!")),
+        );
+      }
+      await _cancelActiveQuest();
     } catch (e) {
       debugPrint("completeActiveQuest: $e");
     } finally {
@@ -725,6 +725,8 @@ class _DuelScreenState extends State<DuelScreen> {
 
           final myScore  = isPlayer1 ? (duel['player1Score'] ?? 0) : (duel['player2Score'] ?? 0);
           final oppScore = isPlayer1 ? (duel['player2Score'] ?? 0) : (duel['player1Score'] ?? 0);
+          final myName   = (isPlayer1 ? duel['player1Name'] : duel['player2Name'])?.toString() ?? 'You';
+          final oppName  = (isPlayer1 ? duel['player2Name'] : duel['player1Name'])?.toString() ?? 'Opponent';
           final total    = myScore + oppScore;
           final myRatio  = total == 0 ? 0.0 : myScore / total;
           final oppRatio = total == 0 ? 0.0 : oppScore / total;
@@ -857,7 +859,15 @@ class _DuelScreenState extends State<DuelScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(8)),
-                        child: Text("YOU", style: TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.bold)),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 160),
+                          child: Text(
+                            "$myName (You)",
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ),
                       ),
                       const Spacer(),
                       Text("$myScore XP", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
@@ -891,7 +901,15 @@ class _DuelScreenState extends State<DuelScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(color: HunterTheme.danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                        child: Text("OPPONENT", style: TextStyle(color: HunterTheme.danger, fontSize: 12, fontWeight: FontWeight.bold)),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 160),
+                          child: Text(
+                            "$oppName (Opponent)",
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: TextStyle(color: HunterTheme.danger, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ),
                       ),
                       const Spacer(),
                       Text("$oppScore XP", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),

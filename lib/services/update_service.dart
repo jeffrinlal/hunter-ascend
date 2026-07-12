@@ -5,26 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class UpdateService {
   static Future<Map<String, dynamic>?> checkForUpdate() async {
     final prefs = await SharedPreferences.getInstance();
-
     final today = DateTime.now().toString().substring(0, 10);
 
-    final lastChecked = prefs.getString('last_update_check');
-
-    // Already checked today
-    if (lastChecked == today) {
-      final hasUpdate = prefs.getBool('cached_has_update') ?? false;
-
-      if (!hasUpdate) return null;
-
-      return {
-        "title": prefs.getString('cached_title'),
-        "message": prefs.getString('cached_message'),
-        "forceUpdate": prefs.getBool('cached_force') ?? false,
-      };
-    }
-
     final packageInfo = await PackageInfo.fromPlatform();
-
     final currentVersion = packageInfo.version;
 
     final doc = await FirebaseFirestore.instance
@@ -32,24 +15,27 @@ class UpdateService {
         .doc('app_config')
         .get();
 
-    if (!doc.exists) return null;
+    if (!doc.exists) {
 
-    final data = doc.data()!;
-
-    final latestVersion = data['latestVersion'];
-
-    final updateAvailable = currentVersion != latestVersion;
-
-    await prefs.setString('last_update_check', today);
-    await prefs.setBool('cached_has_update', updateAvailable);
-
-    if (updateAvailable) {
-      await prefs.setString('cached_title', data['title']);
-      await prefs.setString('cached_message', data['message']);
-      await prefs.setBool('cached_force', data['forceUpdate']);
+      return null;
     }
-
+    final data = doc.data()!;
+    final latestVersion = data['latestVersion'];
+    final updateAvailable = currentVersion != latestVersion;
     if (!updateAvailable) return null;
+
+    final forceUpdate = data['forceUpdate'] ?? false;
+
+    // Non-forced updates: only show once per day per specific version, so
+    // the user isn't nagged every time they reopen the app. Keying by
+    // version (not just the date) means pushing a NEW latestVersion later
+    // today will still show immediately, instead of being blocked by a
+    // stale "already checked today" flag from an older version.
+    if (!forceUpdate) {
+      final dismissedKey = 'dismissed_update_$latestVersion';
+      if (prefs.getString(dismissedKey) == today) return null;
+      await prefs.setString(dismissedKey, today);
+    }
 
     return data;
   }

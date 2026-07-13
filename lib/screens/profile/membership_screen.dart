@@ -8,8 +8,8 @@ import 'package:hunter_ascend/services/membership_service.dart';
 /// [MembershipService]) and the three available tiers (Basic / Pro / Max)
 /// with their feature lists. No payment provider is wired up yet — the Pro
 /// and Max upgrade buttons intentionally show "Coming Soon" so the checkout
-/// flow (Razorpay) can be plugged in later without touching this screen's
-/// layout.
+/// flow (Google Play Billing) can be plugged in later without touching this
+/// screen's layout.
 ///
 /// This screen never writes membership data and never compares raw
 /// membership strings directly — it only reads from [MembershipService].
@@ -79,7 +79,7 @@ class _MembershipScreenState extends State<MembershipScreen>
   }
 
   /// Shows a lightweight "Coming Soon" notice for the not-yet-implemented
-  /// Razorpay-powered upgrade flow.
+  /// Google Play Billing upgrade flow.
   void _showComingSoon(BuildContext context, String planName) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -157,12 +157,13 @@ class _MembershipScreenState extends State<MembershipScreen>
                           price: 'FREE',
                           isCurrent: membership.isBasic,
                           features: const [
-                            'Current Hunter Experience',
-                            'Limited AI',
-                            'Default Badge',
-                            'Default Frame',
-                            'Banner Ads',
-                            'Rewarded Ads',
+                            'Daily AI-generated missions',
+                            'Weekly missions',
+                            'Run tracking & XP',
+                            'Calorie tracking',
+                            'Default avatar frame',
+                            'Banner ads',
+                            'Rewarded ads',
                           ],
                           buttonLabel:
                           membership.isBasic ? 'Current Plan' : 'Free',
@@ -182,13 +183,12 @@ class _MembershipScreenState extends State<MembershipScreen>
                           price: '₹49/month',
                           isCurrent: membership.isPro,
                           features: const [
-                            'Unlimited Profile Changes',
-                            'Gold Badge',
-                            'Gold Leaderboard Frame',
-                            'Gold Name Glow',
-                            'Premium Duel Frame',
-                            'Higher AI Limits',
-                            'Visible To Everyone',
+                            'No banner ads',
+                            'Unlimited profile changes',
+                            'Gold badge on leaderboard',
+                            'Gold avatar frame',
+                            'Gold avatar glow',
+                            'Rewarded ads (with skip option)',
                           ],
                           buttonLabel: membership.isPro
                               ? 'Current Plan'
@@ -212,14 +212,12 @@ class _MembershipScreenState extends State<MembershipScreen>
                           isCurrent: membership.isMax,
                           features: const [
                             'Everything in Pro',
-                            'Remove All Ads',
-                            'Unlimited AI',
-                            'Animated Leaderboard Frame',
-                            'Animated Name Glow',
-                            'Animated Avatar Border',
-                            'Premium Themes',
-                            'Advanced Statistics',
-                            'Visible To Everyone',
+                            'No banner ads',
+                            'No rewarded ads',
+                            'Animated avatar frame',
+                            'Animated avatar glow',
+                            'Monthly rewarded ad skips',
+                            'Unlimited profile changes',
                           ],
                           buttonLabel: membership.isMax
                               ? 'Current Plan'
@@ -230,6 +228,115 @@ class _MembershipScreenState extends State<MembershipScreen>
                               : () => _showComingSoon(context, 'Max'),
                         ),
                       ),
+                      const SizedBox(height: 28),
+                      // ── Subscription disclaimer ──
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: HunterTheme.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: HunterTheme.border),
+                        ),
+                        child: Text(
+                          'Subscriptions automatically renew unless cancelled at least 24 hours before the end of the current period. '
+                          'Your Google Play account will be charged for renewal within 24 hours prior to the end of the current period. '
+                          'You can manage and cancel your subscriptions in your Google Play Store account settings.',
+                          style: TextStyle(
+                            color: HunterTheme.textTertiary,
+                            fontSize: 11,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      // ── Restore Purchases ──
+                      GestureDetector(
+                        onTap: () {
+                          ScaffoldMessenger.of(context).clearSnackBars();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: HunterTheme.cardColor,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                side: BorderSide(color: HunterTheme.border),
+                              ),
+                              content: Text(
+                                'Restore Purchases will be available after Google Play Billing integration.',
+                                style: TextStyle(
+                                  color: HunterTheme.textPrimary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: HunterTheme.border),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Restore Purchases',
+                              style: TextStyle(
+                                color: HunterTheme.textSecondary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      // ── Legal links ──
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              // TODO: Open Privacy Policy URL
+                            },
+                            child: Text(
+                              'Privacy Policy',
+                              style: TextStyle(
+                                color: HunterTheme.textTertiary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              '·',
+                              style: TextStyle(
+                                color: HunterTheme.textTertiary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              // TODO: Open Terms of Service URL
+                            },
+                            child: Text(
+                              'Terms of Service',
+                              style: TextStyle(
+                                color: HunterTheme.textTertiary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
@@ -280,7 +387,7 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// Displays the hunter's current membership tier with a colored badge.
+/// Displays the hunter's current membership tier with status and expiry.
 class _CurrentPlanBanner extends StatelessWidget {
   const _CurrentPlanBanner({required this.membership});
 
@@ -298,12 +405,23 @@ class _CurrentPlanBanner extends StatelessWidget {
     return Icons.shield_outlined;
   }
 
+  String? _expiryText() {
+    if (membership.isBasic) return null;
+    final expiry = membership.membershipExpiry;
+    if (expiry == null) return null;
+    final now = DateTime.now();
+    if (expiry.isBefore(now)) return 'Expired';
+    return 'Renews ${expiry.day}/${expiry.month}/${expiry.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final badgeColor = _badgeColor();
+    final isActive = membership.isBasic || membership.subscriptionActive;
+    final expiryText = _expiryText();
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: HunterTheme.cardColor,
         borderRadius: BorderRadius.circular(16),
@@ -316,41 +434,81 @@ class _CurrentPlanBanner extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          Text(
-            'Current Plan',
-            style: TextStyle(
-              color: HunterTheme.textSecondary,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
+          Row(
+            children: [
+              Text(
+                'Current Plan',
+                style: TextStyle(
+                  color: HunterTheme.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: badgeColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: badgeColor.withOpacity(0.6)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(_badgeIcon(), color: badgeColor, size: 15),
+                    const SizedBox(width: 6),
+                    Text(
+                      membership.membershipName,
+                      style: TextStyle(
+                        color: badgeColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: badgeColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: badgeColor.withOpacity(0.6)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+          if (membership.hasPremium) ...[
+            const SizedBox(height: 12),
+            Row(
               children: [
-                Icon(_badgeIcon(), color: badgeColor, size: 15),
-                const SizedBox(width: 6),
-                Text(
-                  membership.membershipName,
-                  style: TextStyle(
-                    color: badgeColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
+                // Active/inactive status
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isActive ? HunterTheme.success : HunterTheme.danger,
                   ),
                 ),
+                const SizedBox(width: 8),
+                Text(
+                  isActive ? 'Active' : 'Inactive',
+                  style: TextStyle(
+                    color: isActive ? HunterTheme.success : HunterTheme.danger,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (expiryText != null) ...[
+                  const Spacer(),
+                  Text(
+                    expiryText,
+                    style: TextStyle(
+                      color: HunterTheme.textTertiary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ],
             ),
-          ),
+          ],
         ],
       ),
     );

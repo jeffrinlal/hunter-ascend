@@ -55,7 +55,6 @@ class MembershipFeatures {
     required this.goldGlow,
     required this.animatedFrame,
     required this.animatedGlow,
-    required this.unlimitedAI,
   });
 
   /// Whether banner ads should be shown.
@@ -82,9 +81,6 @@ class MembershipFeatures {
   /// Whether the animated glow cosmetic is unlocked.
   final bool animatedGlow;
 
-  /// Whether AI-powered features are unlimited (no usage cap).
-  final bool unlimitedAI;
-
   /// Feature configuration for the Basic (free/default) tier.
   static const MembershipFeatures basic = MembershipFeatures(
     bannerAds: true,
@@ -95,7 +91,6 @@ class MembershipFeatures {
     goldGlow: false,
     animatedFrame: false,
     animatedGlow: false,
-    unlimitedAI: false,
   );
 
   /// Feature configuration for the Pro tier.
@@ -108,7 +103,6 @@ class MembershipFeatures {
     goldGlow: true,
     animatedFrame: false,
     animatedGlow: false,
-    unlimitedAI: false,
   );
 
   /// Feature configuration for the Max tier.
@@ -121,7 +115,6 @@ class MembershipFeatures {
     goldGlow: false,
     animatedFrame: true,
     animatedGlow: true,
-    unlimitedAI: true,
   );
 
   /// Returns the feature configuration that corresponds to [tier].
@@ -147,7 +140,7 @@ class MembershipFeatures {
 ///   session (call [reload] to force a refresh, e.g. after a purchase is
 ///   confirmed by the backend).
 /// - Exposes simple boolean/string getters (`isPro`, `isMax`, `showBannerAds`,
-///   `unlimitedAI`, etc.) so screens never compare raw membership strings
+///   etc.) so screens never compare raw membership strings
 ///   directly.
 /// - Keeps every Basic/Pro/Max feature rule in a single place: the
 ///   [MembershipFeatures] configuration model.
@@ -164,10 +157,6 @@ class MembershipFeatures {
 ///
 /// if (MembershipService.instance.showBannerAds) {
 ///   // show banner ad
-/// }
-///
-/// if (MembershipService.instance.unlimitedAI) {
-///   // skip AI usage limit checks
 /// }
 ///
 /// // On logout:
@@ -442,12 +431,6 @@ class MembershipService {
   ///
   /// Basic: false · Pro: false · Max: true.
   bool get animatedGlow => _features.animatedGlow;
-
-  /// Whether this hunter has unlimited access to AI-powered features (e.g.
-  /// AI quest generation) without hitting usage limits.
-  ///
-  /// Basic: false · Pro: false · Max: true.
-  bool get unlimitedAI => _features.unlimitedAI;
 
   // ───────────────────────────────────────────────────────────────────────
   // Rewarded Ad Skips (Max-only)

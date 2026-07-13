@@ -314,6 +314,12 @@ exports.verifyPurchase = functions.https.onCall(async (data, context) => {
 // Pub/Sub function: triggered by Google Play Real-Time Developer Notifications.
 // Processes subscription lifecycle events and updates Firestore accordingly.
 //
+// SECURITY: Never trusts the RTDN payload alone. Always verifies the current
+// subscription state with Google Play Developer API before updating Firestore.
+//
+// IDEMPOTENCY: Repeated delivery of the same notification produces the same
+// Firestore state. All updates are idempotent by design.
+//
 // Delivery mechanism:
 // 1. In Google Play Console → Monetization → Monetization Setup, configure
 //    the "Real-time developer notifications" topic to a Cloud Pub/Sub topic
@@ -321,13 +327,39 @@ exports.verifyPurchase = functions.https.onCall(async (data, context) => {
 // 2. This function subscribes to that topic via the RTDN_TOPIC parameter.
 // 3. Google Play pushes a message to the topic on every subscription event.
 //
+
+// Notification type constants (from Google Play documentation).
+const NOTIFICATION_TYPE = {
+  SUBSCRIPTION_RECOVERED: 1,
+  SUBSCRIPTION_RENEWED: 2,
+  SUBSCRIPTION_CANCELED: 3,
+  SUBSCRIPTION_PURCHASED: 4,
+  SUBSCRIPTION_ON_HOLD: 5,
+  SUBSCRIPTION_IN_GRACE_PERIOD: 6,
+  SUBSCRIPTION_RESTARTED: 7,
+  SUBSCRIPTION_PRICE_CHANGE_CONFIRMED: 8,
+  SUBSCRIPTION_DEFERRED: 9,
+  SUBSCRIPTION_PAUSED: 10,
+  SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED: 11,
+  SUBSCRIPTION_REVOKED: 12,
+  SUBSCRIPTION_EXPIRED: 13,
+};
+
 exports.handlePlayNotification = functions.pubsub
   .topic(RTDN_TOPIC)
   .onPublish(async (message) => {
-    // ── Decode the notification ──
-    const messageBody = message.data
-      ? JSON.parse(Buffer.from(message.data, "base64").toString("utf8"))
-      : null;
+    // ── Step 1: Validate and decode the Pub/Sub payload ──
+    let messageBody;
+    try {
+      messageBody = message.data
+        ? JSON.parse(Buffer.from(message.data, "base64").toString("utf8"))
+        : null;
+    } catch (parseError) {
+      functions.logger.error("Malformed RTDN payload — cannot parse", {
+        error: parseError.message,
+      });
+      return; // Ack the message to prevent infinite retries on bad data.
+    }
 
     if (!messageBody) {
       functions.logger.error("Empty RTDN message received.");
@@ -337,46 +369,319 @@ exports.handlePlayNotification = functions.pubsub
     const subscriptionNotification = messageBody.subscriptionNotification;
 
     if (!subscriptionNotification) {
-      // Could be a test notification or a one-time purchase notification.
+      // Test notification or one-time purchase — not a subscription event.
       functions.logger.info("Non-subscription notification received", {
         messageBody,
       });
       return;
     }
 
+    // ── Step 2: Extract notification fields ──
     const {
       purchaseToken,
       subscriptionId,
       notificationType,
     } = subscriptionNotification;
 
+    const eventTime = messageBody.eventTimeMillis
+      ? parseInt(messageBody.eventTimeMillis, 10)
+      : Date.now();
+
+    if (!purchaseToken || !subscriptionId) {
+      functions.logger.error("RTDN missing purchaseToken or subscriptionId", {
+        notificationType,
+      });
+      return;
+    }
+
     functions.logger.info("RTDN received", {
+      event: "rtdn_received",
       notificationType,
       subscriptionId,
-      tokenPrefix: purchaseToken
-        ? purchaseToken.substring(0, 20) + "..."
-        : "null",
+      tokenHash: crypto.createHash("sha256").update(purchaseToken).digest("hex"),
+      timestamp: new Date().toISOString(),
     });
 
-    // ── TODO: Phase 2 — Lifecycle handling ──
-    // 1. Look up uid from subscriptions/{purchaseToken}.
-    // 2. Call Google Play Developer API to get current subscription state.
-    //    Use PLAY_PACKAGE_NAME.value() as the package name.
-    // 3. Based on notificationType:
-    //    - SUBSCRIPTION_RECOVERED (1): reactivate
-    //    - SUBSCRIPTION_RENEWED (2): update expiry
-    //    - SUBSCRIPTION_CANCELED (3): set subscriptionActive = false
-    //    - SUBSCRIPTION_PURCHASED (4): verify + activate
-    //    - SUBSCRIPTION_ON_HOLD (5): pause features
-    //    - SUBSCRIPTION_IN_GRACE_PERIOD (6): keep active, warn user
-    //    - SUBSCRIPTION_RESTARTED (7): reactivate
-    //    - SUBSCRIPTION_PRICE_CHANGE_CONFIRMED (8): no action
-    //    - SUBSCRIPTION_DEFERRED (9): extend expiry
-    //    - SUBSCRIPTION_PAUSED (10): pause features
-    //    - SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED (11): no action
-    //    - SUBSCRIPTION_REVOKED (12): immediate downgrade
-    //    - SUBSCRIPTION_EXPIRED (13): downgrade to basic
-    // 4. Update Firestore hunters/{uid} accordingly.
+    // ── Step 3: Lookup subscription record to find uid ──
+    const tokenHash = crypto.createHash("sha256").update(purchaseToken).digest("hex");
+    const subscriptionRef = db.collection("subscriptions").doc(tokenHash);
+    const subscriptionSnap = await subscriptionRef.get();
+
+    let uid;
+    let productId = subscriptionId; // fallback to subscriptionId from RTDN
+
+    if (subscriptionSnap.exists) {
+      const subData = subscriptionSnap.data();
+      uid = subData.uid;
+      productId = subData.productId || subscriptionId;
+    } else {
+      // Subscription not in our records — this can happen if:
+      // - SUBSCRIPTION_PURCHASED arrived before verifyPurchase() was called.
+      // - The subscription was created outside our app flow.
+      // We cannot process without a uid. Log and skip.
+      functions.logger.warn("RTDN for unknown subscription — no uid found", {
+        tokenHash,
+        notificationType,
+        subscriptionId,
+      });
+      return;
+    }
+
+    // ── Step 4: Verify current state with Google Play (NEVER trust RTDN alone) ──
+    let subscription;
+    try {
+      subscription = await playStore.getSubscription(
+        PLAY_PACKAGE_NAME.value(),
+        productId,
+        purchaseToken
+      );
+    } catch (apiError) {
+      functions.logger.error("RTDN: Play API failure — will retry on next delivery", {
+        uid,
+        notificationType,
+        error: apiError.message,
+      });
+      // Throw to trigger Pub/Sub retry (message will be redelivered).
+      throw apiError;
+    }
+
+    if (!subscription) {
+      functions.logger.warn("RTDN: Google returned null for subscription", {
+        uid,
+        notificationType,
+        tokenHash,
+      });
+      return;
+    }
+
+    // ── Step 5: Determine Firestore updates based on verified Google state ──
+    const productToPlan = getProductToPlan();
+    const plan = productToPlan[productId] || null;
+    const expiryTimeMillis = parseInt(subscription.expiryTimeMillis, 10) || 0;
+    const expiryTimestamp = expiryTimeMillis
+      ? admin.firestore.Timestamp.fromDate(new Date(expiryTimeMillis))
+      : null;
+    const now = admin.firestore.Timestamp.now();
+    const paymentState = subscription.paymentState;
+    const isExpired = expiryTimeMillis <= Date.now();
+    const linkedPurchaseToken = subscription.linkedPurchaseToken || null;
+
+    // Determine what to write based on the VERIFIED Google state
+    // (not the notification type alone).
+    let hunterUpdate = null;
+    let subscriptionUpdate = null;
+    let subscriptionStatus = "unknown";
+
+    switch (notificationType) {
+      // ── Active subscription events ──────────────────────────────────────
+      case NOTIFICATION_TYPE.SUBSCRIPTION_PURCHASED:
+      case NOTIFICATION_TYPE.SUBSCRIPTION_RENEWED:
+      case NOTIFICATION_TYPE.SUBSCRIPTION_RECOVERED:
+      case NOTIFICATION_TYPE.SUBSCRIPTION_RESTARTED: {
+        // Verify the subscription is actually active and not expired.
+        if (isExpired || (paymentState !== 1 && paymentState !== 2)) {
+          functions.logger.warn("RTDN activation event but subscription not active", {
+            uid, notificationType, paymentState, isExpired,
+          });
+          // Still update with what Google says — don't leave stale state.
+        }
+
+        if (!isExpired && plan) {
+          hunterUpdate = {
+            membership: plan,
+            subscriptionActive: true,
+            membershipExpiry: expiryTimestamp,
+            lastMembershipVerification: admin.firestore.FieldValue.serverTimestamp(),
+          };
+          subscriptionStatus = "active";
+        } else {
+          // Google says expired despite activation event — downgrade.
+          hunterUpdate = {
+            membership: "basic",
+            subscriptionActive: false,
+            lastMembershipVerification: admin.firestore.FieldValue.serverTimestamp(),
+          };
+          subscriptionStatus = "expired";
+        }
+        break;
+      }
+
+      // ── Cancellation (auto-renew disabled, access continues) ─────────
+      case NOTIFICATION_TYPE.SUBSCRIPTION_CANCELED: {
+        // Cancellation only means auto-renew has been disabled.
+        // The user KEEPS full access until the subscription period ends
+        // (EXPIRED or REVOKED). Do NOT remove access here.
+        if (!isExpired && plan) {
+          hunterUpdate = {
+            membership: plan,
+            subscriptionActive: true,
+            membershipExpiry: expiryTimestamp,
+            lastMembershipVerification: admin.firestore.FieldValue.serverTimestamp(),
+          };
+          subscriptionStatus = "canceled";
+        } else {
+          // Already past expiry — treat as expired.
+          hunterUpdate = {
+            membership: "basic",
+            subscriptionActive: false,
+            lastMembershipVerification: admin.firestore.FieldValue.serverTimestamp(),
+          };
+          subscriptionStatus = "expired";
+        }
+        break;
+      }
+
+      // ── Grace period (payment failing, still active temporarily) ────────
+      case NOTIFICATION_TYPE.SUBSCRIPTION_IN_GRACE_PERIOD: {
+        // Keep features active during grace period.
+        if (plan) {
+          hunterUpdate = {
+            membership: plan,
+            subscriptionActive: true,
+            membershipExpiry: expiryTimestamp,
+            lastMembershipVerification: admin.firestore.FieldValue.serverTimestamp(),
+          };
+          subscriptionStatus = "grace_period";
+        }
+        break;
+      }
+
+      // ── On hold / Paused (features suspended, tier preserved) ──────────
+      case NOTIFICATION_TYPE.SUBSCRIPTION_ON_HOLD:
+      case NOTIFICATION_TYPE.SUBSCRIPTION_PAUSED: {
+        // Suspend subscription active flag but keep the membership tier.
+        // The user's plan is preserved — only the active state changes.
+        // Access will resume on RECOVERED/RESTARTED or end on EXPIRED.
+        hunterUpdate = {
+          subscriptionActive: false,
+          lastMembershipVerification: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        subscriptionStatus = notificationType === NOTIFICATION_TYPE.SUBSCRIPTION_ON_HOLD
+          ? "on_hold"
+          : "paused";
+        break;
+      }
+
+      // ── Expiry (subscription period ended) ──────────────────────────────
+      case NOTIFICATION_TYPE.SUBSCRIPTION_EXPIRED: {
+        // Downgrade to basic immediately.
+        hunterUpdate = {
+          membership: "basic",
+          subscriptionActive: false,
+          lastMembershipVerification: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        subscriptionStatus = "expired";
+        break;
+      }
+
+      // ── Revocation (refund or administrative action) ────────────────────
+      case NOTIFICATION_TYPE.SUBSCRIPTION_REVOKED: {
+        // Immediate downgrade — no grace period.
+        hunterUpdate = {
+          membership: "basic",
+          subscriptionActive: false,
+          lastMembershipVerification: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        subscriptionStatus = "revoked";
+        break;
+      }
+
+      // ── Deferred (subscription extended by developer) ───────────────────
+      case NOTIFICATION_TYPE.SUBSCRIPTION_DEFERRED: {
+        // Update expiry to the new deferred date.
+        if (expiryTimestamp && plan) {
+          hunterUpdate = {
+            membership: plan,
+            subscriptionActive: true,
+            membershipExpiry: expiryTimestamp,
+            lastMembershipVerification: admin.firestore.FieldValue.serverTimestamp(),
+          };
+          subscriptionStatus = "active";
+        }
+        break;
+      }
+
+      // ── Informational (no membership change, but record the event) ─────
+      case NOTIFICATION_TYPE.SUBSCRIPTION_PRICE_CHANGE_CONFIRMED:
+      case NOTIFICATION_TYPE.SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED: {
+        // No membership or access change needed, but update tracking
+        // timestamps so the subscription record reflects recent activity.
+        subscriptionStatus = notificationType === NOTIFICATION_TYPE.SUBSCRIPTION_PRICE_CHANGE_CONFIRMED
+          ? "price_change_confirmed"
+          : "pause_schedule_changed";
+        break;
+      }
+
+      default: {
+        functions.logger.warn("RTDN unknown notification type", {
+          uid, notificationType,
+        });
+        return;
+      }
+    }
+
+    // ── Step 6: Update Firestore in a transaction ──
+    const hunterRef = db.collection("hunters").doc(uid);
+
+    await db.runTransaction(async (txn) => {
+      const hunterSnap = await txn.get(hunterRef);
+      const subSnap = await txn.get(subscriptionRef);
+
+      // Update hunter document (only if there are membership changes).
+      if (hunterUpdate && hunterSnap.exists) {
+        txn.update(hunterRef, hunterUpdate);
+      }
+
+      // Always update subscription record timestamps + status.
+      const subUpdate = {
+        lastVerified: now,
+        status: subscriptionStatus,
+        updatedAt: now,
+        active: subscriptionStatus === "active" ||
+                subscriptionStatus === "grace_period" ||
+                subscriptionStatus === "canceled",
+      };
+
+      if (expiryTimestamp) {
+        subUpdate.expiry = expiryTimestamp;
+      }
+      if (plan) {
+        subUpdate.membership = plan;
+      }
+
+      if (subSnap.exists) {
+        txn.update(subscriptionRef, subUpdate);
+      }
+
+      // Handle linkedPurchaseToken (upgrade/downgrade chain).
+      if (linkedPurchaseToken) {
+        const oldTokenHash = crypto.createHash("sha256").update(linkedPurchaseToken).digest("hex");
+        const oldSubRef = db.collection("subscriptions").doc(oldTokenHash);
+        const oldSnap = await txn.get(oldSubRef);
+        if (oldSnap.exists) {
+          txn.update(oldSubRef, {
+            active: false,
+            status: "replaced",
+            replacedBy: tokenHash,
+            replacedAt: now,
+            updatedAt: now,
+          });
+        }
+      }
+    });
+
+    // ── Step 7: Structured logging ──
+    functions.logger.info("RTDN processed", {
+      event: "rtdn_processed",
+      notificationType,
+      uid,
+      tokenHash,
+      subscriptionStatus,
+      plan: plan || "none",
+      expiryDate: expiryTimestamp ? new Date(expiryTimeMillis).toISOString() : null,
+      hunterUpdated: !!hunterUpdate,
+      timestamp: new Date().toISOString(),
+    });
 
     return;
   });

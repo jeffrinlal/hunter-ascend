@@ -467,6 +467,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final refreshed = await ref.get();
       if (!mounted) return;
       final refreshedData = refreshed.data() ?? {};
+
+      // Only load quests if generation has actually completed for today.
+      // If the generator is still mid-call, Firestore still contains
+      // yesterday's data — loading it would show stale quests.
+      if ((refreshedData['aiQuestDate'] ?? '') != today) return;
+
       final quests = List<Map<String, dynamic>>.from(
         refreshedData['aiQuests'] ?? [],
       );

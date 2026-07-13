@@ -670,16 +670,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       return;
     }
+
+    // Ad is available — Max members with remaining skips bypass it.
+    final skipAd = await MembershipService.instance.shouldSkipRewardedAd();
+    if (skipAd) {
+      await _grantStreakRecovery();
+      return;
+    }
+
     rewardedAd!.show(onUserEarnedReward: (ad, reward) async {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
-      final data = doc.data() as Map<String, dynamic>;
-      final previousStreak = data['previousStreak'] ?? 0;
-      await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
-        'streak': previousStreak, 'previousStreak': 0, 'lastRecoveryDate': Timestamp.now(),
-      });
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("🔥 Streak Restored ($previousStreak Days)")));
+      await _grantStreakRecovery();
     });
     rewardedAd = null; isRewardedAdReady = false; loadRewardedAd();
     } catch (e) {
@@ -687,6 +687,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } finally {
       _isRecoveringStreak = false;
     }
+  }
+
+  /// Grants the streak recovery reward. Used by both the rewarded ad callback
+  /// and the ad-skip path so the logic is never duplicated.
+  Future<void> _grantStreakRecovery() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
+    final data = doc.data() as Map<String, dynamic>;
+    final previousStreak = data['previousStreak'] ?? 0;
+    await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
+      'streak': previousStreak, 'previousStreak': 0, 'lastRecoveryDate': Timestamp.now(),
+    });
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("🔥 Streak Restored ($previousStreak Days)")));
   }
 
   // ── Steps ────────────────────────────────────────────────
@@ -938,6 +952,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
 // ── Ad available → must watch, no escape ──
+    // Max members with available skips bypass the ad entirely.
+    final skipAd = await MembershipService.instance.shouldSkipRewardedAd();
+    if (skipAd) {
+      await _grantPunishmentCompletion(user.uid, today);
+      return;
+    }
+
     showDialog(
       context: context, barrierDismissible: false,
       builder: (_) => PopScope(
@@ -1002,15 +1023,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 );
                 punishmentAd!.show(onUserEarnedReward: (ad, reward) async {
                   rewardEarned = true;
-                  await FirebaseFirestore.instance
-                      .collection('hunters')
-                      .doc(user.uid)
-                      .update({'lastPunishmentDate': today});
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("✅ Debt repaid. Continue your journey.")),
-                    );
-                  }
+                  await _grantPunishmentCompletion(user.uid, today);
                 });
                 punishmentAd = null;
                 isPunishmentAdReady = false;
@@ -1034,6 +1047,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       ),
     );
+  }
+
+  /// Grants the punishment completion reward. Used by both the rewarded ad
+  /// callback and the ad-skip path so the logic is never duplicated.
+  Future<void> _grantPunishmentCompletion(String uid, String today) async {
+    await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(uid)
+        .update({'lastPunishmentDate': today});
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Debt repaid. Continue your journey.")),
+      );
+    }
   }
 
   Future<void> checkDisciplineMode() async {

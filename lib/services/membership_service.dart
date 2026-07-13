@@ -10,7 +10,29 @@ import 'package:flutter/foundation.dart';
 enum MembershipTier {
   basic,
   pro,
-  max,
+  max;
+
+  /// Parses a raw tier string (e.g. `"basic"`, `"pro"`, `"max"`) into the
+  /// corresponding [MembershipTier].
+  ///
+  /// Unrecognized, empty, or null-like values safely fall back to
+  /// [MembershipTier.basic] so a malformed/legacy value never grants premium
+  /// features by accident.
+  ///
+  /// This is the single canonical place for tier-string parsing — both
+  /// [MembershipService] (for the current user's Firestore document) and
+  /// widgets displaying other hunters' tiers should use this factory.
+  static MembershipTier fromString(String? raw) {
+    switch (raw?.trim().toLowerCase()) {
+      case 'pro':
+        return MembershipTier.pro;
+      case 'max':
+        return MembershipTier.max;
+      case 'basic':
+      default:
+        return MembershipTier.basic;
+    }
+  }
 }
 
 /// Immutable configuration describing every premium feature flag unlocked by
@@ -282,7 +304,7 @@ class MembershipService {
       return;
     }
 
-    _tier = _parseTier(data['membership']);
+    _tier = MembershipTier.fromString(data['membership']?.toString());
     _subscriptionActive = data['subscriptionActive'] == true;
     _membershipExpiry = _parseExpiry(data['membershipExpiry']);
   }
@@ -293,25 +315,6 @@ class MembershipService {
     _tier = MembershipTier.basic;
     _subscriptionActive = false;
     _membershipExpiry = null;
-  }
-
-  /// Maps the raw `membership` Firestore field (expected to be a string such
-  /// as `"basic"`, `"pro"` or `"max"`) to a [MembershipTier].
-  ///
-  /// Unrecognized or missing values safely fall back to
-  /// [MembershipTier.basic] so a malformed/legacy document never grants
-  /// premium features by accident.
-  MembershipTier _parseTier(dynamic rawMembership) {
-    final normalized = rawMembership?.toString().trim().toLowerCase();
-    switch (normalized) {
-      case 'pro':
-        return MembershipTier.pro;
-      case 'max':
-        return MembershipTier.max;
-      case 'basic':
-      default:
-        return MembershipTier.basic;
-    }
   }
 
   /// Parses the raw `membershipExpiry` Firestore field, which may be stored

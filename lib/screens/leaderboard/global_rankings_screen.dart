@@ -178,6 +178,10 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchText = '';
 
+  // Cached current user's hunter data for the status card when they're
+  // outside the top 50 leaderboard results.
+  Map<String, dynamic>? _myHunterCache;
+
   // Caches decoded avatar bytes keyed by the Base64 string, so each unique
   // profile picture is decoded only once and the same Uint8List is reused
   // across scrolls/rebuilds (re-decodes only when the Base64 string changes).
@@ -185,6 +189,31 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
   Uint8List _decodedAvatar(String base64Data) =>
       _avatarCache[base64Data] ??= base64Decode(base64Data);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMyHunterData();
+  }
+
+  /// Fetches the current user's hunter document once and caches it so the
+  /// "Your Hunter Status" card always has data even if the user isn't in the
+  /// top 50 leaderboard results.
+  Future<void> _loadMyHunterData() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('hunters')
+          .doc(uid)
+          .get();
+      if (doc.exists && mounted) {
+        setState(() {
+          _myHunterCache = doc.data();
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -467,7 +496,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                     .collection('hunters')
                     .orderBy('level', descending: true)
                     .orderBy('xp', descending: true)
-                    .limit(100)
+                    .limit(50)
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
@@ -481,14 +510,19 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                   final currentUid = FirebaseAuth.instance.currentUser?.uid;
 
                   Map<String, dynamic>? myHunter;
-                  for (var doc in hunters) {
-                    if (doc.id == currentUid) {
-                      myHunter = doc.data() as Map<String, dynamic>;
+                  int myRank = 0;
+                  for (int i = 0; i < hunters.length; i++) {
+                    if (hunters[i].id == currentUid) {
+                      myHunter = hunters[i].data() as Map<String, dynamic>;
+                      myRank = i + 1;
                       break;
                     }
                   }
 
-                  final myRank = hunters.indexWhere((h) => h.id == currentUid) + 1;
+                  // If the current user is not in the top 50, their status card
+                  // will be populated from the cached one-time read instead.
+                  // myRank stays 0 which displays as "50+".
+                  myHunter ??= _myHunterCache;
 
                   return _searchMode
                       ? (_searchText.isEmpty
@@ -717,7 +751,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                         ),
                                       ),
                                       child: Text(
-                                        myRank > 0 ? '# $myRank' : 'UNRANKED',
+                                        myRank > 0 ? '# $myRank' : '50+',
                                         style: TextStyle(
                                           color: HunterTheme.primary,
                                           fontSize: 12,

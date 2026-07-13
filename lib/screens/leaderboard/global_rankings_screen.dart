@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,156 +9,6 @@ import 'dart:typed_data';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
 
 import '../../widgets/premium_avatar.dart';
-
-// ── Top 3 Crown Painter ────────────────────────────────────────────────────
-
-/// Draws the decorative badge behind a top-3 leaderboard position.
-class TopRankPainter extends CustomPainter {
-  final int position; // 1, 2, 3
-  final Color color;
-
-  TopRankPainter(this.position, this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeJoin = StrokeJoin.round
-      ..strokeCap = StrokeCap.round;
-
-    final fillPaint = Paint()
-      ..color = color.withOpacity(0.12)
-      ..style = PaintingStyle.fill;
-
-    if (position == 1) {
-      // ── Imperial Crown ──
-      final crown = Path();
-      crown.moveTo(w * 0.05, h * 0.75);
-      crown.lineTo(w * 0.05, h * 0.35);
-      crown.lineTo(w * 0.28, h * 0.55);
-      crown.lineTo(w * 0.5, h * 0.1);
-      crown.lineTo(w * 0.72, h * 0.55);
-      crown.lineTo(w * 0.95, h * 0.35);
-      crown.lineTo(w * 0.95, h * 0.75);
-      crown.close();
-      canvas.drawPath(crown, fillPaint);
-      canvas.drawPath(crown, paint);
-
-      // Jewels on crown tips
-      canvas.drawCircle(Offset(w * 0.5, h * 0.1), 3.5,
-          Paint()..color = color..style = PaintingStyle.fill);
-      canvas.drawCircle(Offset(w * 0.05, h * 0.35), 2.5,
-          Paint()..color = color..style = PaintingStyle.fill);
-      canvas.drawCircle(Offset(w * 0.95, h * 0.35), 2.5,
-          Paint()..color = color..style = PaintingStyle.fill);
-
-      // Base gems row
-      for (int i = 0; i < 3; i++) {
-        canvas.drawCircle(
-          Offset(w * (0.25 + i * 0.25), h * 0.62),
-          2.0,
-          Paint()..color = color.withOpacity(0.8)..style = PaintingStyle.fill,
-        );
-      }
-
-      // Number
-      _drawText(canvas, '1', w / 2, h * 0.88, color, 13, FontWeight.bold);
-
-    } else if (position == 2) {
-      // ── War Blade / Sword ──
-      final blade = Path();
-      blade.moveTo(w * 0.5, h * 0.05);
-      blade.lineTo(w * 0.62, h * 0.6);
-      blade.lineTo(w * 0.5, h * 0.7);
-      blade.lineTo(w * 0.38, h * 0.6);
-      blade.close();
-      canvas.drawPath(blade, fillPaint);
-      canvas.drawPath(blade, paint);
-
-      // Guard / crossguard
-      canvas.drawLine(Offset(w * 0.15, h * 0.62), Offset(w * 0.85, h * 0.62), paint);
-
-      // Handle
-      canvas.drawLine(Offset(w * 0.5, h * 0.7), Offset(w * 0.5, h * 0.92), paint);
-      // Pommel
-      canvas.drawCircle(Offset(w * 0.5, h * 0.93), 4,
-          Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 1.8);
-
-      _drawText(canvas, '2', w * 0.5, h * 0.88, color, 10, FontWeight.bold);
-
-    } else {
-      // ── Shield ──
-      final shield = Path();
-      shield.moveTo(w * 0.5, h * 0.06);
-      shield.lineTo(w * 0.92, h * 0.22);
-      shield.lineTo(w * 0.92, h * 0.55);
-      shield.quadraticBezierTo(w * 0.92, h * 0.82, w * 0.5, h * 0.96);
-      shield.quadraticBezierTo(w * 0.08, h * 0.82, w * 0.08, h * 0.55);
-      shield.lineTo(w * 0.08, h * 0.22);
-      shield.close();
-      canvas.drawPath(shield, fillPaint);
-      canvas.drawPath(shield, paint);
-
-      // Shield inner bevel
-      final inner = Path();
-      inner.moveTo(w * 0.5, h * 0.15);
-      inner.lineTo(w * 0.82, h * 0.28);
-      inner.lineTo(w * 0.82, h * 0.55);
-      inner.quadraticBezierTo(w * 0.82, h * 0.75, w * 0.5, h * 0.87);
-      inner.quadraticBezierTo(w * 0.18, h * 0.75, w * 0.18, h * 0.55);
-      inner.lineTo(w * 0.18, h * 0.28);
-      inner.close();
-      canvas.drawPath(inner,
-          Paint()..color = color.withOpacity(0.25)..style = PaintingStyle.stroke..strokeWidth = 1);
-
-      _drawText(canvas, '3', w / 2, h * 0.55, color, 18, FontWeight.bold);
-    }
-  }
-
-  void _drawText(Canvas canvas, String text, double x, double y,
-      Color color, double fontSize, FontWeight weight) {
-    final tp = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(color: color, fontSize: fontSize, fontWeight: weight),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, Offset(x - tp.width / 2, y - tp.height / 2));
-  }
-
-  @override
-  bool shouldRepaint(TopRankPainter old) =>
-      old.position != position || old.color != color;
-}
-
-// ── Top Rank Badge Widget ──────────────────────────────────────────────────
-
-/// Top-3 rank badge widget (wraps [TopRankPainter]).
-class TopRankBadge extends StatelessWidget {
-  final int position;
-  final Color color;
-  final double size;
-
-  const TopRankBadge({
-    super.key,
-    required this.position,
-    required this.color,
-    this.size = 36,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size(size, size),
-      painter: TopRankPainter(position, color),
-    );
-  }
-}
 
 // ── Global Rankings Screen ─────────────────────────────────────────────────
 
@@ -218,154 +67,93 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
     return HunterTheme.textSecondary;
   }
 
-  // ── Elite Podium (Top 3 — Premium Leaderboard) ──────────────────────────
+  // ── Cinematic Hero Section (Top 3) ──────────────────────────────────────
 
-  /// Builds the full top-3 section: dominant center champion with flanking hunters.
   Widget _buildElitePodium(
       BuildContext context, List<QueryDocumentSnapshot> hunters, String? currentUid) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final columnWidth = (screenWidth - 56) / 3; // 3 columns with margins
+    final sw = MediaQuery.of(context).size.width;
+    final tierWidth = (sw - 40) / 3; // approximate width per tier
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+      margin: const EdgeInsets.fromLTRB(10, 4, 10, 8),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: RadialGradient(
-          center: const Alignment(0, -0.3),
-          radius: 1.2,
-          colors: [
-            HunterTheme.primary.withOpacity(0.05),
-            HunterTheme.cardColor,
-            HunterTheme.cardColor,
-          ],
-          stops: const [0.0, 0.5, 1.0],
-        ),
-        border: Border.all(
-          color: HunterTheme.primary.withOpacity(0.1),
-          width: 1,
-        ),
+        borderRadius: BorderRadius.circular(16),
+        color: HunterTheme.isDark
+            ? const Color(0xFF0A0E18)
+            : const Color(0xFF1A1A2E),
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 18, 8, 0),
-        child: Column(
-          children: [
-            // Section title
-            Text(
-              '⚔  ELITE HUNTERS  ⚔',
-              style: TextStyle(
-                color: HunterTheme.primary,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 2.5,
-              ),
-            ),
-            const SizedBox(height: 16),
-            // ── Staggered champion layout ──
-            SizedBox(
-              height: 310,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // ── Pedestals at the bottom ──
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Expanded(child: _buildPedestal(1)),
-                        const SizedBox(width: 4),
-                        Expanded(child: _buildPedestal(0)),
-                        const SizedBox(width: 4),
-                        Expanded(child: _buildPedestal(2)),
-                      ],
-                    ),
+      child: Stack(
+        children: [
+          // LAYER 0: Atmospheric glow behind #1
+          Positioned(
+            top: 10,
+            left: sw * 0.25,
+            right: sw * 0.25,
+            child: Container(
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: _positionColor(0).withOpacity(0.12),
+                    blurRadius: 60,
+                    spreadRadius: 30,
                   ),
-                  // ── #2 (left) ──
-                  if (hunters.length > 1)
-                    Positioned(
-                      bottom: 95,
-                      left: 0,
-                      width: columnWidth,
-                      child: _buildChampionCard(context, hunters, 1, currentUid),
-                    ),
-                  // ── #3 (right) ──
-                  if (hunters.length > 2)
-                    Positioned(
-                      bottom: 78,
-                      right: 0,
-                      width: columnWidth,
-                      child: _buildChampionCard(context, hunters, 2, currentUid),
-                    ),
-                  // ── #1 (center — rendered last, on top) ──
-                  if (hunters.isNotEmpty)
-                    Positioned(
-                      bottom: 120,
-                      left: columnWidth - 2,
-                      right: columnWidth - 2,
-                      child: _buildChampionCard(context, hunters, 0, currentUid),
-                    ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Premium flat pedestal with gradient, borders, and inner glow.
-  Widget _buildPedestal(int index) {
-    final posColor = _positionColor(index);
-    final isFirst = index == 0;
-    final double height = index == 0 ? 120 : (index == 1 ? 95 : 78);
-
-    return Container(
-      height: height,
-      decoration: BoxDecoration(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          stops: const [0.0, 0.15, 0.6, 1.0],
-          colors: [
-            posColor.withOpacity(0.3),
-            posColor.withOpacity(0.12),
-            posColor.withOpacity(0.04),
-            HunterTheme.surface.withOpacity(0.3),
-          ],
-        ),
-        border: Border(
-          top: BorderSide(color: posColor.withOpacity(0.8), width: 2),
-          left: BorderSide(color: posColor.withOpacity(0.15), width: 1),
-          right: BorderSide(color: posColor.withOpacity(0.15), width: 1),
-        ),
-        boxShadow: [
-          // Upward glow from top edge
-          BoxShadow(
-            color: posColor.withOpacity(isFirst ? 0.12 : 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, -6),
+          ),
+          // Main content
+          Padding(
+            padding: const EdgeInsets.fromLTRB(6, 0, 6, 0),
+            child: Column(
+              children: [
+                // ── LAYER 2: Hunters standing above monument ──
+                SizedBox(
+                  height: 200,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      // #2 (left)
+                      if (hunters.length > 1)
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          width: tierWidth,
+                          child: _buildHunterFigure(context, hunters, 1, currentUid),
+                        ),
+                      // #3 (right)
+                      if (hunters.length > 2)
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          width: tierWidth,
+                          child: _buildHunterFigure(context, hunters, 2, currentUid),
+                        ),
+                      // #1 (center — rendered last, on top, higher)
+                      if (hunters.isNotEmpty)
+                        Positioned(
+                          bottom: 30,
+                          left: tierWidth - 6,
+                          right: tierWidth - 6,
+                          child: _buildHunterFigure(context, hunters, 0, currentUid),
+                        ),
+                    ],
+                  ),
+                ),
+                // ── LAYER 1: The Monument ──
+                _buildMonument(context),
+              ],
+            ),
           ),
         ],
       ),
-      child: Center(
-        child: Text(
-          '#${index + 1}',
-          style: TextStyle(
-            color: posColor.withOpacity(0.8),
-            fontSize: isFirst ? 32 : 24,
-            fontWeight: FontWeight.w900,
-            height: 1,
-          ),
-        ),
-      ),
     );
   }
 
-  /// Builds one champion card (avatar + name + badge + XP).
-  Widget _buildChampionCard(
+  /// A single hunter figure: avatar + name + badge. Minimal.
+  Widget _buildHunterFigure(
       BuildContext context, List<QueryDocumentSnapshot> hunters, int index, String? currentUid) {
     if (index >= hunters.length) return const SizedBox();
 
@@ -377,139 +165,222 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
     final posColor = _positionColor(index);
     final isFirst = index == 0;
 
-    // Sizes: #1 dramatically larger, #2/#3 still feel elite
-    final double avatarRadius = isFirst ? 42 : 30;
-    final double iconSize = isFirst ? 42 : 28;
-    final double ringPadding = isFirst ? 3.5 : 3;
-
-    // Aura intensity: #1 strongest, #2 medium, #3 subtle
-    final double auraBlur = index == 0 ? 22 : (index == 1 ? 14 : 10);
-    final double auraSpread = index == 0 ? 5 : (index == 1 ? 3 : 2);
-    final double auraOpacity = index == 0 ? 0.35 : (index == 1 ? 0.25 : 0.18);
+    final double avatarRadius = isFirst ? 52 : 28;
+    final double iconSize = isFirst ? 48 : 26;
 
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PublicHunterProfileScreen(
-              hunterUid: doc.id,
-            ),
-          ),
+        Navigator.push(context,
+          MaterialPageRoute(builder: (_) => PublicHunterProfileScreen(hunterUid: doc.id)),
         );
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Avatar with energy ring + layered aura ──
+          // Avatar with single position-colored ring
           Container(
+            padding: EdgeInsets.all(isFirst ? 3 : 2),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              boxShadow: [
-                // Primary aura
-                BoxShadow(
-                  color: posColor.withOpacity(auraOpacity),
-                  blurRadius: auraBlur,
-                  spreadRadius: auraSpread,
-                ),
-                // Secondary inner glow
-                BoxShadow(
-                  color: posColor.withOpacity(auraOpacity * 0.5),
-                  blurRadius: auraBlur * 0.4,
-                  spreadRadius: 0,
-                ),
-              ],
+              border: Border.all(
+                color: posColor.withOpacity(0.8),
+                width: isFirst ? 2.5 : 1.5,
+              ),
+              boxShadow: isFirst
+                  ? [
+                      BoxShadow(
+                        color: posColor.withOpacity(0.2),
+                        blurRadius: 16,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : [],
             ),
-            child: Container(
-              padding: EdgeInsets.all(ringPadding),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: SweepGradient(
-                  colors: [
-                    posColor,
-                    posColor.withOpacity(0.15),
-                    posColor,
-                    posColor.withOpacity(0.15),
-                    posColor,
-                  ],
-                ),
-              ),
-              child: PremiumAvatar(
-                membership: (hunter['membership'] ?? 'basic').toString(),
-                radius: avatarRadius,
-                image: hunter['profilePicture'] != null &&
-                    hunter['profilePicture'].toString().isNotEmpty
-                    ? MemoryImage(
-                  _decodedAvatar(hunter['profilePicture']),
-                )
-                    : null,
-                child: Icon(
-                  Icons.person,
-                  color: rc,
-                  size: iconSize,
-                ),
-              ),
+            child: PremiumAvatar(
+              membership: (hunter['membership'] ?? 'basic').toString(),
+              radius: avatarRadius,
+              image: hunter['profilePicture'] != null &&
+                  hunter['profilePicture'].toString().isNotEmpty
+                  ? MemoryImage(_decodedAvatar(hunter['profilePicture']))
+                  : null,
+              child: Icon(Icons.person, color: rc, size: iconSize),
             ),
           ),
-          SizedBox(height: isFirst ? 10 : 7),
-          // ── Name ──
+          SizedBox(height: isFirst ? 6 : 4),
+          // Name
           Text(
             hunter['hunterName'] ?? 'Unknown',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: isMe ? HunterTheme.primary : HunterTheme.textPrimary,
-              fontSize: isFirst ? 14 : 12,
+              color: isMe ? HunterTheme.primary : Colors.white,
+              fontSize: isFirst ? 13 : 10,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 3),
-          // ── Membership badge ──
+          // Membership badge
           MembershipBadge(
             membership: (hunter['membership'] ?? 'basic').toString(),
             fontSize: isFirst ? 8 : 7,
-          ),
-          const SizedBox(height: 4),
-          // ── XP chip ──
-          Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: isFirst ? 10 : 8,
-              vertical: isFirst ? 4 : 3,
-            ),
-            decoration: BoxDecoration(
-              color: posColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: posColor.withOpacity(0.4),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: posColor.withOpacity(0.06),
-                  blurRadius: 6,
-                ),
-              ],
-            ),
-            child: Text(
-              '${hunter['xp'] ?? 0} XP',
-              style: TextStyle(
-                color: posColor,
-                fontSize: isFirst ? 11 : 10,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
           ),
         ],
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (context, _, __) => _themedBuild(context),
+  /// The Monument: three stepped tiers forming a connected structure.
+  Widget _buildMonument(BuildContext context) {
+    final gold = _positionColor(0);
+    final silver = _positionColor(1);
+    final bronze = _positionColor(2);
+
+    const double centerHeight = 110;
+    const double sideHeight = 60;
+
+    return SizedBox(
+      height: centerHeight,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // ── Left tier (#2) ──
+          Expanded(child: _buildTier(2, silver, sideHeight)),
+          // ── Center tier (#1) — tallest ──
+          Expanded(child: _buildTier(1, gold, centerHeight)),
+          // ── Right tier (#3) ──
+          Expanded(child: _buildTier(3, bronze, sideHeight)),
+        ],
+      ),
+    );
+  }
+
+  /// A single monument tier with beveled edges, engraved geometry, and rank number.
+  Widget _buildTier(int rank, Color accent, double height) {
+    final isCenter = rank == 1;
+
+    return Container(
+      height: height,
+      margin: EdgeInsets.symmetric(horizontal: isCenter ? 0 : 1),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(isCenter ? 4 : 3),
+        ),
+        // Layered gradient: bright top edge → dark body → slightly lighter base
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          stops: const [0.0, 0.02, 0.06, 0.5, 0.95, 1.0],
+          colors: [
+            accent.withOpacity(0.6),       // bright top edge
+            accent.withOpacity(0.2),       // fast fade
+            const Color(0xFF14182A),       // dark body start
+            const Color(0xFF0F1220),       // deep body
+            const Color(0xFF0F1220),       // base
+            const Color(0xFF181C30),       // slightly lighter bottom edge (bevel)
+          ],
+        ),
+        // Left/right beveled edges (lighter on left = implied light source)
+        border: Border(
+          top: BorderSide(color: accent.withOpacity(0.7), width: 1.5),
+          left: BorderSide(
+            color: accent.withOpacity(isCenter ? 0.15 : 0.1),
+            width: 1,
+          ),
+          right: BorderSide(
+            color: accent.withOpacity(0.05),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Stack(
+        children: [
+          // Engraved horizontal line near top
+          Positioned(
+            top: isCenter ? 14 : 10,
+            left: 10,
+            right: 10,
+            child: Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    accent.withOpacity(0.2),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Second engraved line (center tier only, for depth)
+          if (isCenter)
+            Positioned(
+              top: 26,
+              left: 18,
+              right: 18,
+              child: Container(
+                height: 1,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      accent.withOpacity(0.1),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          // Bottom bevel line
+          Positioned(
+            bottom: isCenter ? 12 : 8,
+            left: 8,
+            right: 8,
+            child: Container(
+              height: 1,
+              color: accent.withOpacity(0.06),
+            ),
+          ),
+          // Corner accents (small dots at top corners)
+          Positioned(
+            top: isCenter ? 8 : 6,
+            left: 6,
+            child: Container(
+              width: 3, height: 3,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: accent.withOpacity(0.3),
+              ),
+            ),
+          ),
+          Positioned(
+            top: isCenter ? 8 : 6,
+            right: 6,
+            child: Container(
+              width: 3, height: 3,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: accent.withOpacity(0.3),
+              ),
+            ),
+          ),
+          // ── RANK NUMBER (engraved, large, centered) ──
+          Center(
+            child: Padding(
+              padding: EdgeInsets.only(top: isCenter ? 30 : 10),
+              child: Text(
+                '#$rank',
+                style: TextStyle(
+                  color: accent.withOpacity(isCenter ? 0.7 : 0.5),
+                  fontSize: isCenter ? 36 : 24,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

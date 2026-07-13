@@ -248,6 +248,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
     return GestureDetector(
       onTap: () {
+        if (doc.id == currentUid) return;
         Navigator.push(context,
           MaterialPageRoute(builder: (_) => PublicHunterProfileScreen(hunterUid: doc.id)),
         );
@@ -339,6 +340,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
     return GestureDetector(
       onTap: () {
+        if (doc.id == currentUid) return;
         Navigator.push(context,
           MaterialPageRoute(builder: (_) => PublicHunterProfileScreen(hunterUid: doc.id)),
         );
@@ -543,6 +545,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                       return Center(
                         child: GestureDetector(
                           onTap: () {
+                            if (snapshot.data!.docs.first.id == currentUid) return;
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -800,6 +803,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
                             return GestureDetector(
                               onTap: () {
+                                if (hunters[index].id == currentUid) return;
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(

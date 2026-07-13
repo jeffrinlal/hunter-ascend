@@ -2,6 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 
+/// Displays a compact membership badge (🛡 PRO / 👑 MAX) next to a hunter's
+/// name. Renders nothing for Basic.
+///
+/// Accepts a plain [membership] tier string rather than reading
+/// [MembershipService] directly, because this widget is used to display
+/// OTHER hunters throughout the app (leaderboard, compare, public profile,
+/// etc.) — not just the current user. Whether a badge renders at all is
+/// driven by [MembershipFeatures.goldBadge] for the parsed tier, so that
+/// rule lives in exactly one place instead of being duplicated here.
 class MembershipBadge extends StatelessWidget {
   final String membership;
   final double fontSize;
@@ -12,15 +21,31 @@ class MembershipBadge extends StatelessWidget {
     this.fontSize = 10,
   });
 
+  /// Parses the raw tier string into a [MembershipTier], mirroring
+  /// [MembershipService]'s own parsing so unrecognized/empty values safely
+  /// fall back to Basic. Kept local (rather than reusing a shared parser)
+  /// so this widget stays fully decoupled from [MembershipService].
+  MembershipTier _parseTier(String raw) {
+    switch (raw.trim().toLowerCase()) {
+      case 'pro':
+        return MembershipTier.pro;
+      case 'max':
+        return MembershipTier.max;
+      default:
+        return MembershipTier.basic;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final tier = membership.toLowerCase();
+    final tier = _parseTier(membership);
+    final features = MembershipFeatures.forTier(tier);
 
-    if (tier == 'basic' || tier.isEmpty) {
+    if (!features.goldBadge) {
       return const SizedBox.shrink();
     }
 
-    final bool isMax = tier == 'max';
+    final bool isMax = tier == MembershipTier.max;
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -52,7 +77,7 @@ class MembershipBadge extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            tier.toUpperCase(),
+            isMax ? 'MAX' : 'PRO',
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,

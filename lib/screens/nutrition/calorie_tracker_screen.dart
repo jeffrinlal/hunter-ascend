@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:hunter_ascend/services/membership_service.dart';
 
 // ── Data model ────────────────────────────────────────────────────────────
 
@@ -383,6 +384,10 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   }
 
   void loadBannerAd() {
+    // Max tier hides banner ads entirely — skip the load so nothing is
+    // requested or rendered for those hunters.
+    if (!MembershipService.instance.showBannerAds) return;
+
     _bannerAd = AdsService.createBannerAd(
       adUnitId: AppConstants.challengeBannerAdUnitId,
       onAdLoaded: (_) {
@@ -453,11 +458,11 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     final today = DateTime.now().toString().substring(0, 10);
 
     try {
-    await FirebaseFirestore.instance.collection('calorie_logs').add({
-      ...meal.toMap(),
-      'uid': user.uid,
-      'date': today,
-    });
+      await FirebaseFirestore.instance.collection('calorie_logs').add({
+        ...meal.toMap(),
+        'uid': user.uid,
+        'date': today,
+      });
     } catch (e) {
       debugPrint("saveMeal: $e");
     }
@@ -466,10 +471,10 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   // ── Delete meal ───────────────────────────────────────────────────────
   Future<void> _deleteMeal(String docId) async {
     try {
-    await FirebaseFirestore.instance
-        .collection('calorie_logs')
-        .doc(docId)
-        .delete();
+      await FirebaseFirestore.instance
+          .collection('calorie_logs')
+          .doc(docId)
+          .delete();
     } catch (e) {
       debugPrint("deleteMeal: $e");
     }
@@ -700,9 +705,9 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
             final totalFat = meals.fold(0.0, (sum, m) => sum + m.fat);
             final progress = (totalCals / calorieGoal).clamp(0.0, 1.0);
             final remaining =
-                (calorieGoal - totalCals) < 0 ? 0 : (calorieGoal - totalCals);
+            (calorieGoal - totalCals) < 0 ? 0 : (calorieGoal - totalCals);
             final hunterName =
-                (hunterData['hunterName'] ?? 'Hunter').toString();
+            (hunterData['hunterName'] ?? 'Hunter').toString();
 
             // Display-only macro targets derived from the calorie goal
             // (protein 30%, carbs 40%, fat 30%). Presentation only — no logic.
@@ -776,19 +781,19 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                                 borderRadius: BorderRadius.circular(12)),
                             child: _isLoading
                                 ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                        color: Colors.white, strokeWidth: 2))
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
                                 : const Icon(Icons.search,
-                                    color: Colors.white, size: 20),
+                                color: Colors.white, size: 20),
                           ),
                         ),
                         const SizedBox(width: 8),
                         // Camera button
                         GestureDetector(
                           onTap:
-                              _isLoading ? null : () => _showPhotoOptions(),
+                          _isLoading ? null : () => _showPhotoOptions(),
                           child: Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
@@ -823,8 +828,8 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                             SizedBox(height: 6),
                             Text(
                               "Examples: 2 idli • 100g chicken breast •"
-                              " 3 eggs and 2 chapati •"
-                              "1 bowl curd rice",
+                                  " 3 eggs and 2 chapati •"
+                                  "1 bowl curd rice",
                               style: TextStyle(
                                 color: _textSecondary,
                                 fontSize: 13,
@@ -885,13 +890,13 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   }
 
   BoxDecoration _cardDecoration() => BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _border, width: 1.5),
-        boxShadow: [
-          BoxShadow(color: _orange.withOpacity(0.06), blurRadius: 14),
-        ],
-      );
+    color: _card,
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(color: _border, width: 1.5),
+    boxShadow: [
+      BoxShadow(color: _orange.withOpacity(0.06), blurRadius: 14),
+    ],
+  );
 
   // ── Calorie ring card ─────────────────────────────────────────────────
   Widget _buildCalorieRingCard({
@@ -1127,7 +1132,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
             }),
             child: Padding(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(children: [
                 Expanded(
                   child: Text("$emoji  $label",
@@ -1159,15 +1164,15 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               child: items.isEmpty
                   ? Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text("No foods added",
-                          style: TextStyle(
-                              color: _textTertiary, fontSize: 13)),
-                    )
+                alignment: Alignment.centerLeft,
+                child: Text("No foods added",
+                    style: TextStyle(
+                        color: _textTertiary, fontSize: 13)),
+              )
                   : Column(
-                      children:
-                          items.map((m) => _buildMealTile(m, snap)).toList(),
-                    ),
+                children:
+                items.map((m) => _buildMealTile(m, snap)).toList(),
+              ),
             ),
         ],
       ),

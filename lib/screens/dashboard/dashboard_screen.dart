@@ -20,6 +20,7 @@ import 'package:hunter_ascend/screens/nutrition/nutrition_screen.dart';
 import 'dart:typed_data';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/update_service.dart';
+import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 
@@ -584,6 +585,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // ── Ads ──────────────────────────────────────────────────
   void loadBannerAd() {
+    if (!MembershipService.instance.showBannerAds) return;
+
     bannerAd = AdsService.createBannerAd(
       adUnitId: AppConstants.dashboardBannerAdUnitId,
       onAdLoaded: (ad) => setState(() => isBannerReady = true),
@@ -593,6 +596,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void loadWeeklyBannerAd() {
+    if (!MembershipService.instance.showBannerAds) return;
+
     weeklyBannerAd = AdsService.createBannerAd(
       adUnitId: AppConstants.dashboardBannerAdUnitId,
       onAdLoaded: (ad) => setState(() => weeklyBannerReady = true),

@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/screens/leaderboard/compare_hunters_screen.dart';
 import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
+import 'package:hunter_ascend/widgets/membership_badge.dart';
+import 'package:hunter_ascend/widgets/premium_avatar.dart';
 
 /// Read-only profile of another hunter (viewed from rankings/duels).
 class PublicHunterProfileScreen extends StatelessWidget {
@@ -157,18 +159,21 @@ class PublicHunterProfileScreen extends StatelessWidget {
                                         color: rankColor, width: 2.5),
                                   ),
                                 ),
-                                CircleAvatar(
-                                  radius: 50,
-                                  backgroundColor: HunterTheme.cardColor,
-                                  backgroundImage: data['profilePicture'] != null
-                                      ? MemoryImage(
-                                    base64Decode(data['profilePicture']),
-                                  )
-                                      : null,
-                                  child: data['profilePicture'] == null
-                                      ? const Icon(Icons.person, size: 50)
-                                      : null,
-                                ),
+          PremiumAvatar(
+          membership: (data['membership'] ?? 'basic').toString(),
+          radius: 50,
+          image: data['profilePicture'] != null
+          ? MemoryImage(
+          base64Decode(data['profilePicture']),
+          )
+              : null,
+          child: data['profilePicture'] == null
+          ? const Icon(
+          Icons.person,
+          size: 50,
+          )
+              : null,
+          ),
                                 // Rank letter badge bottom-right
                                 Positioned(
                                   bottom: 0, right: 0,
@@ -204,13 +209,40 @@ class PublicHunterProfileScreen extends StatelessWidget {
                             const SizedBox(height: 16),
 
                             // Name
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+
+                                Flexible(
+                                  child: Text(
+                                    name,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: HunterTheme.textPrimary,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(width: 8),
+
+                                MembershipBadge(
+                                  membership: (data['membership'] ?? 'basic').toString(),
+                                  fontSize: 9,
+                                ),
+
+                              ],
+                            ),
+
+                            const SizedBox(height: 10),
                             Text(
-                              name,
+                              "${(data['membership'] ?? 'Basic').toString().toUpperCase()} HUNTER",
                               style: TextStyle(
-                                color: HunterTheme.textPrimary,
-                                fontSize: 24,
+                                color: HunterTheme.primary,
                                 fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
+                                letterSpacing: 2,
+                                fontSize: 11,
                               ),
                             ),
 

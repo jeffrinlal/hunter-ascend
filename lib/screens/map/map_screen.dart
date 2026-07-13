@@ -12,6 +12,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/services/ads_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
+import 'package:hunter_ascend/services/membership_service.dart';
 
 /// Live GPS run-tracking screen with route stats and saved-run history.
 class MapScreen extends StatefulWidget {
@@ -79,13 +80,19 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void dispose() {
     _positionStream?.cancel();
+    _positionStream = null;
     _timer?.cancel();
+    _timer = null;
     _bannerAd?.dispose();
     super.dispose();
   }
 
   // ── Banner Ad loading ───────────────────────────────────
   void _loadBannerAd() {
+    // Max tier hides banner ads entirely — skip the load so nothing is
+    // requested or rendered for those hunters.
+    if (!MembershipService.instance.showBannerAds) return;
+
     final adUnitId = Platform.isAndroid
         ? 'ca-app-pub-5435480116436845/6580125873'
     // TODO: Replace with your real iOS banner ad unit ID for production
@@ -146,6 +153,8 @@ class _MapScreenState extends State<MapScreen> {
 
   // ── Tracking ─────────────────────────────────────────────
   Future<void> _startTracking() async {
+    if (_isTracking) return;
+
     // Re-verify location permission and services immediately before tracking.
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -175,13 +184,16 @@ class _MapScreenState extends State<MapScreen> {
     _positionStream = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 5),
     ).listen(
-      (position) {
+          (position) {
         final newPoint = LatLng(position.latitude, position.longitude);
 
         if (_routePoints.isNotEmpty && !_isPaused) {
           final lastPoint = _routePoints.last;
           final distance = const Distance().as(LengthUnit.Kilometer, lastPoint, newPoint);
-          setState(() => _distanceKm += distance);
+          // Ignore unrealistic GPS jumps so a sudden spike can't inflate distance.
+          if (distance > 0 && distance < 0.1) {
+            setState(() => _distanceKm += distance);
+          }
         }
 
         setState(() {
@@ -197,7 +209,9 @@ class _MapScreenState extends State<MapScreen> {
         debugPrint("GPS stream error: $error");
         // Stop tracking safely on stream error (e.g., permission revoked mid-run).
         _positionStream?.cancel();
+        _positionStream = null;
         _timer?.cancel();
+        _timer = null;
         if (mounted) {
           setState(() {
             _isTracking = false;
@@ -217,7 +231,9 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _stopTracking() async {
     _positionStream?.cancel();
+    _positionStream = null;
     _timer?.cancel();
+    _timer = null;
 
     if (_distanceKm < 0.01) {
       setState(() { _isTracking = false; _isPaused = false; });
@@ -230,69 +246,82 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _showRunSummary() async {
+    bool isSaving = false;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: _card,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: _border, width: 1.5),
-            boxShadow: [BoxShadow(color: _blue.withOpacity(0.2), blurRadius: 30)],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text("🏆 RUN COMPLETE!", style: TextStyle(color: Colors.amber, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 2)),
-              const SizedBox(height: 24),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: _card,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: _border, width: 1.5),
+              boxShadow: [BoxShadow(color: _blue.withOpacity(0.2), blurRadius: 30)],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("🏆 RUN COMPLETE!", style: TextStyle(color: Colors.amber, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                const SizedBox(height: 24),
 
-              // Stats grid
-              Row(children: [
-                _statBox("📍 DISTANCE", "${_distanceKm.toStringAsFixed(2)} km", _blue),
-                const SizedBox(width: 10),
-                _statBox("⏱️ TIME", _timerDisplay, Colors.orange),
-              ]),
-              const SizedBox(height: 10),
-              Row(children: [
-                _statBox("🔥 CALORIES", "${_caloriesBurned.toStringAsFixed(0)} kcal", Colors.redAccent),
-                const SizedBox(width: 10),
-                _statBox("⚡ XP EARNED", "+$_xpEarned XP", HunterTheme.success),
-              ]),
-              const SizedBox(height: 10),
-              _statBox("💨 AVG SPEED", "${_speedKmh.toStringAsFixed(1)} km/h", Colors.purpleAccent),
+                // Stats grid
+                Row(children: [
+                  _statBox("📍 DISTANCE", "${_distanceKm.toStringAsFixed(2)} km", _blue),
+                  const SizedBox(width: 10),
+                  _statBox("⏱️ TIME", _timerDisplay, Colors.orange),
+                ]),
+                const SizedBox(height: 10),
+                Row(children: [
+                  _statBox("🔥 CALORIES", "${_caloriesBurned.toStringAsFixed(0)} kcal", Colors.redAccent),
+                  const SizedBox(width: 10),
+                  _statBox("⚡ XP EARNED", "+$_xpEarned XP", HunterTheme.success),
+                ]),
+                const SizedBox(height: 10),
+                _statBox("💨 AVG SPEED", "${_speedKmh.toStringAsFixed(1)} km/h", Colors.purpleAccent),
 
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _blue,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _blue,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: isSaving ? null : () async {
+                      setDialogState(() => isSaving = true);
+                      await _saveRun();
+                      if (!mounted) return;
+                      Navigator.pop(dialogContext);
+                      setState(() { _isTracking = false; _isPaused = false; });
+                    },
+                    child: isSaving
+                        ? SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: HunterTheme.textPrimary,
+                      ),
+                    )
+                        : Text("SAVE RUN ⚡", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 2)),
                   ),
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await _saveRun();
-                    if (!mounted) return;
+                ),
+
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: isSaving ? null : () {
+                    Navigator.pop(dialogContext);
                     setState(() { _isTracking = false; _isPaused = false; });
                   },
-                  child: Text("SAVE RUN ⚡", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 2)),
+                  child: Text("DISCARD", style: TextStyle(color: HunterTheme.textTertiary)),
                 ),
-              ),
-
-              const SizedBox(height: 10),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  setState(() { _isTracking = false; _isPaused = false; });
-                },
-                child: Text("DISCARD", style: TextStyle(color: HunterTheme.textTertiary)),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -307,54 +336,62 @@ class _MapScreenState extends State<MapScreen> {
     }
     _isSavingRun = true;
     try {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
 
-    // Save run to Firestore
-    await FirebaseFirestore.instance.collection('runs').add({
-      'uid': user.uid,
-      'distanceKm': _distanceKm,
-      'durationSeconds': _elapsedSeconds,
-      'caloriesBurned': _caloriesBurned,
-      'xpEarned': _xpEarned,
-      'avgSpeedKmh': _speedKmh,
-      'routePoints': _routePoints.map((p) => {'lat': p.latitude, 'lng': p.longitude}).toList(),
-      'createdAt': Timestamp.now(),
-    });
-    // Keep only latest 10 runs
-    final oldRuns = await FirebaseFirestore.instance
-        .collection('runs')
-        .where('uid', isEqualTo: user.uid)
-        .orderBy('createdAt', descending: true)
-        .get();
+      // Save run to Firestore
+      await FirebaseFirestore.instance.collection('runs').add({
+        'uid': user.uid,
+        'distanceKm': _distanceKm,
+        'durationSeconds': _elapsedSeconds,
+        'caloriesBurned': _caloriesBurned,
+        'xpEarned': _xpEarned,
+        'avgSpeedKmh': _speedKmh,
+        'routePoints': _routePoints.map((p) => {'lat': p.latitude, 'lng': p.longitude}).toList(),
+        'createdAt': Timestamp.now(),
+      });
+      // Keep only latest 10 runs
+      final oldRuns = await FirebaseFirestore.instance
+          .collection('runs')
+          .where('uid', isEqualTo: user.uid)
+          .orderBy('createdAt', descending: true)
+          .get();
 
-    if (oldRuns.docs.length > 10) {
-      for (final doc in oldRuns.docs.skip(10)) {
-        await doc.reference.delete();
+      if (oldRuns.docs.length > 10) {
+        for (final doc in oldRuns.docs.skip(10)) {
+          await doc.reference.delete();
+        }
       }
-    }
 
-    // Award XP atomically (matches completeQuest's transaction pattern).
-    // Reads the LATEST Firestore xp/level, applies the reward, and writes
-    // atomically so concurrent rewards (step, mission, penalty) cannot be lost.
-    final ref = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
-    await FirebaseFirestore.instance.runTransaction((txn) async {
-      final snap = await txn.get(ref);
-      final data = snap.data() ?? {};
-      int curXp = (data['xp'] ?? 0) as int;
-      int curLevel = (data['level'] ?? 1) as int;
-      curXp += _xpEarned;
-      while (curXp >= 500) { curXp -= 500; curLevel++; }
-      txn.update(ref, {'xp': curXp, 'level': curLevel});
-    });
+      // Award XP atomically (matches completeQuest's transaction pattern).
+      // Reads the LATEST Firestore xp/level, applies the reward, and writes
+      // atomically so concurrent rewards (step, mission, penalty) cannot be lost.
+      final ref = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
+      await FirebaseFirestore.instance.runTransaction((txn) async {
+        final snap = await txn.get(ref);
+        final data = snap.data() ?? {};
+        int curXp = (data['xp'] ?? 0) as int;
+        int curLevel = (data['level'] ?? 1) as int;
+        curXp += _xpEarned;
+        while (curXp >= 500) { curXp -= 500; curLevel++; }
+        txn.update(ref, {'xp': curXp, 'level': curLevel});
+      });
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("✅ Run saved! +$_xpEarned XP earned!")),
-      );
-    }
+      if (mounted) {
+        setState(() {
+          _routePoints.clear();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("✅ Run saved! +$_xpEarned XP earned!")),
+        );
+      }
     } catch (e) {
       debugPrint("saveRun: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't save your run. Please try again.")),
+        );
+      }
     } finally {
       _isSavingRun = false;
     }

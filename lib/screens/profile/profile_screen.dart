@@ -13,6 +13,10 @@ import 'package:share_plus/share_plus.dart';
 import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'package:hunter_ascend/screens/profile/membership_screen.dart';
+import 'package:hunter_ascend/widgets/membership_badge.dart';
+import 'package:hunter_ascend/widgets/premium_avatar.dart';
+import 'package:hunter_ascend/services/membership_service.dart';
 
 /// The signed-in hunter's own profile: stats, physique, history, and sharing.
 class ProfileScreen extends StatefulWidget {
@@ -199,7 +203,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     vit: vit,
                                     agi: agi,
                                     profilePicture:
-                                        data['profilePicture'] as String?,
+                                    data['profilePicture'] as String?,
                                   ),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
@@ -248,7 +252,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                             ),
                             // Guest account linking banner
                             if (FirebaseAuth
-                                    .instance.currentUser?.isAnonymous ==
+                                .instance.currentUser?.isAnonymous ==
                                 true) ...[
                               const SizedBox(height: 16),
                               Container(
@@ -262,7 +266,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 ),
                                 child: Column(
                                   crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  CrossAxisAlignment.start,
                                   children: [
                                     const Text(
                                       "⚠️ You're a Guest!",
@@ -289,25 +293,25 @@ class _ProfileScreenState extends State<ProfileScreen>
                                             : _linkGoogleAccount,
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor:
-                                              const Color(0xFFFF6B2B),
+                                          const Color(0xFFFF6B2B),
                                           foregroundColor: Colors.white,
                                           padding: const EdgeInsets.symmetric(
                                               vertical: 12),
                                           shape: RoundedRectangleBorder(
                                             borderRadius:
-                                                BorderRadius.circular(10),
+                                            BorderRadius.circular(10),
                                           ),
                                         ),
                                         icon: _linkingGoogle
                                             ? const SizedBox(
-                                                width: 18,
-                                                height: 18,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  color: Colors.white,
-                                                ),
-                                              )
+                                          width: 18,
+                                          height: 18,
+                                          child:
+                                          CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
                                             : const Icon(Icons.link, size: 18),
                                         label: Text(_linkingGoogle
                                             ? "Linking..."
@@ -340,10 +344,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 ),
                                 GestureDetector(
                                   onTap: _uploadProfilePicture,
-                                  child: CircleAvatar(
+                                  child: PremiumAvatar(
+                                    membership: MembershipService
+                                        .instance.membershipName
+                                        .toLowerCase(),
                                     radius: 53,
-                                    backgroundColor: HunterTheme.cardColor,
-                                    backgroundImage: data['profilePicture'] != null
+                                    image: data['profilePicture'] != null
                                         ? MemoryImage(base64Decode(data['profilePicture']))
                                         : null,
                                     child: data['profilePicture'] == null
@@ -384,14 +390,23 @@ class _ProfileScreenState extends State<ProfileScreen>
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(
-                                  hunterName,
-                                  style: TextStyle(
-                                    color: HunterTheme.textPrimary,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.5,
+                                Flexible(
+                                  child: Text(
+                                    hunterName,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: HunterTheme.textPrimary,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.5,
+                                    ),
                                   ),
+                                ),
+
+                                const SizedBox(width: 8),
+
+                                MembershipBadge(
+                                  membership: MembershipService.instance.membershipName.toLowerCase(),
                                 ),
 
                                 const SizedBox(width: 8),
@@ -482,6 +497,78 @@ class _ProfileScreenState extends State<ProfileScreen>
                               ],
                             ),
                             const SizedBox(height: 22),
+
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const MembershipScreen(),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      HunterTheme.primary.withOpacity(0.15),
+                                      HunterTheme.gold.withOpacity(0.12),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: HunterTheme.primary.withOpacity(0.4),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.workspace_premium,
+                                      color: HunterTheme.gold,
+                                      size: 28,
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            "Hunter Membership",
+                                            style: TextStyle(
+                                              color: HunterTheme.textPrimary,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            "Unlock PRO & MAX rewards",
+                                            style: TextStyle(
+                                              color: HunterTheme.textSecondary,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      color: HunterTheme.primary,
+                                      size: 18,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 22),
+
+// Level / Quests / Duels row
 
                             // Level / Quests / Duels row
                             Row(
@@ -877,7 +964,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     try {
       final googleSignIn = GoogleSignIn(
         serverClientId:
-            '300244677091-a867dd5tr6dfnjtngiikjp3grfdvnsrn.apps.googleusercontent.com',
+        '300244677091-a867dd5tr6dfnjtngiikjp3grfdvnsrn.apps.googleusercontent.com',
       );
       await googleSignIn.signOut();
 
@@ -888,7 +975,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       }
 
       final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      await googleUser.authentication;
 
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
@@ -1070,9 +1157,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                     border: Border.all(color: accent, width: 2.5),
                     image: profilePicture != null
                         ? DecorationImage(
-                            image: MemoryImage(base64Decode(profilePicture)),
-                            fit: BoxFit.cover,
-                          )
+                      image: MemoryImage(base64Decode(profilePicture)),
+                      fit: BoxFit.cover,
+                    )
                         : null,
                   ),
                   child: profilePicture == null
@@ -1238,43 +1325,43 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Future<void> _uploadProfilePicture() async {
     try {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 50,
-    );
-
-    if (picked == null) return;
-
-    final file = File(picked.path);
-
-    // Compress to max 15KB
-    final compressed = await FlutterImageCompress.compressWithFile(
-      file.absolute.path,
-      minWidth: 200,
-      minHeight: 200,
-      quality: 30,
-      format: CompressFormat.jpeg,
-    );
-
-    if (compressed == null) return;
-
-    // Convert to base64
-    final base64Image = base64Encode(compressed);
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    await FirebaseFirestore.instance
-        .collection('hunters')
-        .doc(user.uid)
-        .update({'profilePicture': base64Image});
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Profile picture updated!')),
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 50,
       );
-    }
+
+      if (picked == null) return;
+
+      final file = File(picked.path);
+
+      // Compress to max 15KB
+      final compressed = await FlutterImageCompress.compressWithFile(
+        file.absolute.path,
+        minWidth: 200,
+        minHeight: 200,
+        quality: 30,
+        format: CompressFormat.jpeg,
+      );
+
+      if (compressed == null) return;
+
+      // Convert to base64
+      final base64Image = base64Encode(compressed);
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      await FirebaseFirestore.instance
+          .collection('hunters')
+          .doc(user.uid)
+          .update({'profilePicture': base64Image});
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Profile picture updated!')),
+        );
+      }
     } catch (e) {
       debugPrint("uploadProfilePicture: $e");
     }
@@ -1333,23 +1420,23 @@ class _ProfileScreenState extends State<ProfileScreen>
                 if (user == null) return;
 
                 try {
-                await FirebaseFirestore.instance
-                    .collection('hunters')
-                    .doc(user.uid)
-                    .update({'weight': weight});
+                  await FirebaseFirestore.instance
+                      .collection('hunters')
+                      .doc(user.uid)
+                      .update({'weight': weight});
 
-                await FirebaseFirestore.instance
-                    .collection('weight_history')
-                    .add({
-                  'uid': user.uid,
-                  'weight': weight,
-                  'date': Timestamp.now(),
-                });
+                  await FirebaseFirestore.instance
+                      .collection('weight_history')
+                      .add({
+                    'uid': user.uid,
+                    'weight': weight,
+                    'date': Timestamp.now(),
+                  });
 
-                if (mounted) {
-                  Navigator.pop(context);
-                  setState(() {});
-                }
+                  if (mounted) {
+                    Navigator.pop(context);
+                    setState(() {});
+                  }
                 } catch (e) {
                   debugPrint("updateWeight: $e");
                 }
@@ -1466,5 +1553,3 @@ class HexRadarPainter extends CustomPainter {
   bool shouldRepaint(covariant HexRadarPainter old) =>
       old.values != values;
 }
-
-

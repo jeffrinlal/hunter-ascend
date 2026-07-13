@@ -3,6 +3,8 @@ import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
+import 'package:hunter_ascend/widgets/membership_badge.dart';
+import 'package:hunter_ascend/widgets/premium_avatar.dart';
 
 /// Side-by-side stat comparison of two hunters.
 class CompareHuntersScreen extends StatelessWidget {
@@ -145,6 +147,7 @@ class CompareHuntersScreen extends StatelessWidget {
                         myLevel,
                         myRankColor,
                         myData['profilePicture'],
+                        (myData['membership'] ?? 'basic').toString(),
                         isMe: true,
                       ),
                     ),
@@ -184,6 +187,7 @@ class CompareHuntersScreen extends StatelessWidget {
                         theirLevel,
                         theirRankColor,
                         theirData['profilePicture'],
+                        (theirData['membership'] ?? 'basic').toString(),
                         isMe: false,
                       ),
                     ),
@@ -313,6 +317,7 @@ class CompareHuntersScreen extends StatelessWidget {
       int level,
       Color rankColor,
       String? profilePicture,
+      String membership,
       {required bool isMe}
       ) {
     final rank = _getRank(level);
@@ -321,33 +326,20 @@ class CompareHuntersScreen extends StatelessWidget {
         Stack(
           alignment: Alignment.center,
           children: [
-            Container(
-              width: 70, height: 70,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: rankColor, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                      color: rankColor.withOpacity(0.35), blurRadius: 16),
-                ],
-                color: HunterTheme.cardColor,
-              ),
-              child: profilePicture != null &&
-                  profilePicture.isNotEmpty
-                  ? ClipOval(
-                child: Image.memory(
-                  base64Decode(profilePicture),
-                  width: 70,
-                  height: 70,
-                  fit: BoxFit.cover,
-                ),
-              )
-                  : Icon(
-                Icons.person,
-                color: rankColor,
-                size: 38,
-              ),
-            ),
+      PremiumAvatar(
+      membership: membership,
+      radius: 35,
+      image: profilePicture != null && profilePicture.isNotEmpty
+          ? MemoryImage(base64Decode(profilePicture))
+          : null,
+      child: profilePicture == null || profilePicture.isEmpty
+          ? Icon(
+        Icons.person,
+        color: rankColor,
+        size: 38,
+      )
+          : null,
+    ),
             Positioned(
               bottom: 0,
               right: isMe ? null : 0,
@@ -371,16 +363,32 @@ class CompareHuntersScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        Text(
-          name,
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: isMe ? HunterTheme.primary : HunterTheme.textPrimary,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+        Flexible(
+        child: Text(
+        name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+        color: isMe
+        ? HunterTheme.primary
+            : HunterTheme.textPrimary,
+        fontSize: 13,
+        fontWeight: FontWeight.bold,
+        ),
+        ),
+        ),
+
+        const SizedBox(width: 6),
+
+        MembershipBadge(
+        membership: membership,
+        fontSize: 8,
+        ),
+        ],
         ),
         const SizedBox(height: 4),
         Container(

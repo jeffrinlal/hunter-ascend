@@ -7,6 +7,7 @@ import 'package:hunter_ascend/services/ads_service.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/screens/duel/duel_screen.dart';
+import 'package:hunter_ascend/services/membership_service.dart';
 
 /// Shows an incoming duel challenge so the hunter can accept or decline.
 class DuelRequestScreen extends StatefulWidget {
@@ -34,6 +35,10 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
   }
 
   void loadBannerAd() {
+    // Max tier hides banner ads entirely — skip the load so nothing is
+    // requested or rendered for those hunters.
+    if (!MembershipService.instance.showBannerAds) return;
+
     bannerAd = AdsService.createBannerAd(
       adUnitId: AppConstants.challengeBannerAdUnitId,
       onAdLoaded: (ad) => setState(() => isBannerReady = true),

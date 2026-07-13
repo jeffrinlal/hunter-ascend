@@ -8,6 +8,7 @@ import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:hunter_ascend/services/membership_service.dart';
 
 /// Form to create/send a duel challenge to another hunter.
 class CreateDuelScreen extends StatefulWidget {
@@ -248,6 +249,10 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
   /// Loads (or reloads) the rewarded ad used to grant an extra AI
   /// regeneration once the daily free regeneration has been used.
   void _loadDuelRewardedAd() {
+    // Max tier has no rewarded ads — _showRewardedAdForRegen() grants the
+    // regeneration directly for these hunters, so there's nothing to load.
+    if (!MembershipService.instance.showRewardedAds) return;
+
     RewardedAd.load(
       adUnitId: 'ca-app-pub-5435480116436845/4406856317',
       request: const AdRequest(),
@@ -265,6 +270,11 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
   }
 
   void _showRewardedAdForRegen(Future<void> Function() onEarned) {
+    if (!MembershipService.instance.showRewardedAds) {
+      // Max tier: no rewarded ads — grant the bonus regeneration directly.
+      onEarned();
+      return;
+    }
     if (!_isDuelRewardedAdReady || _duelRewardedAd == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Ad not ready yet — try again in a moment.")),

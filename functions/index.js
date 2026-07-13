@@ -16,6 +16,7 @@
 const functions = require("firebase-functions");
 const { defineString } = require("firebase-functions/params");
 const admin = require("firebase-admin");
+const crypto = require("crypto");
 const playStore = require("./play-store");
 
 // ── Initialize Firebase Admin SDK ──────────────────────────────────────────
@@ -218,23 +219,88 @@ exports.verifyPurchase = functions.https.onCall(async (data, context) => {
     );
   }
 
-  // ── Step 5: Build the verified result ──
+  // ── Step 5: Persist to Firestore (transaction) ──
+  // Uses a transaction to ensure the hunter document and subscription record
+  // are updated atomically. This guarantees consistency and idempotency —
+  // repeated verification of the same purchase token produces the same result
+  // without creating duplicate records.
   const expiryDate = new Date(validation.expiryTimeMillis);
+  const expiryTimestamp = admin.firestore.Timestamp.fromDate(expiryDate);
+  const now = admin.firestore.Timestamp.now();
 
-  functions.logger.info("Purchase verified and acknowledged", {
+  const hunterRef = db.collection("hunters").doc(uid);
+  const tokenHash = crypto.createHash("sha256").update(purchaseToken).digest("hex");
+  const subscriptionRef = db.collection("subscriptions").doc(tokenHash);
+
+  await db.runTransaction(async (txn) => {
+    const hunterSnap = await txn.get(hunterRef);
+    const subscriptionSnap = await txn.get(subscriptionRef);
+
+    // ── Update hunter membership ──
+    // Only update if the hunter document exists (it should — created on signup).
+    if (hunterSnap.exists) {
+      txn.update(hunterRef, {
+        membership: plan,
+        subscriptionActive: true,
+        membershipExpiry: expiryTimestamp,
+        lastMembershipVerification: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } else {
+      functions.logger.warn("Hunter document not found during verification", { uid });
+    }
+
+    // ── Create or update subscription record ──
+    // Using SHA256(purchaseToken) as document ID ensures idempotency and
+    // avoids exposing raw purchase tokens as Firestore document IDs.
+    // The raw token is stored inside the document for backend operations
+    // (e.g., calling Google Play API for acknowledgement or status checks).
+    const subscriptionData = {
+      uid,
+      purchaseToken,
+      productId,
+      membership: plan,
+      expiry: expiryTimestamp,
+      orderId: validation.orderId || null,
+      linkedPurchaseToken: validation.linkedPurchaseToken || null,
+      lastVerified: now,
+      platform: "google_play",
+      active: true,
+    };
+
+    if (subscriptionSnap.exists) {
+      // Idempotent update — same purchase verified again.
+      txn.update(subscriptionRef, subscriptionData);
+    } else {
+      // First verification of this purchase.
+      subscriptionData.createdAt = now;
+      txn.set(subscriptionRef, subscriptionData);
+    }
+
+    // ── Handle linkedPurchaseToken (upgrade/downgrade) ──
+    // When present, it points to the previous subscription's purchase token.
+    // Mark the old subscription as inactive but do NOT delete it — preserve
+    // subscription history for auditing and dispute resolution.
+    if (validation.linkedPurchaseToken) {
+      const oldTokenHash = crypto.createHash("sha256").update(validation.linkedPurchaseToken).digest("hex");
+      const oldSubscriptionRef = db.collection("subscriptions").doc(oldTokenHash);
+      const oldSnap = await txn.get(oldSubscriptionRef);
+      if (oldSnap.exists) {
+        txn.update(oldSubscriptionRef, {
+          active: false,
+          replacedBy: tokenHash,
+          replacedAt: now,
+        });
+      }
+    }
+  });
+
+  functions.logger.info("Firestore updated — membership activated", {
     uid,
     plan,
     expiryDate: expiryDate.toISOString(),
     orderId: validation.orderId,
+    linkedPurchaseToken: validation.linkedPurchaseToken ? "handled" : "none",
   });
-
-  // ── TODO: Phase 3 — Firestore writes ──
-  // 1. Write to Firestore hunters/{uid}:
-  //    { membership: plan, subscriptionActive: true, membershipExpiry: expiryDate }
-  // 2. Write to Firestore subscriptions/{purchaseToken}:
-  //    { uid, productId, createdAt }
-  // 3. If validation.linkedPurchaseToken exists:
-  //    - Delete subscriptions/{linkedPurchaseToken} (old token no longer valid).
 
   return {
     success: true,

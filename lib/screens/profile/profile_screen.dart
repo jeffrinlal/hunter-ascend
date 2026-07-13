@@ -1055,6 +1055,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           str: str,
           vit: vit,
           agi: agi,
+          membership: MembershipService.instance.membershipName.toLowerCase(),
           profilePicture: profilePicture,
         ),
         context: context,
@@ -1094,6 +1095,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     required int str,
     required int vit,
     required int agi,
+    required String membership,
     String? profilePicture,
   }) {
     const accent = Color(0xFFFF6B2B);
@@ -1148,20 +1150,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
                 const SizedBox(height: 20),
                 // Avatar
-                Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: surface,
-                    border: Border.all(color: accent, width: 2.5),
-                    image: profilePicture != null
-                        ? DecorationImage(
-                      image: MemoryImage(base64Decode(profilePicture)),
-                      fit: BoxFit.cover,
-                    )
-                        : null,
-                  ),
+                PremiumAvatar(
+                  membership: membership,
+                  radius: 46,
+                  image: profilePicture != null
+                      ? MemoryImage(base64Decode(profilePicture))
+                      : null,
                   child: profilePicture == null
                       ? const Icon(Icons.person, size: 52, color: accent)
                       : null,

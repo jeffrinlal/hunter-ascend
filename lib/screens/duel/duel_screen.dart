@@ -201,10 +201,24 @@ class _DuelScreenState extends State<DuelScreen> {
     final today = DateTime.now().toString().substring(0, 10);
     if ((duel['lastResetDate'] ?? '') == today) return; // already reset today
 
-    await FirebaseFirestore.instance.collection('duels').doc(widget.duelId).update({
-      'player1CompletedToday': [],
-      'player2CompletedToday': [],
-      'lastResetDate': today,
+    // Use a transaction to re-read the latest duel state and only reset if
+    // lastResetDate is still not today. This prevents two devices from both
+    // performing the reset simultaneously and overwriting each other's
+    // completedToday lists.
+    final duelRef = FirebaseFirestore.instance.collection('duels').doc(widget.duelId);
+    await FirebaseFirestore.instance.runTransaction((txn) async {
+      final snap = await txn.get(duelRef);
+      if (!snap.exists) return;
+      final data = snap.data() as Map<String, dynamic>;
+
+      // Another device already performed today's reset — nothing to do.
+      if ((data['lastResetDate'] ?? '') == today) return;
+
+      txn.update(duelRef, {
+        'player1CompletedToday': [],
+        'player2CompletedToday': [],
+        'lastResetDate': today,
+      });
     });
   }
 

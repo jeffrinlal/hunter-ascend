@@ -239,6 +239,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
     return Expanded(
       child: GestureDetector(
         onTap: () {
+          if (doc.id == currentUid) return;
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -518,6 +519,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                       return Center(
                         child: GestureDetector(
                           onTap: () {
+                            if (snapshot.data!.docs.first.id == currentUid) return;
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -651,27 +653,17 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                             const SizedBox(height: 14),
                             Row(
                               children: [
-                                // Avatar with rank ring
-                                Container(
-                                  width: 52, height: 52,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: HunterTheme.surface,
-                                    border: Border.all(
-                                      color: myHunter != null
-                                          ? _rankColor(myHunter['level'] ?? 1)
-                                          : HunterTheme.primary,
-                                      width: 2,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: myHunter != null
-                                            ? _rankColor(myHunter['level'] ?? 1).withOpacity(0.3)
-                                            : HunterTheme.primary.withOpacity(0.3),
-                                        blurRadius: 12,
-                                      ),
-                                    ],
-                                  ),
+                                // Avatar with rank ring + actual profile picture
+                                PremiumAvatar(
+                                  membership: (myHunter?['membership'] ?? 'basic').toString(),
+                                  radius: 24,
+                                  image: myHunter != null &&
+                                      myHunter['profilePicture'] != null &&
+                                      myHunter['profilePicture'].toString().isNotEmpty
+                                      ? MemoryImage(
+                                          _decodedAvatar(myHunter['profilePicture']),
+                                        )
+                                      : null,
                                   child: Icon(
                                     Icons.person,
                                     color: myHunter != null
@@ -795,6 +787,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
                             return GestureDetector(
                               onTap: () {
+                                if (hunters[index].id == currentUid) return;
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(

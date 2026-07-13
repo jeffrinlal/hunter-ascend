@@ -67,6 +67,7 @@ void main() async {
 
         await createHunterProfile();
         await MembershipService.instance.loadMembership();
+        await MobileAds.instance.initialize();
 
         final prefs = await SharedPreferences.getInstance();
         hasCompletedSetup = prefs.getBool('hasCompletedSetup') ?? false;
@@ -90,7 +91,6 @@ Future<void> _deferredInit() async {
         await NotificationService().init();
         await NotificationService().scheduleAllNotifications();
         await FacebookAppEvents().logEvent(name: 'fb_mobile_activate_app');
-        await MobileAds.instance.initialize();
     } catch (e) {
         debugPrint("deferredInit: $e");
     }

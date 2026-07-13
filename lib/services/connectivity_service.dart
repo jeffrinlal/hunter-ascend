@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 /// Lightweight global connectivity monitor.
 ///
@@ -9,7 +10,10 @@ import 'package:flutter/foundation.dart';
 /// package dependency). Exposes a [ValueNotifier<bool>] for the app-wide
 /// connectivity banner, and a static [isOnline] helper for imperative checks
 /// before gameplay actions.
-class ConnectivityService {
+///
+/// Lifecycle-aware: automatically pauses polling when the app enters the
+/// background and resumes when it returns to the foreground.
+class ConnectivityService with WidgetsBindingObserver {
   ConnectivityService._();
   static final ConnectivityService instance = ConnectivityService._();
 
@@ -18,17 +22,35 @@ class ConnectivityService {
 
   Timer? _timer;
 
-  /// Starts periodic monitoring (every 5 seconds).
+  /// Starts periodic monitoring (every 5 seconds) and registers the
+  /// lifecycle observer to pause/resume automatically.
   void start() {
     _check(); // immediate first check
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 5), (_) => _check());
+    WidgetsBinding.instance.addObserver(this);
   }
 
-  /// Stops monitoring (e.g., on app dispose).
+  /// Stops monitoring and removes the lifecycle observer.
   void stop() {
     _timer?.cancel();
     _timer = null;
+    WidgetsBinding.instance.removeObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      // App going to background — stop polling to save battery.
+      _timer?.cancel();
+      _timer = null;
+    } else if (state == AppLifecycleState.resumed) {
+      // App returning to foreground — resume polling.
+      _check(); // immediate check on resume
+      _timer?.cancel();
+      _timer = Timer.periodic(const Duration(seconds: 5), (_) => _check());
+    }
   }
 
   /// One-shot connectivity check. Returns `true` if online.

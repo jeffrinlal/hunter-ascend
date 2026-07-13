@@ -178,6 +178,197 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  void _showDeleteAccountConfirm(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: HunterTheme.cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(
+            color: Colors.redAccent.withOpacity(0.4),
+            width: 1,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.delete_forever,
+                color: Colors.redAccent,
+                size: 36,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'DELETE ACCOUNT',
+                style: TextStyle(
+                  color: HunterTheme.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 2,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'This will permanently delete your account, all progress, XP, streaks, and hunter data. This action cannot be undone.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: HunterTheme.textPrimary.withOpacity(0.5),
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(ctx),
+                      child: Container(
+                        height: 44,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: HunterTheme.primary.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'CANCEL',
+                            style: TextStyle(
+                              color: HunterTheme.textPrimary.withOpacity(0.5),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _handleDeleteAccount(context);
+                      },
+                      child: Container(
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'DELETE',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleDeleteAccount(BuildContext context) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      MembershipService.instance.clearCache();
+
+      // Re-authenticate with Google before deletion (required by Firebase
+      // for destructive operations if the sign-in is not recent).
+      final googleSignIn = GoogleSignIn();
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: HunterTheme.cardColor,
+              content: Text(
+                'Re-authentication required to delete account.',
+                style: TextStyle(color: HunterTheme.textPrimary, fontSize: 12),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await user.reauthenticateWithCredential(credential);
+
+      // Delete Firestore user data
+      await FirebaseFirestore.instance
+          .collection('hunters')
+          .doc(user.uid)
+          .delete();
+
+      // Delete the hunterName reservation (if it exists)
+      final hunterDoc = await FirebaseFirestore.instance
+          .collection('hunterNames')
+          .where('uid', isEqualTo: user.uid)
+          .limit(1)
+          .get();
+      for (final doc in hunterDoc.docs) {
+        await doc.reference.delete();
+      }
+
+      // Delete the Firebase Auth account
+      await user.delete();
+
+      await googleSignIn.signOut();
+
+      if (context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+              (route) => false,
+        );
+      }
+    } catch (e) {
+      debugPrint('Delete account error: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: HunterTheme.cardColor,
+            shape: RoundedRectangleBorder(
+              side: const BorderSide(color: Colors.redAccent, width: 1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            content: Text(
+              'Account deletion failed. Please try again.',
+              style: const TextStyle(
+                color: Colors.redAccent,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
@@ -400,6 +591,19 @@ class SettingsScreen extends StatelessWidget {
                         isDanger: true,
                         onTap: () => _showLogoutConfirm(context),
                       ),
+
+                      // Account deletion for Google users
+                      if (FirebaseAuth.instance.currentUser != null &&
+                          !FirebaseAuth.instance.currentUser!.isAnonymous) ...[
+                        const SizedBox(height: 10),
+                        _SettingsTile(
+                          icon: Icons.delete_forever,
+                          title: 'Delete Account',
+                          subtitle: 'Permanently delete your account and all data',
+                          isDanger: true,
+                          onTap: () => _showDeleteAccountConfirm(context),
+                        ),
+                      ],
                     ],
                   ),
                 ),

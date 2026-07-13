@@ -272,6 +272,83 @@ class _MembershipScreenState extends State<MembershipScreen>
     );
   }
 
+  /// Handles the Restore Purchases button tap.
+  Future<void> _handleRestore(BuildContext context) async {
+    if (!BillingService.instance.isAvailable) {
+      _showBillingUnavailable(context);
+      return;
+    }
+
+    final result = await BillingService.instance.restorePurchases();
+
+    if (!mounted) return;
+
+    if (result.status == BillingStatus.error) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: HunterTheme.cardColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: HunterTheme.danger.withOpacity(0.5)),
+          ),
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: HunterTheme.danger, size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  result.error ?? 'Restore failed. Please try again.',
+                  style: TextStyle(
+                    color: HunterTheme.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else if (result.status == BillingStatus.success) {
+      // Reload membership to pick up any restored purchases that were verified.
+      await MembershipService.instance.reload();
+      if (!mounted) return;
+      setState(() {}); // Refresh UI with latest membership state.
+
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: HunterTheme.cardColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: HunterTheme.success.withOpacity(0.5)),
+          ),
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: HunterTheme.success, size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  MembershipService.instance.hasPremium
+                      ? 'Membership restored successfully!'
+                      : 'No active subscriptions found.',
+                  style: TextStyle(
+                    color: HunterTheme.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
@@ -411,43 +488,35 @@ class _MembershipScreenState extends State<MembershipScreen>
                       ),
                       const SizedBox(height: 20),
                       // ── Restore Purchases ──
-                      GestureDetector(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).clearSnackBars();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: HunterTheme.cardColor,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                side: BorderSide(color: HunterTheme.border),
-                              ),
-                              content: Text(
-                                'Restore Purchases will be available after Google Play Billing integration.',
-                                style: TextStyle(
-                                  color: HunterTheme.textPrimary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: BillingService.instance.isRestoring,
+                        builder: (context, restoring, _) => GestureDetector(
+                          onTap: restoring ? null : () => _handleRestore(context),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: HunterTheme.border),
                             ),
-                          );
-                        },
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: HunterTheme.border),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Restore Purchases',
-                              style: TextStyle(
-                                color: HunterTheme.textSecondary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            child: Center(
+                              child: restoring
+                                  ? SizedBox(
+                                      height: 16,
+                                      width: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: HunterTheme.textSecondary,
+                                      ),
+                                    )
+                                  : Text(
+                                      'Restore Purchases',
+                                      style: TextStyle(
+                                        color: HunterTheme.textSecondary,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                             ),
                           ),
                         ),

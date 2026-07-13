@@ -78,7 +78,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
         borderRadius: BorderRadius.circular(16),
         color: HunterTheme.isDark
             ? const Color(0xFF0A0E18)
-            : const Color(0xFF1A1A2E),
+            : HunterTheme.cardColor,
       ),
       child: Stack(
         children: [
@@ -96,7 +96,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: _positionColor(0).withOpacity(0.15),
+                        color: _positionColor(0).withOpacity(HunterTheme.isDark ? 0.15 : 0.08),
                         blurRadius: 50,
                         spreadRadius: 20,
                       ),
@@ -112,7 +112,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
               // ── #1 Champion ──
               if (hunters.isNotEmpty)
                 _buildChampion(context, hunters, 0, currentUid),
-              const SizedBox(height: 20),
+              const SizedBox(height: 4),
               // ── #2 and #3 ──
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -131,54 +131,94 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              // ── Thin separator ──
+              // ── Separator with integrated rank numerals ──
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Container(
-                  height: 1,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.transparent,
-                        _positionColor(0).withOpacity(0.25),
-                        Colors.transparent,
-                      ],
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    // Left line
+                    Expanded(
+                      child: Container(
+                        height: 1,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.transparent,
+                              _positionColor(1).withOpacity(HunterTheme.isDark ? 0.3 : 0.2),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // ── Rank indicators ──
-              Row(
-                children: [
-                  Expanded(
-                    child: Center(
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: Text('Ⅱ', style: TextStyle(
                         color: _positionColor(1).withOpacity(0.6),
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.w700,
                       )),
                     ),
-                  ),
-                  Expanded(
-                    child: Center(
+                    // Center line segment
+                    Expanded(
+                      child: Container(
+                        height: 1,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              _positionColor(0).withOpacity(HunterTheme.isDark ? 0.3 : 0.2),
+                              _positionColor(0).withOpacity(HunterTheme.isDark ? 0.4 : 0.25),
+                              _positionColor(0).withOpacity(HunterTheme.isDark ? 0.3 : 0.2),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: Text('Ⅰ', style: TextStyle(
                         color: _positionColor(0).withOpacity(0.85),
-                        fontSize: 22,
+                        fontSize: 20,
                         fontWeight: FontWeight.w800,
                       )),
                     ),
-                  ),
-                  Expanded(
-                    child: Center(
+                    // Right center line
+                    Expanded(
+                      child: Container(
+                        height: 1,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              _positionColor(0).withOpacity(HunterTheme.isDark ? 0.3 : 0.2),
+                              _positionColor(2).withOpacity(HunterTheme.isDark ? 0.3 : 0.2),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: Text('Ⅲ', style: TextStyle(
                         color: _positionColor(2).withOpacity(0.6),
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.w700,
                       )),
                     ),
-                  ),
-                ],
+                    // Right line
+                    Expanded(
+                      child: Container(
+                        height: 1,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              _positionColor(2).withOpacity(HunterTheme.isDark ? 0.3 : 0.2),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -214,12 +254,12 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
             ),
             child: PremiumAvatar(
               membership: (hunter['membership'] ?? 'basic').toString(),
-              radius: 48,
+              radius: 53,
               image: hunter['profilePicture'] != null &&
                   hunter['profilePicture'].toString().isNotEmpty
                   ? MemoryImage(_decodedAvatar(hunter['profilePicture']))
                   : null,
-              child: Icon(Icons.person, color: rc, size: 48),
+              child: Icon(Icons.person, color: rc, size: 52),
             ),
           ),
           const SizedBox(height: 8),
@@ -228,7 +268,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: isMe ? HunterTheme.primary : Colors.white,
+              color: isMe ? HunterTheme.primary : (HunterTheme.isDark ? Colors.white : HunterTheme.textPrimary),
               fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
@@ -295,7 +335,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: isMe ? HunterTheme.primary : Colors.white.withOpacity(0.85),
+              color: isMe ? HunterTheme.primary : (HunterTheme.isDark ? Colors.white.withOpacity(0.85) : HunterTheme.textPrimary),
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),

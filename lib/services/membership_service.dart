@@ -100,7 +100,7 @@ class MembershipFeatures {
 
   /// Feature configuration for the Pro tier.
   static const MembershipFeatures pro = MembershipFeatures(
-    bannerAds: true,
+    bannerAds: false,
     rewardedAds: true,
     unlimitedProfileChanges: true,
     goldBadge: true,

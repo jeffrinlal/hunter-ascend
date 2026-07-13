@@ -1050,6 +1050,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 // ── Ad available → must watch, no escape ──
     // Max members with available skips bypass the ad entirely.
     final skipAd = await MembershipService.instance.shouldSkipRewardedAd();
+    if (!mounted) return;
     if (skipAd) {
       await _grantPunishmentCompletion(user.uid, today);
       return;

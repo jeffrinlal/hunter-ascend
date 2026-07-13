@@ -448,4 +448,121 @@ class MembershipService {
   ///
   /// Basic: false · Pro: false · Max: true.
   bool get unlimitedAI => _features.unlimitedAI;
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Rewarded Ad Skips (Max-only)
+  //
+  // Max members receive a fixed monthly allowance of rewarded ad skips.
+  // When a skip is available, the ad is not shown and the reward is granted
+  // immediately. Once all skips are consumed, rewarded ads behave normally.
+  // Skips reset automatically when a new subscription period begins,
+  // determined by the existing `membershipExpiry` field.
+  // ───────────────────────────────────────────────────────────────────────
+
+  /// The number of rewarded ad skips granted to Max members each
+  /// subscription month.
+  static const int _monthlySkipAllowance = 5;
+
+  /// Attempts to consume a rewarded ad skip for the current user.
+  ///
+  /// Returns `true` (skip the ad, grant the reward immediately) only when
+  /// ALL of the following are true:
+  /// 1. The current user is a Max member.
+  /// 2. The user has remaining monthly skips for the current subscription
+  ///    period.
+  /// 3. The skip count was successfully decremented in Firestore (via a
+  ///    transaction to prevent race conditions from concurrent calls).
+  ///
+  /// Returns `false` in all other cases (non-Max tier, no remaining skips,
+  /// no signed-in user, Firestore failure). When `false` is returned, the
+  /// caller should proceed to show the rewarded ad as usual.
+  ///
+  /// ## Firestore fields (on `hunters/{uid}`)
+  /// - `rewardedAdSkipsRemaining` (int): skips left this subscription period.
+  /// - `rewardedAdSkipsPeriodEnd` (Timestamp): the `membershipExpiry` value
+  ///   that was active when skips were last reset. When this differs from
+  ///   the current `membershipExpiry`, a new subscription period has begun
+  ///   and skips are auto-reset to [_monthlySkipAllowance].
+  ///
+  /// ## Usage (screens will adopt later)
+  /// ```dart
+  /// if (await MembershipService.instance.shouldSkipRewardedAd()) {
+  ///   // Grant reward immediately — no ad shown.
+  /// } else {
+  ///   // Show the rewarded ad as usual.
+  /// }
+  /// ```
+  Future<bool> shouldSkipRewardedAd() async {
+    // Only Max members are eligible for ad skips.
+    if (!isMax) return false;
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return false;
+
+    // Verify the membership is still active before touching skips.
+    // If expiry is null or in the past, the subscription has lapsed —
+    // do not grant a skip and do not modify any Firestore fields.
+    if (_membershipExpiry == null ||
+        _membershipExpiry!.isBefore(DateTime.now().toUtc())) {
+      return false;
+    }
+
+    final docRef =
+        FirebaseFirestore.instance.collection(_huntersCollection).doc(uid);
+
+    try {
+      final result =
+          await FirebaseFirestore.instance.runTransaction<bool>((txn) async {
+        final snapshot = await txn.get(docRef);
+        final data = snapshot.data() ?? {};
+
+        // Read the current subscription period boundary from the document.
+        final currentExpiry = _parseExpiry(data['membershipExpiry']);
+        // Read the period boundary that was active when skips were last set.
+        final storedPeriodEnd = _parseExpiry(data['rewardedAdSkipsPeriodEnd']);
+
+        int remaining = (data['rewardedAdSkipsRemaining'] ?? 0) as int;
+
+        // Auto-reset: if the subscription has renewed (expiry moved forward)
+        // or if no period has been recorded yet, this is a new cycle.
+        final bool isNewPeriod = storedPeriodEnd == null ||
+            currentExpiry == null ||
+            !currentExpiry.isAtSameMomentAs(storedPeriodEnd);
+
+        if (isNewPeriod) {
+          remaining = _monthlySkipAllowance;
+        }
+
+        // No skips left — caller should show the ad.
+        if (remaining <= 0) return false;
+
+        // Consume one skip atomically.
+        remaining -= 1;
+
+        // Store the updated count and the current period boundary.
+        final periodEndToStore = currentExpiry != null
+            ? Timestamp.fromDate(currentExpiry)
+            : null;
+
+        txn.set(
+          docRef,
+          {
+            'rewardedAdSkipsRemaining': remaining,
+            if (periodEndToStore != null)
+              'rewardedAdSkipsPeriodEnd': periodEndToStore,
+          },
+          SetOptions(merge: true),
+        );
+
+        return true;
+      });
+
+      return result;
+    } catch (e) {
+      debugPrint('MembershipService.shouldSkipRewardedAd: $e');
+      // On failure, fall back to showing the ad — never silently grant a
+      // reward if Firestore can't confirm the decrement.
+      return false;
+    }
+  }
 }

@@ -218,173 +218,153 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
     return HunterTheme.textSecondary;
   }
 
-  // ── Elite Podium (Top 3 — AAA Game Leaderboard) ──────────────────────────
-
-  /// The rank titles displayed on the pedestals.
-  static const _rankTitles = ['SOVEREIGN', 'ELITE', 'ASCENDANT'];
+  // ── Elite Podium (Top 3 — Premium Leaderboard) ──────────────────────────
 
   /// Builds the full top-3 section: dominant center champion with flanking hunters.
   Widget _buildElitePodium(
       BuildContext context, List<QueryDocumentSnapshot> hunters, String? currentUid) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final columnWidth = (screenWidth - 56) / 3; // 3 columns with margins
+
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 6, 12, 8),
-      padding: const EdgeInsets.fromLTRB(6, 20, 6, 0),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        color: HunterTheme.cardColor,
+        borderRadius: BorderRadius.circular(22),
+        gradient: RadialGradient(
+          center: const Alignment(0, -0.3),
+          radius: 1.2,
+          colors: [
+            HunterTheme.primary.withOpacity(0.05),
+            HunterTheme.cardColor,
+            HunterTheme.cardColor,
+          ],
+          stops: const [0.0, 0.5, 1.0],
+        ),
         border: Border.all(
-          color: HunterTheme.primary.withOpacity(0.12),
+          color: HunterTheme.primary.withOpacity(0.1),
           width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: HunterTheme.primary.withOpacity(0.06),
-            blurRadius: 24,
-            spreadRadius: 0,
-          ),
-        ],
       ),
-      child: Column(
-        children: [
-          // Section title
-          Text(
-            '⚔  ELITE HUNTERS  ⚔',
-            style: TextStyle(
-              color: HunterTheme.primary,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 2.5,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 18, 8, 0),
+        child: Column(
+          children: [
+            // Section title
+            Text(
+              '⚔  ELITE HUNTERS  ⚔',
+              style: TextStyle(
+                color: HunterTheme.primary,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 2.5,
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          // ── The three hunters in staggered layout ──
-          SizedBox(
-            height: 290,
-            child: Stack(
-              alignment: Alignment.bottomCenter,
-              clipBehavior: Clip.none,
-              children: [
-                // ── Pedestals (behind avatars) ──
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      // #2 pedestal
-                      Expanded(child: _buildPedestal(1)),
-                      const SizedBox(width: 3),
-                      // #1 pedestal (tallest)
-                      Expanded(child: _buildPedestal(0)),
-                      const SizedBox(width: 3),
-                      // #3 pedestal
-                      Expanded(child: _buildPedestal(2)),
-                    ],
-                  ),
-                ),
-                // ── Hunter cards positioned above their pedestals ──
-                // #2 (left)
-                if (hunters.length > 1)
+            const SizedBox(height: 16),
+            // ── Staggered champion layout ──
+            SizedBox(
+              height: 310,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // ── Pedestals at the bottom ──
                   Positioned(
-                    bottom: 100,
-                    left: 4,
-                    right: null,
-                    child: SizedBox(
-                      width: (MediaQuery.of(context).size.width - 60) / 3,
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(child: _buildPedestal(1)),
+                        const SizedBox(width: 4),
+                        Expanded(child: _buildPedestal(0)),
+                        const SizedBox(width: 4),
+                        Expanded(child: _buildPedestal(2)),
+                      ],
+                    ),
+                  ),
+                  // ── #2 (left) ──
+                  if (hunters.length > 1)
+                    Positioned(
+                      bottom: 95,
+                      left: 0,
+                      width: columnWidth,
                       child: _buildChampionCard(context, hunters, 1, currentUid),
                     ),
-                  ),
-                // #3 (right)
-                if (hunters.length > 2)
-                  Positioned(
-                    bottom: 80,
-                    right: 4,
-                    left: null,
-                    child: SizedBox(
-                      width: (MediaQuery.of(context).size.width - 60) / 3,
+                  // ── #3 (right) ──
+                  if (hunters.length > 2)
+                    Positioned(
+                      bottom: 78,
+                      right: 0,
+                      width: columnWidth,
                       child: _buildChampionCard(context, hunters, 2, currentUid),
                     ),
-                  ),
-                // #1 (center, tallest — rendered last to be on top)
-                if (hunters.isNotEmpty)
-                  Positioned(
-                    bottom: 130,
-                    left: (MediaQuery.of(context).size.width - 60) / 3 - 4,
-                    right: (MediaQuery.of(context).size.width - 60) / 3 - 4,
-                    child: _buildChampionCard(context, hunters, 0, currentUid),
-                  ),
-              ],
+                  // ── #1 (center — rendered last, on top) ──
+                  if (hunters.isNotEmpty)
+                    Positioned(
+                      bottom: 120,
+                      left: columnWidth - 2,
+                      right: columnWidth - 2,
+                      child: _buildChampionCard(context, hunters, 0, currentUid),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  /// Builds the pedestal block for a position.
+  /// Premium flat pedestal with gradient, borders, and inner glow.
   Widget _buildPedestal(int index) {
     final posColor = _positionColor(index);
     final isFirst = index == 0;
-    final double height = index == 0 ? 130 : (index == 1 ? 100 : 80);
+    final double height = index == 0 ? 120 : (index == 1 ? 95 : 78);
 
     return Container(
       height: height,
       decoration: BoxDecoration(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          stops: const [0.0, 0.3, 1.0],
+          stops: const [0.0, 0.15, 0.6, 1.0],
           colors: [
-            posColor.withOpacity(0.25),
-            posColor.withOpacity(0.08),
-            HunterTheme.surface.withOpacity(0.4),
+            posColor.withOpacity(0.3),
+            posColor.withOpacity(0.12),
+            posColor.withOpacity(0.04),
+            HunterTheme.surface.withOpacity(0.3),
           ],
         ),
         border: Border(
-          top: BorderSide(color: posColor.withOpacity(0.7), width: 2.5),
-          left: BorderSide(color: posColor.withOpacity(0.2), width: 1),
-          right: BorderSide(color: posColor.withOpacity(0.2), width: 1),
+          top: BorderSide(color: posColor.withOpacity(0.8), width: 2),
+          left: BorderSide(color: posColor.withOpacity(0.15), width: 1),
+          right: BorderSide(color: posColor.withOpacity(0.15), width: 1),
         ),
         boxShadow: [
+          // Upward glow from top edge
           BoxShadow(
-            color: posColor.withOpacity(isFirst ? 0.15 : 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, -4),
+            color: posColor.withOpacity(isFirst ? 0.12 : 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, -6),
           ),
         ],
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Large rank number
-          Text(
-            '#${index + 1}',
-            style: TextStyle(
-              color: posColor,
-              fontSize: isFirst ? 28 : 22,
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
+      child: Center(
+        child: Text(
+          '#${index + 1}',
+          style: TextStyle(
+            color: posColor.withOpacity(0.8),
+            fontSize: isFirst ? 32 : 24,
+            fontWeight: FontWeight.w900,
+            height: 1,
           ),
-          const SizedBox(height: 4),
-          // Rank title
-          Text(
-            _rankTitles[index],
-            style: TextStyle(
-              color: posColor.withOpacity(0.6),
-              fontSize: isFirst ? 10 : 8,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 2,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  /// Builds one champion card (avatar + info) for the stacked layout.
+  /// Builds one champion card (avatar + name + badge + XP).
   Widget _buildChampionCard(
       BuildContext context, List<QueryDocumentSnapshot> hunters, int index, String? currentUid) {
     if (index >= hunters.length) return const SizedBox();
@@ -397,7 +377,15 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
     final posColor = _positionColor(index);
     final isFirst = index == 0;
 
-    final double avatarRadius = isFirst ? 36 : 26;
+    // Sizes: #1 dramatically larger, #2/#3 still feel elite
+    final double avatarRadius = isFirst ? 42 : 30;
+    final double iconSize = isFirst ? 42 : 28;
+    final double ringPadding = isFirst ? 3.5 : 3;
+
+    // Aura intensity: #1 strongest, #2 medium, #3 subtle
+    final double auraBlur = index == 0 ? 22 : (index == 1 ? 14 : 10);
+    final double auraSpread = index == 0 ? 5 : (index == 1 ? 3 : 2);
+    final double auraOpacity = index == 0 ? 0.35 : (index == 1 ? 0.25 : 0.18);
 
     return GestureDetector(
       onTap: () {
@@ -413,35 +401,35 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Avatar with energy ring + aura ──
+          // ── Avatar with energy ring + layered aura ──
           Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               boxShadow: [
-                // Outer aura glow
+                // Primary aura
                 BoxShadow(
-                  color: posColor.withOpacity(isFirst ? 0.35 : 0.2),
-                  blurRadius: isFirst ? 20 : 12,
-                  spreadRadius: isFirst ? 4 : 2,
+                  color: posColor.withOpacity(auraOpacity),
+                  blurRadius: auraBlur,
+                  spreadRadius: auraSpread,
                 ),
-                // Inner focused glow
+                // Secondary inner glow
                 BoxShadow(
-                  color: posColor.withOpacity(isFirst ? 0.2 : 0.1),
-                  blurRadius: isFirst ? 8 : 4,
+                  color: posColor.withOpacity(auraOpacity * 0.5),
+                  blurRadius: auraBlur * 0.4,
                   spreadRadius: 0,
                 ),
               ],
             ),
             child: Container(
-              padding: EdgeInsets.all(isFirst ? 3.5 : 2.5),
+              padding: EdgeInsets.all(ringPadding),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: SweepGradient(
                   colors: [
                     posColor,
-                    posColor.withOpacity(0.2),
+                    posColor.withOpacity(0.15),
                     posColor,
-                    posColor.withOpacity(0.2),
+                    posColor.withOpacity(0.15),
                     posColor,
                   ],
                 ),
@@ -458,12 +446,12 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                 child: Icon(
                   Icons.person,
                   color: rc,
-                  size: isFirst ? 36 : 24,
+                  size: iconSize,
                 ),
               ),
             ),
           ),
-          SizedBox(height: isFirst ? 10 : 6),
+          SizedBox(height: isFirst ? 10 : 7),
           // ── Name ──
           Text(
             hunter['hunterName'] ?? 'Unknown',
@@ -472,7 +460,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: isMe ? HunterTheme.primary : HunterTheme.textPrimary,
-              fontSize: isFirst ? 14 : 11,
+              fontSize: isFirst ? 14 : 12,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -486,19 +474,19 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
           // ── XP chip ──
           Container(
             padding: EdgeInsets.symmetric(
-              horizontal: isFirst ? 10 : 7,
+              horizontal: isFirst ? 10 : 8,
               vertical: isFirst ? 4 : 3,
             ),
             decoration: BoxDecoration(
               color: posColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: posColor.withOpacity(0.35),
+                color: posColor.withOpacity(0.4),
                 width: 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: posColor.withOpacity(0.08),
+                  color: posColor.withOpacity(0.06),
                   blurRadius: 6,
                 ),
               ],
@@ -507,7 +495,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
               '${hunter['xp'] ?? 0} XP',
               style: TextStyle(
                 color: posColor,
-                fontSize: isFirst ? 11 : 9,
+                fontSize: isFirst ? 11 : 10,
                 fontWeight: FontWeight.w800,
               ),
             ),

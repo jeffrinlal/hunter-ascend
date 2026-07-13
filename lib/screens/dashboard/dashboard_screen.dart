@@ -924,26 +924,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> updateStreak() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
-    final data = doc.data() as Map<String, dynamic>;
-    int streak = data['streak'] ?? 0;
-    String lastQuestDate = data['lastQuestDate'] ?? '';
+    final ref = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
     final today = DateTime.now();
     final todayString = "${today.year}-${today.month}-${today.day}";
-    if (lastQuestDate.isEmpty) {
-      streak = 1;
-    } else {
-      final parts = lastQuestDate.split('-');
-      final lastDate = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
-      final difference = today.difference(lastDate).inDays;
-      if (difference == 0) return;
-      else if (difference == 1) streak++;
-      else {
-        await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({'previousStreak': streak});
+
+    await FirebaseFirestore.instance.runTransaction((txn) async {
+      final snap = await txn.get(ref);
+      final data = snap.data() ?? {};
+      int streak = data['streak'] ?? 0;
+      String lastQuestDate = data['lastQuestDate'] ?? '';
+
+      if (lastQuestDate.isEmpty) {
         streak = 1;
+      } else {
+        final parts = lastQuestDate.split('-');
+        final lastDate = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+        final difference = today.difference(lastDate).inDays;
+        if (difference == 0) return; // already updated today — no-op
+        else if (difference == 1) streak++;
+        else {
+          txn.update(ref, {'previousStreak': streak});
+          streak = 1;
+        }
       }
-    }
-    await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({'streak': streak, 'lastQuestDate': todayString});
+      txn.update(ref, {'streak': streak, 'lastQuestDate': todayString});
+    });
   }
 
   // ── Discipline ───────────────────────────────────────────

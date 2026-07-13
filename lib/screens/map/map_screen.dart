@@ -294,10 +294,14 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                     onPressed: isSaving ? null : () async {
                       setDialogState(() => isSaving = true);
-                      await _saveRun();
+                      final success = await _saveRun();
                       if (!mounted) return;
-                      Navigator.pop(dialogContext);
-                      setState(() { _isTracking = false; _isPaused = false; });
+                      if (success) {
+                        Navigator.pop(dialogContext);
+                        setState(() { _isTracking = false; _isPaused = false; });
+                      } else {
+                        setDialogState(() => isSaving = false);
+                      }
                     },
                     child: isSaving
                         ? SizedBox(
@@ -328,16 +332,16 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Future<void> _saveRun() async {
-    if (_isSavingRun) return;
+  Future<bool> _saveRun() async {
+    if (_isSavingRun) return false;
     if (!await ConnectivityService.isOnline()) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Internet connection required.")));
-      return;
+      return false;
     }
     _isSavingRun = true;
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      if (user == null) return false;
 
       // Save run to Firestore
       await FirebaseFirestore.instance.collection('runs').add({
@@ -385,6 +389,7 @@ class _MapScreenState extends State<MapScreen> {
           SnackBar(content: Text("✅ Run saved! +$_xpEarned XP earned!")),
         );
       }
+      return true;
     } catch (e) {
       debugPrint("saveRun: $e");
       if (mounted) {
@@ -392,6 +397,7 @@ class _MapScreenState extends State<MapScreen> {
           const SnackBar(content: Text("Couldn't save your run. Please try again.")),
         );
       }
+      return false;
     } finally {
       _isSavingRun = false;
     }

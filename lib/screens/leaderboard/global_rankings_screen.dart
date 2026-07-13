@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,6 +10,156 @@ import 'dart:typed_data';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
 
 import '../../widgets/premium_avatar.dart';
+
+// ── Top 3 Crown Painter ────────────────────────────────────────────────────
+
+/// Draws the decorative badge behind a top-3 leaderboard position.
+class TopRankPainter extends CustomPainter {
+  final int position; // 1, 2, 3
+  final Color color;
+
+  TopRankPainter(this.position, this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
+
+    final fillPaint = Paint()
+      ..color = color.withOpacity(0.12)
+      ..style = PaintingStyle.fill;
+
+    if (position == 1) {
+      // ── Imperial Crown ──
+      final crown = Path();
+      crown.moveTo(w * 0.05, h * 0.75);
+      crown.lineTo(w * 0.05, h * 0.35);
+      crown.lineTo(w * 0.28, h * 0.55);
+      crown.lineTo(w * 0.5, h * 0.1);
+      crown.lineTo(w * 0.72, h * 0.55);
+      crown.lineTo(w * 0.95, h * 0.35);
+      crown.lineTo(w * 0.95, h * 0.75);
+      crown.close();
+      canvas.drawPath(crown, fillPaint);
+      canvas.drawPath(crown, paint);
+
+      // Jewels on crown tips
+      canvas.drawCircle(Offset(w * 0.5, h * 0.1), 3.5,
+          Paint()..color = color..style = PaintingStyle.fill);
+      canvas.drawCircle(Offset(w * 0.05, h * 0.35), 2.5,
+          Paint()..color = color..style = PaintingStyle.fill);
+      canvas.drawCircle(Offset(w * 0.95, h * 0.35), 2.5,
+          Paint()..color = color..style = PaintingStyle.fill);
+
+      // Base gems row
+      for (int i = 0; i < 3; i++) {
+        canvas.drawCircle(
+          Offset(w * (0.25 + i * 0.25), h * 0.62),
+          2.0,
+          Paint()..color = color.withOpacity(0.8)..style = PaintingStyle.fill,
+        );
+      }
+
+      // Number
+      _drawText(canvas, '1', w / 2, h * 0.88, color, 13, FontWeight.bold);
+
+    } else if (position == 2) {
+      // ── War Blade / Sword ──
+      final blade = Path();
+      blade.moveTo(w * 0.5, h * 0.05);
+      blade.lineTo(w * 0.62, h * 0.6);
+      blade.lineTo(w * 0.5, h * 0.7);
+      blade.lineTo(w * 0.38, h * 0.6);
+      blade.close();
+      canvas.drawPath(blade, fillPaint);
+      canvas.drawPath(blade, paint);
+
+      // Guard / crossguard
+      canvas.drawLine(Offset(w * 0.15, h * 0.62), Offset(w * 0.85, h * 0.62), paint);
+
+      // Handle
+      canvas.drawLine(Offset(w * 0.5, h * 0.7), Offset(w * 0.5, h * 0.92), paint);
+      // Pommel
+      canvas.drawCircle(Offset(w * 0.5, h * 0.93), 4,
+          Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 1.8);
+
+      _drawText(canvas, '2', w * 0.5, h * 0.88, color, 10, FontWeight.bold);
+
+    } else {
+      // ── Shield ──
+      final shield = Path();
+      shield.moveTo(w * 0.5, h * 0.06);
+      shield.lineTo(w * 0.92, h * 0.22);
+      shield.lineTo(w * 0.92, h * 0.55);
+      shield.quadraticBezierTo(w * 0.92, h * 0.82, w * 0.5, h * 0.96);
+      shield.quadraticBezierTo(w * 0.08, h * 0.82, w * 0.08, h * 0.55);
+      shield.lineTo(w * 0.08, h * 0.22);
+      shield.close();
+      canvas.drawPath(shield, fillPaint);
+      canvas.drawPath(shield, paint);
+
+      // Shield inner bevel
+      final inner = Path();
+      inner.moveTo(w * 0.5, h * 0.15);
+      inner.lineTo(w * 0.82, h * 0.28);
+      inner.lineTo(w * 0.82, h * 0.55);
+      inner.quadraticBezierTo(w * 0.82, h * 0.75, w * 0.5, h * 0.87);
+      inner.quadraticBezierTo(w * 0.18, h * 0.75, w * 0.18, h * 0.55);
+      inner.lineTo(w * 0.18, h * 0.28);
+      inner.close();
+      canvas.drawPath(inner,
+          Paint()..color = color.withOpacity(0.25)..style = PaintingStyle.stroke..strokeWidth = 1);
+
+      _drawText(canvas, '3', w / 2, h * 0.55, color, 18, FontWeight.bold);
+    }
+  }
+
+  void _drawText(Canvas canvas, String text, double x, double y,
+      Color color, double fontSize, FontWeight weight) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(color: color, fontSize: fontSize, fontWeight: weight),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(x - tp.width / 2, y - tp.height / 2));
+  }
+
+  @override
+  bool shouldRepaint(TopRankPainter old) =>
+      old.position != position || old.color != color;
+}
+
+// ── Top Rank Badge Widget ──────────────────────────────────────────────────
+
+/// Top-3 rank badge widget (wraps [TopRankPainter]).
+class TopRankBadge extends StatelessWidget {
+  final int position;
+  final Color color;
+  final double size;
+
+  const TopRankBadge({
+    super.key,
+    required this.position,
+    required this.color,
+    this.size = 36,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: Size(size, size),
+      painter: TopRankPainter(position, color),
+    );
+  }
+}
 
 // ── Global Rankings Screen ─────────────────────────────────────────────────
 
@@ -67,333 +218,163 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
     return HunterTheme.textSecondary;
   }
 
-  // ── Top 3 ───────────────────────────────────────────────────────────────
-
-  Widget _buildElitePodium(
-      BuildContext context, List<QueryDocumentSnapshot> hunters, String? currentUid) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(10, 4, 10, 8),
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            HunterTheme.goldBright.withOpacity(HunterTheme.isDark ? 0.10 : 0.07),
-            HunterTheme.isDark ? const Color(0xFF0A0E18) : HunterTheme.cardColor,
-          ],
-          stops: const [0.0, 0.4],
-        ),
-        border: Border.all(
-          color: HunterTheme.goldBright.withOpacity(HunterTheme.isDark ? 0.18 : 0.14),
-          width: 1,
-        ),
-      ),
-      child: Stack(
-        children: [
-          // Atmospheric glow behind #1
-          if (hunters.isNotEmpty)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  width: 140,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: _positionColor(0).withOpacity(HunterTheme.isDark ? 0.15 : 0.08),
-                        blurRadius: 50,
-                        spreadRadius: 20,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          // Content
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ── #1 Champion ──
-              if (hunters.isNotEmpty)
-                _buildChampion(context, hunters, 0, currentUid),
-              const SizedBox(height: 4),
-              // ── #2 and #3 ──
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (hunters.length > 1)
-                      Expanded(
-                        child: _buildRunnerUp(context, hunters, 1, currentUid),
-                      ),
-                    if (hunters.length > 2)
-                      Expanded(
-                        child: _buildRunnerUp(context, hunters, 2, currentUid),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              // ── Separator with integrated rank numerals ──
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    // Left line
-                    Expanded(
-                      child: Container(
-                        height: 1,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.transparent,
-                              _positionColor(1).withOpacity(HunterTheme.isDark ? 0.3 : 0.2),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('Ⅱ', style: TextStyle(
-                        color: _positionColor(1).withOpacity(0.6),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      )),
-                    ),
-                    // Center line segment
-                    Expanded(
-                      child: Container(
-                        height: 1,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              _positionColor(0).withOpacity(HunterTheme.isDark ? 0.3 : 0.2),
-                              _positionColor(0).withOpacity(HunterTheme.isDark ? 0.4 : 0.25),
-                              _positionColor(0).withOpacity(HunterTheme.isDark ? 0.3 : 0.2),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('Ⅰ', style: TextStyle(
-                        color: _positionColor(0).withOpacity(0.85),
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      )),
-                    ),
-                    // Right center line
-                    Expanded(
-                      child: Container(
-                        height: 1,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              _positionColor(0).withOpacity(HunterTheme.isDark ? 0.3 : 0.2),
-                              _positionColor(2).withOpacity(HunterTheme.isDark ? 0.3 : 0.2),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('Ⅲ', style: TextStyle(
-                        color: _positionColor(2).withOpacity(0.6),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      )),
-                    ),
-                    // Right line
-                    Expanded(
-                      child: Container(
-                        height: 1,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              _positionColor(2).withOpacity(HunterTheme.isDark ? 0.3 : 0.2),
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// The champion: large avatar, name, badge, subtitle.
-  Widget _buildChampion(
+  // ── Podium item (top 3) ────────────────────────────────────────────────
+  Widget _buildPodiumItem(
       BuildContext context, List<QueryDocumentSnapshot> hunters, int index, String? currentUid) {
-    final doc = hunters[index];
-    final hunter = doc.data() as Map<String, dynamic>;
-    final isMe = doc.id == currentUid;
-    final level = (hunter['level'] ?? 1) as int;
-    final rc = _rankColor(level);
+    if (index >= hunters.length) {
+      return const Expanded(child: SizedBox());
+    }
 
-    return GestureDetector(
-      onTap: () {
-        if (doc.id == currentUid) return;
-        Navigator.push(context,
-          MaterialPageRoute(builder: (_) => PublicHunterProfileScreen(hunterUid: doc.id)),
-        );
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('👑', style: TextStyle(fontSize: 22)),
-          const SizedBox(height: 2),
-          Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [HunterTheme.gold, HunterTheme.goldBright, HunterTheme.purple],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: HunterTheme.goldBright.withOpacity(0.45),
-                  blurRadius: 16,
-                  spreadRadius: 1,
-                ),
-              ],
-            ),
-            child: PremiumAvatar(
-              membership: (hunter['membership'] ?? 'basic').toString(),
-              radius: 53,
-              image: hunter['profilePicture'] != null &&
-                  hunter['profilePicture'].toString().isNotEmpty
-                  ? MemoryImage(_decodedAvatar(hunter['profilePicture']))
-                  : null,
-              child: Icon(Icons.person, color: rc, size: 52),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            hunter['hunterName'] ?? 'Unknown',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: isMe ? HunterTheme.primary : (HunterTheme.isDark ? Colors.white : HunterTheme.textPrimary),
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 2),
-          MembershipBadge(
-            membership: (hunter['membership'] ?? 'basic').toString(),
-            fontSize: 8,
-          ),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [HunterTheme.goldDeep, HunterTheme.goldBright],
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              'TOP HUNTER',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 2,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// A runner-up (#2 or #3): smaller avatar, name, badge.
-  Widget _buildRunnerUp(
-      BuildContext context, List<QueryDocumentSnapshot> hunters, int index, String? currentUid) {
     final doc = hunters[index];
     final hunter = doc.data() as Map<String, dynamic>;
     final isMe = doc.id == currentUid;
     final level = (hunter['level'] ?? 1) as int;
     final rc = _rankColor(level);
     final posColor = _positionColor(index);
-    final ringColors = index == 1
-        ? [Colors.white, HunterTheme.silver]
-        : [HunterTheme.goldDark, HunterTheme.bronze];
+    final isFirst = index == 0;
 
-    return GestureDetector(
-      onTap: () {
-        if (doc.id == currentUid) return;
-        Navigator.push(context,
-          MaterialPageRoute(builder: (_) => PublicHunterProfileScreen(hunterUid: doc.id)),
-        );
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: ringColors,
+    final double avatarSize = isFirst ? 76 : 60;
+    final double pedestalHeight = index == 0 ? 78 : (index == 1 ? 58 : 44);
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PublicHunterProfileScreen(
+                hunterUid: doc.id,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: posColor.withOpacity(0.35),
-                  blurRadius: 10,
-                  spreadRadius: 0.5,
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TopRankBadge(
+                position: index + 1,
+                color: posColor,
+                size: isFirst ? 40 : 32,
+              ),
+              const SizedBox(height: 8),
+              PremiumAvatar(
+                membership: (hunter['membership'] ?? 'basic').toString(),
+                radius: avatarSize / 2,
+                image: hunter['profilePicture'] != null &&
+                    hunter['profilePicture'].toString().isNotEmpty
+                    ? MemoryImage(
+                  _decodedAvatar(hunter['profilePicture']),
+                )
+                    : null,
+                child: Icon(
+                  Icons.person,
+                  color: rc,
+                  size: isFirst ? 38 : 30,
                 ),
-              ],
-            ),
-            child: PremiumAvatar(
-              membership: (hunter['membership'] ?? 'basic').toString(),
-              radius: 26,
-              image: hunter['profilePicture'] != null &&
-                  hunter['profilePicture'].toString().isNotEmpty
-                  ? MemoryImage(_decodedAvatar(hunter['profilePicture']))
-                  : null,
-              child: Icon(Icons.person, color: rc, size: 26),
-            ),
+              ),
+              const SizedBox(height: 8),
+              Column(
+                children: [
+                  Text(
+                    hunter['hunterName'] ?? 'Unknown',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: isMe ? HunterTheme.primary : HunterTheme.textPrimary,
+                      fontSize: isFirst ? 15 : 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+
+                  const SizedBox(height: 4),
+
+                  MembershipBadge(
+                    membership: (hunter['membership'] ?? 'basic').toString(),
+                    fontSize: 7,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${getRankTitle(level)} · Lv.$level',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: HunterTheme.textSecondary,
+                  fontSize: 10,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: HunterTheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: HunterTheme.primary.withOpacity(0.3),
+                  ),
+                ),
+                child: Text(
+                  '${hunter['xp'] ?? 0} XP',
+                  style: TextStyle(
+                    color: HunterTheme.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                height: pedestalHeight,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      posColor.withOpacity(0.85),
+                      posColor.withOpacity(0.45),
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(10),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: posColor.withOpacity(0.25),
+                      blurRadius: 12,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(
+                      color: HunterTheme.textPrimary,
+                      fontSize: isFirst ? 26 : 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 5),
-          Text(
-            hunter['hunterName'] ?? 'Unknown',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: isMe ? HunterTheme.primary : (HunterTheme.isDark ? Colors.white.withOpacity(0.85) : HunterTheme.textPrimary),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 2),
-          MembershipBadge(
-            membership: (hunter['membership'] ?? 'basic').toString(),
-            fontSize: 7,
-          ),
-        ],
+        ),
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, _, __) => _themedBuild(context),
     );
   }
 
@@ -472,14 +453,6 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (context, _, __) => _themedBuild(context),
-    );
-  }
-
   Widget _themedBuild(BuildContext context) {
     return Scaffold(
       backgroundColor: HunterTheme.background,
@@ -545,7 +518,6 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                       return Center(
                         child: GestureDetector(
                           onTap: () {
-                            if (snapshot.data!.docs.first.id == currentUid) return;
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -623,11 +595,10 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                       );
                     },
                   ))
-                      : CustomScrollView(
-                    slivers: [
+                      : Column(
+                    children: [
                       // ── My Hunter Status Card ──────────────────────────────
-                      SliverToBoxAdapter(
-                        child: Container(
+                      Container(
                         margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -680,17 +651,27 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                             const SizedBox(height: 14),
                             Row(
                               children: [
-                                // Avatar with rank ring + actual profile picture
-                                PremiumAvatar(
-                                  membership: (myHunter?['membership'] ?? 'basic').toString(),
-                                  radius: 24,
-                                  image: myHunter != null &&
-                                      myHunter['profilePicture'] != null &&
-                                      myHunter['profilePicture'].toString().isNotEmpty
-                                      ? MemoryImage(
-                                    _decodedAvatar(myHunter['profilePicture']),
-                                  )
-                                      : null,
+                                // Avatar with rank ring
+                                Container(
+                                  width: 52, height: 52,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: HunterTheme.surface,
+                                    border: Border.all(
+                                      color: myHunter != null
+                                          ? _rankColor(myHunter['level'] ?? 1)
+                                          : HunterTheme.primary,
+                                      width: 2,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: myHunter != null
+                                            ? _rankColor(myHunter['level'] ?? 1).withOpacity(0.3)
+                                            : HunterTheme.primary.withOpacity(0.3),
+                                        blurRadius: 12,
+                                      ),
+                                    ],
+                                  ),
                                   child: Icon(
                                     Icons.person,
                                     color: myHunter != null
@@ -760,17 +741,23 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                           ],
                         ),
                       ),
-                      ),
 
                       // ── Podium (Top 3) ─────────────────────────────────────
                       if (hunters.isNotEmpty)
-                        SliverToBoxAdapter(
-                          child: _buildElitePodium(context, hunters, currentUid),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              _buildPodiumItem(context, hunters, 1, currentUid), // 2nd - left
+                              _buildPodiumItem(context, hunters, 0, currentUid), // 1st - center
+                              _buildPodiumItem(context, hunters, 2, currentUid), // 3rd - right
+                            ],
+                          ),
                         ),
 
                       // ── Divider with label ─────────────────────────────────
-                      SliverToBoxAdapter(
-                        child: Padding(
+                      Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         child: Row(
                           children: [
@@ -791,16 +778,15 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                           ],
                         ),
                       ),
-                      ),
 
-                      const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                      const SizedBox(height: 8),
 
                       // ── Leaderboard list (rank 4 onwards) ──────────────────
-                      SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, listIndex) {
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          itemCount: hunters.length > 3 ? hunters.length - 3 : 0,
+                          itemBuilder: (context, listIndex) {
                             final index = listIndex + 3;
                             final hunter = hunters[index].data() as Map<String, dynamic>;
                             final isMe = hunters[index].id == currentUid;
@@ -809,7 +795,6 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
                             return GestureDetector(
                               onTap: () {
-                                if (hunters[index].id == currentUid) return;
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -992,8 +977,6 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                               ),
                             );
                           },
-                            childCount: hunters.length > 3 ? hunters.length - 3 : 0,
-                          ),
                         ),
                       ),
                     ],

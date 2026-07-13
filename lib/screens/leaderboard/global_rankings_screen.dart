@@ -218,8 +218,70 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
     return HunterTheme.textSecondary;
   }
 
-  // ── Podium item (top 3) ────────────────────────────────────────────────
-  Widget _buildPodiumItem(
+  // ── Elite Podium (Top 3 — Hunter / Solo-Leveling inspired) ──────────────
+
+  /// The rank titles displayed on the pedestals.
+  static const _rankTitles = ['SOVEREIGN', 'ELITE', 'ASCENDANT'];
+
+  /// Builds the full top-3 section with a dark-fantasy backdrop.
+  Widget _buildElitePodium(
+      BuildContext context, List<QueryDocumentSnapshot> hunters, String? currentUid) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+      padding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            HunterTheme.primary.withOpacity(0.06),
+            HunterTheme.cardColor,
+          ],
+        ),
+        border: Border.all(
+          color: HunterTheme.primary.withOpacity(0.15),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          // Section title
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.auto_awesome, color: HunterTheme.primary, size: 14),
+              const SizedBox(width: 6),
+              Text(
+                'ELITE HUNTERS',
+                style: TextStyle(
+                  color: HunterTheme.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 3,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(Icons.auto_awesome, color: HunterTheme.primary, size: 14),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // The three hunters
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _buildHunterPillar(context, hunters, 1, currentUid),
+              _buildHunterPillar(context, hunters, 0, currentUid),
+              _buildHunterPillar(context, hunters, 2, currentUid),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Builds one hunter column in the elite podium.
+  Widget _buildHunterPillar(
       BuildContext context, List<QueryDocumentSnapshot> hunters, int index, String? currentUid) {
     if (index >= hunters.length) {
       return const Expanded(child: SizedBox());
@@ -233,8 +295,13 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
     final posColor = _positionColor(index);
     final isFirst = index == 0;
 
-    final double avatarSize = isFirst ? 72 : 56;
-    final double pedestalHeight = index == 0 ? 80 : (index == 1 ? 58 : 44);
+    final double avatarRadius = isFirst ? 30 : 23;
+    final double pillarHeight = index == 0 ? 64 : (index == 1 ? 46 : 34);
+
+    // Glow color — #1 gets a slightly stronger glow, kept subtle
+    final glowColor = isFirst
+        ? HunterTheme.primary.withOpacity(0.25)
+        : posColor.withOpacity(0.15);
 
     return Expanded(
       child: GestureDetector(
@@ -249,36 +316,56 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
           );
         },
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: isFirst ? 6 : 2),
+          padding: EdgeInsets.symmetric(horizontal: isFirst ? 6 : 3),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Crown/badge raised above avatar with clear gap
-              TopRankBadge(
-                position: index + 1,
-                color: posColor,
-                size: isFirst ? 38 : 30,
-              ),
-              const SizedBox(height: 10),
-              // Avatar
-              PremiumAvatar(
-                membership: (hunter['membership'] ?? 'basic').toString(),
-                radius: avatarSize / 2,
-                image: hunter['profilePicture'] != null &&
-                    hunter['profilePicture'].toString().isNotEmpty
-                    ? MemoryImage(
-                  _decodedAvatar(hunter['profilePicture']),
-                )
-                    : null,
-                child: Icon(
-                  Icons.person,
-                  color: rc,
-                  size: isFirst ? 36 : 28,
+              // ── Avatar with power aura ──
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: glowColor,
+                      blurRadius: isFirst ? 14 : 8,
+                      spreadRadius: isFirst ? 2 : 1,
+                    ),
+                  ],
+                ),
+                child: Container(
+                  padding: EdgeInsets.all(isFirst ? 3 : 2.5),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: SweepGradient(
+                      colors: [
+                        posColor,
+                        posColor.withOpacity(0.3),
+                        posColor,
+                        posColor.withOpacity(0.3),
+                        posColor,
+                      ],
+                    ),
+                  ),
+                  child: PremiumAvatar(
+                    membership: (hunter['membership'] ?? 'basic').toString(),
+                    radius: avatarRadius,
+                    image: hunter['profilePicture'] != null &&
+                        hunter['profilePicture'].toString().isNotEmpty
+                        ? MemoryImage(
+                      _decodedAvatar(hunter['profilePicture']),
+                    )
+                        : null,
+                    child: Icon(
+                      Icons.person,
+                      color: rc,
+                      size: isFirst ? 30 : 22,
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
-              // Name + badge
+              const SizedBox(height: 6),
+              // ── Name ──
               Text(
                 hunter['hunterName'] ?? 'Unknown',
                 maxLines: 1,
@@ -286,81 +373,82 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: isMe ? HunterTheme.primary : HunterTheme.textPrimary,
-                  fontSize: isFirst ? 14 : 12,
+                  fontSize: isFirst ? 13 : 11,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
+              // ── Membership badge ──
               MembershipBadge(
                 membership: (hunter['membership'] ?? 'basic').toString(),
                 fontSize: 7,
               ),
               const SizedBox(height: 3),
-              // Rank info
-              Text(
-                '${getRankTitle(level)} · Lv.$level',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: HunterTheme.textSecondary,
-                  fontSize: 10,
-                ),
-              ),
-              const SizedBox(height: 6),
-              // XP chip
+              // ── XP ──
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: HunterTheme.primary.withOpacity(0.1),
+                  color: posColor.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: HunterTheme.primary.withOpacity(0.3),
+                    color: posColor.withOpacity(0.25),
                   ),
                 ),
                 child: Text(
                   '${hunter['xp'] ?? 0} XP',
                   style: TextStyle(
-                    color: HunterTheme.primary,
-                    fontWeight: FontWeight.bold,
+                    color: posColor,
                     fontSize: 10,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
-              // Pedestal
+              const SizedBox(height: 6),
+              // ── Pillar (rank pedestal) ──
               Container(
-                height: pedestalHeight,
+                height: pillarHeight,
                 width: double.infinity,
                 decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      posColor.withOpacity(0.85),
-                      posColor.withOpacity(0.45),
+                      posColor.withOpacity(0.15),
+                      HunterTheme.surface.withOpacity(0.8),
                     ],
                   ),
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(12),
+                  border: Border(
+                    top: BorderSide(color: posColor.withOpacity(0.6), width: 2),
+                    left: BorderSide(color: posColor.withOpacity(0.15), width: 1),
+                    right: BorderSide(color: posColor.withOpacity(0.15), width: 1),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: posColor.withOpacity(0.25),
-                      blurRadius: 12,
-                      spreadRadius: 1,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Position number
+                    Text(
+                      '#${index + 1}',
+                      style: TextStyle(
+                        color: posColor,
+                        fontSize: isFirst ? 20 : 14,
+                        fontWeight: FontWeight.w900,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    // Rank title
+                    Text(
+                      _rankTitles[index],
+                      style: TextStyle(
+                        color: posColor.withOpacity(0.7),
+                        fontSize: isFirst ? 9 : 7,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5,
+                      ),
                     ),
                   ],
-                ),
-                child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      color: HunterTheme.textPrimary,
-                      fontSize: isFirst ? 26 : 20,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
                 ),
               ),
             ],
@@ -734,17 +822,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
               // ── Podium (Top 3) ─────────────────────────────────────
               if (hunters.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _buildPodiumItem(context, hunters, 1, currentUid), // 2nd - left
-                      _buildPodiumItem(context, hunters, 0, currentUid), // 1st - center
-                      _buildPodiumItem(context, hunters, 2, currentUid), // 3rd - right
-                    ],
-                  ),
-                ),
+                _buildElitePodium(context, hunters, currentUid),
 
               // ── Divider with label ─────────────────────────────────
               Padding(

@@ -623,10 +623,11 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                       );
                     },
                   ))
-                      : Column(
-                    children: [
+                      : CustomScrollView(
+                    slivers: [
                       // ── My Hunter Status Card ──────────────────────────────
-                      Container(
+                      SliverToBoxAdapter(
+                        child: Container(
                         margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -759,13 +760,17 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                           ],
                         ),
                       ),
+                      ),
 
                       // ── Podium (Top 3) ─────────────────────────────────────
                       if (hunters.isNotEmpty)
-                        _buildElitePodium(context, hunters, currentUid),
+                        SliverToBoxAdapter(
+                          child: _buildElitePodium(context, hunters, currentUid),
+                        ),
 
                       // ── Divider with label ─────────────────────────────────
-                      Padding(
+                      SliverToBoxAdapter(
+                        child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         child: Row(
                           children: [
@@ -786,15 +791,16 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                           ],
                         ),
                       ),
+                      ),
 
-                      const SizedBox(height: 8),
+                      const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
                       // ── Leaderboard list (rank 4 onwards) ──────────────────
-                      Expanded(
-                        child: ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                          itemCount: hunters.length > 3 ? hunters.length - 3 : 0,
-                          itemBuilder: (context, listIndex) {
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, listIndex) {
                             final index = listIndex + 3;
                             final hunter = hunters[index].data() as Map<String, dynamic>;
                             final isMe = hunters[index].id == currentUid;
@@ -986,6 +992,8 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                               ),
                             );
                           },
+                            childCount: hunters.length > 3 ? hunters.length - 3 : 0,
+                          ),
                         ),
                       ),
                     ],

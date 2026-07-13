@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hunter_ascend/screens/auth/login_screen.dart';
+import 'package:hunter_ascend/services/membership_service.dart';
 
 /// App settings: theme toggle, account, and links.
 class SettingsScreen extends StatelessWidget {
@@ -15,6 +16,9 @@ class SettingsScreen extends StatelessWidget {
       final user = FirebaseAuth.instance.currentUser;
 
       if (user == null) return;
+
+      // Clear cached membership so the next signed-in user starts fresh.
+      MembershipService.instance.clearCache();
 
       if (user.isAnonymous) {
         // Delete Firestore data first (while auth token is still valid),

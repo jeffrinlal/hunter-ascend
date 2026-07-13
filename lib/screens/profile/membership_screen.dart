@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/screens/legal/legal_document_screen.dart';
+import 'package:hunter_ascend/screens/legal/legal_content.dart';
 
 /// Premium "Hunter Membership" screen.
 ///
@@ -298,7 +300,12 @@ class _MembershipScreenState extends State<MembershipScreen>
                         children: [
                           GestureDetector(
                             onTap: () {
-                              // TODO: Open Privacy Policy URL
+                              Navigator.push(context, MaterialPageRoute(
+                                builder: (_) => const LegalDocumentScreen(
+                                  title: 'Privacy Policy',
+                                  content: privacyPolicyText,
+                                ),
+                              ));
                             },
                             child: Text(
                               'Privacy Policy',
@@ -322,7 +329,12 @@ class _MembershipScreenState extends State<MembershipScreen>
                           ),
                           GestureDetector(
                             onTap: () {
-                              // TODO: Open Terms of Service URL
+                              Navigator.push(context, MaterialPageRoute(
+                                builder: (_) => const LegalDocumentScreen(
+                                  title: 'Terms of Service',
+                                  content: termsOfServiceText,
+                                ),
+                              ));
                             },
                             child: Text(
                               'Terms of Service',

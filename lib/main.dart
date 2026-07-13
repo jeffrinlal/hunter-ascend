@@ -13,6 +13,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hunter_ascend/screens/auth/login_screen.dart';
 import 'package:hunter_ascend/services/notification_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
+import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/widgets/connectivity_banner.dart';
 import 'dart:math' as math;
 import 'package:facebook_app_events/facebook_app_events.dart';
@@ -65,6 +66,7 @@ void main() async {
         debugPrint("USER ON STARTUP: ${initialUser?.uid}");
 
         await createHunterProfile();
+        await MembershipService.instance.loadMembership();
 
         final prefs = await SharedPreferences.getInstance();
         hasCompletedSetup = prefs.getBool('hasCompletedSetup') ?? false;

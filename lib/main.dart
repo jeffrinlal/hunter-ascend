@@ -14,6 +14,7 @@ import 'package:hunter_ascend/screens/auth/login_screen.dart';
 import 'package:hunter_ascend/services/notification_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/services/billing_service.dart';
 import 'package:hunter_ascend/widgets/connectivity_banner.dart';
 import 'dart:math' as math;
 import 'package:facebook_app_events/facebook_app_events.dart';
@@ -91,6 +92,7 @@ Future<void> _deferredInit() async {
         await NotificationService().init();
         await NotificationService().scheduleAllNotifications();
         await FacebookAppEvents().logEvent(name: 'fb_mobile_activate_app');
+        await BillingService.instance.initialize();
     } catch (e) {
         debugPrint("deferredInit: $e");
     }

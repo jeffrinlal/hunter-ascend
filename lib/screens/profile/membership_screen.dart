@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/services/billing_service.dart';
 import 'package:hunter_ascend/screens/legal/legal_document_screen.dart';
 import 'package:hunter_ascend/screens/legal/legal_content.dart';
 
@@ -72,17 +74,175 @@ class _MembershipScreenState extends State<MembershipScreen>
     });
 
     _entranceController.forward();
+
+    // Listen to purchase results from BillingService.
+    _purchaseSubscription = BillingService.instance.purchaseResults.listen(
+      _handlePurchaseResult,
+    );
   }
+
+  StreamSubscription<BillingResult>? _purchaseSubscription;
+  bool _isPurchasing = false;
 
   @override
   void dispose() {
+    _purchaseSubscription?.cancel();
     _entranceController.dispose();
     super.dispose();
   }
 
-  /// Shows a lightweight "Coming Soon" notice for the not-yet-implemented
-  /// Google Play Billing upgrade flow.
-  void _showComingSoon(BuildContext context, String planName) {
+  /// Handles a purchase result from BillingService.
+  void _handlePurchaseResult(BillingResult result) {
+    if (!mounted) return;
+
+    switch (result.status) {
+      case BillingStatus.success:
+        // Backend verified, membership reloaded — refresh UI.
+        setState(() => _isPurchasing = false);
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: HunterTheme.cardColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: HunterTheme.success.withOpacity(0.5)),
+            ),
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: HunterTheme.success, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Membership activated successfully!',
+                    style: TextStyle(
+                      color: HunterTheme.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        break;
+
+      case BillingStatus.pending:
+        setState(() => _isPurchasing = true);
+        break;
+
+      case BillingStatus.userCanceled:
+        setState(() => _isPurchasing = false);
+        break;
+
+      case BillingStatus.error:
+        setState(() => _isPurchasing = false);
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: HunterTheme.cardColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: HunterTheme.danger.withOpacity(0.5)),
+            ),
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: HunterTheme.danger, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    result.error ?? 'Purchase failed. Please try again.',
+                    style: TextStyle(
+                      color: HunterTheme.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        break;
+
+      case BillingStatus.storeUnavailable:
+      case BillingStatus.productNotFound:
+      case BillingStatus.duplicatePurchase:
+        setState(() => _isPurchasing = false);
+        break;
+    }
+  }
+
+  /// Initiates a purchase for the given product.
+  Future<void> _startPurchase(ProductDetails? product, String planName) async {
+    if (_isPurchasing) return;
+
+    if (!BillingService.instance.isAvailable) {
+      _showBillingUnavailable(context);
+      return;
+    }
+
+    if (product == null) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: HunterTheme.cardColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: HunterTheme.primary.withOpacity(0.35)),
+          ),
+          content: Row(
+            children: [
+              Icon(Icons.hourglass_top_rounded,
+                  color: HunterTheme.primary, size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '$planName is not available yet. Please try again later.',
+                  style: TextStyle(
+                    color: HunterTheme.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isPurchasing = true);
+
+    final result = await BillingService.instance.purchase(product);
+
+    // If the purchase flow failed to launch, reset immediately.
+    if (result.status == BillingStatus.error ||
+        result.status == BillingStatus.storeUnavailable) {
+      if (mounted) {
+        setState(() => _isPurchasing = false);
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: HunterTheme.cardColor,
+            behavior: SnackBarBehavior.floating,
+            content: Text(
+              result.error ?? 'Could not start purchase.',
+              style: TextStyle(color: HunterTheme.textPrimary, fontSize: 13),
+            ),
+          ),
+        );
+      }
+    }
+    // Otherwise, the purchase was launched — we wait for the stream event.
+  }
+
+  /// Shows a message when billing is not available on this device.
+  void _showBillingUnavailable(BuildContext context) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -94,12 +254,11 @@ class _MembershipScreenState extends State<MembershipScreen>
         ),
         content: Row(
           children: [
-            Icon(Icons.hourglass_top_rounded,
-                color: HunterTheme.primary, size: 18),
+            Icon(Icons.store, color: HunterTheme.primary, size: 18),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                '$planName upgrades are coming soon!',
+                'Google Play Billing is not available on this device.',
                 style: TextStyle(
                   color: HunterTheme.textPrimary,
                   fontWeight: FontWeight.w600,
@@ -194,11 +353,11 @@ class _MembershipScreenState extends State<MembershipScreen>
                           ],
                           buttonLabel: membership.isPro
                               ? 'Current Plan'
-                              : 'Coming Soon',
-                          buttonEnabled: !membership.isPro,
+                              : (_isPurchasing ? 'Processing...' : 'Subscribe'),
+                          buttonEnabled: !membership.isPro && !_isPurchasing,
                           onPressed: membership.isPro
                               ? null
-                              : () => _showComingSoon(context, 'Pro'),
+                              : () => _startPurchase(BillingService.instance.proProduct, 'Pro'),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -223,11 +382,11 @@ class _MembershipScreenState extends State<MembershipScreen>
                           ],
                           buttonLabel: membership.isMax
                               ? 'Current Plan'
-                              : 'Coming Soon',
-                          buttonEnabled: !membership.isMax,
+                              : (_isPurchasing ? 'Processing...' : 'Subscribe'),
+                          buttonEnabled: !membership.isMax && !_isPurchasing,
                           onPressed: membership.isMax
                               ? null
-                              : () => _showComingSoon(context, 'Max'),
+                              : () => _startPurchase(BillingService.instance.maxProduct, 'Max'),
                         ),
                       ),
                       const SizedBox(height: 28),

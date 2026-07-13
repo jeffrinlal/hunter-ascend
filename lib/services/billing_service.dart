@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:hunter_ascend/services/membership_service.dart';
 
 /// Centralized product IDs for Hunter Ascend subscriptions.
 /// These must match the product IDs configured in Google Play Console.
@@ -54,18 +56,18 @@ class BillingResult {
   bool get isPending => status == BillingStatus.pending;
 }
 
-/// Singleton service that encapsulates all Google Play Billing communication.
+/// Singleton service that encapsulates all Google Play Billing communication
+/// and backend purchase verification.
 ///
 /// UI code (e.g., the membership screen) communicates ONLY with this service —
-/// never directly with [InAppPurchase] APIs.
+/// never directly with [InAppPurchase] APIs or Cloud Functions.
 ///
 /// This service does NOT:
-/// - Write to Firestore.
-/// - Grant membership.
-/// - Call MembershipService.
+/// - Write to Firestore directly.
+/// - Grant membership locally.
 ///
-/// It only manages the billing connection, product loading, purchase flow,
-/// and exposes verified purchase data for the next layer to handle.
+/// It delegates membership activation to the verifyPurchase Cloud Function,
+/// which is the only authority that writes membership fields to Firestore.
 class BillingService {
   BillingService._();
 
@@ -73,6 +75,7 @@ class BillingService {
   static final BillingService instance = BillingService._();
 
   final InAppPurchase _iap = InAppPurchase.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
   StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
 
@@ -81,6 +84,9 @@ class BillingService {
 
   /// Whether the billing store is available on this device.
   bool _storeAvailable = false;
+
+  /// Whether a purchase is currently being verified with the backend.
+  final ValueNotifier<bool> isVerifying = ValueNotifier<bool>(false);
 
   /// Whether products are currently being loaded.
   final ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
@@ -100,9 +106,12 @@ class BillingService {
   final StreamController<BillingResult> _purchaseResultController =
       StreamController<BillingResult>.broadcast();
 
-  /// Stream of purchase results. Subscribe to this to handle completed,
-  /// pending, or failed purchases.
+  /// Stream of purchase results. Subscribe to this to handle UI updates
+  /// (success messages, error dialogs, loading states).
   Stream<BillingResult> get purchaseResults => _purchaseResultController.stream;
+
+  /// Guards against duplicate verification for the same purchase token.
+  final Set<String> _verifyingTokens = {};
 
   // ── Initialization ───────────────────────────────────────────────────────
 
@@ -258,22 +267,15 @@ class BillingService {
 
   /// Processes purchase updates from the [InAppPurchase.purchaseStream].
   ///
-  /// Emits structured [BillingResult] events on [purchaseResults] for each
-  /// update. Does NOT grant membership or write to Firestore — that is the
-  /// responsibility of the consumer (Phase 7).
+  /// For successful purchases, automatically triggers backend verification.
+  /// The consumer listens to [purchaseResults] for the final outcome.
   void _handlePurchaseUpdates(List<PurchaseDetails> purchases) {
     for (final purchase in purchases) {
       switch (purchase.status) {
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
-          // A successful purchase or restore. The consumer must:
-          // 1. Send the purchase token to the verifyPurchase Cloud Function.
-          // 2. On success, call completePurchase() to acknowledge.
-          // 3. Call MembershipService.instance.reload().
-          _purchaseResultController.add(BillingResult(
-            status: BillingStatus.success,
-            purchase: purchase,
-          ));
+          // A successful purchase or restore — verify with the backend.
+          _verifyWithBackend(purchase);
           break;
 
         case PurchaseStatus.pending:
@@ -293,7 +295,7 @@ class BillingService {
             error: errorMessage,
             purchase: purchase,
           ));
-          // Still need to complete the purchase to remove it from the queue.
+          // Complete the purchase to remove it from the pending queue.
           _iap.completePurchase(purchase);
           break;
 
@@ -307,19 +309,116 @@ class BillingService {
     }
   }
 
-  // ── Acknowledgement ──────────────────────────────────────────────────────
+  // ── Backend Verification ─────────────────────────────────────────────────
 
-  /// Acknowledges a purchase with Google Play.
+  /// Sends a successful purchase to the verifyPurchase Cloud Function for
+  /// server-side validation. On success, reloads MembershipService and
+  /// acknowledges the purchase. On failure, emits an error result.
   ///
-  /// Must be called after successful backend verification. If not called
-  /// within 3 days, Google automatically refunds the purchase.
-  ///
-  /// This is exposed so the consumer (Phase 7) can call it after verifyPurchase
-  /// Cloud Function succeeds.
-  Future<void> completePurchase(PurchaseDetails purchase) async {
-    if (purchase.pendingCompletePurchase) {
-      await _iap.completePurchase(purchase);
-      debugPrint('BillingService: Purchase acknowledged.');
+  /// This method is idempotent per purchase token — duplicate calls for the
+  /// same token are ignored.
+  Future<void> _verifyWithBackend(PurchaseDetails purchase) async {
+    // Extract the purchase token (platform-specific).
+    final String? purchaseToken = purchase.verificationData.serverVerificationData;
+    final String productId = purchase.productID;
+
+    if (purchaseToken == null || purchaseToken.isEmpty) {
+      debugPrint('BillingService: No purchase token available for verification.');
+      _purchaseResultController.add(const BillingResult(
+        status: BillingStatus.error,
+        error: 'Purchase token not available.',
+      ));
+      return;
+    }
+
+    // Deduplicate — don't verify the same token twice concurrently.
+    if (_verifyingTokens.contains(purchaseToken)) {
+      debugPrint('BillingService: Verification already in progress for this token.');
+      return;
+    }
+    _verifyingTokens.add(purchaseToken);
+    isVerifying.value = true;
+    lastError.value = null;
+
+    try {
+      // Call the verifyPurchase Cloud Function.
+      final callable = _functions.httpsCallable('verifyPurchase');
+      final response = await callable.call<Map<String, dynamic>>({
+        'purchaseToken': purchaseToken,
+        'productId': productId,
+      });
+
+      final data = response.data;
+      final success = data['success'] == true;
+
+      if (success) {
+        // Backend verified and updated Firestore.
+        // Acknowledge the purchase with Google Play.
+        if (purchase.pendingCompletePurchase) {
+          await _iap.completePurchase(purchase);
+          debugPrint('BillingService: Purchase acknowledged with Google Play.');
+        }
+
+        // Reload MembershipService to pick up the new tier from Firestore.
+        await MembershipService.instance.reload();
+
+        debugPrint('BillingService: Verification successful — '
+            'plan: ${data['plan']}, expires: ${data['expiryDate']}');
+
+        _purchaseResultController.add(BillingResult(
+          status: BillingStatus.success,
+          purchase: purchase,
+        ));
+      } else {
+        // Backend rejected the purchase.
+        final error = data['error']?.toString() ?? 'Verification failed';
+        debugPrint('BillingService: Backend rejected purchase — $error');
+
+        _purchaseResultController.add(BillingResult(
+          status: BillingStatus.error,
+          error: _userFriendlyError(error),
+          purchase: purchase,
+        ));
+      }
+    } on FirebaseFunctionsException catch (e) {
+      debugPrint('BillingService: Cloud Function error — ${e.code}: ${e.message}');
+      _purchaseResultController.add(BillingResult(
+        status: BillingStatus.error,
+        error: _userFriendlyError(e.code),
+        purchase: purchase,
+      ));
+    } catch (e) {
+      debugPrint('BillingService: Verification exception — $e');
+      _purchaseResultController.add(BillingResult(
+        status: BillingStatus.error,
+        error: 'Could not verify purchase. Please check your connection and try again.',
+        purchase: purchase,
+      ));
+    } finally {
+      _verifyingTokens.remove(purchaseToken);
+      isVerifying.value = _verifyingTokens.isNotEmpty;
+    }
+  }
+
+  /// Maps backend error codes to user-friendly messages.
+  String _userFriendlyError(String code) {
+    switch (code) {
+      case 'invalid_token':
+        return 'The purchase could not be verified. Please try again.';
+      case 'expired':
+        return 'This subscription has expired.';
+      case 'payment_pending':
+        return 'Payment is still processing. Please wait.';
+      case 'billing_issue':
+        return 'There is a billing issue with your subscription.';
+      case 'unknown_product':
+        return 'This product is not recognized.';
+      case 'unauthenticated':
+        return 'Please sign in to verify your purchase.';
+      case 'internal':
+        return 'Server error. Please try again later.';
+      default:
+        return 'Purchase verification failed. Please try again.';
     }
   }
 

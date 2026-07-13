@@ -233,8 +233,8 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
     final posColor = _positionColor(index);
     final isFirst = index == 0;
 
-    final double avatarSize = isFirst ? 76 : 60;
-    final double pedestalHeight = index == 0 ? 78 : (index == 1 ? 58 : 44);
+    final double avatarSize = isFirst ? 72 : 56;
+    final double pedestalHeight = index == 0 ? 80 : (index == 1 ? 58 : 44);
 
     return Expanded(
       child: GestureDetector(
@@ -249,56 +249,54 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
           );
         },
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
+          padding: EdgeInsets.symmetric(horizontal: isFirst ? 6 : 2),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Crown/badge raised above avatar with clear gap
               TopRankBadge(
                 position: index + 1,
                 color: posColor,
-                size: isFirst ? 40 : 32,
-              ),
-              const SizedBox(height: 8),
-            PremiumAvatar(
-              membership: (hunter['membership'] ?? 'basic').toString(),
-              radius: avatarSize / 2,
-              image: hunter['profilePicture'] != null &&
-                  hunter['profilePicture'].toString().isNotEmpty
-                  ? MemoryImage(
-                _decodedAvatar(hunter['profilePicture']),
-              )
-                  : null,
-              child: Icon(
-                Icons.person,
-                color: rc,
                 size: isFirst ? 38 : 30,
               ),
-            ),
-              const SizedBox(height: 8),
-              Column(
-                children: [
-                  Text(
-                    hunter['hunterName'] ?? 'Unknown',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: isMe ? HunterTheme.primary : HunterTheme.textPrimary,
-                      fontSize: isFirst ? 15 : 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  MembershipBadge(
-                    membership: (hunter['membership'] ?? 'basic').toString(),
-                    fontSize: 7,
-                  ),
-                ],
+              const SizedBox(height: 10),
+              // Avatar
+              PremiumAvatar(
+                membership: (hunter['membership'] ?? 'basic').toString(),
+                radius: avatarSize / 2,
+                image: hunter['profilePicture'] != null &&
+                    hunter['profilePicture'].toString().isNotEmpty
+                    ? MemoryImage(
+                  _decodedAvatar(hunter['profilePicture']),
+                )
+                    : null,
+                child: Icon(
+                  Icons.person,
+                  color: rc,
+                  size: isFirst ? 36 : 28,
+                ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 8),
+              // Name + badge
+              Text(
+                hunter['hunterName'] ?? 'Unknown',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isMe ? HunterTheme.primary : HunterTheme.textPrimary,
+                  fontSize: isFirst ? 14 : 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              MembershipBadge(
+                membership: (hunter['membership'] ?? 'basic').toString(),
+                fontSize: 7,
+              ),
+              const SizedBox(height: 3),
+              // Rank info
               Text(
                 '${getRankTitle(level)} · Lv.$level',
                 maxLines: 1,
@@ -310,8 +308,9 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                 ),
               ),
               const SizedBox(height: 6),
+              // XP chip
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: HunterTheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -324,11 +323,12 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                   style: TextStyle(
                     color: HunterTheme.primary,
                     fontWeight: FontWeight.bold,
-                    fontSize: 11,
+                    fontSize: 10,
                   ),
                 ),
               ),
               const SizedBox(height: 10),
+              // Pedestal
               Container(
                 height: pedestalHeight,
                 width: double.infinity,
@@ -342,7 +342,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                     ],
                   ),
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(10),
+                    top: Radius.circular(12),
                   ),
                   boxShadow: [
                     BoxShadow(

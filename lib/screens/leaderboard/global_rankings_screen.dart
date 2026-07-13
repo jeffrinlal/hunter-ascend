@@ -178,9 +178,16 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchText = '';
 
-  // Cached current user's hunter data for the status card when they're
-  // outside the top 50 leaderboard results.
-  Map<String, dynamic>? _myHunterCache;
+  // Live stream of the current user's hunter document for the status card.
+  // Keeps "Your Hunter Status" in real-time sync regardless of whether the
+  // user is in the top 50 leaderboard results.
+  late final Stream<DocumentSnapshot>? _myHunterStream = _createMyHunterStream();
+
+  Stream<DocumentSnapshot>? _createMyHunterStream() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return null;
+    return FirebaseFirestore.instance.collection('hunters').doc(uid).snapshots();
+  }
 
   // Caches decoded avatar bytes keyed by the Base64 string, so each unique
   // profile picture is decoded only once and the same Uint8List is reused
@@ -189,31 +196,6 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
   Uint8List _decodedAvatar(String base64Data) =>
       _avatarCache[base64Data] ??= base64Decode(base64Data);
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMyHunterData();
-  }
-
-  /// Fetches the current user's hunter document once and caches it so the
-  /// "Your Hunter Status" card always has data even if the user isn't in the
-  /// top 50 leaderboard results.
-  Future<void> _loadMyHunterData() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('hunters')
-          .doc(uid)
-          .get();
-      if (doc.exists && mounted) {
-        setState(() {
-          _myHunterCache = doc.data();
-        });
-      }
-    } catch (_) {}
-  }
 
   @override
   void dispose() {
@@ -519,10 +501,9 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                     }
                   }
 
-                  // If the current user is not in the top 50, their status card
-                  // will be populated from the cached one-time read instead.
+                  // If the current user is not in the top 50, their status
+                  // card uses the dedicated _myHunterStream instead.
                   // myRank stays 0 which displays as "50+".
-                  myHunter ??= _myHunterCache;
 
                   return _searchMode
                       ? (_searchText.isEmpty
@@ -633,140 +614,147 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                   ))
                       : Column(
                     children: [
-                      // ── My Hunter Status Card ──────────────────────────────
-                      Container(
-                        margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          color: HunterTheme.cardColor,
-                          border: Border.all(
-                            color: HunterTheme.primary.withOpacity(0.35),
-                            width: 1.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: HunterTheme.primary.withOpacity(0.1),
-                              blurRadius: 20,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  width: 4, height: 4,
-                                  decoration: BoxDecoration(
-                                    color: HunterTheme.primary,
-                                    shape: BoxShape.circle,
-                                  ),
+                      // ── My Hunter Status Card (live stream) ─────────────────
+                      if (_myHunterStream != null)
+                        StreamBuilder<DocumentSnapshot>(
+                          stream: _myHunterStream,
+                          builder: (context, mySnap) {
+                            final myData = mySnap.data?.data() as Map<String, dynamic>?;
+                            return Container(
+                              margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                color: HunterTheme.cardColor,
+                                border: Border.all(
+                                  color: HunterTheme.primary.withOpacity(0.35),
+                                  width: 1.5,
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'YOUR HUNTER STATUS',
-                                  style: TextStyle(
-                                    color: HunterTheme.primary,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 2.5,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: HunterTheme.primary.withOpacity(0.1),
+                                    blurRadius: 20,
+                                    spreadRadius: 2,
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  width: 4, height: 4,
-                                  decoration: BoxDecoration(
-                                    color: HunterTheme.primary,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            Row(
-                              children: [
-                                // Avatar with rank ring + actual profile picture
-                                PremiumAvatar(
-                                  membership: (myHunter?['membership'] ?? 'basic').toString(),
-                                  radius: 24,
-                                  image: myHunter != null &&
-                                      myHunter['profilePicture'] != null &&
-                                      myHunter['profilePicture'].toString().isNotEmpty
-                                      ? MemoryImage(
-                                          _decodedAvatar(myHunter['profilePicture']),
-                                        )
-                                      : null,
-                                  child: Icon(
-                                    Icons.person,
-                                    color: myHunter != null
-                                        ? _rankColor(myHunter['level'] ?? 1)
-                                        : HunterTheme.primary,
-                                    size: 28,
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                ],
+                              ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Text(
-                                        myHunter?['hunterName'] ?? 'Unknown Hunter',
-                                        style: TextStyle(
-                                          color: HunterTheme.textPrimary,
-                                          fontSize: 17,
-                                          fontWeight: FontWeight.w700,
+                                      Container(
+                                        width: 4, height: 4,
+                                        decoration: BoxDecoration(
+                                          color: HunterTheme.primary,
+                                          shape: BoxShape.circle,
                                         ),
                                       ),
-                                      const SizedBox(height: 3),
+                                      const SizedBox(width: 8),
                                       Text(
-                                        myHunter != null
-                                            ? '${getRankTitle(myHunter['level'] ?? 1)}  ·  Level ${myHunter['level']}'
-                                            : '',
-                                        style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12),
+                                        'YOUR HUNTER STATUS',
+                                        style: TextStyle(
+                                          color: HunterTheme.primary,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 2.5,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        width: 4, height: 4,
+                                        decoration: BoxDecoration(
+                                          color: HunterTheme.primary,
+                                          shape: BoxShape.circle,
+                                        ),
                                       ),
                                     ],
                                   ),
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      myHunter != null ? '${myHunter['xp']} XP' : '',
-                                      style: TextStyle(
-                                        color: HunterTheme.primary,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: HunterTheme.primary.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: HunterTheme.primary.withOpacity(0.35),
+                                  const SizedBox(height: 14),
+                                  Row(
+                                    children: [
+                                      // Avatar with rank ring + actual profile picture
+                                      PremiumAvatar(
+                                        membership: (myData?['membership'] ?? 'basic').toString(),
+                                        radius: 24,
+                                        image: myData != null &&
+                                            myData['profilePicture'] != null &&
+                                            myData['profilePicture'].toString().isNotEmpty
+                                            ? MemoryImage(
+                                                _decodedAvatar(myData['profilePicture']),
+                                              )
+                                            : null,
+                                        child: Icon(
+                                          Icons.person,
+                                          color: myData != null
+                                              ? _rankColor(myData['level'] ?? 1)
+                                              : HunterTheme.primary,
+                                          size: 28,
                                         ),
                                       ),
-                                      child: Text(
-                                        myRank > 0 ? '# $myRank' : '50+',
-                                        style: TextStyle(
-                                          color: HunterTheme.primary,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 1.5,
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              myData?['hunterName'] ?? 'Unknown Hunter',
+                                              style: TextStyle(
+                                                color: HunterTheme.textPrimary,
+                                                fontSize: 17,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              myData != null
+                                                  ? '${getRankTitle(myData['level'] ?? 1)}  ·  Level ${myData['level']}'
+                                                  : '',
+                                              style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ],
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            myData != null ? '${myData['xp']} XP' : '',
+                                            style: TextStyle(
+                                              color: HunterTheme.primary,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: HunterTheme.primary.withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(20),
+                                              border: Border.all(
+                                                color: HunterTheme.primary.withOpacity(0.35),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              myRank > 0 ? '# $myRank' : '50+',
+                                              style: TextStyle(
+                                                color: HunterTheme.primary,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 1.5,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
-                      ),
 
                       // ── Podium (Top 3) ─────────────────────────────────────
                       if (hunters.isNotEmpty)

@@ -374,13 +374,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 
   List<Map<String, dynamic>> generatedQuests = [];
-  Future<void> _loadAIQuests() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
 
-    final doc = await FirebaseFirestore.instance
-        .collection('hunters')
-        .doc(uid)
-        .get();
+  /// How long a generation lock is considered active before it's treated as
+  /// stale (e.g. the holder crashed). After this duration, any caller may
+  /// take ownership of the lock and retry generation.
+  static const Duration _aiLockTimeout = Duration(minutes: 5);
+
+  Future<void> _loadAIQuests() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final ref = FirebaseFirestore.instance.collection('hunters').doc(uid);
+    final doc = await ref.get();
 
     if (!mounted) return;
     final data = doc.data() ?? {};
@@ -413,46 +418,131 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
+    // Atomically acquire a timestamp-based generation lock. Only one caller
+    // (across both DashboardScreen instances and across devices) can hold
+    // the lock at a time. The lock stores the time generation started as a
+    // Firestore Timestamp. If the lock is older than _aiLockTimeout, it is
+    // treated as stale (holder crashed) and can be taken over.
+    bool claimed = false;
+    await FirebaseFirestore.instance.runTransaction((txn) async {
+      final snap = await txn.get(ref);
+      final d = snap.data() ?? {};
 
-    final hunter = doc.data()!;
+      // Another caller already finished generation for today.
+      if ((d['aiQuestDate'] ?? '') == today) {
+        claimed = false;
+        return;
+      }
 
-    List<String> goals = [];
+      // Check existing lock.
+      final lockValue = d['aiQuestGeneratingAt'];
+      if (lockValue != null) {
+        DateTime? lockTime;
+        if (lockValue is Timestamp) {
+          lockTime = lockValue.toDate();
+        }
+        // If the lock is recent (within timeout), another caller is actively
+        // generating — back off.
+        if (lockTime != null &&
+            DateTime.now().difference(lockTime) < _aiLockTimeout) {
+          claimed = false;
+          return;
+        }
+        // Lock is stale (older than timeout) — the holder crashed or timed
+        // out. Take ownership by overwriting it below.
+      }
 
-    if (hunter['fatLoss'] == true) goals.add('Fat Loss');
-    if (hunter['discipline'] == true) goals.add('Discipline');
-    if (hunter['muscleGain'] == true) goals.add('Muscle Gain');
-    if (hunter['selfImprovement'] == true) goals.add('Self Improvement');
-
-    final goalString = goals.join(', ');
-
-    final quests = await AIQuestService.generateQuests(
-      level: hunter['level'] ?? 1,
-      streak: hunter['streak'] ?? 0,
-      weight: (hunter['weight'] ?? 85).toDouble(),
-      height: (hunter['height'] ?? 167).toDouble(),
-      goals: goalString,
-    );
-
-    if (!mounted) return;
-    setState(() {
-      generatedQuests = quests.map<Map<String, dynamic>>((q) {
-        return {
-          "name": q["title"],
-          "xp": q["xp"],
-          "icon": Icons.auto_awesome,
-        };
-      }).toList();
+      // Acquire the lock with the current timestamp.
+      txn.update(ref, {'aiQuestGeneratingAt': Timestamp.now()});
+      claimed = true;
     });
 
-    // First time this user ever receives missions: record an immutable
-    // discipline-start date (write-once). savedDate.isEmpty means the user has
-    // never had missions generated before (a genuine new user), so existing
-    // users — who already have an aiQuestDate — are never backfilled, and the
-    // field is never written again once set.
-    if (savedDate.toString().isEmpty && data['disciplineStartDate'] == null) {
-      await FirebaseFirestore.instance.collection('hunters').doc(uid).update({
-        'disciplineStartDate': DateTime.now().toString().substring(0, 10),
+    if (!mounted) return;
+
+    if (!claimed) {
+      // Another instance is generating or already finished. Wait briefly for
+      // it to complete, then re-read the saved quests.
+      await Future.delayed(const Duration(seconds: 3));
+      if (!mounted) return;
+      final refreshed = await ref.get();
+      if (!mounted) return;
+      final refreshedData = refreshed.data() ?? {};
+      final quests = List<Map<String, dynamic>>.from(
+        refreshedData['aiQuests'] ?? [],
+      );
+      setState(() {
+        generatedQuests = quests.map<Map<String, dynamic>>((q) {
+          return {
+            "name": q["title"],
+            "xp": q["xp"],
+            "icon": Icons.auto_awesome,
+          };
+        }).toList();
       });
+      return;
+    }
+
+    // We hold the lock. Call the AI. On success, AIQuestService writes
+    // aiQuestDate + aiQuests to Firestore. On failure, we release the lock
+    // so another caller can retry.
+    try {
+      final hunter = doc.data()!;
+
+      List<String> goals = [];
+
+      if (hunter['fatLoss'] == true) goals.add('Fat Loss');
+      if (hunter['discipline'] == true) goals.add('Discipline');
+      if (hunter['muscleGain'] == true) goals.add('Muscle Gain');
+      if (hunter['selfImprovement'] == true) goals.add('Self Improvement');
+
+      final goalString = goals.join(', ');
+
+      final quests = await AIQuestService.generateQuests(
+        level: hunter['level'] ?? 1,
+        streak: hunter['streak'] ?? 0,
+        weight: (hunter['weight'] ?? 85).toDouble(),
+        height: (hunter['height'] ?? 167).toDouble(),
+        goals: goalString,
+      );
+
+      if (!mounted) return;
+
+      if (quests.isEmpty) {
+        // AI returned nothing — release the lock so a retry can happen.
+        await ref.update({'aiQuestGeneratingAt': FieldValue.delete()});
+        return;
+      }
+
+      setState(() {
+        generatedQuests = quests.map<Map<String, dynamic>>((q) {
+          return {
+            "name": q["title"],
+            "xp": q["xp"],
+            "icon": Icons.auto_awesome,
+          };
+        }).toList();
+      });
+
+      // Generation succeeded — AIQuestService already wrote aiQuestDate + aiQuests.
+      // Clear the lock.
+      await ref.update({'aiQuestGeneratingAt': FieldValue.delete()});
+
+      // First time this user ever receives missions: record an immutable
+      // discipline-start date (write-once). savedDate.isEmpty means the user has
+      // never had missions generated before (a genuine new user), so existing
+      // users — who already have an aiQuestDate — are never backfilled, and the
+      // field is never written again once set.
+      if (savedDate.toString().isEmpty && data['disciplineStartDate'] == null) {
+        await ref.update({
+          'disciplineStartDate': DateTime.now().toString().substring(0, 10),
+        });
+      }
+    } catch (e) {
+      debugPrint("_loadAIQuests generation failed: $e");
+      // Release the lock so another caller (or a retry) can attempt generation.
+      try {
+        await ref.update({'aiQuestGeneratingAt': FieldValue.delete()});
+      } catch (_) {}
     }
   }
   List<String> completedQuests = [];

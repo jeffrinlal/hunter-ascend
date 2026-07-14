@@ -98,10 +98,14 @@ class _AnimatedPremiumCardState extends State<_AnimatedPremiumCard>
   Color get _glowColor =>
       _isMax ? HunterTheme.purple : HunterTheme.gold;
 
-  double get _glowIntensity => _isMax ? 0.35 : 0.25;
+  double get _glowIntensity => _isMax ? 0.6 : 0.45;
 
   Color get _ringColor =>
       _isMax ? HunterTheme.purpleLight : HunterTheme.goldBright;
+
+  /// Padding reserved around the card so the rotating energy ring can be
+  /// drawn on the OUTSIDE of the card (outside its border).
+  static const double _ringInset = 4;
 
   @override
   Widget build(BuildContext context) {
@@ -109,80 +113,96 @@ class _AnimatedPremiumCardState extends State<_AnimatedPremiumCard>
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, staticChild) {
+          final t = _controller.value;
+          final pulse = 0.7 + 0.3 * math.sin(t * math.pi * 2);
           return Stack(
             clipBehavior: Clip.none,
             children: [
-              // ── Outer glow ──
+              // ── Outer glow (sits behind the card) ──
               Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.all(_ringInset),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: widget.borderRadius,
+                      boxShadow: [
+                        BoxShadow(
+                          color: _glowColor.withOpacity(_glowIntensity * pulse),
+                          blurRadius: _isMax ? 30 : 22,
+                          spreadRadius: _isMax ? 3 : 2,
+                        ),
+                        if (_isMax)
+                          BoxShadow(
+                            color: HunterTheme.gold.withOpacity(0.35 * pulse),
+                            blurRadius: 20,
+                            spreadRadius: 1,
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // ── Card with gradient background (inset for the ring) ──
+              Padding(
+                padding: const EdgeInsets.all(_ringInset),
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: widget.borderRadius,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: _gradientColors,
+                    ),
+                    border: Border.all(
+                      color: _borderColor.withOpacity(0.9),
+                      width: _isMax ? 2.0 : 1.6,
+                    ),
                     boxShadow: [
+                      // Inner border glow — makes the border itself luminous.
                       BoxShadow(
-                        color: _glowColor.withOpacity(
-                            _glowIntensity * (0.7 + 0.3 * math.sin(_controller.value * math.pi * 2))),
-                        blurRadius: _isMax ? 20 : 14,
-                        spreadRadius: _isMax ? 3 : 2,
+                        color: _borderColor.withOpacity(0.45 * pulse),
+                        blurRadius: 10,
+                        spreadRadius: 0,
                       ),
-                      if (_isMax)
-                        BoxShadow(
-                          color: HunterTheme.gold.withOpacity(
-                              0.15 * (0.6 + 0.4 * math.cos(_controller.value * math.pi * 2))),
-                          blurRadius: 12,
-                          spreadRadius: 1,
-                        ),
                     ],
                   ),
-                ),
-              ),
-
-              // ── Rotating energy ring ──
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _EnergyRingPainter(
-                    progress: _controller.value,
-                    color: _ringColor,
+                  child: ClipRRect(
                     borderRadius: widget.borderRadius,
-                    isMax: _isMax,
+                    child: Stack(
+                      children: [
+                        // ── Shimmer sweep (Max only) ──
+                        if (_isMax)
+                          Positioned.fill(
+                            child: _ShimmerSweep(progress: t),
+                          ),
+
+                        // ── Sparkle particles ──
+                        Positioned.fill(
+                          child: _SparkleParticles(
+                            progress: t,
+                            isMax: _isMax,
+                          ),
+                        ),
+
+                        // ── Actual card content ──
+                        staticChild!,
+                      ],
+                    ),
                   ),
                 ),
               ),
 
-              // ── Card with gradient background ──
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: widget.borderRadius,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: _gradientColors,
-                  ),
-                  border: Border.all(
-                    color: _borderColor.withOpacity(0.7),
-                    width: _isMax ? 1.8 : 1.5,
-                  ),
-                ),
-                child: ClipRRect(
-                  borderRadius: widget.borderRadius,
-                  child: Stack(
-                    children: [
-                      // ── Shimmer sweep (Max only) ──
-                      if (_isMax)
-                        Positioned.fill(
-                          child: _ShimmerSweep(progress: _controller.value),
-                        ),
-
-                      // ── Sparkle particles ──
-                      Positioned.fill(
-                        child: _SparkleParticles(
-                          progress: _controller.value,
-                          isMax: _isMax,
-                        ),
-                      ),
-
-                      // ── Actual card content ──
-                      staticChild!,
-                    ],
+              // ── Rotating energy ring (drawn ON TOP, at the outer edge) ──
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _EnergyRingPainter(
+                      progress: t,
+                      color: _ringColor,
+                      borderRadius: widget.borderRadius,
+                      isMax: _isMax,
+                    ),
                   ),
                 ),
               ),
@@ -214,34 +234,41 @@ class _EnergyRingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
+    // Ring sits at the very outer edge (outside the inset card border).
     final rrect = borderRadius.toRRect(rect).deflate(1);
-
-    // Draw a partial arc that rotates around the card border.
-    final arcLength = 0.25; // 25% of perimeter
     final startAngle = progress * math.pi * 2;
 
-    final paint = Paint()
+    // 1) Faint continuous base ring so the outline is always present.
+    final basePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = isMax ? 2.5 : 2.0
+      ..strokeWidth = isMax ? 2.0 : 1.6
+      ..color = color.withOpacity(0.22);
+    canvas.drawRRect(rrect, basePaint);
+
+    // 2) Bright rotating light segment that sweeps around the border.
+    final sweepPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = isMax ? 3.0 : 2.5
+      ..strokeCap = StrokeCap.round
       ..shader = SweepGradient(
-        startAngle: startAngle,
-        endAngle: startAngle + arcLength * math.pi * 2,
+        center: Alignment.center,
         colors: [
-          color.withOpacity(0),
-          color.withOpacity(isMax ? 0.8 : 0.6),
-          color.withOpacity(0),
+          color.withOpacity(0.0),
+          color.withOpacity(0.0),
+          color.withOpacity(isMax ? 1.0 : 0.9),
+          color.withOpacity(0.0),
         ],
-        stops: const [0.0, 0.5, 1.0],
+        stops: const [0.0, 0.62, 0.8, 1.0],
         transform: GradientRotation(startAngle),
       ).createShader(rect);
-
-    final path = Path()..addRRect(rrect);
-    canvas.drawPath(path, paint);
+    canvas.drawRRect(rrect, sweepPaint);
   }
 
   @override
   bool shouldRepaint(covariant _EnergyRingPainter old) =>
-      old.progress != progress;
+      old.progress != progress ||
+      old.color != color ||
+      old.isMax != isMax;
 }
 
 // ── Shimmer Sweep (Max only) ─────────────────────────────────────────────────

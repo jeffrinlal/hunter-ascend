@@ -223,6 +223,39 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
     return HunterTheme.primary;
   }
 
+  // ── Membership resolution helpers ──────────────────────────────────────
+  //
+  // The rewarded-ad membership system stores the tier in `membershipType`.
+  // Older/legacy documents may still use `membership`. These helpers resolve
+  // a hunter's EFFECTIVE membership so every viewer sees the correct premium
+  // styling for any player, and expired memberships are treated as Basic.
+
+  DateTime? _parseExpiry(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is Timestamp) return raw.toDate();
+    if (raw is DateTime) return raw;
+    if (raw is String) return DateTime.tryParse(raw);
+    return null;
+  }
+
+  /// Resolves the effective membership string for a hunter document,
+  /// honoring the new `membershipType` field, the legacy `membership`
+  /// field, and expiry. Returns `'basic'` if expired or unset.
+  String _effectiveMembership(Map<String, dynamic>? data) {
+    if (data == null) return 'basic';
+    final raw = (data['membershipType'] ?? data['membership'] ?? 'basic')
+        .toString();
+    final tier = MembershipTier.fromString(raw);
+    if (tier == MembershipTier.basic) return 'basic';
+    final expiry = _parseExpiry(data['membershipExpiry']);
+    if (expiry != null && expiry.isBefore(DateTime.now())) return 'basic';
+    return raw;
+  }
+
+  /// Whether the given membership string is a premium (Pro/Max) tier.
+  bool _isPremium(String membership) =>
+      MembershipTier.fromString(membership) != MembershipTier.basic;
+
   // Position-specific colors
   Color _positionColor(int index) {
     if (index == 0) return HunterTheme.goldBright; // Gold
@@ -275,7 +308,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
               ),
               const SizedBox(height: 8),
               PremiumAvatar(
-                membership: (hunter['membership'] ?? 'basic').toString(),
+                membership: _effectiveMembership(hunter),
                 radius: avatarSize / 2,
                 image: hunter['profilePicture'] != null &&
                     hunter['profilePicture'].toString().isNotEmpty
@@ -307,7 +340,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                   const SizedBox(height: 4),
 
                   MembershipBadge(
-                    membership: (hunter['membership'] ?? 'basic').toString(),
+                    membership: _effectiveMembership(hunter),
                     fontSize: 7,
                   ),
                 ],
@@ -622,28 +655,38 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                           stream: _myHunterStream,
                           builder: (context, mySnap) {
                             final myData = mySnap.data?.data() as Map<String, dynamic>?;
+                            final myMembership = _effectiveMembership(myData);
+                            final myPremium = _isPremium(myMembership);
+                            // On premium (dark gradient) cards, all text must
+                            // be white/near-white for contrast.
+                            final labelColor = myPremium
+                                ? Colors.white
+                                : HunterTheme.primary;
+                            final nameColor = myPremium
+                                ? Colors.white
+                                : HunterTheme.textPrimary;
+                            final subColor = myPremium
+                                ? Colors.white70
+                                : HunterTheme.textSecondary;
                             return Padding(
                               padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                               child: PremiumCardDecorator(
-                                membership: (myData?['membership'] ?? myData?['membershipType'] ?? 'basic').toString(),
+                                membership: myMembership,
                                 borderRadius: BorderRadius.circular(16),
                                 child: Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(16),
-                                color: MembershipTier.fromString(
-                                    (myData?['membership'] ?? myData?['membershipType'] ?? 'basic').toString()) != MembershipTier.basic
+                                color: myPremium
                                     ? Colors.transparent
                                     : HunterTheme.cardColor,
-                                border: MembershipTier.fromString(
-                                    (myData?['membership'] ?? myData?['membershipType'] ?? 'basic').toString()) != MembershipTier.basic
+                                border: myPremium
                                     ? null
                                     : Border.all(
                                   color: HunterTheme.primary.withOpacity(0.35),
                                   width: 1.5,
                                 ),
-                                boxShadow: MembershipTier.fromString(
-                                    (myData?['membership'] ?? myData?['membershipType'] ?? 'basic').toString()) != MembershipTier.basic
+                                boxShadow: myPremium
                                     ? null
                                     : [
                                   BoxShadow(
@@ -661,7 +704,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                       Container(
                                         width: 4, height: 4,
                                         decoration: BoxDecoration(
-                                          color: HunterTheme.primary,
+                                          color: labelColor,
                                           shape: BoxShape.circle,
                                         ),
                                       ),
@@ -669,7 +712,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                       Text(
                                         'YOUR HUNTER STATUS',
                                         style: TextStyle(
-                                          color: HunterTheme.primary,
+                                          color: labelColor,
                                           fontSize: 11,
                                           fontWeight: FontWeight.bold,
                                           letterSpacing: 2.5,
@@ -679,7 +722,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                       Container(
                                         width: 4, height: 4,
                                         decoration: BoxDecoration(
-                                          color: HunterTheme.primary,
+                                          color: labelColor,
                                           shape: BoxShape.circle,
                                         ),
                                       ),
@@ -690,7 +733,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                     children: [
                                       // Avatar with rank ring + actual profile picture
                                       PremiumAvatar(
-                                        membership: (myData?['membership'] ?? 'basic').toString(),
+                                        membership: myMembership,
                                         radius: 24,
                                         image: myData != null &&
                                             myData['profilePicture'] != null &&
@@ -715,7 +758,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                             Text(
                                               myData?['hunterName'] ?? 'Unknown Hunter',
                                               style: TextStyle(
-                                                color: HunterTheme.textPrimary,
+                                                color: nameColor,
                                                 fontSize: 17,
                                                 fontWeight: FontWeight.w700,
                                               ),
@@ -725,7 +768,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                               myData != null
                                                   ? '${getRankTitle(myData['level'] ?? 1)}  ·  Level ${myData['level']}'
                                                   : '',
-                                              style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12),
+                                              style: TextStyle(color: subColor, fontSize: 12),
                                             ),
                                           ],
                                         ),
@@ -736,7 +779,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                           Text(
                                             myData != null ? '${myData['xp']} XP' : '',
                                             style: TextStyle(
-                                              color: HunterTheme.primary,
+                                              color: labelColor,
                                               fontWeight: FontWeight.bold,
                                               fontSize: 14,
                                             ),
@@ -745,16 +788,20 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                             decoration: BoxDecoration(
-                                              color: HunterTheme.primary.withOpacity(0.1),
+                                              color: myPremium
+                                                  ? Colors.white.withOpacity(0.15)
+                                                  : HunterTheme.primary.withOpacity(0.1),
                                               borderRadius: BorderRadius.circular(20),
                                               border: Border.all(
-                                                color: HunterTheme.primary.withOpacity(0.35),
+                                                color: myPremium
+                                                    ? Colors.white.withOpacity(0.5)
+                                                    : HunterTheme.primary.withOpacity(0.35),
                                               ),
                                             ),
                                             child: Text(
                                               myRank > 0 ? '# $myRank' : '50+',
                                               style: TextStyle(
-                                                color: HunterTheme.primary,
+                                                color: labelColor,
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.bold,
                                                 letterSpacing: 1.5,
@@ -823,6 +870,18 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                             final isMe = hunters[index].id == currentUid;
                             final level = (hunter['level'] ?? 1) as int;
                             final rc = _rankColor(level);
+                            final membership = _effectiveMembership(hunter);
+                            final isPremium = _isPremium(membership);
+                            // Text colors: white/near-white on premium cards
+                            // (dark gold/purple backgrounds) for contrast.
+                            final nameColor = isPremium
+                                ? Colors.white
+                                : (isMe
+                                    ? HunterTheme.primary
+                                    : HunterTheme.textPrimary);
+                            final subColor = isPremium
+                                ? Colors.white70
+                                : rc.withOpacity(0.7);
 
                             return GestureDetector(
                               onTap: () {
@@ -839,22 +898,20 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                               child: Padding(
                                 padding: const EdgeInsets.only(bottom: 8),
                                 child: PremiumCardDecorator(
-                                  membership: (hunter['membership'] ?? 'basic').toString(),
+                                  membership: membership,
                                   child: Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 14,
                                   vertical: 11,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: MembershipTier.fromString(
-                                      (hunter['membership'] ?? 'basic').toString()) != MembershipTier.basic
+                                  color: isPremium
                                       ? Colors.transparent
                                       : (isMe
                                           ? HunterTheme.surface
                                           : HunterTheme.cardColor),
                                   borderRadius: BorderRadius.circular(14),
-                                  border: MembershipTier.fromString(
-                                      (hunter['membership'] ?? 'basic').toString()) != MembershipTier.basic
+                                  border: isPremium
                                       ? null
                                       : Border.all(
                                     color: isMe
@@ -862,8 +919,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                         : HunterTheme.textPrimary.withOpacity(0.06),
                                     width: 1,
                                   ),
-                                  boxShadow: MembershipTier.fromString(
-                                      (hunter['membership'] ?? 'basic').toString()) != MembershipTier.basic
+                                  boxShadow: isPremium
                                       ? null
                                       : [
                                     BoxShadow(
@@ -882,22 +938,28 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                           width: 28, height: 28,
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color: isMe
-                                                ? HunterTheme.primary.withOpacity(0.12)
-                                                : HunterTheme.textPrimary.withOpacity(0.04),
+                                            color: isPremium
+                                                ? Colors.white.withOpacity(0.15)
+                                                : (isMe
+                                                    ? HunterTheme.primary.withOpacity(0.12)
+                                                    : HunterTheme.textPrimary.withOpacity(0.04)),
                                             border: Border.all(
-                                              color: isMe
-                                                  ? HunterTheme.primary.withOpacity(0.4)
-                                                  : HunterTheme.textPrimary.withOpacity(0.08),
+                                              color: isPremium
+                                                  ? Colors.white.withOpacity(0.4)
+                                                  : (isMe
+                                                      ? HunterTheme.primary.withOpacity(0.4)
+                                                      : HunterTheme.textPrimary.withOpacity(0.08)),
                                             ),
                                           ),
                                           child: Center(
                                             child: Text(
                                               '${index + 1}',
                                               style: TextStyle(
-                                                color: isMe
-                                                    ? HunterTheme.primary
-                                                    : HunterTheme.textSecondary,
+                                                color: isPremium
+                                                    ? Colors.white
+                                                    : (isMe
+                                                        ? HunterTheme.primary
+                                                        : HunterTheme.textSecondary),
                                                 fontSize: index < 9 ? 13 : 11,
                                                 fontWeight: FontWeight.bold,
                                               ),
@@ -911,7 +973,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
 
                                     // ── Avatar ──
                                     PremiumAvatar(
-                                      membership: (hunter['membership'] ?? 'basic').toString(),
+                                      membership: membership,
                                       radius: 19,
                                       image: hunter['profilePicture'] != null &&
                                           hunter['profilePicture'].toString().isNotEmpty
@@ -940,9 +1002,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                                   hunter['hunterName'] ?? 'Unknown',
                                                   overflow: TextOverflow.ellipsis,
                                                   style: TextStyle(
-                                                    color: isMe
-                                                        ? HunterTheme.primary
-                                                        : HunterTheme.textPrimary,
+                                                    color: nameColor,
                                                     fontSize: 14,
                                                     fontWeight: FontWeight.w600,
                                                   ),
@@ -952,7 +1012,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                               const SizedBox(width: 6),
 
                                               MembershipBadge(
-                                                membership: hunter['membership'] ?? 'basic',
+                                                membership: membership,
                                                 fontSize: 8,
                                               ),
 
@@ -964,16 +1024,22 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                                     vertical: 2,
                                                   ),
                                                   decoration: BoxDecoration(
-                                                    color: HunterTheme.primary.withOpacity(0.12),
+                                                    color: isPremium
+                                                        ? Colors.white.withOpacity(0.18)
+                                                        : HunterTheme.primary.withOpacity(0.12),
                                                     borderRadius: BorderRadius.circular(6),
                                                     border: Border.all(
-                                                      color: HunterTheme.primary.withOpacity(0.3),
+                                                      color: isPremium
+                                                          ? Colors.white.withOpacity(0.5)
+                                                          : HunterTheme.primary.withOpacity(0.3),
                                                     ),
                                                   ),
                                                   child: Text(
                                                     'YOU',
                                                     style: TextStyle(
-                                                      color: HunterTheme.primary,
+                                                      color: isPremium
+                                                          ? Colors.white
+                                                          : HunterTheme.primary,
                                                       fontSize: 9,
                                                       fontWeight: FontWeight.bold,
                                                       letterSpacing: 1,
@@ -987,7 +1053,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                           Text(
                                             '${getRankTitle(level)}  ·  Lv.$level',
                                             style: TextStyle(
-                                              color: rc.withOpacity(0.7),
+                                              color: subColor,
                                               fontSize: 11,
                                               letterSpacing: 0.3,
                                             ),
@@ -1001,16 +1067,22 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 10, vertical: 5),
                                       decoration: BoxDecoration(
-                                        color: HunterTheme.primary.withOpacity(0.1),
+                                        color: isPremium
+                                            ? Colors.white.withOpacity(0.15)
+                                            : HunterTheme.primary.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
-                                          color: HunterTheme.primary.withOpacity(0.3),
+                                          color: isPremium
+                                              ? Colors.white.withOpacity(0.45)
+                                              : HunterTheme.primary.withOpacity(0.3),
                                         ),
                                       ),
                                       child: Text(
                                         '${hunter['xp'] ?? 0} XP',
                                         style: TextStyle(
-                                          color: HunterTheme.primary,
+                                          color: isPremium
+                                              ? Colors.white
+                                              : HunterTheme.primary,
                                           fontWeight: FontWeight.bold,
                                           fontSize: 12,
                                         ),

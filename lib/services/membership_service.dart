@@ -293,7 +293,8 @@ class MembershipService {
       return;
     }
 
-    _tier = MembershipTier.fromString(data['membership']?.toString());
+    _tier = MembershipTier.fromString(
+        (data['membershipType'] ?? data['membership'])?.toString());
     _subscriptionActive = data['subscriptionActive'] == true;
     _membershipExpiry = _parseExpiry(data['membershipExpiry']);
   }

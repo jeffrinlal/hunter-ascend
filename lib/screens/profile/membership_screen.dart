@@ -574,7 +574,12 @@ class _CurrentPlanBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final badgeColor = _badgeColor();
-    final isActive = membership.hasPremium && membership.subscriptionActive;
+    // In the rewarded-ad model, "active" means: has premium tier AND expiry
+    // is in the future. subscriptionActive is a legacy field not used here.
+    final expiry = membership.membershipExpiry;
+    final isActive = membership.hasPremium &&
+        expiry != null &&
+        expiry.isAfter(DateTime.now());
     final countdown = _expiryCountdown();
 
     return Container(

@@ -14,6 +14,7 @@ import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:hunter_ascend/screens/profile/membership_screen.dart';
+import 'package:hunter_ascend/screens/profile/reports/reports_tab.dart';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
 import 'package:hunter_ascend/widgets/premium_avatar.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
@@ -89,7 +90,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -610,7 +611,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                       fontWeight: FontWeight.w600,
                       letterSpacing: 1.5,
                     ),
+                    isScrollable: false,
                     tabs: const [
+                      Tab(text: 'REPORTS'),
                       Tab(text: 'PHYSIQUE'),
                       Tab(text: 'HISTORY'),
                     ],
@@ -623,6 +626,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                 child: TabBarView(
                   controller: _tabController,
                   children: [
+
+                    // ── REPORTS (premium: Pro/Max) ────────────────────
+                    ReportsTab(
+                      uid: user?.uid ?? '',
+                      hunterData: data,
+                    ),
 
                     // ── PHYSIQUE ──────────────────────────────────────
                     SingleChildScrollView(
@@ -745,14 +754,18 @@ class _ProfileScreenState extends State<ProfileScreen>
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(
-            child: Text(snapshot.error.toString(),
-                style: const TextStyle(color: Colors.red)),
+          return _centeredScrollSafe(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(snapshot.error.toString(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.red)),
+            ),
           );
         }
 
         if (!snapshot.hasData) {
-          return Center(
+          return _centeredScrollSafe(
             child: CircularProgressIndicator(color: HunterTheme.primary),
           );
         }
@@ -760,18 +773,20 @@ class _ProfileScreenState extends State<ProfileScreen>
         final docs = snapshot.data!.docs;
 
         if (docs.isEmpty) {
-          return Center(
+          return _centeredScrollSafe(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.monitor_weight_outlined,
                     color: HunterTheme.textFaint, size: 64),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Text('No weight history yet',
-                    style: TextStyle(color: HunterTheme.textTertiary, fontSize: 16)),
-                SizedBox(height: 8),
+                    style: TextStyle(
+                        color: HunterTheme.textTertiary, fontSize: 16)),
+                const SizedBox(height: 8),
                 Text('Update your weight in the Physique tab',
-                    style: TextStyle(color: HunterTheme.textFaint, fontSize: 13)),
+                    style: TextStyle(
+                        color: HunterTheme.textFaint, fontSize: 13)),
               ],
             ),
           );
@@ -903,6 +918,25 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   // ── Helper widgets ─────────────────────────────────────────────────
+
+  /// Wraps a small, centered widget so it can never cause a RenderFlex
+  /// overflow inside the bounded [TabBarView]/[SliverFillRemaining] area.
+  ///
+  /// On tall viewports the child stays vertically centered; on short viewports
+  /// (small devices, split-screen) the content scrolls instead of overflowing.
+  Widget _centeredScrollSafe({required Widget child}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(child: child),
+          ),
+        );
+      },
+    );
+  }
 
   Widget _statPill(String value, String label) {
     return Column(

@@ -8,8 +8,10 @@ import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
+import 'package:hunter_ascend/services/membership_service.dart';
 
 import '../../widgets/premium_avatar.dart';
+import '../../widgets/premium_card_decorator.dart';
 
 // ── Top 3 Crown Painter ────────────────────────────────────────────────────
 
@@ -620,17 +622,30 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                           stream: _myHunterStream,
                           builder: (context, mySnap) {
                             final myData = mySnap.data?.data() as Map<String, dynamic>?;
-                            return Container(
-                              margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                              child: PremiumCardDecorator(
+                                membership: (myData?['membership'] ?? myData?['membershipType'] ?? 'basic').toString(),
+                                borderRadius: BorderRadius.circular(16),
+                                child: Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(16),
-                                color: HunterTheme.cardColor,
-                                border: Border.all(
+                                color: MembershipTier.fromString(
+                                    (myData?['membership'] ?? myData?['membershipType'] ?? 'basic').toString()) != MembershipTier.basic
+                                    ? Colors.transparent
+                                    : HunterTheme.cardColor,
+                                border: MembershipTier.fromString(
+                                    (myData?['membership'] ?? myData?['membershipType'] ?? 'basic').toString()) != MembershipTier.basic
+                                    ? null
+                                    : Border.all(
                                   color: HunterTheme.primary.withOpacity(0.35),
                                   width: 1.5,
                                 ),
-                                boxShadow: [
+                                boxShadow: MembershipTier.fromString(
+                                    (myData?['membership'] ?? myData?['membershipType'] ?? 'basic').toString()) != MembershipTier.basic
+                                    ? null
+                                    : [
                                   BoxShadow(
                                     color: HunterTheme.primary.withOpacity(0.1),
                                     blurRadius: 20,
@@ -752,6 +767,8 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                   ),
                                 ],
                               ),
+                            ),
+                            ),
                             );
                           },
                         ),
@@ -819,24 +836,36 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                   ),
                                 );
                               },
-                              child: Container(
-                                margin: const EdgeInsets.only(bottom: 8),
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: PremiumCardDecorator(
+                                  membership: (hunter['membership'] ?? 'basic').toString(),
+                                  child: Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 14,
                                   vertical: 11,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: isMe
-                                      ? HunterTheme.surface
-                                      : HunterTheme.cardColor,
+                                  color: MembershipTier.fromString(
+                                      (hunter['membership'] ?? 'basic').toString()) != MembershipTier.basic
+                                      ? Colors.transparent
+                                      : (isMe
+                                          ? HunterTheme.surface
+                                          : HunterTheme.cardColor),
                                   borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
+                                  border: MembershipTier.fromString(
+                                      (hunter['membership'] ?? 'basic').toString()) != MembershipTier.basic
+                                      ? null
+                                      : Border.all(
                                     color: isMe
                                         ? HunterTheme.primary.withOpacity(0.4)
                                         : HunterTheme.textPrimary.withOpacity(0.06),
                                     width: 1,
                                   ),
-                                  boxShadow: [
+                                  boxShadow: MembershipTier.fromString(
+                                      (hunter['membership'] ?? 'basic').toString()) != MembershipTier.basic
+                                      ? null
+                                      : [
                                     BoxShadow(
                                       color: HunterTheme.primary.withOpacity(0.04),
                                       blurRadius: 10,
@@ -990,6 +1019,8 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
                                   ],
                                 ),
                               ),
+                              ),
+                            ),
                             );
                           },
                         ),

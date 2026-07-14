@@ -8,6 +8,7 @@ import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 
 /// Form to create/send a duel challenge to another hunter.
@@ -254,7 +255,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
     if (!MembershipService.instance.showRewardedAds) return;
 
     RewardedAd.load(
-      adUnitId: 'ca-app-pub-5435480116436845/4406856317',
+      adUnitId: AppConstants.streakRecoveryRewardedAdUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {

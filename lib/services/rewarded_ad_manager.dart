@@ -43,7 +43,7 @@ class RewardedAdManager {
     if (kDebugMode) {
       return AppConstants.testRewardedAdUnitId;
     }
-    return AppConstants.membershipRewardedAdUnitId;
+    return AppConstants.streakRecoveryRewardedAdUnitId;
   }
 
   // ── Public State ─────────────────────────────────────────────────────────

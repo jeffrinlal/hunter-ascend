@@ -10,6 +10,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:hunter_ascend/services/ads_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
@@ -94,9 +95,9 @@ class _MapScreenState extends State<MapScreen> {
     if (!MembershipService.instance.showBannerAds) return;
 
     final adUnitId = Platform.isAndroid
-        ? 'ca-app-pub-5435480116436845/6580125873'
+        ? AppConstants.mapHistoryBannerAdUnitId
     // TODO: Replace with your real iOS banner ad unit ID for production
-        : 'ca-app-pub-3940256099942544/2934735716';
+        : AppConstants.testBannerAdUnitId;
 
     _bannerAd = AdsService.createBannerAd(
       adUnitId: adUnitId,

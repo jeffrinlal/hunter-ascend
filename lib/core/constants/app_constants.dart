@@ -6,7 +6,7 @@ library;
 class AppConstants {
   AppConstants._();
 
-  // ── AdMob banner ad unit IDs (each used in multiple screens) ───────────
+  // ── AdMob banner ad unit IDs ───────────────────────────────────────────
   /// Banner used on the Calorie Tracker and Duel Request screens.
   static const String challengeBannerAdUnitId =
       'ca-app-pub-5435480116436845/4699186117';
@@ -15,12 +15,25 @@ class AppConstants {
   static const String dashboardBannerAdUnitId =
       'ca-app-pub-5435480116436845/4995463929';
 
+  /// Banner used on the Map History screen.
+  static const String mapHistoryBannerAdUnitId =
+      'ca-app-pub-5435480116436845/6580125873';
+
   // ── AdMob rewarded ad unit IDs ─────────────────────────────────────────
-  /// Rewarded ad used on the Membership screen (Pro/Max membership claims).
-  static const String membershipRewardedAdUnitId =
+  /// Rewarded ad for streak recovery and membership claims.
+  static const String streakRecoveryRewardedAdUnitId =
       'ca-app-pub-5435480116436845/4406856317';
 
-  /// Google's official test rewarded ad unit ID (used in debug builds).
+  /// Rewarded ad for discipline punishment.
+  static const String punishmentRewardedAdUnitId =
+      'ca-app-pub-5435480116436845/7002658082';
+
+  // ── AdMob test ad unit IDs (debug builds only) ─────────────────────────
+  /// Google's official test rewarded ad unit ID.
   static const String testRewardedAdUnitId =
       'ca-app-pub-3940256099942544/5224354917';
+
+  /// Google's official test banner ad unit ID.
+  static const String testBannerAdUnitId =
+      'ca-app-pub-3940256099942544/6300978111';
 }

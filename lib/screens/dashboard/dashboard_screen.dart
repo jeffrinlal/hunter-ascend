@@ -707,7 +707,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void loadRewardedAd() {
     RewardedAd.load(
-      adUnitId: 'ca-app-pub-5435480116436845/4406856317',
+      adUnitId: AppConstants.streakRecoveryRewardedAdUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) { rewardedAd = ad; setState(() => isRewardedAdReady = true); },
@@ -718,7 +718,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void loadPunishmentAd() {
     RewardedAd.load(
-      adUnitId: 'ca-app-pub-5435480116436845/7002658082',
+      adUnitId: AppConstants.punishmentRewardedAdUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) { punishmentAd = ad; setState(() => isPunishmentAdReady = true); },

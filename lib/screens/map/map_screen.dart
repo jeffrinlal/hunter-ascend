@@ -178,6 +178,7 @@ class _MapScreenState extends State<MapScreen> {
 
     // Timer
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
       if (!_isPaused) setState(() => _elapsedSeconds++);
     });
 

@@ -41,7 +41,8 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
 
     bannerAd = AdsService.createBannerAd(
       adUnitId: AppConstants.challengeBannerAdUnitId,
-      onAdLoaded: (ad) => setState(() => isBannerReady = true),
+      onAdLoaded: (ad) { if (mounted) setState(() => isBannerReady = true); },
+      onAdFailedToLoad: (ad, error) { ad.dispose(); },
     );
     bannerAd!.load();
   }

@@ -685,7 +685,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     bannerAd = AdsService.createBannerAd(
       adUnitId: AppConstants.dashboardBannerAdUnitId,
-      onAdLoaded: (ad) => setState(() => isBannerReady = true),
+      onAdLoaded: (ad) { if (mounted) setState(() => isBannerReady = true); },
       onAdFailedToLoad: (ad, error) { debugPrint("BANNER FAILED: $error"); ad.dispose(); },
     );
     bannerAd!.load();
@@ -696,7 +696,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     weeklyBannerAd = AdsService.createBannerAd(
       adUnitId: AppConstants.dashboardBannerAdUnitId,
-      onAdLoaded: (ad) => setState(() => weeklyBannerReady = true),
+      onAdLoaded: (ad) { if (mounted) setState(() => weeklyBannerReady = true); },
       onAdFailedToLoad: (ad, error) {
         debugPrint("WEEKLY BANNER FAILED: $error");
         ad.dispose();
@@ -710,7 +710,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       adUnitId: AppConstants.streakRecoveryRewardedAdUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
-        onAdLoaded: (ad) { rewardedAd = ad; setState(() => isRewardedAdReady = true); },
+        onAdLoaded: (ad) { rewardedAd = ad; if (mounted) setState(() => isRewardedAdReady = true); },
         onAdFailedToLoad: (error) { debugPrint("REWARDED FAILED: $error"); isRewardedAdReady = false; },
       ),
     );
@@ -721,7 +721,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       adUnitId: AppConstants.punishmentRewardedAdUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
-        onAdLoaded: (ad) { punishmentAd = ad; setState(() => isPunishmentAdReady = true); },
+        onAdLoaded: (ad) { punishmentAd = ad; if (mounted) setState(() => isPunishmentAdReady = true); },
         onAdFailedToLoad: (error) { debugPrint("PUNISHMENT AD FAILED: $error"); isPunishmentAdReady = false; },
       ),
     );
@@ -792,6 +792,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
+    if (!doc.exists) return;
     final data = doc.data() as Map<String, dynamic>;
     final previousStreak = data['previousStreak'] ?? 0;
     await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({

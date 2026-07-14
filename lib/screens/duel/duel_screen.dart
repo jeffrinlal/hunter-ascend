@@ -91,6 +91,7 @@ class _DuelScreenState extends State<DuelScreen> {
 
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) { timer.cancel(); return; }
       final now = DateTime.now();
       if (questEndTime == null) return;
       final diff = questEndTime!.difference(now);
@@ -245,6 +246,7 @@ class _DuelScreenState extends State<DuelScreen> {
 
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) { timer.cancel(); return; }
       final now = DateTime.now();
       if (questEndTime == null) return;
       final diff = questEndTime!.difference(now);

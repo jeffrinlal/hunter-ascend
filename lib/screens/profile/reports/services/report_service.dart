@@ -132,12 +132,12 @@ class ReportMembership {
   ReportMembership._();
 
   /// Effective tier from the live hunter document (current field only).
+  /// A premium tier with an expired expiry is treated as Basic.
   static MembershipTier effectiveTier(Map<String, dynamic> data) {
     final stored = MembershipTier.fromString(data['membershipType']?.toString());
+    if (stored == MembershipTier.basic) return MembershipTier.basic;
     final expiry = _parseExpiry(data['membershipExpiry']);
-    if (stored != MembershipTier.basic &&
-        expiry != null &&
-        expiry.isBefore(DateTime.now())) {
+    if (expiry != null && expiry.isBefore(DateTime.now())) {
       return MembershipTier.basic;
     }
     return stored;

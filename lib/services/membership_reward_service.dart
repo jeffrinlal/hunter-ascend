@@ -162,28 +162,21 @@ class MembershipRewardService {
             if (now - startedAtMs > _maxPendingExpiryMs) {
               effectivePending = 0; // Expired — reset.
             }
-          }
-
-          // If switching from pro, reset pending.
-          if (currentType == 'pro') {
+          } else if (effectivePending > 0) {
+            // Pending count without a valid timestamp = corrupted state; reset.
             effectivePending = 0;
           }
 
           if (effectivePending < 1) {
-            // First ad — record pending, no extension.
-            // Clear membershipExpiry when switching tiers so the second
-            // ad starts fresh from now (not from old tier's expiry).
-            final Map<String, dynamic> updateData = {
-              'membershipType': 'max',
+            // First ad — record pending progress only.
+            // DO NOT modify membershipType or membershipExpiry.
+            // The user's active membership (Basic or Pro) remains unchanged
+            // until the second ad completes the Max grant.
+            txn.update(docRef, {
               'pendingMaxRewardAds': 1,
               'pendingMaxRewardStartedAt':
                   Timestamp.fromMillisecondsSinceEpoch(now),
-            };
-            // If switching FROM a different tier, clear the old expiry.
-            if (currentType != 'max') {
-              updateData['membershipExpiry'] = null;
-            }
-            txn.update(docRef, updateData);
+            });
 
             return const RewardClaimResult(
               success: true,

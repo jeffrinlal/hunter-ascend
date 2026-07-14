@@ -3,6 +3,7 @@ import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
+import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
 import 'package:hunter_ascend/widgets/premium_avatar.dart';
 
@@ -31,6 +32,27 @@ class CompareHuntersScreen extends StatelessWidget {
     if (level >= 10) return HunterTheme.primary;
     if (level >= 5)  return HunterTheme.success;
     return HunterTheme.textSecondary;
+  }
+
+  /// Resolves effective membership from a hunter doc. A premium tier
+  /// with an expired expiry is treated as Basic.
+  String _effectiveMembership(Map<String, dynamic>? data) {
+    if (data == null) return 'basic';
+    final raw = (data['membershipType'] ?? data['membership'] ?? 'basic')
+        .toString();
+    final tier = MembershipTier.fromString(raw);
+    if (tier == MembershipTier.basic) return 'basic';
+    final expiry = _parseExpiry(data['membershipExpiry']);
+    if (expiry != null && expiry.isBefore(DateTime.now())) return 'basic';
+    return raw;
+  }
+
+  DateTime? _parseExpiry(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is Timestamp) return raw.toDate();
+    if (raw is DateTime) return raw;
+    if (raw is String) return DateTime.tryParse(raw);
+    return null;
   }
 
   @override
@@ -147,7 +169,7 @@ class CompareHuntersScreen extends StatelessWidget {
                         myLevel,
                         myRankColor,
                         myData['profilePicture'],
-                        (myData['membership'] ?? 'basic').toString(),
+                        _effectiveMembership(myData),
                         isMe: true,
                       ),
                     ),
@@ -187,7 +209,7 @@ class CompareHuntersScreen extends StatelessWidget {
                         theirLevel,
                         theirRankColor,
                         theirData['profilePicture'],
-                        (theirData['membership'] ?? 'basic').toString(),
+                        _effectiveMembership(theirData),
                         isMe: false,
                       ),
                     ),

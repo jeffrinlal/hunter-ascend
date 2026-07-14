@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/screens/leaderboard/compare_hunters_screen.dart';
 import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
+import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
 import 'package:hunter_ascend/widgets/premium_avatar.dart';
 
@@ -44,6 +45,27 @@ class PublicHunterProfileScreen extends StatelessWidget {
     return HunterTheme.textSecondary;
   }
 
+  /// Resolves the effective membership string for a hunter document.
+  /// A premium tier with an expired expiry is treated as Basic.
+  /// Handles both `membershipType` and legacy `membership`.
+  String _resolveEffectiveMembership(Map<String, dynamic> data) {
+    final raw = (data['membershipType'] ?? data['membership'] ?? 'basic')
+        .toString();
+    final tier = MembershipTier.fromString(raw);
+    if (tier == MembershipTier.basic) return 'basic';
+    final expiry = _parseExpiry(data['membershipExpiry']);
+    if (expiry != null && expiry.isBefore(DateTime.now())) return 'basic';
+    return raw;
+  }
+
+  DateTime? _parseExpiry(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is Timestamp) return raw.toDate();
+    if (raw is DateTime) return raw;
+    if (raw is String) return DateTime.tryParse(raw);
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
@@ -79,6 +101,12 @@ class PublicHunterProfileScreen extends StatelessWidget {
           final rankColor= _getRankColor(level);
           final total    = wins + losses;
           final winRate  = total == 0 ? 0 : ((wins * 100) / total).round();
+
+          // Resolve the effective membership tier using the same logic as
+          // MembershipService — a premium tier is only active when expiry
+          // is non-null and in the future. Handles both new `membershipType`
+          // and legacy `membership` field.
+          final effectiveMembership = _resolveEffectiveMembership(data);
 
           return CustomScrollView(
             slivers: [
@@ -160,7 +188,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                                   ),
                                 ),
           PremiumAvatar(
-          membership: (data['membership'] ?? 'basic').toString(),
+          membership: effectiveMembership,
           radius: 50,
           image: data['profilePicture'] != null
           ? MemoryImage(
@@ -228,7 +256,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                                 const SizedBox(width: 8),
 
                                 MembershipBadge(
-                                  membership: (data['membership'] ?? 'basic').toString(),
+                                  membership: effectiveMembership,
                                   fontSize: 9,
                                 ),
 
@@ -237,7 +265,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
 
                             const SizedBox(height: 10),
                             Text(
-                              "${(data['membership'] ?? 'Basic').toString().toUpperCase()} HUNTER",
+                              "${effectiveMembership.toUpperCase()} HUNTER",
                               style: TextStyle(
                                 color: HunterTheme.primary,
                                 fontWeight: FontWeight.bold,

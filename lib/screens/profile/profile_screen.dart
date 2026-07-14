@@ -13,7 +13,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'dart:convert';
 import 'dart:io';
-import 'package:hunter_ascend/screens/profile/membership_screen.dart';
+// Temporarily disabled — membership feature hidden for production.
+// import 'package:hunter_ascend/screens/profile/membership_screen.dart';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
 import 'package:hunter_ascend/widgets/premium_avatar.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
@@ -496,75 +497,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 22),
-
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const MembershipScreen(),
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      HunterTheme.primary.withOpacity(0.15),
-                                      HunterTheme.gold.withOpacity(0.12),
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: HunterTheme.primary.withOpacity(0.4),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.workspace_premium,
-                                      color: HunterTheme.gold,
-                                      size: 28,
-                                    ),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            "Hunter Membership",
-                                            style: TextStyle(
-                                              color: HunterTheme.textPrimary,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            "Unlock PRO & MAX rewards",
-                                            style: TextStyle(
-                                              color: HunterTheme.textSecondary,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Icon(
-                                      Icons.arrow_forward_ios,
-                                      color: HunterTheme.primary,
-                                      size: 18,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
+                            // ── Membership entry temporarily hidden for production ──
+                            // To reactivate, uncomment the GestureDetector block below.
+                            // GestureDetector(
+                            //   onTap: () => Navigator.push(context,
+                            //     MaterialPageRoute(builder: (_) => const MembershipScreen())),
+                            //   ...
+                            // ),
 
                             const SizedBox(height: 22),
 

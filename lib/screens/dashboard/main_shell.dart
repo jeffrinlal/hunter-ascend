@@ -8,6 +8,8 @@ import 'package:hunter_ascend/screens/profile/profile_screen.dart';
 import 'package:hunter_ascend/screens/duel/duel_screen.dart';
 import 'package:hunter_ascend/screens/duel/duel_request_screen.dart';
 import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
+import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/screens/profile/membership_screen.dart';
 
 /// Persistent shell hosting the main app screens behind a bottom NavigationBar.
 /// Tabs: Home (Dashboard), Quests, Leaderboard, Duels, Profile.
@@ -36,6 +38,98 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _index = 0;
   bool _isOpeningDuels = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Check for membership expiration after the first frame renders.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkMembershipExpired();
+    });
+  }
+
+  /// Shows a one-time dialog if the user's membership has expired since
+  /// their last session. The flag is consumed so the dialog never repeats
+  /// for the same expiration event.
+  void _checkMembershipExpired() {
+    final expiredTier = MembershipService.instance.consumeExpiredTier();
+    if (expiredTier == null || !mounted) return;
+
+    final tierName = expiredTier == MembershipTier.pro ? 'PRO' : 'MAX';
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HunterTheme.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Text(
+              '\u2694\uFE0F Membership Expired',
+              style: TextStyle(
+                color: HunterTheme.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Your $tierName membership has ended.\nWatch rewarded ads to unlock premium benefits again.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: HunterTheme.textSecondary,
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const MembershipScreen(),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: HunterTheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Renew Membership',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              ),
+            ),
+            const SizedBox(height: 10),
+            GestureDetector(
+              onTap: () => Navigator.of(ctx).pop(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Maybe Later',
+                  style: TextStyle(
+                    color: HunterTheme.textTertiary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   late final List<Widget> _tabs = [
     DashboardScreen(

@@ -179,6 +179,11 @@ class MembershipService {
   bool _subscriptionActive = false;
   DateTime? _membershipExpiry;
 
+  /// Tracks which tier just expired (for the one-time expiration dialog).
+  /// Set during [_applyDocumentData] when a premium tier is found expired.
+  /// Consumed (reset to null) by [consumeExpiredTier].
+  MembershipTier? _lastExpiredTier;
+
   /// Whether a successful load has completed at least once this session.
   bool _hasLoaded = false;
 
@@ -297,6 +302,15 @@ class MembershipService {
         (data['membershipType'] ?? data['membership'])?.toString());
     _subscriptionActive = data['subscriptionActive'] == true;
     _membershipExpiry = _parseExpiry(data['membershipExpiry']);
+
+    // ── Auto-expiration check ──
+    // If the stored tier is premium but the expiry is in the past,
+    // record it for the one-time dialog. The stored _tier is preserved;
+    // the effective tier (used by all getters) will be Basic.
+    if (_tier != MembershipTier.basic && _membershipExpiry != null &&
+        _membershipExpiry!.isBefore(DateTime.now())) {
+      _lastExpiredTier = _tier;
+    }
   }
 
   /// Resets the cache to the safe, no-purchase default: Basic membership,
@@ -324,7 +338,22 @@ class MembershipService {
   /// All public feature getters below simply forward to this configuration,
   /// so every Basic/Pro/Max rule lives in exactly one place:
   /// [MembershipFeatures].
-  MembershipFeatures get _features => MembershipFeatures.forTier(_tier);
+  MembershipFeatures get _features => MembershipFeatures.forTier(_effectiveTier);
+
+  /// The effective tier: if the stored tier is premium but expired,
+  /// this returns Basic. Otherwise returns the stored tier.
+  /// All public getters use this — never [_tier] directly.
+  MembershipTier get _effectiveTier {
+    if (_tier != MembershipTier.basic && _membershipExpiry != null &&
+        _membershipExpiry!.isBefore(DateTime.now())) {
+      return MembershipTier.basic;
+    }
+    return _tier;
+  }
+
+  /// The stored membership tier from Firestore (may be expired).
+  /// Use [_effectiveTier] for feature gating.
+  MembershipTier get storedTier => _tier;
 
   // ───────────────────────────────────────────────────────────────────────
   // Tier getters
@@ -334,13 +363,13 @@ class MembershipService {
   // ───────────────────────────────────────────────────────────────────────
 
   /// Whether the current hunter is on the free/default Basic tier.
-  bool get isBasic => _tier == MembershipTier.basic;
+  bool get isBasic => _effectiveTier == MembershipTier.basic;
 
   /// Whether the current hunter has an active Pro membership.
-  bool get isPro => _tier == MembershipTier.pro;
+  bool get isPro => _effectiveTier == MembershipTier.pro;
 
   /// Whether the current hunter has an active Max membership.
-  bool get isMax => _tier == MembershipTier.max;
+  bool get isMax => _effectiveTier == MembershipTier.max;
 
   /// Whether the current hunter has any paid membership (Pro or Max).
   ///
@@ -355,7 +384,7 @@ class MembershipService {
   /// it is derived from the cached [MembershipTier], never the raw
   /// Firestore value, so it is always one of `"Basic"`, `"Pro"` or `"Max"`.
   String get membershipName {
-    switch (_tier) {
+    switch (_effectiveTier) {
       case MembershipTier.basic:
         return 'Basic';
       case MembershipTier.pro:
@@ -379,6 +408,22 @@ class MembershipService {
   /// `null` when there is no subscription or no expiry has been set (e.g.
   /// Basic tier, or a Pro/Max grant with no expiry configured).
   DateTime? get membershipExpiry => _membershipExpiry;
+
+  /// Whether a membership expiration was detected on the most recent load.
+  ///
+  /// Returns `true` only once per expiration event. After calling
+  /// [consumeExpiredTier], this returns `false` until the next expiration.
+  bool get hasJustExpired => _lastExpiredTier != null;
+
+  /// Returns the tier that just expired and clears the flag.
+  ///
+  /// Call this once to show the expiration dialog. Subsequent calls
+  /// return `null` until a new expiration is detected.
+  MembershipTier? consumeExpiredTier() {
+    final tier = _lastExpiredTier;
+    _lastExpiredTier = null;
+    return tier;
+  }
 
   // ───────────────────────────────────────────────────────────────────────
   // Feature getters

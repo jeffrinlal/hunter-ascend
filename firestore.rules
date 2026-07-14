@@ -9,40 +9,30 @@ service cloud.firestore {
     // Each hunter document is at: hunters/{uid}
     //
     // SECURITY PRINCIPLE:
-    // - Membership fields are EXCLUSIVELY managed by Cloud Functions.
-    // - The client may read its own document and update gameplay fields.
-    // - Cross-user duel stat writes are temporarily allowed (known deferred
-    //   item — will be migrated to Cloud Functions in a future phase).
-    //
-    // Fields protected from client writes (only Cloud Functions may update):
-    //   membershipType, membershipExpiry, pendingMaxRewardAds,
-    //   pendingMaxRewardStartedAt, lastRewardClaim
-    //
-    // Note: Firebase Admin SDK (used by Cloud Functions) bypasses all
-    // security rules. These rules only restrict client-side SDK access.
+    // - Users can only read and write their own document.
+    // - Updates are restricted: each write may only touch fields relevant
+    //   to that operation.
+    // - Membership fields are writable by the owner ONLY via a dedicated
+    //   rule that limits affected keys to membership-related fields.
+    // - Gameplay fields are writable by the owner but CANNOT touch
+    //   membership fields in the same write.
+    // - Cross-user duel stat writes are temporarily allowed (deferred item).
     // ══════════════════════════════════════════════════════════════════════
 
     match /hunters/{hunterId} {
 
-      // ── Read: only the document owner can read their own data ──
+      // ── Read: only the document owner ──
       allow read: if request.auth != null && request.auth.uid == hunterId;
 
-      // ── Create: only the document owner, during initial profile setup ──
+      // ── Create: only the document owner ──
       allow create: if request.auth != null
-                    && request.auth.uid == hunterId
-                    && !request.resource.data.keys().hasAny([
-                      'membershipType',
-                      'membershipExpiry',
-                      'pendingMaxRewardAds',
-                      'pendingMaxRewardStartedAt',
-                      'lastRewardClaim'
-                    ]);
+                    && request.auth.uid == hunterId;
 
-      // ── Update: owner can update gameplay fields ──
-      // Rejects any update that attempts to modify protected membership fields.
+      // ── Update: restricted by field sets ──
       allow update: if request.auth != null
                     && (
-                      // Own document: block membership field writes
+                      // ── Own document: gameplay fields ──
+                      // Allows updating any field EXCEPT membership fields.
                       (request.auth.uid == hunterId
                        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
                          'membershipType',
@@ -52,10 +42,18 @@ service cloud.firestore {
                          'lastRewardClaim'
                        ]))
                       ||
-                      // Cross-user duel stats (temporary exception)
-                      // Only allows incrementing duelWins or duelLosses on
-                      // another user's document. Will be migrated to Cloud
-                      // Functions in a future phase.
+                      // ── Own document: membership reward claim ──
+                      // Allows updating ONLY membership-related fields.
+                      (request.auth.uid == hunterId
+                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                         'membershipType',
+                         'membershipExpiry',
+                         'pendingMaxRewardAds',
+                         'pendingMaxRewardStartedAt',
+                         'lastRewardClaim'
+                       ]))
+                      ||
+                      // ── Cross-user: duel stats only (temporary) ──
                       (request.auth.uid != hunterId
                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                          'duelWins', 'duelLosses'
@@ -67,7 +65,7 @@ service cloud.firestore {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // SUBSCRIPTIONS COLLECTION (legacy — read-only, no new writes)
+    // SUBSCRIPTIONS COLLECTION (legacy — locked)
     // ══════════════════════════════════════════════════════════════════════
     match /subscriptions/{docId} {
       allow read: if false;

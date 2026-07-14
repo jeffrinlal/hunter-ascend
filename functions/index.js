@@ -102,18 +102,37 @@ exports.claimMembershipReward = functions.https.onCall(async (data, context) => 
   functions.logger.info("claimMembershipReward called", {
     uid,
     membershipType,
+    projectId: process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || admin.app().options.projectId || "UNKNOWN",
   });
 
   // ── Firestore transaction ──
   const hunterRef = db.collection("hunters").doc(uid);
 
+  functions.logger.info("Attempting to read document", {
+    documentPath: `hunters/${uid}`,
+    projectId: admin.app().options.projectId || "UNKNOWN",
+    databaseURL: admin.app().options.databaseURL || "default",
+  });
+
   try {
     const result = await db.runTransaction(async (txn) => {
       const hunterSnap = await txn.get(hunterRef);
 
+      functions.logger.info("Document read result", {
+        uid,
+        documentPath: `hunters/${uid}`,
+        exists: hunterSnap.exists,
+        hasData: hunterSnap.exists ? !!hunterSnap.data() : false,
+      });
+
       if (!hunterSnap.exists) {
+        functions.logger.error("Hunter document NOT FOUND", {
+          uid,
+          documentPath: `hunters/${uid}`,
+          projectId: admin.app().options.projectId || "UNKNOWN",
+        });
         throw new functions.https.HttpsError(
-          "not-found",
+          "failed-precondition",
           "Hunter profile not found."
         );
       }

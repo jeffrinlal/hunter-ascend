@@ -14,4 +14,13 @@ class AppConstants {
   /// Banner used on the Dashboard (home + weekly) and the Duel screen.
   static const String dashboardBannerAdUnitId =
       'ca-app-pub-5435480116436845/4995463929';
+
+  // ── AdMob rewarded ad unit IDs ─────────────────────────────────────────
+  /// Rewarded ad used on the Membership screen (Pro/Max membership claims).
+  static const String membershipRewardedAdUnitId =
+      'ca-app-pub-5435480116436845/1827593640';
+
+  /// Google's official test rewarded ad unit ID (used in debug builds).
+  static const String testRewardedAdUnitId =
+      'ca-app-pub-3940256099942544/5224354917';
 }

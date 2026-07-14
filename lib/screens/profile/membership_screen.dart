@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/services/membership_reward_service.dart';
+import 'package:hunter_ascend/services/rewarded_ad_manager.dart';
 
 /// State of the rewarded ad button.
 enum _AdButtonState {
@@ -14,11 +16,13 @@ enum _AdButtonState {
   unavailable,
 }
 
-/// Membership screen — rewarded ad model (Phase 11.1).
+/// Membership screen — rewarded ad model (Phase 11.3).
 ///
-/// Displays Basic / Pro / Max plan cards. Pro and Max use rewarded ads
-/// instead of subscriptions. This screen does NOT implement ad logic —
-/// it uses placeholder callbacks for future wiring.
+/// Displays Basic / Pro / Max plan cards. Pro and Max use real AdMob
+/// rewarded ads. On reward earned, calls [MembershipRewardService] to
+/// securely grant membership time via Cloud Functions.
+///
+/// This screen NEVER grants membership directly.
 class MembershipScreen extends StatefulWidget {
   const MembershipScreen({super.key});
 
@@ -33,11 +37,14 @@ class _MembershipScreenState extends State<MembershipScreen>
   late final List<Animation<double>> _cardFade;
   late final List<Animation<Offset>> _cardSlide;
 
-  /// Rewarded ad button state for Pro card.
-  _AdButtonState _proAdState = _AdButtonState.ready;
+  /// Rewarded ad manager (single instance for both Pro and Max).
+  late final RewardedAdManager _adManager;
 
-  /// Rewarded ad button state for Max card.
-  _AdButtonState _maxAdState = _AdButtonState.ready;
+  /// Max pending progress (0 = no ads watched, 1 = first ad done).
+  int _maxPendingAds = 0;
+
+  /// Whether a claim is currently being processed.
+  bool _isClaiming = false;
 
   @override
   void initState() {
@@ -58,7 +65,6 @@ class _MembershipScreenState extends State<MembershipScreen>
       );
     });
 
-
     _cardSlide = List.generate(cardCount, (index) {
       final start = index * 0.15;
       final end = (start + 0.6).clamp(0.0, 1.0);
@@ -73,59 +79,108 @@ class _MembershipScreenState extends State<MembershipScreen>
       );
     });
 
+    // Initialize ad manager (single instance for both Pro and Max).
+    _adManager = RewardedAdManager(
+      onAdStatusChanged: () { if (mounted) setState(() {}); },
+    );
+
+    // Load membership and ads.
     MembershipService.instance.loadMembership().whenComplete(() {
       if (mounted) setState(() {});
     });
 
-    _entranceController.forward();
+    _adManager.loadAd();
 
-    // Placeholder: In production, load rewarded ads here and update
-    // _proAdState / _maxAdState accordingly.
-    _loadRewardedAds();
+    _entranceController.forward();
   }
 
   @override
   void dispose() {
+    _adManager.dispose();
     _entranceController.dispose();
     super.dispose();
   }
 
 
-  // ── Placeholder Ad Logic ─────────────────────────────────────────────────
+  // ── Ad Button State ────────────────────────────────────────────────────
 
-  /// Placeholder: loads rewarded ads. Replace with actual ad SDK calls.
-  void _loadRewardedAds() {
-    // In production, this would call the ad SDK to preload rewarded videos
-    // and update _proAdState / _maxAdState based on load callbacks.
-    // For now, default to ready state.
+  _AdButtonState _adStateFromManager(RewardedAdManager manager) {
+    if (manager.isReady) return _AdButtonState.ready;
+    if (manager.isLoading) return _AdButtonState.loading;
+    return _AdButtonState.unavailable;
   }
 
-  /// Placeholder: called when user taps the Pro rewarded ad button.
-  void _onWatchProAd() {
-    // In production: show rewarded ad, on completion grant +1 day Pro.
-    debugPrint('MembershipScreen: Watch Pro ad tapped (placeholder).');
+  // ── Rewarded Ad Flows ──────────────────────────────────────────────────
+
+  /// Shows the rewarded ad, then claims the reward for the given type.
+  void _showAdForTier(String membershipType) {
+    if (_isClaiming) return;
+
+    _adManager.showAd(
+      onRewardEarned: () => _claimReward(membershipType),
+      onAdDismissed: () {
+        if (mounted) setState(() {});
+      },
+      onAdFailed: () {
+        if (mounted) {
+          _showErrorSnackBar('Could not show rewarded ad. Please try again.');
+        }
+      },
+    );
+    setState(() {});
   }
 
-  /// Placeholder: called when user taps the Max rewarded ad button.
-  void _onWatchMaxAd() {
-    // In production: show first ad, then second ad, on both completions
-    // grant +1 day Max.
-    debugPrint('MembershipScreen: Watch Max ad tapped (placeholder).');
+  /// Shows Pro rewarded ad, then claims the reward on completion.
+  void _onWatchProAd() => _showAdForTier('pro');
+
+  /// Shows Max rewarded ad, then claims the reward on completion.
+  void _onWatchMaxAd() => _showAdForTier('max');
+
+  /// Calls MembershipRewardService to securely claim the reward.
+  Future<void> _claimReward(String membershipType) async {
+    if (!mounted) return;
+    setState(() => _isClaiming = true);
+
+    final result =
+        await MembershipRewardService.instance.claimReward(membershipType);
+
+    if (!mounted) return;
+
+    if (result.success) {
+      if (result.isPendingMax) {
+        // First Max ad done — update progress.
+        setState(() {
+          _maxPendingAds = 1;
+          _isClaiming = false;
+        });
+        _showSuccessSnackBar('1/2 ads completed. Watch one more for +1 day Max!');
+      } else if (result.wasExtended) {
+        // Membership time granted.
+        setState(() {
+          _maxPendingAds = 0;
+          _isClaiming = false;
+        });
+        _showSuccessSnackBar(
+          '${result.membershipType == "pro" ? "Pro" : "Max"} '
+          'membership extended by +1 day!',
+        );
+      } else {
+        setState(() => _isClaiming = false);
+      }
+    } else {
+      setState(() => _isClaiming = false);
+      _showErrorSnackBar(result.message ?? 'Failed to claim reward.');
+    }
   }
 
 
   // ── Switching Membership Confirmation ────────────────────────────────────
 
-  /// Shows a confirmation dialog when user wants to switch from their
-  /// current premium tier to a different premium tier.
-  void _showSwitchConfirmation({
-    required MembershipTier targetTier,
-  }) {
+  void _showSwitchConfirmation({required MembershipTier targetTier}) {
     final membership = MembershipService.instance;
     final currentName = membership.membershipName;
     final targetName = targetTier == MembershipTier.pro ? 'Pro' : 'Max';
 
-    // Calculate remaining days.
     final expiry = membership.membershipExpiry;
     String remainingText = '';
     if (expiry != null && expiry.isAfter(DateTime.now())) {
@@ -158,29 +213,21 @@ class _MembershipScreenState extends State<MembershipScreen>
               Text(
                 'You currently have $remainingText of $currentName Membership remaining.',
                 style: TextStyle(
-                  color: HunterTheme.textSecondary,
-                  fontSize: 14,
-                  height: 1.5,
+                  color: HunterTheme.textSecondary, fontSize: 14, height: 1.5,
                 ),
               ),
-
-
             const SizedBox(height: 12),
             Text(
               'Switching to $targetName will permanently remove your remaining $currentName Membership.',
               style: TextStyle(
-                color: HunterTheme.textSecondary,
-                fontSize: 14,
-                height: 1.5,
+                color: HunterTheme.textSecondary, fontSize: 14, height: 1.5,
               ),
             ),
             const SizedBox(height: 12),
             Text(
               'This action cannot be undone.',
               style: TextStyle(
-                color: HunterTheme.danger,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+                color: HunterTheme.danger, fontSize: 13, fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -188,18 +235,12 @@ class _MembershipScreenState extends State<MembershipScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: HunterTheme.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: Text('Cancel',
+                style: TextStyle(color: HunterTheme.textSecondary, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              // Proceed with the ad flow for the target tier.
               if (targetTier == MembershipTier.pro) {
                 _onWatchProAd();
               } else {
@@ -208,12 +249,9 @@ class _MembershipScreenState extends State<MembershipScreen>
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: targetTier == MembershipTier.pro
-                  ? HunterTheme.gold
-                  : HunterTheme.purple,
+                  ? HunterTheme.gold : HunterTheme.purple,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             child: Text('Switch to $targetName',
                 style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -223,33 +261,78 @@ class _MembershipScreenState extends State<MembershipScreen>
     );
   }
 
-
-  /// Handles the ad button tap. If user has a different active premium
-  /// tier, shows the switch confirmation. Otherwise starts the ad flow.
   void _handleAdButtonTap(MembershipTier targetTier) {
     final membership = MembershipService.instance;
-
-    // Check if user is switching from one premium tier to another.
-    final bool isSwitching;
-    if (targetTier == MembershipTier.pro && membership.isMax) {
-      isSwitching = true;
-    } else if (targetTier == MembershipTier.max && membership.isPro) {
-      isSwitching = true;
-    } else {
-      isSwitching = false;
-    }
+    final bool isSwitching = (targetTier == MembershipTier.pro && membership.isMax) ||
+        (targetTier == MembershipTier.max && membership.isPro);
 
     if (isSwitching) {
       _showSwitchConfirmation(targetTier: targetTier);
       return;
     }
 
-    // Direct flow — no switch needed.
     if (targetTier == MembershipTier.pro) {
       _onWatchProAd();
     } else {
       _onWatchMaxAd();
     }
+  }
+
+
+  // ── Snackbars ──────────────────────────────────────────────────────────
+
+  void _showSuccessSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: HunterTheme.cardColor,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: HunterTheme.success.withOpacity(0.5)),
+        ),
+        content: Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: HunterTheme.success, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(message,
+                  style: TextStyle(color: HunterTheme.textPrimary,
+                      fontWeight: FontWeight.w600, fontSize: 13)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: HunterTheme.cardColor,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: HunterTheme.danger.withOpacity(0.5)),
+        ),
+        content: Row(
+          children: [
+            Icon(Icons.error_outline_rounded, color: HunterTheme.danger, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(message,
+                  style: TextStyle(color: HunterTheme.textPrimary,
+                      fontWeight: FontWeight.w600, fontSize: 13)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
 
@@ -268,12 +351,11 @@ class _MembershipScreenState extends State<MembershipScreen>
     final width = MediaQuery.of(context).size.width;
     final isTablet = width >= 700;
 
+    final adState = _adStateFromManager(_adManager);
+
     return Scaffold(
       backgroundColor: HunterTheme.background,
-      appBar: AppBar(
-        title: const Text('MEMBERSHIP'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('MEMBERSHIP'), centerTitle: true),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -290,7 +372,6 @@ class _MembershipScreenState extends State<MembershipScreen>
                       const SizedBox(height: 24),
                       _CurrentPlanBanner(membership: membership),
                       const SizedBox(height: 28),
-
 
                       // ── Basic Card ──
                       _AnimatedPlanCard(
@@ -311,7 +392,7 @@ class _MembershipScreenState extends State<MembershipScreen>
                             'Banner ads',
                             'Rewarded ads',
                           ],
-                          adButton: null, // No ad button for Basic.
+                          adButton: null,
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -336,16 +417,16 @@ class _MembershipScreenState extends State<MembershipScreen>
                             'Gold avatar glow',
                           ],
                           adButton: _RewardedAdButton(
-                            state: _proAdState,
+                            state: _isClaiming ? _AdButtonState.loading : adState,
                             label: 'Watch 1 Ad',
                             sublabel: '+1 Day',
                             accentColor: HunterTheme.gold,
                             onTap: () => _handleAdButtonTap(MembershipTier.pro),
+                            onRetry: _adManager.retry,
                           ),
                         ),
                       ),
                       const SizedBox(height: 20),
-
 
                       // ── Max Card ──
                       _AnimatedPlanCard(
@@ -367,18 +448,19 @@ class _MembershipScreenState extends State<MembershipScreen>
                             'Unlimited profile changes',
                           ],
                           adButton: _RewardedAdButton(
-                            state: _maxAdState,
-                            label: 'Watch 2 Ads',
-                            sublabel: '+1 Day',
+                            state: _isClaiming ? _AdButtonState.loading : adState,
+                            label: _maxPendingAds >= 1 ? 'Watch Ad 2/2' : 'Watch Ad 1/2',
+                            sublabel: _maxPendingAds >= 1 ? '+1 Day' : 'Progress',
                             accentColor: HunterTheme.purple,
                             onTap: () => _handleAdButtonTap(MembershipTier.max),
+                            onRetry: _adManager.retry,
                           ),
-                          progressText:
-                              'Watch 2 rewarded ads to earn +1 day of Max Membership.',
+                          progressText: _maxPendingAds >= 1
+                              ? '1/2 ads completed. Watch one more to earn +1 day of Max Membership.'
+                              : 'Watch 2 rewarded ads to earn +1 day of Max Membership.',
                         ),
                       ),
                       const SizedBox(height: 28),
-
 
                       // ── Disclaimer ──
                       Container(
@@ -456,12 +538,9 @@ class _Header extends StatelessWidget {
   }
 }
 
-
-
 /// Displays the hunter's current membership tier with expiry countdown.
 class _CurrentPlanBanner extends StatelessWidget {
   const _CurrentPlanBanner({required this.membership});
-
   final MembershipService membership;
 
   Color _badgeColor() {
@@ -476,7 +555,6 @@ class _CurrentPlanBanner extends StatelessWidget {
     return Icons.shield_outlined;
   }
 
-  /// Returns "X Days Y Hours" remaining, or null.
   String? _expiryCountdown() {
     if (membership.isBasic) return null;
     final expiry = membership.membershipExpiry;
@@ -499,103 +577,58 @@ class _CurrentPlanBanner extends StatelessWidget {
     final isActive = membership.hasPremium && membership.subscriptionActive;
     final countdown = _expiryCountdown();
 
-    return Semantics(
-      label: 'Current plan: ${membership.membershipName}. '
-          '${isActive ? "Active" : ""}. '
-          '${countdown != null ? "Expires in $countdown" : ""}',
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: HunterTheme.cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: badgeColor.withOpacity(0.6), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: badgeColor.withOpacity(HunterTheme.isDark ? 0.2 : 0.1),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-
-
-        child: Column(
-          children: [
-            Row(
-              children: [
-                // Tier badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: badgeColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: badgeColor.withOpacity(0.6)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(_badgeIcon(), color: badgeColor, size: 15),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${membership.membershipName.toUpperCase()} ${isActive ? "ACTIVE" : ""}',
-                        style: TextStyle(
-                          color: badgeColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                if (isActive)
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: HunterTheme.success,
-                    ),
-                  ),
-              ],
-            ),
-            if (membership.hasPremium && countdown != null) ...[
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Icon(Icons.timer_outlined,
-                      color: HunterTheme.textTertiary, size: 14),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Expires in:',
-                    style: TextStyle(
-                      color: HunterTheme.textTertiary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-
-
-                  Text(
-                    countdown,
-                    style: TextStyle(
-                      color: HunterTheme.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: HunterTheme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: badgeColor.withOpacity(0.6), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: badgeColor.withOpacity(HunterTheme.isDark ? 0.2 : 0.1),
+            blurRadius: 16, offset: const Offset(0, 6),
+          ),
+        ],
       ),
+      child: Column(children: [
+        Row(children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: badgeColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: badgeColor.withOpacity(0.6)),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(_badgeIcon(), color: badgeColor, size: 15),
+              const SizedBox(width: 6),
+              Text(
+                '${membership.membershipName.toUpperCase()} ${isActive ? "ACTIVE" : ""}',
+                style: TextStyle(color: badgeColor, fontSize: 12,
+                    fontWeight: FontWeight.w800, letterSpacing: 0.5),
+              ),
+            ]),
+          ),
+          const Spacer(),
+          if (isActive) Container(width: 8, height: 8,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: HunterTheme.success)),
+        ]),
+        if (membership.hasPremium && countdown != null) ...[
+          const SizedBox(height: 14),
+          Row(children: [
+            Icon(Icons.timer_outlined, color: HunterTheme.textTertiary, size: 14),
+            const SizedBox(width: 6),
+            Text('Expires in:', style: TextStyle(color: HunterTheme.textTertiary,
+                fontSize: 12, fontWeight: FontWeight.w500)),
+            const SizedBox(width: 8),
+            Text(countdown, style: TextStyle(color: HunterTheme.textPrimary,
+                fontSize: 14, fontWeight: FontWeight.w700)),
+          ]),
+        ],
+      ]),
     );
   }
 }
-
 
 
 /// Wraps a plan card with staggered fade + slide-up entrance animation.
@@ -605,7 +638,6 @@ class _AnimatedPlanCard extends StatelessWidget {
     required this.slide,
     required this.child,
   });
-
   final Animation<double> fade;
   final Animation<Offset> slide;
   final Widget child;
@@ -619,8 +651,6 @@ class _AnimatedPlanCard extends StatelessWidget {
   }
 }
 
-
-
 /// A plan card for the rewarded-ad membership model.
 class _AdPlanCard extends StatefulWidget {
   const _AdPlanCard({
@@ -633,7 +663,6 @@ class _AdPlanCard extends StatefulWidget {
     this.adButton,
     this.progressText,
   });
-
   final IconData icon;
   final Color accentColor;
   final String title;
@@ -647,183 +676,117 @@ class _AdPlanCard extends StatefulWidget {
   State<_AdPlanCard> createState() => _AdPlanCardState();
 }
 
+
 class _AdPlanCardState extends State<_AdPlanCard> {
   bool _hovered = false;
   bool _pressed = false;
-
   double get _scale => _pressed ? 0.985 : (_hovered ? 1.01 : 1.0);
 
   @override
   Widget build(BuildContext context) {
     final accent = widget.accentColor;
-
-    return Semantics(
-      label: '${widget.title} plan. ${widget.subtitle}. '
-          '${widget.isCurrent ? "This is your current plan." : ""}',
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        child: GestureDetector(
-          onTapDown: (_) => setState(() => _pressed = true),
-          onTapCancel: () => setState(() => _pressed = false),
-          onTapUp: (_) => setState(() => _pressed = false),
-
-
-          child: AnimatedScale(
-            scale: _scale,
-            duration: const Duration(milliseconds: 160),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapCancel: () => setState(() => _pressed = false),
+        onTapUp: (_) => setState(() => _pressed = false),
+        child: AnimatedScale(
+          scale: _scale,
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
             curve: Curves.easeOut,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOut,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: HunterTheme.cardColor,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: widget.isCurrent
-                      ? accent.withOpacity(0.9)
-                      : HunterTheme.border,
-                  width: widget.isCurrent ? 1.6 : 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: accent.withOpacity(
-                        _hovered ? 0.28 : (widget.isCurrent ? 0.22 : 0.12)),
-                    blurRadius: _hovered ? 26 : 18,
-                    spreadRadius: widget.isCurrent ? 1 : 0,
-                    offset: const Offset(0, 8),
-                  ),
-                  BoxShadow(
-                    color: Colors.black
-                        .withOpacity(HunterTheme.isDark ? 0.3 : 0.05),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: HunterTheme.cardColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: widget.isCurrent ? accent.withOpacity(0.9) : HunterTheme.border,
+                width: widget.isCurrent ? 1.6 : 1,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // ── Header row ──
-                  Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: accent.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Icon(widget.icon, color: accent, size: 26),
-                      ),
-                      const SizedBox(width: 14),
-
-
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  widget.title,
-                                  style: TextStyle(
-                                    color: HunterTheme.textPrimary,
-                                    fontSize: 19,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.4,
-                                  ),
-                                ),
-                                if (widget.isCurrent) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: HunterTheme.success.withOpacity(0.12),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                          color: HunterTheme.success.withOpacity(0.5)),
-                                    ),
-                                    child: Text(
-                                      'CURRENT',
-                                      style: TextStyle(
-                                        color: HunterTheme.success,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 0.6,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              widget.subtitle,
-                              style: TextStyle(
-                                color: accent,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withOpacity(_hovered ? 0.28 : (widget.isCurrent ? 0.22 : 0.12)),
+                  blurRadius: _hovered ? 26 : 18,
+                  spreadRadius: widget.isCurrent ? 1 : 0,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(HunterTheme.isDark ? 0.3 : 0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(children: [
+                  Container(
+                    width: 48, height: 48,
+                    decoration: BoxDecoration(
+                      color: accent.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(widget.icon, color: accent, size: 26),
                   ),
-                  const SizedBox(height: 18),
 
 
-                  // ── Features list ──
-                  ...widget.features.map(
-                    (feature) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.check_circle_rounded,
-                              color: accent, size: 17),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              feature,
-                              style: TextStyle(
-                                color: HunterTheme.textSecondary,
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w500,
-                                height: 1.3,
-                              ),
+                  const SizedBox(width: 14),
+                  Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Text(widget.title, style: TextStyle(
+                          color: HunterTheme.textPrimary, fontSize: 19,
+                          fontWeight: FontWeight.w900, letterSpacing: 0.4)),
+                        if (widget.isCurrent) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: HunterTheme.success.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: HunterTheme.success.withOpacity(0.5)),
                             ),
+                            child: Text('CURRENT', style: TextStyle(
+                              color: HunterTheme.success, fontSize: 10,
+                              fontWeight: FontWeight.w800, letterSpacing: 0.6)),
                           ),
                         ],
-                      ),
-                    ),
-                  ),
-
-                  // ── Progress text (Max card) ──
-                  if (widget.progressText != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.progressText!,
-                      style: TextStyle(
-                        color: HunterTheme.textTertiary,
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-
-                  // ── Ad button ──
-                  if (widget.adButton != null) ...[
-                    const SizedBox(height: 8),
-                    widget.adButton!,
-                  ],
+                      ]),
+                      const SizedBox(height: 2),
+                      Text(widget.subtitle, style: TextStyle(
+                        color: accent, fontSize: 14, fontWeight: FontWeight.w700)),
+                    ],
+                  )),
+                ]),
+                const SizedBox(height: 18),
+                ...widget.features.map((feature) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Icon(Icons.check_circle_rounded, color: accent, size: 17),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(feature, style: TextStyle(
+                      color: HunterTheme.textSecondary, fontSize: 13.5,
+                      fontWeight: FontWeight.w500, height: 1.3))),
+                  ]),
+                )),
+                if (widget.progressText != null) ...[
+                  const SizedBox(height: 4),
+                  Text(widget.progressText!, style: TextStyle(
+                    color: HunterTheme.textTertiary, fontSize: 12,
+                    fontStyle: FontStyle.italic, height: 1.4)),
+                  const SizedBox(height: 8),
                 ],
-              ),
+                if (widget.adButton != null) ...[
+                  const SizedBox(height: 8),
+                  widget.adButton!,
+                ],
+              ],
             ),
           ),
         ),
@@ -831,7 +794,6 @@ class _AdPlanCardState extends State<_AdPlanCard> {
     );
   }
 }
-
 
 
 /// Rewarded ad button with three states: loading, ready, unavailable.
@@ -842,155 +804,96 @@ class _RewardedAdButton extends StatelessWidget {
     required this.sublabel,
     required this.accentColor,
     required this.onTap,
+    this.onRetry,
   });
-
   final _AdButtonState state;
   final String label;
   final String sublabel;
   final Color accentColor;
   final VoidCallback onTap;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
     switch (state) {
       case _AdButtonState.loading:
-        return _buildDisabledButton(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: HunterTheme.textFaint,
-                  semanticsLabel: 'Loading rewarded ad',
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'Loading Rewarded Ad...',
-                style: TextStyle(
-                  color: HunterTheme.textFaint,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
+        return _buildDisabled(
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            SizedBox(width: 14, height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2, color: HunterTheme.textFaint,
+                semanticsLabel: 'Loading rewarded ad')),
+            const SizedBox(width: 10),
+            Text('Loading Rewarded Ad...', style: TextStyle(
+              color: HunterTheme.textFaint, fontSize: 14, fontWeight: FontWeight.w700)),
+          ]),
         );
 
       case _AdButtonState.unavailable:
-        return Column(
-          children: [
-            _buildDisabledButton(
-              child: Text(
-                'Rewarded Ad Unavailable',
-                style: TextStyle(
-                  color: HunterTheme.textFaint,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-
-
+        return Column(children: [
+          _buildDisabled(
+            child: Text('Rewarded Ad Unavailable', style: TextStyle(
+              color: HunterTheme.textFaint, fontSize: 14, fontWeight: FontWeight.w700)),
+          ),
+          const SizedBox(height: 8),
+          Text("Rewarded video isn't available right now. Please try again later.",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11, height: 1.4)),
+          if (onRetry != null) ...[
             const SizedBox(height: 8),
-            Text(
-              "Rewarded video isn't available right now. Please try again later.",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: HunterTheme.textTertiary,
-                fontSize: 11,
-                height: 1.4,
-              ),
+            GestureDetector(
+              onTap: onRetry,
+              child: Text('Tap to retry', style: TextStyle(
+                color: HunterTheme.primary, fontSize: 12, fontWeight: FontWeight.w600)),
             ),
           ],
-        );
+        ]);
+
 
       case _AdButtonState.ready:
-        return Semantics(
-          button: true,
-          label: '$label $sublabel',
-          child: GestureDetector(
-            onTap: onTap,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    accentColor,
-                    accentColor.withOpacity(0.8),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: accentColor.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    '\u{1F3A5}',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-
-
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      sublabel,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+        return GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [accentColor, accentColor.withOpacity(0.8)]),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(color: accentColor.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
+              ],
             ),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              const Text('\u{1F3A5}', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 10),
+              Text(label, style: const TextStyle(
+                color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(sublabel, style: const TextStyle(
+                  color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+              ),
+            ]),
           ),
         );
     }
   }
 
-  Widget _buildDisabledButton({required Widget child}) {
-    return Semantics(
-      button: true,
-      enabled: false,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: HunterTheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: HunterTheme.border),
-        ),
-        child: Center(child: child),
+  Widget _buildDisabled({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: BoxDecoration(
+        color: HunterTheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: HunterTheme.border),
       ),
+      child: Center(child: child),
     );
   }
 }

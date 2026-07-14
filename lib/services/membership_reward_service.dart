@@ -121,6 +121,8 @@ class MembershipRewardService {
         }
 
         // Determine base time for extension.
+        // Only extend from existing expiry when the SAME tier is active
+        // and not expired. Switching tiers always starts fresh from now.
         int baseTimeMs = now;
         if (currentExpiryMs != null &&
             currentType == membershipType &&
@@ -130,6 +132,7 @@ class MembershipRewardService {
 
         if (membershipType == 'pro') {
           // PRO: 1 ad = +1 day immediately.
+          // Switching from Max → Pro: starts fresh from now (baseTimeMs = now).
           final newExpiryMs = baseTimeMs + _oneDayMs;
           final newExpiry =
               Timestamp.fromMillisecondsSinceEpoch(newExpiryMs);
@@ -168,12 +171,19 @@ class MembershipRewardService {
 
           if (effectivePending < 1) {
             // First ad — record pending, no extension.
-            txn.update(docRef, {
+            // Clear membershipExpiry when switching tiers so the second
+            // ad starts fresh from now (not from old tier's expiry).
+            final Map<String, dynamic> updateData = {
               'membershipType': 'max',
               'pendingMaxRewardAds': 1,
               'pendingMaxRewardStartedAt':
                   Timestamp.fromMillisecondsSinceEpoch(now),
-            });
+            };
+            // If switching FROM a different tier, clear the old expiry.
+            if (currentType != 'max') {
+              updateData['membershipExpiry'] = null;
+            }
+            txn.update(docRef, updateData);
 
             return const RewardClaimResult(
               success: true,

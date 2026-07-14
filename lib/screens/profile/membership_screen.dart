@@ -1,22 +1,43 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/billing_service.dart';
 import 'package:hunter_ascend/screens/legal/legal_document_screen.dart';
 import 'package:hunter_ascend/screens/legal/legal_content.dart';
 
-/// Premium "Hunter Membership" screen.
+/// The state of a plan card's action button.
+enum _PlanButtonState {
+  idle,
+  loading,
+  pendingPurchase,
+  purchaseSuccessful,
+  purchaseFailed,
+  restoreRunning,
+  restoreComplete,
+  restoreFailed,
+}
+
+/// The relationship between a plan card and the user's current plan.
+enum _PlanRelation {
+  currentPlan,
+  upgrade,
+  downgrade,
+  subscribe,
+}
+
+
+/// Premium "Hunter Membership" screen — Phase 9 production polish.
 ///
 /// UI ONLY: displays the hunter's current membership tier (read from
 /// [MembershipService]) and the three available tiers (Basic / Pro / Max)
-/// with their feature lists. No payment provider is wired up yet — the Pro
-/// and Max upgrade buttons intentionally show "Coming Soon" so the checkout
-/// flow (Google Play Billing) can be plugged in later without touching this
-/// screen's layout.
+/// with dynamic pricing from Google Play, clear plan relationship indicators,
+/// comprehensive button states, and a Manage Subscription link for paid users.
 ///
-/// This screen never writes membership data and never compares raw
-/// membership strings directly — it only reads from [MembershipService].
+/// This screen never writes membership data — it only reads from
+/// [MembershipService] and communicates purchases through [BillingService].
 class MembershipScreen extends StatefulWidget {
   const MembershipScreen({super.key});
 
@@ -27,12 +48,21 @@ class MembershipScreen extends StatefulWidget {
 class _MembershipScreenState extends State<MembershipScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _entranceController;
-
-  /// Staggered fade + slide-up animations, one per plan card, driven by a
-  /// single [_entranceController] so the cards animate into view in
-  /// sequence when the screen first opens.
   late final List<Animation<double>> _cardFade;
   late final List<Animation<Offset>> _cardSlide;
+
+  StreamSubscription<BillingResult>? _purchaseSubscription;
+
+  /// Current button state for each plan card (indexed by tier ordinal).
+  final Map<MembershipTier, _PlanButtonState> _buttonStates = {
+    MembershipTier.basic: _PlanButtonState.idle,
+    MembershipTier.pro: _PlanButtonState.idle,
+    MembershipTier.max: _PlanButtonState.idle,
+  };
+
+  /// Which product is currently being purchased (null if none).
+  MembershipTier? _purchasingTier;
+
 
   @override
   void initState() {
@@ -67,22 +97,17 @@ class _MembershipScreenState extends State<MembershipScreen>
       );
     });
 
-    // Ensure membership is available before the first frame paints; this is
-    // a no-op if it was already loaded elsewhere in the app (e.g. on login).
     MembershipService.instance.loadMembership().whenComplete(() {
       if (mounted) setState(() {});
     });
 
     _entranceController.forward();
 
-    // Listen to purchase results from BillingService.
     _purchaseSubscription = BillingService.instance.purchaseResults.listen(
       _handlePurchaseResult,
     );
   }
 
-  StreamSubscription<BillingResult>? _purchaseSubscription;
-  bool _isPurchasing = false;
 
   @override
   void dispose() {
@@ -91,174 +116,416 @@ class _MembershipScreenState extends State<MembershipScreen>
     super.dispose();
   }
 
-  /// Handles a purchase result from BillingService.
+  // ── Plan Relationship Logic ────────────────────────────────────────────
+
+  /// Determines the relationship of a given tier to the user's current tier.
+  _PlanRelation _planRelation(MembershipTier cardTier) {
+    final membership = MembershipService.instance;
+    MembershipTier currentTier;
+    if (membership.isMax) {
+      currentTier = MembershipTier.max;
+    } else if (membership.isPro) {
+      currentTier = MembershipTier.pro;
+    } else {
+      currentTier = MembershipTier.basic;
+    }
+
+    if (cardTier == currentTier) return _PlanRelation.currentPlan;
+
+    // Tier ordering: basic(0) < pro(1) < max(2)
+    if (cardTier.index > currentTier.index) return _PlanRelation.upgrade;
+    if (cardTier.index < currentTier.index) return _PlanRelation.downgrade;
+    return _PlanRelation.subscribe;
+  }
+
+  /// Returns the button label based on plan relation and button state.
+  String _buttonLabel(MembershipTier tier) {
+    final state = _buttonStates[tier]!;
+    final relation = _planRelation(tier);
+
+    switch (state) {
+      case _PlanButtonState.loading:
+        return 'Processing...';
+      case _PlanButtonState.pendingPurchase:
+        return 'Payment Processing...';
+      case _PlanButtonState.purchaseSuccessful:
+        return 'Activated!';
+      case _PlanButtonState.purchaseFailed:
+        return 'Try Again';
+      case _PlanButtonState.restoreRunning:
+        return 'Restoring...';
+      case _PlanButtonState.restoreComplete:
+        return 'Restored!';
+      case _PlanButtonState.restoreFailed:
+        return 'Restore Failed';
+      case _PlanButtonState.idle:
+        switch (relation) {
+          case _PlanRelation.currentPlan:
+            return 'Current Plan';
+          case _PlanRelation.upgrade:
+            return 'Upgrade';
+          case _PlanRelation.downgrade:
+            return 'Downgrade';
+          case _PlanRelation.subscribe:
+            return 'Subscribe';
+        }
+    }
+  }
+
+
+  /// Whether the button should be enabled for this tier.
+  bool _buttonEnabled(MembershipTier tier) {
+    final state = _buttonStates[tier]!;
+    final relation = _planRelation(tier);
+
+    // Current plan is always disabled.
+    if (relation == _PlanRelation.currentPlan) return false;
+
+    // Downgrade plans don't have a purchase button (they show Manage
+    // Subscription instead), but disable defensively.
+    if (relation == _PlanRelation.downgrade) return false;
+
+    // Basic tier has no purchase action.
+    if (tier == MembershipTier.basic) return false;
+
+    // Disabled during active processing states.
+    if (state == _PlanButtonState.loading ||
+        state == _PlanButtonState.pendingPurchase ||
+        state == _PlanButtonState.restoreRunning ||
+        state == _PlanButtonState.purchaseSuccessful ||
+        state == _PlanButtonState.restoreComplete) {
+      return false;
+    }
+
+    // If another tier is being purchased, disable this button.
+    if (_purchasingTier != null && _purchasingTier != tier) return false;
+
+    return true;
+  }
+
+  // ── Purchase Handling ──────────────────────────────────────────────────
+
   void _handlePurchaseResult(BillingResult result) {
     if (!mounted) return;
 
+    final tier = _purchasingTier;
+
     switch (result.status) {
       case BillingStatus.success:
-        // Backend verified, membership reloaded — refresh UI.
-        setState(() => _isPurchasing = false);
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: HunterTheme.cardColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-              side: BorderSide(color: HunterTheme.success.withOpacity(0.5)),
-            ),
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: HunterTheme.success, size: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Membership activated successfully!',
-                    style: TextStyle(
-                      color: HunterTheme.textPrimary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+        setState(() {
+          if (tier != null) {
+            _buttonStates[tier] = _PlanButtonState.purchaseSuccessful;
+          }
+          _purchasingTier = null;
+        });
+        _showSuccessDialog();
+        // Reset to idle after a delay.
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) {
+            setState(() {
+              _buttonStates.updateAll((_, __) => _PlanButtonState.idle);
+            });
+          }
+        });
         break;
 
       case BillingStatus.pending:
-        setState(() => _isPurchasing = true);
+        setState(() {
+          if (tier != null) {
+            _buttonStates[tier] = _PlanButtonState.pendingPurchase;
+          }
+        });
         break;
 
       case BillingStatus.userCanceled:
-        setState(() => _isPurchasing = false);
+        setState(() {
+          if (tier != null) {
+            _buttonStates[tier] = _PlanButtonState.idle;
+          }
+          _purchasingTier = null;
+        });
         break;
 
       case BillingStatus.error:
-        setState(() => _isPurchasing = false);
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: HunterTheme.cardColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-              side: BorderSide(color: HunterTheme.danger.withOpacity(0.5)),
-            ),
-            content: Row(
-              children: [
-                Icon(Icons.error_outline, color: HunterTheme.danger, size: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    result.error ?? 'Purchase failed. Please try again.',
-                    style: TextStyle(
-                      color: HunterTheme.textPrimary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+        setState(() {
+          if (tier != null) {
+            _buttonStates[tier] = _PlanButtonState.purchaseFailed;
+          }
+          _purchasingTier = null;
+        });
+        _showErrorSnackBar(result.error ?? 'Purchase failed. Please try again.');
+        // Reset to idle after a delay so user can retry.
+        Future.delayed(const Duration(seconds: 4), () {
+          if (mounted) {
+            setState(() {
+              _buttonStates.updateAll((k, v) =>
+                  v == _PlanButtonState.purchaseFailed ? _PlanButtonState.idle : v);
+            });
+          }
+        });
         break;
 
       case BillingStatus.storeUnavailable:
       case BillingStatus.productNotFound:
       case BillingStatus.duplicatePurchase:
-        setState(() => _isPurchasing = false);
+        setState(() {
+          if (tier != null) {
+            _buttonStates[tier] = _PlanButtonState.idle;
+          }
+          _purchasingTier = null;
+        });
+        if (result.status == BillingStatus.duplicatePurchase) {
+          _showInfoSnackBar('You already own this subscription.');
+        }
         break;
     }
   }
 
-  /// Initiates a purchase for the given product.
-  Future<void> _startPurchase(ProductDetails? product, String planName) async {
-    if (_isPurchasing) return;
+
+  /// Initiates a purchase for the given tier.
+  Future<void> _startPurchase(MembershipTier tier) async {
+    if (_purchasingTier != null) return;
+
+    // Never allow downgrade purchases — users must manage via Google Play.
+    if (_planRelation(tier) == _PlanRelation.downgrade) return;
 
     if (!BillingService.instance.isAvailable) {
-      _showBillingUnavailable(context);
+      _showBillingUnavailableDialog();
       return;
+    }
+
+    final ProductDetails? product;
+    final String planName;
+    if (tier == MembershipTier.pro) {
+      product = BillingService.instance.proProduct;
+      planName = 'Pro';
+    } else {
+      product = BillingService.instance.maxProduct;
+      planName = 'Max';
     }
 
     if (product == null) {
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: HunterTheme.cardColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: BorderSide(color: HunterTheme.primary.withOpacity(0.35)),
-          ),
-          content: Row(
-            children: [
-              Icon(Icons.hourglass_top_rounded,
-                  color: HunterTheme.primary, size: 18),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '$planName is not available yet. Please try again later.',
-                  style: TextStyle(
-                    color: HunterTheme.textPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      _showErrorSnackBar('$planName is not available yet. Please try again later.');
       return;
     }
 
-    setState(() => _isPurchasing = true);
+    setState(() {
+      _purchasingTier = tier;
+      _buttonStates[tier] = _PlanButtonState.loading;
+    });
 
     final result = await BillingService.instance.purchase(product);
 
-    // If the purchase flow failed to launch, reset immediately.
     if (result.status == BillingStatus.error ||
         result.status == BillingStatus.storeUnavailable) {
       if (mounted) {
-        setState(() => _isPurchasing = false);
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: HunterTheme.cardColor,
-            behavior: SnackBarBehavior.floating,
-            content: Text(
-              result.error ?? 'Could not start purchase.',
-              style: TextStyle(color: HunterTheme.textPrimary, fontSize: 13),
-            ),
-          ),
-        );
+        setState(() {
+          _buttonStates[tier] = _PlanButtonState.purchaseFailed;
+          _purchasingTier = null;
+        });
+        _showErrorSnackBar(result.error ?? 'Could not start purchase.');
+        Future.delayed(const Duration(seconds: 4), () {
+          if (mounted) {
+            setState(() {
+              _buttonStates.updateAll((k, v) =>
+                  v == _PlanButtonState.purchaseFailed ? _PlanButtonState.idle : v);
+            });
+          }
+        });
       }
     }
-    // Otherwise, the purchase was launched — we wait for the stream event.
   }
 
-  /// Shows a message when billing is not available on this device.
-  void _showBillingUnavailable(BuildContext context) {
+
+  /// Handles the Restore Purchases button tap.
+  Future<void> _handleRestore() async {
+    if (!BillingService.instance.isAvailable) {
+      _showBillingUnavailableDialog();
+      return;
+    }
+
+    final result = await BillingService.instance.restorePurchases();
+
+    if (!mounted) return;
+
+    if (result.status == BillingStatus.error) {
+      _showErrorSnackBar(result.error ?? 'Restore failed. Please try again.');
+    } else if (result.status == BillingStatus.success) {
+      await MembershipService.instance.reload();
+      if (!mounted) return;
+      setState(() {});
+
+      if (MembershipService.instance.hasPremium) {
+        _showSuccessSnackBar('Membership restored successfully!');
+      } else {
+        _showInfoSnackBar('No active subscriptions found.');
+      }
+    }
+  }
+
+  /// Opens the Google Play subscription management page.
+  Future<void> _openManageSubscription() async {
+    // Official Google Play subscription management deep link.
+    const url = 'https://play.google.com/store/account/subscriptions';
+    final uri = Uri.parse(url);
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        _showErrorSnackBar('Could not open subscription management.');
+      }
+    }
+  }
+
+
+  // ── Feedback Dialogs & Snackbars ───────────────────────────────────────
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HunterTheme.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: HunterTheme.success.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.check_circle_rounded,
+                  color: HunterTheme.success, size: 40),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Membership Activated!',
+              style: TextStyle(
+                color: HunterTheme.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Your ${MembershipService.instance.membershipName} membership is now active. Enjoy your premium features!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: HunterTheme.textSecondary,
+                fontSize: 14,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: HunterTheme.success,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Awesome!',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  void _showBillingUnavailableDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HunterTheme.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: HunterTheme.primary.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.store_rounded,
+                  color: HunterTheme.primary, size: 36),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Store Unavailable',
+              style: TextStyle(
+                color: HunterTheme.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Google Play Billing is not available on this device. Please ensure you have the Google Play Store installed and try again.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: HunterTheme.textSecondary,
+                fontSize: 14,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: HunterTheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('OK',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: HunterTheme.cardColor,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
-          side: BorderSide(color: HunterTheme.primary.withOpacity(0.35)),
+          side: BorderSide(color: HunterTheme.danger.withOpacity(0.5)),
         ),
         content: Row(
           children: [
-            Icon(Icons.store, color: HunterTheme.primary, size: 18),
+            Icon(Icons.error_outline_rounded, color: HunterTheme.danger, size: 18),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Google Play Billing is not available on this device.',
+                message,
                 style: TextStyle(
                   color: HunterTheme.textPrimary,
                   fontWeight: FontWeight.w600,
@@ -272,82 +539,86 @@ class _MembershipScreenState extends State<MembershipScreen>
     );
   }
 
-  /// Handles the Restore Purchases button tap.
-  Future<void> _handleRestore(BuildContext context) async {
-    if (!BillingService.instance.isAvailable) {
-      _showBillingUnavailable(context);
-      return;
-    }
-
-    final result = await BillingService.instance.restorePurchases();
-
-    if (!mounted) return;
-
-    if (result.status == BillingStatus.error) {
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: HunterTheme.cardColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: BorderSide(color: HunterTheme.danger.withOpacity(0.5)),
-          ),
-          content: Row(
-            children: [
-              Icon(Icons.error_outline, color: HunterTheme.danger, size: 18),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  result.error ?? 'Restore failed. Please try again.',
-                  style: TextStyle(
-                    color: HunterTheme.textPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: HunterTheme.cardColor,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: HunterTheme.success.withOpacity(0.5)),
+        ),
+        content: Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: HunterTheme.success, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: HunterTheme.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
-    } else if (result.status == BillingStatus.success) {
-      // Reload membership to pick up any restored purchases that were verified.
-      await MembershipService.instance.reload();
-      if (!mounted) return;
-      setState(() {}); // Refresh UI with latest membership state.
+      ),
+    );
+  }
 
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: HunterTheme.cardColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: BorderSide(color: HunterTheme.success.withOpacity(0.5)),
-          ),
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: HunterTheme.success, size: 18),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  MembershipService.instance.hasPremium
-                      ? 'Membership restored successfully!'
-                      : 'No active subscriptions found.',
-                  style: TextStyle(
-                    color: HunterTheme.textPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
+  void _showInfoSnackBar(String message) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: HunterTheme.cardColor,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: HunterTheme.primary.withOpacity(0.35)),
+        ),
+        content: Row(
+          children: [
+            Icon(Icons.info_outline_rounded, color: HunterTheme.primary, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: HunterTheme.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
+
+
+  // ── Dynamic Pricing ────────────────────────────────────────────────────
+
+  /// Returns the price string from Google Play ProductDetails, or a fallback.
+  String _priceForTier(MembershipTier tier) {
+    switch (tier) {
+      case MembershipTier.basic:
+        return 'FREE';
+      case MembershipTier.pro:
+        final product = BillingService.instance.proProduct;
+        return product != null ? '${product.price}/month' : 'Loading...';
+      case MembershipTier.max:
+        final product = BillingService.instance.maxProduct;
+        return product != null ? '${product.price}/month' : 'Loading...';
     }
   }
+
+  // ── Build ──────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -384,6 +655,8 @@ class _MembershipScreenState extends State<MembershipScreen>
                       const SizedBox(height: 24),
                       _CurrentPlanBanner(membership: membership),
                       const SizedBox(height: 28),
+
+                      // ── Plan Cards ──
                       _AnimatedPlanCard(
                         fade: _cardFade[0],
                         slide: _cardSlide[0],
@@ -392,8 +665,9 @@ class _MembershipScreenState extends State<MembershipScreen>
                           icon: Icons.shield_outlined,
                           accentColor: HunterTheme.textSecondary,
                           title: 'Basic',
-                          price: 'FREE',
-                          isCurrent: membership.isBasic,
+                          price: _priceForTier(MembershipTier.basic),
+                          relation: _planRelation(MembershipTier.basic),
+                          buttonState: _buttonStates[MembershipTier.basic]!,
                           features: const [
                             'Daily AI-generated missions',
                             'Weekly missions',
@@ -403,10 +677,10 @@ class _MembershipScreenState extends State<MembershipScreen>
                             'Banner ads',
                             'Rewarded ads',
                           ],
-                          buttonLabel:
-                          membership.isBasic ? 'Current Plan' : 'Free',
-                          buttonEnabled: false,
+                          buttonLabel: _buttonLabel(MembershipTier.basic),
+                          buttonEnabled: _buttonEnabled(MembershipTier.basic),
                           onPressed: null,
+                          onManageSubscription: _openManageSubscription,
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -418,8 +692,9 @@ class _MembershipScreenState extends State<MembershipScreen>
                           icon: Icons.workspace_premium_rounded,
                           accentColor: HunterTheme.gold,
                           title: 'Pro',
-                          price: '₹49/month',
-                          isCurrent: membership.isPro,
+                          price: _priceForTier(MembershipTier.pro),
+                          relation: _planRelation(MembershipTier.pro),
+                          buttonState: _buttonStates[MembershipTier.pro]!,
                           features: const [
                             'No banner ads',
                             'Unlimited profile changes',
@@ -428,16 +703,14 @@ class _MembershipScreenState extends State<MembershipScreen>
                             'Gold avatar glow',
                             'Rewarded ads (with skip option)',
                           ],
-                          buttonLabel: membership.isPro
-                              ? 'Current Plan'
-                              : (_isPurchasing ? 'Processing...' : 'Subscribe'),
-                          buttonEnabled: !membership.isPro && !_isPurchasing,
-                          onPressed: membership.isPro
-                              ? null
-                              : () => _startPurchase(BillingService.instance.proProduct, 'Pro'),
+                          buttonLabel: _buttonLabel(MembershipTier.pro),
+                          buttonEnabled: _buttonEnabled(MembershipTier.pro),
+                          onPressed: () => _startPurchase(MembershipTier.pro),
+                          onManageSubscription: _openManageSubscription,
                         ),
                       ),
                       const SizedBox(height: 20),
+
                       _AnimatedPlanCard(
                         fade: _cardFade[2],
                         slide: _cardSlide[2],
@@ -446,8 +719,9 @@ class _MembershipScreenState extends State<MembershipScreen>
                           icon: Icons.auto_awesome_rounded,
                           accentColor: HunterTheme.purple,
                           title: 'Max',
-                          price: '₹99/month',
-                          isCurrent: membership.isMax,
+                          price: _priceForTier(MembershipTier.max),
+                          relation: _planRelation(MembershipTier.max),
+                          buttonState: _buttonStates[MembershipTier.max]!,
                           features: const [
                             'Everything in Pro',
                             'No banner ads',
@@ -457,16 +731,30 @@ class _MembershipScreenState extends State<MembershipScreen>
                             'Monthly rewarded ad skips',
                             'Unlimited profile changes',
                           ],
-                          buttonLabel: membership.isMax
-                              ? 'Current Plan'
-                              : (_isPurchasing ? 'Processing...' : 'Subscribe'),
-                          buttonEnabled: !membership.isMax && !_isPurchasing,
-                          onPressed: membership.isMax
-                              ? null
-                              : () => _startPurchase(BillingService.instance.maxProduct, 'Max'),
+                          buttonLabel: _buttonLabel(MembershipTier.max),
+                          buttonEnabled: _buttonEnabled(MembershipTier.max),
+                          onPressed: () => _startPurchase(MembershipTier.max),
+                          onManageSubscription: _openManageSubscription,
                         ),
                       ),
                       const SizedBox(height: 28),
+
+                      // ── Manage Subscription (Pro/Max only) ──
+                      if (membership.hasPremium) ...[
+                        _ManageSubscriptionButton(
+                          onTap: _openManageSubscription,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+
+                      // ── Pending Purchase Banner ──
+                      if (_buttonStates.values.any(
+                          (s) => s == _PlanButtonState.pendingPurchase)) ...[
+                        _PendingPurchaseBanner(),
+                        const SizedBox(height: 16),
+                      ],
+
                       // ── Subscription disclaimer ──
                       Container(
                         padding: const EdgeInsets.all(14),
@@ -487,41 +775,65 @@ class _MembershipScreenState extends State<MembershipScreen>
                         ),
                       ),
                       const SizedBox(height: 20),
+
                       // ── Restore Purchases ──
                       ValueListenableBuilder<bool>(
                         valueListenable: BillingService.instance.isRestoring,
-                        builder: (context, restoring, _) => GestureDetector(
-                          onTap: restoring ? null : () => _handleRestore(context),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: HunterTheme.border),
-                            ),
-                            child: Center(
-                              child: restoring
-                                  ? SizedBox(
-                                      height: 16,
-                                      width: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: HunterTheme.textSecondary,
+                        builder: (context, restoring, _) => Semantics(
+                          button: true,
+                          label: restoring
+                              ? 'Restoring purchases, please wait'
+                              : 'Restore Purchases',
+                          child: GestureDetector(
+                            onTap: restoring ? null : _handleRestore,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: HunterTheme.border),
+                              ),
+                              child: Center(
+                                child: restoring
+                                    ? Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          SizedBox(
+                                            height: 16,
+                                            width: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: HunterTheme.textSecondary,
+                                              semanticsLabel: 'Restoring purchases',
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            'Restoring...',
+                                            style: TextStyle(
+                                              color: HunterTheme.textSecondary,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    : Text(
+                                        'Restore Purchases',
+                                        style: TextStyle(
+                                          color: HunterTheme.textSecondary,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                    )
-                                  : Text(
-                                      'Restore Purchases',
-                                      style: TextStyle(
-                                        color: HunterTheme.textSecondary,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
+                              ),
                             ),
                           ),
                         ),
                       ),
                       const SizedBox(height: 20),
+
+
                       // ── Legal links ──
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -589,7 +901,12 @@ class _MembershipScreenState extends State<MembershipScreen>
   }
 }
 
-/// Screen header: "⚔ HUNTER MEMBERSHIP" title with a supporting subtitle.
+
+// ══════════════════════════════════════════════════════════════════════════════
+// EXTRACTED WIDGETS
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// Screen header: "HUNTER MEMBERSHIP" title with a supporting subtitle.
 class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -601,7 +918,7 @@ class _Header extends StatelessWidget {
             colors: [HunterTheme.primary, HunterTheme.gold],
           ).createShader(bounds),
           child: const Text(
-            '⚔ HUNTER MEMBERSHIP',
+            'HUNTER MEMBERSHIP',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white,
@@ -627,6 +944,7 @@ class _Header extends StatelessWidget {
   }
 }
 
+
 /// Displays the hunter's current membership tier with status and expiry.
 class _CurrentPlanBanner extends StatelessWidget {
   const _CurrentPlanBanner({required this.membership});
@@ -651,7 +969,10 @@ class _CurrentPlanBanner extends StatelessWidget {
     if (expiry == null) return null;
     final now = DateTime.now();
     if (expiry.isBefore(now)) return 'Expired';
-    return 'Renews ${expiry.day}/${expiry.month}/${expiry.year}';
+    final day = expiry.day.toString().padLeft(2, '0');
+    final month = expiry.month.toString().padLeft(2, '0');
+    final year = expiry.year;
+    return 'Renews $day/$month/$year';
   }
 
   @override
@@ -660,64 +981,77 @@ class _CurrentPlanBanner extends StatelessWidget {
     final isActive = membership.isBasic || membership.subscriptionActive;
     final expiryText = _expiryText();
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: HunterTheme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: HunterTheme.border, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(HunterTheme.isDark ? 0.35 : 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Text(
-                'Current Plan',
-                style: TextStyle(
-                  color: HunterTheme.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: badgeColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: badgeColor.withOpacity(0.6)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(_badgeIcon(), color: badgeColor, size: 15),
-                    const SizedBox(width: 6),
-                    Text(
-                      membership.membershipName,
-                      style: TextStyle(
-                        color: badgeColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (membership.hasPremium) ...[
-            const SizedBox(height: 12),
+    return Semantics(
+      label: 'Current plan: ${membership.membershipName}. '
+          '${isActive ? "Active" : "Inactive"}. '
+          '${expiryText ?? ""}',
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: HunterTheme.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: badgeColor.withOpacity(0.6), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: badgeColor.withOpacity(HunterTheme.isDark ? 0.2 : 0.1),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
             Row(
               children: [
-                // Active/inactive status
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: HunterTheme.success.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: HunterTheme.success.withOpacity(0.4)),
+                  ),
+                  child: Text(
+                    'CURRENT PLAN',
+                    style: TextStyle(
+                      color: HunterTheme.success,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: badgeColor.withOpacity(0.6)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(_badgeIcon(), color: badgeColor, size: 15),
+                      const SizedBox(width: 6),
+                      Text(
+                        membership.membershipName,
+                        style: TextStyle(
+                          color: badgeColor,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                // Active/inactive status indicator
                 Container(
                   width: 8,
                   height: 8,
@@ -728,15 +1062,19 @@ class _CurrentPlanBanner extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  isActive ? 'Active' : 'Inactive',
+                  isActive ? 'ACTIVE' : 'INACTIVE',
                   style: TextStyle(
                     color: isActive ? HunterTheme.success : HunterTheme.danger,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
                   ),
                 ),
                 if (expiryText != null) ...[
                   const Spacer(),
+                  Icon(Icons.calendar_today_rounded,
+                      color: HunterTheme.textTertiary, size: 12),
+                  const SizedBox(width: 5),
                   Text(
                     expiryText,
                     style: TextStyle(
@@ -749,11 +1087,166 @@ class _CurrentPlanBanner extends StatelessWidget {
               ],
             ),
           ],
-        ],
+        ),
       ),
     );
   }
 }
+
+
+/// Pending purchase banner shown when Google Play is processing a payment.
+class _PendingPurchaseBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Purchase pending. Google Play is processing your payment.',
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: HunterTheme.amberSurface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: HunterTheme.gold.withOpacity(0.4)),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: HunterTheme.gold,
+                semanticsLabel: 'Processing payment',
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Payment Processing',
+                    style: TextStyle(
+                      color: HunterTheme.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Google Play is processing your purchase. This may take a moment. '
+                    'Please do not close the app.',
+                    style: TextStyle(
+                      color: HunterTheme.textSecondary,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Manage Subscription button for Pro/Max users.
+class _ManageSubscriptionButton extends StatelessWidget {
+  const _ManageSubscriptionButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Manage your subscription on Google Play',
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+          decoration: BoxDecoration(
+            color: HunterTheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: HunterTheme.border),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.settings_rounded,
+                  color: HunterTheme.textSecondary, size: 18),
+              const SizedBox(width: 10),
+              Text(
+                'Manage Subscription',
+                style: TextStyle(
+                  color: HunterTheme.textSecondary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(Icons.open_in_new_rounded,
+                  color: HunterTheme.textTertiary, size: 14),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Inline "Manage Subscription" button shown inside a plan card when the
+/// plan is a downgrade from the user's current tier. Replaces the purchase
+/// button entirely so users cannot accidentally downgrade in-app.
+class _DowngradeManageButton extends StatelessWidget {
+  const _DowngradeManageButton({this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'To change your plan, manage your subscription on Google Play',
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: HunterTheme.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: HunterTheme.border),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.settings_rounded,
+                  color: HunterTheme.textTertiary, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                'Manage Subscription',
+                style: TextStyle(
+                  color: HunterTheme.textTertiary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(Icons.open_in_new_rounded,
+                  color: HunterTheme.textTertiary, size: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 /// Wraps a plan card with the staggered fade + slide-up entrance animation.
 class _AnimatedPlanCard extends StatelessWidget {
@@ -777,9 +1270,6 @@ class _AnimatedPlanCard extends StatelessWidget {
 }
 
 /// A single premium membership plan card (Basic, Pro, or Max).
-///
-/// Handles its own press/hover scale animation for a tactile, premium feel
-/// — no external animation packages are used.
 class _PlanCard extends StatefulWidget {
   const _PlanCard({
     required this.tier,
@@ -787,11 +1277,13 @@ class _PlanCard extends StatefulWidget {
     required this.accentColor,
     required this.title,
     required this.price,
-    required this.isCurrent,
+    required this.relation,
+    required this.buttonState,
     required this.features,
     required this.buttonLabel,
     required this.buttonEnabled,
     required this.onPressed,
+    this.onManageSubscription,
   });
 
   final MembershipTier tier;
@@ -799,15 +1291,18 @@ class _PlanCard extends StatefulWidget {
   final Color accentColor;
   final String title;
   final String price;
-  final bool isCurrent;
+  final _PlanRelation relation;
+  final _PlanButtonState buttonState;
   final List<String> features;
   final String buttonLabel;
   final bool buttonEnabled;
   final VoidCallback? onPressed;
+  final VoidCallback? onManageSubscription;
 
   @override
   State<_PlanCard> createState() => _PlanCardState();
 }
+
 
 class _PlanCardState extends State<_PlanCard> {
   bool _hovered = false;
@@ -815,190 +1310,295 @@ class _PlanCardState extends State<_PlanCard> {
 
   double get _scale => _pressed ? 0.985 : (_hovered ? 1.01 : 1.0);
 
+  bool get _isCurrent => widget.relation == _PlanRelation.currentPlan;
+
+  /// Returns the relationship badge text (e.g. "CURRENT", "UPGRADE").
+  String? get _relationBadgeText {
+    switch (widget.relation) {
+      case _PlanRelation.currentPlan:
+        return 'CURRENT';
+      case _PlanRelation.upgrade:
+        return 'UPGRADE';
+      case _PlanRelation.downgrade:
+        return 'DOWNGRADE';
+      case _PlanRelation.subscribe:
+        return null; // No badge for subscribe (it's the default action).
+    }
+  }
+
+  Color get _relationBadgeColor {
+    switch (widget.relation) {
+      case _PlanRelation.currentPlan:
+        return HunterTheme.success;
+      case _PlanRelation.upgrade:
+        return widget.accentColor;
+      case _PlanRelation.downgrade:
+        return HunterTheme.textTertiary;
+      case _PlanRelation.subscribe:
+        return widget.accentColor;
+    }
+  }
+
+  /// Whether to show a loading indicator inside the button.
+  bool get _showButtonLoading =>
+      widget.buttonState == _PlanButtonState.loading ||
+      widget.buttonState == _PlanButtonState.pendingPurchase;
+
   @override
   Widget build(BuildContext context) {
     final accent = widget.accentColor;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTapDown: (_) => setState(() => _pressed = true),
-        onTapCancel: () => setState(() => _pressed = false),
-        onTapUp: (_) => setState(() => _pressed = false),
-        child: AnimatedScale(
-          scale: _scale,
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOut,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
+    return Semantics(
+      label: '${widget.title} plan. ${widget.price}. '
+          '${_isCurrent ? "This is your current plan." : ""}',
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          onTapDown: (_) => setState(() => _pressed = true),
+          onTapCancel: () => setState(() => _pressed = false),
+          onTapUp: (_) => setState(() => _pressed = false),
+          child: AnimatedScale(
+            scale: _scale,
+            duration: const Duration(milliseconds: 160),
             curve: Curves.easeOut,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: HunterTheme.cardColor,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: widget.isCurrent
-                    ? accent.withOpacity(0.9)
-                    : HunterTheme.border,
-                width: widget.isCurrent ? 1.6 : 1,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: HunterTheme.cardColor,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _isCurrent
+                      ? accent.withOpacity(0.9)
+                      : HunterTheme.border,
+                  width: _isCurrent ? 1.6 : 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent.withOpacity(
+                        _hovered ? 0.28 : (_isCurrent ? 0.22 : 0.12)),
+                    blurRadius: _hovered ? 26 : 18,
+                    spreadRadius: _isCurrent ? 1 : 0,
+                    offset: const Offset(0, 8),
+                  ),
+                  BoxShadow(
+                    color: Colors.black
+                        .withOpacity(HunterTheme.isDark ? 0.3 : 0.05),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: accent.withOpacity(
-                      _hovered ? 0.28 : (widget.isCurrent ? 0.22 : 0.12)),
-                  blurRadius: _hovered ? 26 : 18,
-                  spreadRadius: widget.isCurrent ? 1 : 0,
-                  offset: const Offset(0, 8),
-                ),
-                BoxShadow(
-                  color:
-                  Colors.black.withOpacity(HunterTheme.isDark ? 0.3 : 0.05),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: accent.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(14),
+
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: accent.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(widget.icon, color: accent, size: 26),
                       ),
-                      child: Icon(widget.icon, color: accent, size: 26),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                widget.title,
-                                style: TextStyle(
-                                  color: HunterTheme.textPrimary,
-                                  fontSize: 19,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                              if (widget.isCurrent) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: accent.withOpacity(0.16),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                        color: accent.withOpacity(0.6)),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  widget.title,
+                                  style: TextStyle(
+                                    color: HunterTheme.textPrimary,
+                                    fontSize: 19,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.4,
                                   ),
-                                  child: Text(
-                                    'CURRENT',
-                                    style: TextStyle(
-                                      color: accent,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.6,
+                                ),
+                                if (_relationBadgeText != null) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: _relationBadgeColor.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                          color: _relationBadgeColor.withOpacity(0.5)),
+                                    ),
+                                    child: Text(
+                                      _relationBadgeText!,
+                                      style: TextStyle(
+                                        color: _relationBadgeColor,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.6,
+                                      ),
                                     ),
                                   ),
-                                ),
+                                ],
                               ],
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            widget.price,
-                            style: TextStyle(
-                              color: accent,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              widget.price,
+                              style: TextStyle(
+                                color: accent,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+
+                  ...widget.features.map(
+                    (feature) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.check_circle_rounded,
+                              color: accent, size: 17),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              feature,
+                              style: TextStyle(
+                                color: HunterTheme.textSecondary,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w500,
+                                height: 1.3,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                ...widget.features.map(
-                      (feature) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.check_circle_rounded,
-                            color: accent, size: 17),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            feature,
-                            style: TextStyle(
-                              color: HunterTheme.textSecondary,
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w500,
-                              height: 1.3,
+                  ),
+                  const SizedBox(height: 8),
+                  // ── Action Button ──
+                  // For downgrade plans, hide the purchase button and show
+                  // "Manage Subscription" instead.
+                  if (widget.relation == _PlanRelation.downgrade)
+                    _DowngradeManageButton(
+                      onTap: widget.onManageSubscription,
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      child: Semantics(
+                        button: true,
+                        enabled: widget.buttonEnabled,
+                        label: widget.buttonLabel,
+                        child: ElevatedButton(
+                          onPressed: widget.buttonEnabled ? widget.onPressed : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _buttonBackground(accent),
+                            foregroundColor: _buttonForeground(accent),
+                            disabledBackgroundColor: _buttonDisabledBackground(accent),
+                            disabledForegroundColor: _buttonDisabledForeground(accent),
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: BorderSide(
+                                color: _isCurrent
+                                    ? accent.withOpacity(0.5)
+                                    : Colors.transparent,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: widget.buttonEnabled ? widget.onPressed : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: widget.isCurrent
-                          ? accent.withOpacity(0.15)
-                          : (widget.buttonEnabled
-                          ? accent
-                          : HunterTheme.surface),
-                      foregroundColor: widget.isCurrent
-                          ? accent
-                          : (widget.buttonEnabled
-                          ? Colors.white
-                          : HunterTheme.textFaint),
-                      disabledBackgroundColor: widget.isCurrent
-                          ? accent.withOpacity(0.15)
-                          : HunterTheme.surface,
-                      disabledForegroundColor:
-                      widget.isCurrent ? accent : HunterTheme.textFaint,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: BorderSide(
-                          color: widget.isCurrent
-                              ? accent.withOpacity(0.5)
-                              : Colors.transparent,
+                          child: _showButtonLoading
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: _isCurrent ? accent : Colors.white,
+                                        semanticsLabel: 'Loading',
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      widget.buttonLabel,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.4,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  widget.buttonLabel,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
-                    child: Text(
-                      widget.buttonLabel,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+
+  // ── Button color helpers ─────────────────────────────────────────────
+
+  Color _buttonBackground(Color accent) {
+    if (_isCurrent) return accent.withOpacity(0.15);
+    if (widget.buttonState == _PlanButtonState.purchaseSuccessful) {
+      return HunterTheme.success;
+    }
+    if (widget.buttonState == _PlanButtonState.purchaseFailed) {
+      return HunterTheme.danger.withOpacity(0.15);
+    }
+    return accent;
+  }
+
+  Color _buttonForeground(Color accent) {
+    if (_isCurrent) return accent;
+    if (widget.buttonState == _PlanButtonState.purchaseFailed) {
+      return HunterTheme.danger;
+    }
+    return Colors.white;
+  }
+
+  Color _buttonDisabledBackground(Color accent) {
+    if (_isCurrent) return accent.withOpacity(0.15);
+    if (widget.buttonState == _PlanButtonState.purchaseSuccessful) {
+      return HunterTheme.success;
+    }
+    return HunterTheme.surface;
+  }
+
+  Color _buttonDisabledForeground(Color accent) {
+    if (_isCurrent) return accent;
+    if (widget.buttonState == _PlanButtonState.purchaseSuccessful) {
+      return Colors.white;
+    }
+    return HunterTheme.textFaint;
   }
 }

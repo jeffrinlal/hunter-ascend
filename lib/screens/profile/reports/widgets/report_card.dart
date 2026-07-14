@@ -8,25 +8,41 @@ import '../utils/report_format.dart';
 import '../utils/report_palette.dart';
 import 'count_up.dart';
 
+// NOTE: The widgets below intentionally use NON-const constructors. Their
+// build methods read theme-aware [ReportPalette] getters, so they must be
+// rebuilt when the app theme toggles. Non-const constructors guarantee fresh
+// instances on each parent rebuild (and prevent accidental `const` caching of
+// stale colours).
+
 /// Soft, blurred ambient orbs painted behind the content so the glass cards
-/// have something colourful to blur. Purely decorative and non-interactive.
+/// have something to blur. Subtler in light mode (elegant), stronger in dark
+/// (blue glow). Purely decorative and non-interactive.
 class AmbientGlow extends StatelessWidget {
-  const AmbientGlow({super.key});
+  AmbientGlow({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final dark = ReportPalette.isDark;
+    final o1 = dark ? 0.18 : 0.06;
+    final o2 = dark ? 0.12 : 0.05;
+    final o3 = dark ? 0.10 : 0.04;
     return Positioned.fill(
       child: IgnorePointer(
         child: Stack(
           children: [
             Positioned(
-                top: -60, left: -40, child: _orb(220, ReportPalette.accent.withOpacity(0.18))),
+                top: -60,
+                left: -40,
+                child: _orb(220, ReportPalette.accent.withOpacity(o1))),
             Positioned(
-                top: 280, right: -70, child: _orb(240, ReportPalette.accent.withOpacity(0.12))),
+                top: 280,
+                right: -70,
+                child: _orb(240, ReportPalette.accent.withOpacity(o2))),
             Positioned(
                 bottom: -40,
                 left: 20,
-                child: _orb(200, const Color(0xFF6E5BFF).withOpacity(0.10))),
+                child: _orb(
+                    200, const Color(0xFF6E5BFF).withOpacity(o3))),
           ],
         ),
       ),
@@ -43,9 +59,10 @@ class AmbientGlow extends StatelessWidget {
       );
 }
 
-/// Glassmorphism card: translucent fill + backdrop blur + blue border + glow.
+/// Glassmorphism card: translucent fill + backdrop blur + themed border, with
+/// a blue glow in dark mode and an elegant soft shadow in light mode.
 class GlassCard extends StatelessWidget {
-  const GlassCard({super.key, required this.child, this.padding});
+  GlassCard({super.key, required this.child, this.padding});
 
   final Widget child;
   final EdgeInsets? padding;
@@ -55,14 +72,7 @@ class GlassCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: ReportPalette.accent.withOpacity(0.10),
-            blurRadius: 24,
-            spreadRadius: -4,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        boxShadow: ReportPalette.cardShadow,
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -71,13 +81,13 @@ class GlassCard extends StatelessWidget {
           child: Container(
             padding: padding ?? const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [ReportPalette.glassHi, ReportPalette.glassLo],
               ),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: ReportPalette.accent.withOpacity(0.22)),
+              border: Border.all(color: ReportPalette.cardBorder),
             ),
             child: child,
           ),
@@ -89,7 +99,7 @@ class GlassCard extends StatelessWidget {
 
 /// Section title row: icon + spaced caps title + optional trailing tag.
 class SectionHeader extends StatelessWidget {
-  const SectionHeader({
+  SectionHeader({
     super.key,
     required this.icon,
     required this.title,
@@ -108,7 +118,7 @@ class SectionHeader extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             color: ReportPalette.textPrimary,
             fontSize: 14,
             fontWeight: FontWeight.w800,
@@ -119,7 +129,7 @@ class SectionHeader extends StatelessWidget {
         if (trailing != null)
           Text(
             trailing!,
-            style: const TextStyle(
+            style: TextStyle(
               color: ReportPalette.textTertiary,
               fontSize: 10,
               fontWeight: FontWeight.w700,
@@ -133,7 +143,7 @@ class SectionHeader extends StatelessWidget {
 
 /// Thin horizontal divider with a soft blue centre glow.
 class HairLine extends StatelessWidget {
-  const HairLine({super.key});
+  HairLine({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -152,7 +162,7 @@ class HairLine extends StatelessWidget {
 
 /// Italic placeholder line shown when a metric has no data / is unavailable.
 class EmptyLine extends StatelessWidget {
-  const EmptyLine(this.text, {super.key});
+  EmptyLine(this.text, {super.key});
 
   final String text;
 
@@ -162,7 +172,7 @@ class EmptyLine extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           color: ReportPalette.textTertiary,
           fontSize: 13,
           fontStyle: FontStyle.italic,
@@ -184,7 +194,7 @@ class StatSpec {
 
 /// A single statistic cell: icon + animated count-up value + label.
 class StatCell extends StatelessWidget {
-  const StatCell({super.key, required this.spec});
+  StatCell({super.key, required this.spec});
 
   final StatSpec spec;
 
@@ -193,7 +203,7 @@ class StatCell extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
+        color: ReportPalette.fillSubtle,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: ReportPalette.accent.withOpacity(0.12)),
       ),
@@ -216,7 +226,7 @@ class StatCell extends StatelessWidget {
                 CountUp(
                   value: spec.value,
                   formatter: (v) => '${fmtInt(v)}${spec.suffix ?? ''}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: ReportPalette.textPrimary,
                     fontSize: 19,
                     fontWeight: FontWeight.w900,
@@ -227,7 +237,7 @@ class StatCell extends StatelessWidget {
                   spec.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: ReportPalette.textTertiary,
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,

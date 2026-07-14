@@ -12,7 +12,12 @@ import '../utils/report_palette.dart';
 ///
 /// This is NOT a screenshot of the live screen — it is a dedicated layout
 /// composed off-screen and captured to an image, sized and spaced for feeds on
-/// WhatsApp, Instagram and Facebook (a tall 4:5-ish portrait card).
+/// WhatsApp, Instagram and Facebook (a tall portrait card).
+///
+/// IMPORTANT: this card is intentionally a FIXED premium-DARK design regardless
+/// of the in-app theme, so shared images always look consistent on social
+/// media. It therefore references [ReportPalette]'s `dark*` constants directly
+/// rather than the theme-aware getters.
 class ReportShareCard extends StatelessWidget {
   const ReportShareCard({
     super.key,
@@ -35,6 +40,15 @@ class ReportShareCard extends StatelessWidget {
 
   /// Fixed logical width; captured at pixelRatio 3 → ~1290px wide image.
   static const double cardWidth = 430;
+
+  // Fixed dark palette (theme-independent).
+  static const _accent = ReportPalette.darkAccent;
+  static const _accentBright = ReportPalette.darkAccentBright;
+  static const _mint = ReportPalette.darkMint;
+  static const _warn = ReportPalette.darkWarn;
+  static const _textPrimary = ReportPalette.darkTextPrimary;
+  static const _textSecondary = ReportPalette.darkTextSecondary;
+  static const _textTertiary = ReportPalette.darkTextTertiary;
 
   final String hunterName;
   final String rank;
@@ -86,9 +100,9 @@ class ReportShareCard extends StatelessWidget {
                 ],
               ),
               borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: ReportPalette.accent.withOpacity(0.4), width: 1.4),
+              border: Border.all(color: _accent.withOpacity(0.4), width: 1.4),
               boxShadow: [
-                BoxShadow(color: ReportPalette.accent.withOpacity(0.22), blurRadius: 34),
+                BoxShadow(color: _accent.withOpacity(0.22), blurRadius: 34),
               ],
             ),
             child: Column(
@@ -104,7 +118,7 @@ class ReportShareCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: ReportPalette.textPrimary,
+                    color: _textPrimary,
                     fontSize: 26,
                     fontWeight: FontWeight.w900,
                     height: 1.1,
@@ -139,12 +153,12 @@ class ReportShareCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.hexagon_outlined,
-                color: ReportPalette.accent.withOpacity(0.9), size: 18),
+                color: _accent.withOpacity(0.9), size: 18),
             const SizedBox(width: 8),
             const Text(
               'HUNTER SYSTEM REPORT',
               style: TextStyle(
-                color: ReportPalette.textPrimary,
+                color: _textPrimary,
                 fontSize: 15,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 2.5,
@@ -156,7 +170,7 @@ class ReportShareCard extends StatelessWidget {
         Text(
           '$reportId  •  $generatedDate',
           style: const TextStyle(
-            color: ReportPalette.textTertiary,
+            color: _textTertiary,
             fontSize: 10,
             fontWeight: FontWeight.w600,
             letterSpacing: 1.5,
@@ -171,9 +185,9 @@ class ReportShareCard extends StatelessWidget {
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: ReportPalette.accent.withOpacity(0.7), width: 2),
+        border: Border.all(color: _accent.withOpacity(0.7), width: 2),
         boxShadow: [
-          BoxShadow(color: ReportPalette.accent.withOpacity(0.4), blurRadius: 20),
+          BoxShadow(color: _accent.withOpacity(0.4), blurRadius: 20),
         ],
       ),
       child: CircleAvatar(
@@ -183,7 +197,7 @@ class ReportShareCard extends StatelessWidget {
             ? MemoryImage(base64Decode(profilePicture!))
             : null,
         child: profilePicture == null
-            ? const Icon(Icons.person, size: 48, color: ReportPalette.accentBright)
+            ? const Icon(Icons.person, size: 48, color: _accentBright)
             : null,
       ),
     );
@@ -193,14 +207,14 @@ class ReportShareCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: ReportPalette.accent.withOpacity(0.15),
+        color: _accent.withOpacity(0.15),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: ReportPalette.accent.withOpacity(0.6)),
+        border: Border.all(color: _accent.withOpacity(0.6)),
       ),
       child: Text(
         '$rank RANK  •  ${membership.toUpperCase()}',
         style: const TextStyle(
-          color: ReportPalette.accentBright,
+          color: _accentBright,
           fontSize: 12.5,
           fontWeight: FontWeight.w800,
           letterSpacing: 1.5,
@@ -238,7 +252,7 @@ class ReportShareCard extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
-              color: ReportPalette.textPrimary,
+              color: _textPrimary,
               fontSize: 20,
               fontWeight: FontWeight.w900,
             ),
@@ -248,7 +262,7 @@ class ReportShareCard extends StatelessWidget {
             label,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: ReportPalette.textTertiary,
+              color: _textTertiary,
               fontSize: 9,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
@@ -260,7 +274,7 @@ class ReportShareCard extends StatelessWidget {
   }
 
   Widget _weightRow(bool lost, String weightText) {
-    final color = lost ? ReportPalette.mint : ReportPalette.warn;
+    final color = lost ? _mint : _warn;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -285,7 +299,7 @@ class ReportShareCard extends StatelessWidget {
         const Text(
           'HUNTER ANALYSIS',
           style: TextStyle(
-            color: ReportPalette.textSecondary,
+            color: _textSecondary,
             fontSize: 11,
             fontWeight: FontWeight.w800,
             letterSpacing: 2,
@@ -300,7 +314,7 @@ class ReportShareCard extends StatelessWidget {
                     child: Text(
                       e.key,
                       style: const TextStyle(
-                        color: ReportPalette.textSecondary,
+                        color: _textSecondary,
                         fontSize: 13.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -309,7 +323,9 @@ class ReportShareCard extends StatelessWidget {
                   Text(
                     e.value.label,
                     style: TextStyle(
-                      color: e.value.color,
+                      // Fixed dark rating colour so the share image is
+                      // consistent regardless of the in-app theme.
+                      color: ReportPalette.darkRatingColor(e.value.level),
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                     ),
@@ -326,9 +342,9 @@ class ReportShareCard extends StatelessWidget {
       height: 1,
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: [
-          ReportPalette.accent.withOpacity(0),
-          ReportPalette.accent.withOpacity(0.4),
-          ReportPalette.accent.withOpacity(0),
+          _accent.withOpacity(0),
+          _accent.withOpacity(0.4),
+          _accent.withOpacity(0),
         ]),
       ),
     );
@@ -340,7 +356,7 @@ class ReportShareCard extends StatelessWidget {
         const Text(
           'Generated by Hunter Ascend',
           style: TextStyle(
-            color: ReportPalette.textPrimary,
+            color: _textPrimary,
             fontSize: 13.5,
             fontWeight: FontWeight.w800,
           ),
@@ -349,7 +365,7 @@ class ReportShareCard extends StatelessWidget {
         Text(
           'Level Up Your Real Life',
           style: TextStyle(
-            color: ReportPalette.accentBright.withOpacity(0.9),
+            color: _accentBright.withOpacity(0.9),
             fontSize: 12,
             fontWeight: FontWeight.w600,
             fontStyle: FontStyle.italic,
@@ -360,7 +376,7 @@ class ReportShareCard extends StatelessWidget {
           'play.google.com/store/apps/details?id=com.hunterascend.hunter_ascend',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: ReportPalette.textTertiary,
+            color: _textTertiary,
             fontSize: 9.5,
             fontWeight: FontWeight.w500,
           ),

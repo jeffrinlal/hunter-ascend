@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+
 import 'models/report_data.dart';
 import 'services/report_service.dart';
 import 'utils/report_analysis.dart';
@@ -26,11 +28,10 @@ import 'widgets/report_share_card.dart';
 /// metadata). No new collections, fields, documents, Cloud Functions, or
 /// backend services. Range is capped at the last 30 days.
 ///
-/// See the sibling modules:
-///   • services/report_service.dart — data load + membership resolution
-///   • utils/report_analysis.dart   — documented, deterministic ratings
-///   • models/report_data.dart      — data + Rating model
-///   • widgets/*                     — presentation building blocks
+/// The screen is theme-aware: it follows the app's light/dark theme via
+/// [ReportPalette] (driven by [HunterTheme.isDark]) while preserving the same
+/// premium System-Window feel in both. The shareable image, however, stays a
+/// fixed premium-dark design (see report_share_card.dart).
 /// ─────────────────────────────────────────────────────────────────────────
 class ReportsTab extends StatefulWidget {
   const ReportsTab({
@@ -62,10 +63,18 @@ class _ReportsTabState extends State<ReportsTab> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_premium) return const LockedReportsView();
+    // Rebuild whenever the app theme toggles so the report re-colours itself.
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, _, __) => _themed(context),
+    );
+  }
+
+  Widget _themed(BuildContext context) {
+    if (!_premium) return LockedReportsView();
 
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -74,12 +83,12 @@ class _ReportsTabState extends State<ReportsTab> {
       ),
       child: Stack(
         children: [
-          const AmbientGlow(),
+          AmbientGlow(),
           FutureBuilder<ReportData>(
             future: _future,
             builder: (context, snap) {
               if (snap.connectionState != ConnectionState.done) {
-                return const Center(
+                return Center(
                   child: CircularProgressIndicator(
                       color: ReportPalette.accent, strokeWidth: 2.5),
                 );
@@ -220,14 +229,16 @@ class _ReportContentState extends State<_ReportContent>
     final membership = ReportMembership.label(tier);
 
     int i = 0;
-    Widget sec(Widget child) => ReportSection(animation: _anim(i++), child: child);
+    Widget sec(Widget child) =>
+        ReportSection(animation: _anim(i++), child: child);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 40),
       children: [
         sec(ReportHero(generatedDate: generated, reportId: reportId)),
         const SizedBox(height: 14),
-        sec(RangeToggle(rangeDays: widget.rangeDays, onChanged: widget.onRangeChanged)),
+        sec(RangeToggle(
+            rangeDays: widget.rangeDays, onChanged: widget.onRangeChanged)),
         const SizedBox(height: 16),
         sec(_statusCard(membership)),
         const SizedBox(height: 14),
@@ -253,7 +264,7 @@ class _ReportContentState extends State<_ReportContent>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionHeader(
+          SectionHeader(
               icon: Icons.shield_moon_outlined, title: 'HUNTER STATUS'),
           const SizedBox(height: 16),
           Row(
@@ -268,7 +279,7 @@ class _ReportContentState extends State<_ReportContent>
                       _hunterName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: ReportPalette.textPrimary,
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
@@ -291,7 +302,7 @@ class _ReportContentState extends State<_ReportContent>
             ],
           ),
           const SizedBox(height: 16),
-          const HairLine(),
+          HairLine(),
           const SizedBox(height: 14),
           Row(
             children: [
@@ -319,12 +330,13 @@ class _ReportContentState extends State<_ReportContent>
           ReportPalette.accent.withOpacity(0.30),
           ReportPalette.accent.withOpacity(0.02),
         ]),
-        border: Border.all(color: ReportPalette.accent.withOpacity(0.6), width: 1.5),
+        border:
+            Border.all(color: ReportPalette.accent.withOpacity(0.6), width: 1.5),
       ),
       alignment: Alignment.center,
       child: Text(
         _rank,
-        style: const TextStyle(
+        style: TextStyle(
           color: ReportPalette.accentBright,
           fontSize: 26,
           fontWeight: FontWeight.w900,
@@ -338,7 +350,7 @@ class _ReportContentState extends State<_ReportContent>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
               color: ReportPalette.textTertiary,
               fontSize: 10,
               fontWeight: FontWeight.w700,
@@ -364,7 +376,8 @@ class _ReportContentState extends State<_ReportContent>
     final stats = <StatSpec>[
       StatSpec('Current Level', _level.toDouble(), Icons.trending_up_rounded),
       StatSpec('Total XP', _xp.toDouble(), Icons.bolt_rounded),
-      StatSpec('Missions Completed', _questsDone.toDouble(), Icons.task_alt_rounded),
+      StatSpec(
+          'Missions Completed', _questsDone.toDouble(), Icons.task_alt_rounded),
       StatSpec('Current Streak', _streak.toDouble(),
           Icons.local_fire_department_rounded,
           suffix: _streak == 1 ? ' day' : ' days'),
@@ -376,7 +389,7 @@ class _ReportContentState extends State<_ReportContent>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionHeader(
+          SectionHeader(
               icon: Icons.query_stats_rounded, title: 'HUNTER STATISTICS'),
           const SizedBox(height: 6),
           LayoutBuilder(
@@ -384,8 +397,7 @@ class _ReportContentState extends State<_ReportContent>
               // Responsive: 1 column on very narrow widths, else 2 columns.
               const spacing = 12.0;
               final twoCol = c.maxWidth >= 280;
-              final cellW =
-                  twoCol ? (c.maxWidth - spacing) / 2 : c.maxWidth;
+              final cellW = twoCol ? (c.maxWidth - spacing) / 2 : c.maxWidth;
               return Wrap(
                 spacing: spacing,
                 runSpacing: spacing,
@@ -414,18 +426,18 @@ class _ReportContentState extends State<_ReportContent>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionHeader(
+          SectionHeader(
               icon: Icons.monitor_weight_outlined, title: 'WEIGHT SUMMARY'),
           const SizedBox(height: 14),
           if (start <= 0 && current <= 0)
-            const EmptyLine('No weight data recorded yet.')
+            EmptyLine('No weight data recorded yet.')
           else ...[
             Row(
               children: [
                 Expanded(
                     child: _weightBlock(
                         'STARTING', start, ReportPalette.textSecondary)),
-                const Icon(Icons.arrow_forward_rounded,
+                Icon(Icons.arrow_forward_rounded,
                     color: ReportPalette.textTertiary, size: 18),
                 Expanded(
                     child: _weightBlock(
@@ -435,7 +447,8 @@ class _ReportContentState extends State<_ReportContent>
             const SizedBox(height: 16),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+              padding:
+                  const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
               decoration: BoxDecoration(
                 color: diffColor.withOpacity(0.10),
                 borderRadius: BorderRadius.circular(12),
@@ -473,7 +486,7 @@ class _ReportContentState extends State<_ReportContent>
     return Column(
       children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 color: ReportPalette.textTertiary,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
@@ -485,7 +498,8 @@ class _ReportContentState extends State<_ReportContent>
           style: TextStyle(
               color: color, fontSize: 24, fontWeight: FontWeight.w900),
         ),
-        Text('kg', style: TextStyle(color: color.withOpacity(0.7), fontSize: 11)),
+        Text('kg',
+            style: TextStyle(color: color.withOpacity(0.7), fontSize: 11)),
       ],
     );
   }
@@ -514,7 +528,7 @@ class _ReportContentState extends State<_ReportContent>
           ),
           const SizedBox(height: 14),
           if (!r.nutritionOk)
-            const EmptyLine('Nutrition data is currently unavailable.')
+            EmptyLine('Nutrition data is currently unavailable.')
           else if (meals.isEmpty)
             EmptyLine('No meals logged in the last ${widget.rangeDays} days.')
           else ...[
@@ -524,8 +538,8 @@ class _ReportContentState extends State<_ReportContent>
                     child: _numBlock('AVG DAILY', avgDaily, (v) => fmtInt(v),
                         unit: 'kcal', color: ReportPalette.accentBright)),
                 Expanded(
-                    child: _numBlock('TOTAL', totalCals.toDouble(),
-                        (v) => fmtInt(v),
+                    child: _numBlock(
+                        'TOTAL', totalCals.toDouble(), (v) => fmtInt(v),
                         unit: 'kcal', color: ReportPalette.textPrimary)),
                 Expanded(
                     child: _numBlock('DAYS TRACKED', daysTracked.toDouble(),
@@ -534,16 +548,18 @@ class _ReportContentState extends State<_ReportContent>
               ],
             ),
             const SizedBox(height: 14),
-            const HairLine(),
+            HairLine(),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _macroPill('PROTEIN', protein, ReportPalette.accent)),
+                Expanded(
+                    child:
+                        _macroPill('PROTEIN', protein, ReportPalette.accent)),
                 const SizedBox(width: 8),
                 Expanded(child: _macroPill('CARBS', carbs, ReportPalette.mint)),
                 const SizedBox(width: 8),
                 Expanded(
-                    child: _macroPill('FAT', fat, const Color(0xFFFFB27A))),
+                    child: _macroPill('FAT', fat, ReportPalette.fatAccent)),
               ],
             ),
           ],
@@ -570,7 +586,7 @@ class _ReportContentState extends State<_ReportContent>
           ),
           const SizedBox(height: 2),
           Text(label,
-              style: const TextStyle(
+              style: TextStyle(
                   color: ReportPalette.textTertiary,
                   fontSize: 9.5,
                   fontWeight: FontWeight.w700,
@@ -601,34 +617,34 @@ class _ReportContentState extends State<_ReportContent>
           ),
           const SizedBox(height: 14),
           if (!r.runsOk)
-            const EmptyLine('Running data is currently unavailable.')
+            EmptyLine('Running data is currently unavailable.')
           else if (runs.isEmpty)
             EmptyLine('No runs recorded in the last ${widget.rangeDays} days.')
           else ...[
             Row(
               children: [
                 Expanded(
-                    child: _numBlock('DISTANCE', totalDist,
-                        (v) => v.toStringAsFixed(1),
+                    child: _numBlock(
+                        'DISTANCE', totalDist, (v) => v.toStringAsFixed(1),
                         unit: 'km', color: ReportPalette.accentBright)),
                 Expanded(
-                    child: _numBlock('RUNS', runs.length.toDouble(),
-                        (v) => fmtInt(v),
+                    child: _numBlock(
+                        'RUNS', runs.length.toDouble(), (v) => fmtInt(v),
                         color: ReportPalette.textPrimary)),
                 Expanded(
-                    child: _numBlock('CALORIES', totalBurn.toDouble(),
-                        (v) => fmtInt(v),
+                    child: _numBlock(
+                        'CALORIES', totalBurn.toDouble(), (v) => fmtInt(v),
                         unit: 'kcal', color: ReportPalette.textPrimary)),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                const Icon(Icons.timer_outlined,
+                Icon(Icons.timer_outlined,
                     color: ReportPalette.textTertiary, size: 15),
                 const SizedBox(width: 6),
                 Text('Total active time: ${fmtDuration(totalSecs)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: ReportPalette.textSecondary, fontSize: 12.5)),
               ],
             ),
@@ -654,7 +670,7 @@ class _ReportContentState extends State<_ReportContent>
         const SizedBox(height: 4),
         Text(label,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
                 color: ReportPalette.textTertiary,
                 fontSize: 9.5,
                 fontWeight: FontWeight.w700,
@@ -670,7 +686,7 @@ class _ReportContentState extends State<_ReportContent>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionHeader(
+          SectionHeader(
               icon: Icons.insights_rounded, title: 'HUNTER ANALYSIS'),
           const SizedBox(height: 4),
           for (int idx = 0; idx < ratings.length; idx++)
@@ -700,13 +716,14 @@ class _ReportContentState extends State<_ReportContent>
             children: [
               Expanded(
                 child: Text(label,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: ReportPalette.textSecondary,
                         fontSize: 14,
                         fontWeight: FontWeight.w600)),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                 decoration: BoxDecoration(
                   color: rating.color.withOpacity(0.14),
                   borderRadius: BorderRadius.circular(20),
@@ -731,7 +748,7 @@ class _ReportContentState extends State<_ReportContent>
               builder: (_, v, __) => LinearProgressIndicator(
                 value: v,
                 minHeight: 5,
-                backgroundColor: Colors.white.withOpacity(0.06),
+                backgroundColor: ReportPalette.track,
                 valueColor: AlwaysStoppedAnimation<Color>(rating.color),
               ),
             ),
@@ -744,17 +761,22 @@ class _ReportContentState extends State<_ReportContent>
   // ── 7. Share ────────────────────────────────────────────────────────────
   Widget _shareButton(String membership, String generated, String reportId) {
     return GestureDetector(
-      onTap: _sharing ? null : () => _shareReport(membership, generated, reportId),
+      onTap:
+          _sharing ? null : () => _shareReport(membership, generated, reportId),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [ReportPalette.accent, ReportPalette.accent.withOpacity(0.7)],
+            colors: [
+              ReportPalette.accent,
+              ReportPalette.accent.withOpacity(0.7)
+            ],
           ),
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
-            BoxShadow(color: ReportPalette.accent.withOpacity(0.4), blurRadius: 20),
+            BoxShadow(
+                color: ReportPalette.accent.withOpacity(0.4), blurRadius: 20),
           ],
         ),
         child: Row(
@@ -767,7 +789,8 @@ class _ReportContentState extends State<_ReportContent>
                   child: CircularProgressIndicator(
                       strokeWidth: 2, color: Colors.white))
             else
-              const Icon(Icons.ios_share_rounded, color: Colors.white, size: 20),
+              const Icon(Icons.ios_share_rounded,
+                  color: Colors.white, size: 20),
             const SizedBox(width: 10),
             Text(
               _sharing ? 'Generating...' : 'Share Hunter Report',
@@ -837,7 +860,7 @@ class _ReportContentState extends State<_ReportContent>
 
 /// Small membership chip used in the Hunter Status card.
 class _MembershipChip extends StatelessWidget {
-  const _MembershipChip({required this.membership});
+  _MembershipChip({required this.membership});
   final String membership;
 
   @override

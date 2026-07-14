@@ -7,8 +7,8 @@ import 'report_card.dart';
 
 /// Wraps a report section in a subtle staggered fade + slight upward slide.
 ///
-/// The slide is intentionally small (10px) and the curve is a plain ease-out —
-/// elegant, not flashy.
+/// The slide is intentionally small (10px) with a plain ease-out curve —
+/// elegant, not flashy. Colour-free, so it can keep a const constructor.
 class ReportSection extends StatelessWidget {
   const ReportSection({
     super.key,
@@ -37,9 +37,9 @@ class ReportSection extends StatelessWidget {
 
 /// Premium hero section shown before all statistics, styled like the header of
 /// an official System window: title, subtitle, generation date, and a local
-/// (backend-free) Report ID for visual polish.
+/// (backend-free) Report ID for visual polish. Theme-aware.
 class ReportHero extends StatelessWidget {
-  const ReportHero({
+  ReportHero({
     super.key,
     required this.generatedDate,
     required this.reportId,
@@ -60,7 +60,7 @@ class ReportHero extends StatelessWidget {
               Icon(Icons.hexagon_outlined,
                   color: ReportPalette.accent.withOpacity(0.9), size: 20),
               const SizedBox(width: 10),
-              const Text(
+              Text(
                 'HUNTER REPORT',
                 style: TextStyle(
                   color: ReportPalette.textPrimary,
@@ -72,7 +72,7 @@ class ReportHero extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'SYSTEM REPORT',
             style: TextStyle(
               color: ReportPalette.accentBright,
@@ -82,7 +82,7 @@ class ReportHero extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const HairLine(),
+          HairLine(),
           const SizedBox(height: 14),
           Row(
             children: [
@@ -131,7 +131,7 @@ class ReportHero extends StatelessWidget {
             const SizedBox(width: 5),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: ReportPalette.textTertiary,
                 fontSize: 9.5,
                 fontWeight: FontWeight.w700,
@@ -143,7 +143,7 @@ class ReportHero extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             color: ReportPalette.textPrimary,
             fontSize: 13.5,
             fontWeight: FontWeight.w700,
@@ -155,8 +155,9 @@ class ReportHero extends StatelessWidget {
 }
 
 /// Segmented 7 / 30-day range toggle. Both options stay within the 30-day cap.
+/// Theme-aware.
 class RangeToggle extends StatelessWidget {
-  const RangeToggle({
+  RangeToggle({
     super.key,
     required this.rangeDays,
     required this.onChanged,
@@ -171,7 +172,7 @@ class RangeToggle extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: ReportPalette.fillSubtle,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: ReportPalette.accent.withOpacity(0.2)),
         ),
@@ -197,7 +198,11 @@ class RangeToggle extends StatelessWidget {
           color: selected ? ReportPalette.accent : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           boxShadow: selected
-              ? [BoxShadow(color: ReportPalette.accent.withOpacity(0.4), blurRadius: 12)]
+              ? [
+                  BoxShadow(
+                      color: ReportPalette.accent.withOpacity(0.4),
+                      blurRadius: 12)
+                ]
               : [],
         ),
         child: Text(

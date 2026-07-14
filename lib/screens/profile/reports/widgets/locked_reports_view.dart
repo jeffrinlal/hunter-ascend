@@ -8,10 +8,10 @@ import '../utils/report_palette.dart';
 import 'report_card.dart';
 
 /// Premium lock screen shown to Basic members explaining why Reports are
-/// locked, with Pro / Max upgrade calls-to-action. Fully scroll-safe so it
-/// never overflows on small screens or in landscape.
+/// locked, with Pro / Max upgrade calls-to-action. Theme-aware and fully
+/// scroll-safe so it never overflows on small screens or in landscape.
 class LockedReportsView extends StatelessWidget {
-  const LockedReportsView({super.key});
+  LockedReportsView({super.key});
 
   void _openMembership(BuildContext context) {
     Navigator.push(
@@ -23,7 +23,7 @@ class LockedReportsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -32,7 +32,7 @@ class LockedReportsView extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          const AmbientGlow(),
+          AmbientGlow(),
           LayoutBuilder(
             builder: (context, constraints) {
               return SingleChildScrollView(
@@ -46,7 +46,7 @@ class LockedReportsView extends StatelessWidget {
                     children: [
                       _lockCrest(),
                       const SizedBox(height: 26),
-                      const Text(
+                      Text(
                         'REPORTS LOCKED',
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -59,7 +59,7 @@ class LockedReportsView extends StatelessWidget {
                       const SizedBox(height: 8),
                       _titleUnderline(),
                       const SizedBox(height: 22),
-                      const GlassCard(
+                      GlassCard(
                         child: Text(
                           'Reports are available only for Pro and Max members.\n\n'
                           'Your workout history, missions, XP, streaks and overall '
@@ -113,12 +113,12 @@ class LockedReportsView extends StatelessWidget {
             Border.all(color: ReportPalette.accent.withOpacity(0.5), width: 1.5),
         boxShadow: [
           BoxShadow(
-              color: ReportPalette.accent.withOpacity(0.35),
+              color: ReportPalette.accent.withOpacity(ReportPalette.isDark ? 0.35 : 0.18),
               blurRadius: 30,
               spreadRadius: 2),
         ],
       ),
-      child: const Icon(Icons.lock_outline_rounded,
+      child: Icon(Icons.lock_outline_rounded,
           color: ReportPalette.accentBright, size: 44),
     );
   }
@@ -173,7 +173,7 @@ class _UpgradeButton extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: ReportPalette.textPrimary,
                 fontSize: 15.5,
                 fontWeight: FontWeight.w800,

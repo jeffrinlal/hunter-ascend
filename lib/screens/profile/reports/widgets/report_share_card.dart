@@ -84,7 +84,7 @@ class ReportShareCard extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFF060A14), Color(0xFF0C1526)],
+              colors: [ReportPalette.darkBgTop, ReportPalette.darkBgBottom],
             ),
           ),
           padding: const EdgeInsets.all(26),
@@ -192,7 +192,7 @@ class ReportShareCard extends StatelessWidget {
       ),
       child: CircleAvatar(
         radius: 46,
-        backgroundColor: const Color(0xFF10192B),
+        backgroundColor: const Color(0xFF14161C),
         backgroundImage: profilePicture != null
             ? MemoryImage(base64Decode(profilePicture!))
             : null,

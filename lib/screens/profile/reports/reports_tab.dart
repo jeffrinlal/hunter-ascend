@@ -26,11 +26,15 @@ import 'widgets/report_share_card.dart';
 /// Generated ENTIRELY from data that already exists (hunters doc + the
 /// weight_history / calorie_logs / runs collections + Firebase Auth account
 /// metadata). No new collections, fields, documents, Cloud Functions, or
-/// backend services. Range is capped at the last 30 days.
+/// backend services.
 ///
-/// The screen is theme-aware: it follows the app's light/dark theme via
-/// [ReportPalette] (driven by [HunterTheme.isDark]) while preserving the same
-/// premium System-Window feel in both. The shareable image, however, stays a
+/// Generation is MANUAL: opening the tab does not create a report or read
+/// Firestore. The hunter picks a period (7 / 30 days) and taps
+/// "Generate Hunter Report"; only then are reads performed and the report
+/// rendered. The report persists until the hunter generates another one.
+///
+/// The screen follows the app's light/dark theme via [ReportPalette] using the
+/// Hunter Ascend orange/gold design language. The shareable image stays a
 /// fixed premium-dark design (see report_share_card.dart).
 /// ─────────────────────────────────────────────────────────────────────────
 class ReportsTab extends StatefulWidget {
@@ -48,18 +52,7 @@ class ReportsTab extends StatefulWidget {
 }
 
 class _ReportsTabState extends State<ReportsTab> {
-  Future<ReportData>? _future;
-  int _rangeDays = ReportService.maxRangeDays; // 7 or 30
-
   bool get _premium => ReportMembership.isPremium(widget.hunterData);
-
-  @override
-  void initState() {
-    super.initState();
-    // Only premium hunters trigger the Firestore reads — Basic users see the
-    // lock screen and cost nothing.
-    if (_premium) _future = ReportService.load(widget.uid);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,24 +77,7 @@ class _ReportsTabState extends State<ReportsTab> {
       child: Stack(
         children: [
           AmbientGlow(),
-          FutureBuilder<ReportData>(
-            future: _future,
-            builder: (context, snap) {
-              if (snap.connectionState != ConnectionState.done) {
-                return Center(
-                  child: CircularProgressIndicator(
-                      color: ReportPalette.accent, strokeWidth: 2.5),
-                );
-              }
-              return _ReportContent(
-                uid: widget.uid,
-                hunterData: widget.hunterData,
-                report: snap.data ?? const ReportData.empty(),
-                rangeDays: _rangeDays,
-                onRangeChanged: (d) => setState(() => _rangeDays = d),
-              );
-            },
-          ),
+          _ReportBody(uid: widget.uid, hunterData: widget.hunterData),
         ],
       ),
     );
@@ -109,59 +85,106 @@ class _ReportsTabState extends State<ReportsTab> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// REPORT CONTENT
+// REPORT BODY — manual generation flow + rendered report
 // ══════════════════════════════════════════════════════════════════════════
 
-class _ReportContent extends StatefulWidget {
-  const _ReportContent({
-    required this.uid,
-    required this.hunterData,
-    required this.report,
-    required this.rangeDays,
-    required this.onRangeChanged,
-  });
+class _ReportBody extends StatefulWidget {
+  const _ReportBody({required this.uid, required this.hunterData});
 
   final String uid;
   final Map<String, dynamic> hunterData;
-  final ReportData report;
-  final int rangeDays;
-  final ValueChanged<int> onRangeChanged;
 
   @override
-  State<_ReportContent> createState() => _ReportContentState();
+  State<_ReportBody> createState() => _ReportBodyState();
 }
 
-class _ReportContentState extends State<_ReportContent>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _entrance;
-  bool _sharing = false;
+class _ReportBodyState extends State<_ReportBody>
+    with TickerProviderStateMixin {
+  // ── Generation state ──
+  int? _selectedRange; // 7 or 30 — null until the user picks a period
+  bool _generating = false;
+
+  ReportData? _report; // the currently displayed (generated) report
+  int _reportRange = 30; // the period the displayed report was generated for
+  String? _generatedDate; // when the displayed report was generated
+  String? _reportId; // local id of the displayed report
+
+  // Snapshot of the hunter document captured at generation time, so the
+  // displayed report stays frozen (even if the live doc updates) until the
+  // hunter explicitly generates another report.
+  Map<String, dynamic>? _reportHunterData;
+
+  late final AnimationController _introCtrl; // hero + controls (once)
+  late final AnimationController _reportCtrl; // report sections (per generate)
 
   @override
   void initState() {
     super.initState();
-    _entrance = AnimationController(
+    // NOTE: no data is loaded here — generation is manual.
+    _introCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 800),
     )..forward();
+    _reportCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
   }
 
   @override
   void dispose() {
-    _entrance.dispose();
+    _introCtrl.dispose();
+    _reportCtrl.dispose();
     super.dispose();
   }
 
-  Animation<double> _anim(int i) {
+  Future<void> _generate() async {
+    final range = _selectedRange;
+    if (range == null || _generating) return;
+
+    setState(() => _generating = true);
+    try {
+      final data = await ReportService.load(widget.uid);
+      if (!mounted) return;
+      final now = DateTime.now();
+      setState(() {
+        _report = data;
+        _reportRange = range;
+        _reportHunterData = Map<String, dynamic>.from(widget.hunterData);
+        _generatedDate = fmtDate(now);
+        _reportId = localReportId(widget.uid, now);
+        _generating = false;
+      });
+      _reportCtrl.forward(from: 0);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _generating = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not generate report: $e')),
+      );
+    }
+  }
+
+  Animation<double> _stagger(AnimationController c, int i) {
     final start = (i * 0.08).clamp(0.0, 0.7);
-    final end = (start + 0.45).clamp(0.0, 1.0);
+    final end = (start + 0.5).clamp(0.0, 1.0);
     return CurvedAnimation(
-      parent: _entrance,
+      parent: c,
       curve: Interval(start, end, curve: Curves.easeOut),
     );
   }
 
-  // ── Derived hunter values (all from the live hunter document) ───────────
-  Map<String, dynamic> get _d => widget.hunterData;
+  Widget _introSection(int i, Widget child) =>
+      ReportSection(animation: _stagger(_introCtrl, i), child: child);
+
+  Widget _reportSection(int i, Widget child) =>
+      ReportSection(animation: _stagger(_reportCtrl, i), child: child);
+
+  // ── Derived hunter values ───────────────────────────────────────────────
+  // Once a report is generated, read from the frozen snapshot so the displayed
+  // report never changes until the hunter regenerates. Before generation, fall
+  // back to the live hunter document.
+  Map<String, dynamic> get _d => _reportHunterData ?? widget.hunterData;
   int get _xp => (_d['xp'] ?? 0) as int;
   int get _level => (_d['level'] ?? 1) as int;
   int get _streak => (_d['streak'] ?? 0) as int;
@@ -173,24 +196,29 @@ class _ReportContentState extends State<_ReportContent>
   String get _rank => rankForXp(_xp);
 
   double get _startingWeight {
-    final w = widget.report;
-    if (w.weightOk && w.weights.isNotEmpty) return w.weights.last.weight;
+    final w = _report;
+    if (w != null && w.weightOk && w.weights.isNotEmpty) {
+      return w.weights.last.weight;
+    }
     return (_d['startingWeight'] ?? _d['weight'] ?? 0).toDouble();
   }
 
   double get _currentWeight {
-    final w = widget.report;
-    if (w.weightOk && w.weights.isNotEmpty) return w.weights.first.weight;
+    final w = _report;
+    if (w != null && w.weightOk && w.weights.isNotEmpty) {
+      return w.weights.first.weight;
+    }
     return (_d['weight'] ?? 0).toDouble();
   }
 
   DateTime? get _joinedDate =>
       FirebaseAuth.instance.currentUser?.metadata.creationTime;
 
-  /// Distinct active days (meal / run / weight) within the selected range.
+  /// Distinct active days (meal / run / weight) within the generated range.
   int get _activeDays {
-    final r = widget.report;
-    final cutoff = DateTime.now().subtract(Duration(days: widget.rangeDays));
+    final r = _report;
+    if (r == null) return 0;
+    final cutoff = DateTime.now().subtract(Duration(days: _reportRange));
     final days = <String>{};
     for (final m in r.meals) {
       if (m.time.isAfter(cutoff)) days.add(dayKey(m.time));
@@ -222,39 +250,199 @@ class _ReportContentState extends State<_ReportContent>
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final generated = fmtDate(now);
-    final reportId = localReportId(widget.uid, now);
-    final tier = ReportMembership.effectiveTier(_d);
-    final membership = ReportMembership.label(tier);
-
-    int i = 0;
-    Widget sec(Widget child) =>
-        ReportSection(animation: _anim(i++), child: child);
-
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 40),
       children: [
-        sec(ReportHero(generatedDate: generated, reportId: reportId)),
+        _introSection(0, ReportHero(
+          generatedDate: _report != null ? _generatedDate : null,
+          reportId: _report != null ? _reportId : null,
+        )),
         const SizedBox(height: 14),
-        sec(RangeToggle(
-            rangeDays: widget.rangeDays, onChanged: widget.onRangeChanged)),
-        const SizedBox(height: 16),
-        sec(_statusCard(membership)),
+        _introSection(1, _controlsCard()),
         const SizedBox(height: 14),
-        sec(_statsCard()),
-        const SizedBox(height: 14),
-        sec(_weightCard()),
-        const SizedBox(height: 14),
-        sec(_nutritionCard()),
-        const SizedBox(height: 14),
-        sec(_runningCard()),
-        const SizedBox(height: 14),
-        sec(_analysisCard()),
-        const SizedBox(height: 20),
-        sec(_shareButton(membership, generated, reportId)),
+        if (_generating)
+          _loadingCard()
+        else if (_report != null)
+          ..._reportSections()
+        else
+          _promptCard(),
       ],
     );
+  }
+
+  // ── Generation controls (period + generate button) ──────────────────────
+  Widget _controlsCard() {
+    final hasSelection = _selectedRange != null;
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SectionHeader(
+              icon: Icons.tune_rounded, title: 'GENERATE REPORT'),
+          const SizedBox(height: 16),
+          Text(
+            'SELECT REPORT PERIOD',
+            style: TextStyle(
+              color: ReportPalette.textTertiary,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: RangeToggle(
+              // 0 → neither highlighted until the hunter picks a period.
+              rangeDays: _selectedRange ?? 0,
+              onChanged: (d) => setState(() => _selectedRange = d),
+            ),
+          ),
+          if (hasSelection) ...[
+            const SizedBox(height: 18),
+            _generateButton(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _generateButton() {
+    final label = _generating
+        ? 'Generating...'
+        : (_report == null ? 'Generate Hunter Report' : 'Regenerate Report');
+    return GestureDetector(
+      onTap: _generating ? null : _generate,
+      child: AnimatedOpacity(
+        opacity: _generating ? 0.7 : 1.0,
+        duration: const Duration(milliseconds: 200),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 17),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                ReportPalette.accent,
+                ReportPalette.accent.withOpacity(0.72),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                  color: ReportPalette.accent.withOpacity(0.4), blurRadius: 20),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_generating)
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
+                )
+              else
+                const Icon(Icons.auto_graph_rounded,
+                    color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Loading state ────────────────────────────────────────────────────────
+  Widget _loadingCard() {
+    return GlassCard(
+      padding: const EdgeInsets.symmetric(vertical: 34, horizontal: 18),
+      child: Column(
+        children: [
+          SizedBox(
+            width: 34,
+            height: 34,
+            child: CircularProgressIndicator(
+                color: ReportPalette.accent, strokeWidth: 2.5),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Generating Hunter Report',
+            style: TextStyle(
+              color: ReportPalette.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Analyzing your last ${_selectedRange ?? 30} days.',
+            style: TextStyle(
+                color: ReportPalette.textSecondary, fontSize: 12.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Empty prompt (no report yet) ─────────────────────────────────────────
+  Widget _promptCard() {
+    return GlassCard(
+      padding: const EdgeInsets.symmetric(vertical: 34, horizontal: 20),
+      child: Column(
+        children: [
+          Icon(Icons.insights_rounded,
+              color: ReportPalette.accent.withOpacity(0.9), size: 40),
+          const SizedBox(height: 14),
+          Text(
+            'No Report Generated Yet',
+            style: TextStyle(
+              color: ReportPalette.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _selectedRange == null
+                ? 'Select a report period above to begin.'
+                : 'Tap "Generate Hunter Report" to create your report.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                color: ReportPalette.textSecondary, fontSize: 12.5, height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Rendered report sections ─────────────────────────────────────────────
+  List<Widget> _reportSections() {
+    final membership = ReportMembership.label(ReportMembership.effectiveTier(_d));
+    return [
+      _reportSection(0, _statusCard(membership)),
+      const SizedBox(height: 14),
+      _reportSection(1, _statsCard()),
+      const SizedBox(height: 14),
+      _reportSection(2, _weightCard()),
+      const SizedBox(height: 14),
+      _reportSection(3, _nutritionCard()),
+      const SizedBox(height: 14),
+      _reportSection(4, _runningCard()),
+      const SizedBox(height: 14),
+      _reportSection(5, _analysisCard()),
+      const SizedBox(height: 20),
+      _reportSection(6, _shareButton(membership)),
+    ];
   }
 
   // ── 1. Hunter Status ────────────────────────────────────────────────────
@@ -289,7 +477,7 @@ class _ReportContentState extends State<_ReportContent>
                     Text(
                       '$_rank Rank Hunter',
                       style: TextStyle(
-                        color: ReportPalette.accentBright.withOpacity(0.9),
+                        color: ReportPalette.accentBright,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1,
@@ -327,17 +515,17 @@ class _ReportContentState extends State<_ReportContent>
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: RadialGradient(colors: [
-          ReportPalette.accent.withOpacity(0.30),
+          ReportPalette.gold.withOpacity(0.28),
           ReportPalette.accent.withOpacity(0.02),
         ]),
         border:
-            Border.all(color: ReportPalette.accent.withOpacity(0.6), width: 1.5),
+            Border.all(color: ReportPalette.gold.withOpacity(0.6), width: 1.5),
       ),
       alignment: Alignment.center,
       child: Text(
         _rank,
         style: TextStyle(
-          color: ReportPalette.accentBright,
+          color: ReportPalette.gold,
           fontSize: 26,
           fontWeight: FontWeight.w900,
         ),
@@ -394,7 +582,6 @@ class _ReportContentState extends State<_ReportContent>
           const SizedBox(height: 6),
           LayoutBuilder(
             builder: (context, c) {
-              // Responsive: 1 column on very narrow widths, else 2 columns.
               const spacing = 12.0;
               final twoCol = c.maxWidth >= 280;
               final cellW = twoCol ? (c.maxWidth - spacing) / 2 : c.maxWidth;
@@ -506,8 +693,8 @@ class _ReportContentState extends State<_ReportContent>
 
   // ── 4. Nutrition Summary ──────────────────────────────────────────────
   Widget _nutritionCard() {
-    final r = widget.report;
-    final cutoff = DateTime.now().subtract(Duration(days: widget.rangeDays));
+    final r = _report!;
+    final cutoff = DateTime.now().subtract(Duration(days: _reportRange));
     final meals = r.meals.where((m) => m.time.isAfter(cutoff)).toList();
 
     final totalCals = meals.fold<int>(0, (s, m) => s + m.calories);
@@ -524,13 +711,13 @@ class _ReportContentState extends State<_ReportContent>
           SectionHeader(
             icon: Icons.restaurant_rounded,
             title: 'NUTRITION SUMMARY',
-            trailing: 'LAST ${widget.rangeDays} DAYS',
+            trailing: 'LAST $_reportRange DAYS',
           ),
           const SizedBox(height: 14),
           if (!r.nutritionOk)
             EmptyLine('Nutrition data is currently unavailable.')
           else if (meals.isEmpty)
-            EmptyLine('No meals logged in the last ${widget.rangeDays} days.')
+            EmptyLine('No meals logged in the last $_reportRange days.')
           else ...[
             Row(
               children: [
@@ -598,8 +785,8 @@ class _ReportContentState extends State<_ReportContent>
 
   // ── 5. Running Summary ────────────────────────────────────────────────
   Widget _runningCard() {
-    final r = widget.report;
-    final cutoff = DateTime.now().subtract(Duration(days: widget.rangeDays));
+    final r = _report!;
+    final cutoff = DateTime.now().subtract(Duration(days: _reportRange));
     final runs = r.runs.where((run) => run.createdAt.isAfter(cutoff)).toList();
 
     final totalDist = runs.fold<double>(0, (s, run) => s + run.distanceKm);
@@ -613,13 +800,13 @@ class _ReportContentState extends State<_ReportContent>
           SectionHeader(
             icon: Icons.directions_run_rounded,
             title: 'RUNNING SUMMARY',
-            trailing: 'LAST ${widget.rangeDays} DAYS',
+            trailing: 'LAST $_reportRange DAYS',
           ),
           const SizedBox(height: 14),
           if (!r.runsOk)
             EmptyLine('Running data is currently unavailable.')
           else if (runs.isEmpty)
-            EmptyLine('No runs recorded in the last ${widget.rangeDays} days.')
+            EmptyLine('No runs recorded in the last $_reportRange days.')
           else ...[
             Row(
               children: [
@@ -759,10 +946,9 @@ class _ReportContentState extends State<_ReportContent>
   }
 
   // ── 7. Share ────────────────────────────────────────────────────────────
-  Widget _shareButton(String membership, String generated, String reportId) {
+  Widget _shareButton(String membership) {
     return GestureDetector(
-      onTap:
-          _sharing ? null : () => _shareReport(membership, generated, reportId),
+      onTap: _sharing ? null : () => _shareReport(membership),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -807,8 +993,9 @@ class _ReportContentState extends State<_ReportContent>
     );
   }
 
-  Future<void> _shareReport(
-      String membership, String generated, String reportId) async {
+  bool _sharing = false;
+
+  Future<void> _shareReport(String membership) async {
     setState(() => _sharing = true);
     try {
       final controller = ScreenshotController();
@@ -826,8 +1013,8 @@ class _ReportContentState extends State<_ReportContent>
           currentWeight: _currentWeight,
           membership: membership,
           analysis: _analysis,
-          generatedDate: generated,
-          reportId: reportId,
+          generatedDate: _generatedDate ?? fmtDate(DateTime.now()),
+          reportId: _reportId ?? localReportId(widget.uid, DateTime.now()),
           profilePicture: _d['profilePicture'] as String?,
         ),
         context: context,

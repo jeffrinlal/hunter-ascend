@@ -41,15 +41,18 @@ class ReportSection extends StatelessWidget {
 class ReportHero extends StatelessWidget {
   ReportHero({
     super.key,
-    required this.generatedDate,
-    required this.reportId,
+    this.generatedDate,
+    this.reportId,
   });
 
-  final String generatedDate;
-  final String reportId;
+  /// Generation timestamp + local Report ID. Both null until a report has been
+  /// generated — in which case the meta row is hidden (masthead only).
+  final String? generatedDate;
+  final String? reportId;
 
   @override
   Widget build(BuildContext context) {
+    final hasMeta = generatedDate != null && reportId != null;
     return GlassCard(
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
       child: Column(
@@ -81,33 +84,35 @@ class ReportHero extends StatelessWidget {
               letterSpacing: 5,
             ),
           ),
-          const SizedBox(height: 16),
-          HairLine(),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _metaBlock(
-                  icon: Icons.event_available_outlined,
-                  label: 'GENERATED',
-                  value: generatedDate,
+          if (hasMeta) ...[
+            const SizedBox(height: 16),
+            HairLine(),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _metaBlock(
+                    icon: Icons.event_available_outlined,
+                    label: 'GENERATED',
+                    value: generatedDate!,
+                  ),
                 ),
-              ),
-              Container(
-                width: 1,
-                height: 34,
-                color: ReportPalette.accent.withOpacity(0.15),
-              ),
-              Expanded(
-                child: _metaBlock(
-                  icon: Icons.tag_rounded,
-                  label: 'REPORT ID',
-                  value: reportId,
-                  alignEnd: true,
+                Container(
+                  width: 1,
+                  height: 34,
+                  color: ReportPalette.accent.withOpacity(0.15),
                 ),
-              ),
-            ],
-          ),
+                Expanded(
+                  child: _metaBlock(
+                    icon: Icons.tag_rounded,
+                    label: 'REPORT ID',
+                    value: reportId!,
+                    alignEnd: true,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

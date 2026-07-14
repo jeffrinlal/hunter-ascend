@@ -23,9 +23,9 @@ class AmbientGlow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = ReportPalette.isDark;
-    final o1 = dark ? 0.18 : 0.06;
+    final o1 = dark ? 0.16 : 0.06;
     final o2 = dark ? 0.12 : 0.05;
-    final o3 = dark ? 0.10 : 0.04;
+    final o3 = dark ? 0.10 : 0.045;
     return Positioned.fill(
       child: IgnorePointer(
         child: Stack(
@@ -37,12 +37,11 @@ class AmbientGlow extends StatelessWidget {
             Positioned(
                 top: 280,
                 right: -70,
-                child: _orb(240, ReportPalette.accent.withOpacity(o2))),
+                child: _orb(240, ReportPalette.gold.withOpacity(o2))),
             Positioned(
                 bottom: -40,
                 left: 20,
-                child: _orb(
-                    200, const Color(0xFF6E5BFF).withOpacity(o3))),
+                child: _orb(200, ReportPalette.accent.withOpacity(o3))),
           ],
         ),
       ),

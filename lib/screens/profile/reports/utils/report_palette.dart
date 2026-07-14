@@ -4,18 +4,19 @@ import 'package:flutter/material.dart';
 
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 
-/// Theme-aware "System Window" palette for the Hunter Report.
+/// Theme-aware "System Window" palette for the Hunter Report, using the Hunter
+/// Ascend orange/gold design language (NOT blue).
 ///
-/// The report follows the app's light/dark theme (driven by [HunterTheme.isDark],
-/// which the app sets before every build). In both themes it keeps the same
-/// premium "Hunter System Report" identity — a blue-accented System window —
-/// but adapts surfaces, text and depth to feel native:
+/// Surfaces and text are pulled straight from [HunterTheme] so the report feels
+/// native to the app in both light and dark themes. Accents are the Hunter
+/// orange + gold used across the rest of the app:
 ///
-/// • Dark  → dark surfaces, bright blue glow, white text, glassmorphism.
-/// • Light → light surfaces, soft blue accents, dark text, elegant shadows.
+/// • Dark  → dark surfaces, warm orange glow, gold highlights, light text.
+/// • Light → light/warm surfaces, orange accents, gold highlights, dark text,
+///           elegant soft shadows.
 ///
-/// The DARK constants are also exposed publicly so the shareable report image
-/// can stay a fixed premium-dark design regardless of the in-app theme.
+/// The DARK constants are also exposed so the shareable report image can stay a
+/// fixed premium-dark (orange/gold) design regardless of the in-app theme.
 class ReportPalette {
   ReportPalette._();
 
@@ -24,72 +25,77 @@ class ReportPalette {
   /// Whether the report is currently rendering in the dark theme.
   static bool get isDark => _dark;
 
-  // ══ DARK constants (also used verbatim by the fixed-dark share card) ══
-  static const darkBgTop = Color(0xFF05070E);
-  static const darkBgBottom = Color(0xFF0A1120);
-  static const darkAccent = Color(0xFF4EA8FF);
-  static const darkAccentBright = Color(0xFF8CD0FF);
-  static const darkMint = Color(0xFF6EE7B7);
-  static const darkGold = Color(0xFFFFD35C);
-  static const darkPurple = Color(0xFFB98CFF);
-  static const darkWarn = Color(0xFFFF8A80);
+  // ══ Fixed-DARK constants (used verbatim by the fixed-dark share card) ══
+  static const darkBgTop = Color(0xFF0C1017);
+  static const darkBgBottom = Color(0xFF070A10);
+  static const darkAccent = Color(0xFFFF7A3D); // Hunter orange (dark)
+  static const darkAccentBright = Color(0xFFFF9E5C); // brighter orange
+  static const darkGold = Color(0xFFFFD54A);
+  static const darkMint = Color(0xFF4ADE80); // green (weight-positive)
+  static const darkWarn = Color(0xFFFF8A80); // red (weight-gain)
   static const darkFat = Color(0xFFFFB27A);
-  static const darkTextPrimary = Color(0xFFEAF2FF);
-  static const darkTextSecondary = Color(0xFF9DB2D0);
-  static const darkTextTertiary = Color(0xFF5E7196);
+  static const darkTextPrimary = Color(0xFFF5F6F8);
+  static const darkTextSecondary = Color(0xFFC2C8D2);
+  static const darkTextTertiary = Color(0xFF808895);
   static const darkGlassHi = Color(0x14FFFFFF);
   static const darkGlassLo = Color(0x08FFFFFF);
 
-  // ══ LIGHT constants ══
-  static const lightBgTop = Color(0xFFEDF3FF);
-  static const lightBgBottom = Color(0xFFFFFFFF);
-  static const lightAccent = Color(0xFF2F80ED);
-  static const lightAccentBright = Color(0xFF1B5FCC);
-  static const lightMint = Color(0xFF0E9F6E);
-  static const lightGold = Color(0xFFC98A00);
-  static const lightPurple = Color(0xFF7C3AED);
-  static const lightWarn = Color(0xFFE5484D);
-  static const lightFat = Color(0xFFE07B39);
-  static const lightTextPrimary = Color(0xFF0F1B2D);
-  static const lightTextSecondary = Color(0xFF4A5B74);
-  static const lightTextTertiary = Color(0xFF8A99B2);
-  static const lightGlassHi = Color(0xF2FFFFFF); // ~0.95 white — frosted
-  static const lightGlassLo = Color(0xCCEFF4FF); // ~0.8 light blue
+  // ══ Orange / gold accent constants (theme variants) ══
+  static const _lAccent = Color(0xFFFF6B2B); // Hunter brand orange
+  static const _lAccentBright = Color(0xFFF0611F); // deeper orange (contrast)
+  static const _lGold = Color(0xFFC7960E); // deep gold (legible on white)
+  static const _lMint = Color(0xFF2E9E6B); // green (weight-positive)
+  static const _lWarn = Color(0xFFE5484D); // red (weight-gain)
+  static const _lFat = Color(0xFFC77F1A); // amber
 
-  // ══ Dynamic tokens (adapt to the active theme) ══
-  static Color get bgTop => _dark ? darkBgTop : lightBgTop;
-  static Color get bgBottom => _dark ? darkBgBottom : lightBgBottom;
-  static Color get accent => _dark ? darkAccent : lightAccent;
-  static Color get accentBright => _dark ? darkAccentBright : lightAccentBright;
-  static Color get mint => _dark ? darkMint : lightMint;
-  static Color get gold => _dark ? darkGold : lightGold;
-  static Color get purple => _dark ? darkPurple : lightPurple;
-  static Color get warn => _dark ? darkWarn : lightWarn;
-  static Color get fatAccent => _dark ? darkFat : lightFat;
-  static Color get textPrimary => _dark ? darkTextPrimary : lightTextPrimary;
-  static Color get textSecondary =>
-      _dark ? darkTextSecondary : lightTextSecondary;
-  static Color get textTertiary =>
-      _dark ? darkTextTertiary : lightTextTertiary;
-  static Color get glassHi => _dark ? darkGlassHi : lightGlassHi;
-  static Color get glassLo => _dark ? darkGlassLo : lightGlassLo;
+  static const _dAccent = darkAccent;
+  static const _dAccentBright = darkAccentBright;
+  static const _dGold = darkGold;
+  static const _dMint = darkMint;
+  static const _dWarn = darkWarn;
+  static const _dFat = darkFat;
+
+  // ══ Dynamic accent tokens ══
+  static Color get accent => _dark ? _dAccent : _lAccent;
+  static Color get accentBright => _dark ? _dAccentBright : _lAccentBright;
+  static Color get gold => _dark ? _dGold : _lGold;
+  static Color get mint => _dark ? _dMint : _lMint;
+  static Color get warn => _dark ? _dWarn : _lWarn;
+  static Color get fatAccent => _dark ? _dFat : _lFat;
+
+  /// Max-tier accent — matches the app's purple Max branding in both themes.
+  static Color get purple =>
+      _dark ? const Color(0xFFB98CFF) : const Color(0xFF7C3AED);
+
+  // ══ Surfaces & text — reused straight from the app theme ══
+  static Color get bgTop => HunterTheme.surface;
+  static Color get bgBottom => HunterTheme.background;
+  static Color get textPrimary => HunterTheme.textPrimary;
+  static Color get textSecondary => HunterTheme.textSecondary;
+  static Color get textTertiary => HunterTheme.textTertiary;
+
+  // ══ Glass fills (warm/neutral, never blue) ══
+  static Color get glassHi =>
+      _dark ? darkGlassHi : const Color(0xF2FFFFFF); // ~0.95 white
+  static Color get glassLo =>
+      _dark ? darkGlassLo : const Color(0xCCFFF3EC); // ~0.8 warm white
 
   /// Subtle inner fill (stat cells, toggle track).
   static Color get fillSubtle =>
-      _dark ? Colors.white.withOpacity(0.04) : lightAccent.withOpacity(0.05);
+      _dark ? Colors.white.withOpacity(0.04) : accent.withOpacity(0.05);
 
   /// Progress-bar / control track background.
   static Color get track =>
-      _dark ? Colors.white.withOpacity(0.06) : lightAccent.withOpacity(0.10);
+      _dark ? Colors.white.withOpacity(0.06) : accent.withOpacity(0.10);
 
   /// Glass card border colour.
   static Color get cardBorder => accent.withOpacity(_dark ? 0.22 : 0.30);
 
-  /// Card depth: a blue glow in dark, an elegant soft shadow in light.
+  /// Card depth: a warm orange glow in dark, an elegant soft shadow in light.
   static List<BoxShadow> get cardShadow => _dark
       ? [
           BoxShadow(
-            color: darkAccent.withOpacity(0.10),
+            color: accent.withOpacity(0.10),
             blurRadius: 24,
             spreadRadius: -4,
             offset: const Offset(0, 8),
@@ -97,22 +103,23 @@ class ReportPalette {
         ]
       : [
           BoxShadow(
-            color: const Color(0xFF0F1B2D).withOpacity(0.08),
+            color: const Color(0xFF1A1A1A).withOpacity(0.08),
             blurRadius: 22,
             offset: const Offset(0, 10),
           ),
           BoxShadow(
-            color: lightAccent.withOpacity(0.06),
+            color: accent.withOpacity(0.06),
             blurRadius: 30,
             spreadRadius: -6,
             offset: const Offset(0, 6),
           ),
         ];
 
-  /// Restrained 5-step rating colour scale (adapts to theme).
+  /// Restrained 5-step rating colour scale (orange/gold, adapts to theme).
+  /// Top rating = gold, descending through bright orange → orange → muted text.
   static Color ratingColor(int level) => _ratingFrom(
         level,
-        top: mint,
+        top: gold,
         high: accentBright,
         mid: accent,
         low: textSecondary,
@@ -122,7 +129,7 @@ class ReportPalette {
   /// Fixed-DARK rating colours for the share image (theme-independent).
   static Color darkRatingColor(int level) => _ratingFrom(
         level,
-        top: darkMint,
+        top: darkGold,
         high: darkAccentBright,
         mid: darkAccent,
         low: darkTextSecondary,

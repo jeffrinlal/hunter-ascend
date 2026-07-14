@@ -1,6 +1,6 @@
 {
   "name": "hunter-ascend-functions",
-  "description": "Firebase Cloud Functions for Hunter Ascend billing and subscription management.",
+  "description": "Firebase Cloud Functions for Hunter Ascend rewarded-ad membership system.",
   "scripts": {
     "lint": "eslint .",
     "serve": "firebase emulators:start --only functions",
@@ -15,8 +15,7 @@
   "main": "index.js",
   "dependencies": {
     "firebase-admin": "^11.11.0",
-    "firebase-functions": "^4.5.0",
-    "googleapis": "^128.0.0"
+    "firebase-functions": "^4.5.0"
   },
   "devDependencies": {
     "eslint": "^8.50.0"

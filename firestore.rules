@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ══════════════════════════════════════════════════════════════════════
+    // HUNTERS COLLECTION
+    // ══════════════════════════════════════════════════════════════════════
+    //
+    // Each hunter document is at: hunters/{uid}
+    //
+    // SECURITY PRINCIPLE:
+    // - Membership fields are EXCLUSIVELY managed by Cloud Functions.
+    // - The client may read its own document and update gameplay fields.
+    // - Cross-user duel stat writes are temporarily allowed (known deferred
+    //   item — will be migrated to Cloud Functions in a future phase).
+    //
+    // Fields protected from client writes (only Cloud Functions may update):
+    //   membershipType, membershipExpiry, pendingMaxRewardAds,
+    //   pendingMaxRewardStartedAt, lastRewardClaim
+    //
+    // Note: Firebase Admin SDK (used by Cloud Functions) bypasses all
+    // security rules. These rules only restrict client-side SDK access.
+    // ══════════════════════════════════════════════════════════════════════
+
+    match /hunters/{hunterId} {
+
+      // ── Read: only the document owner can read their own data ──
+      allow read: if request.auth != null && request.auth.uid == hunterId;
+
+      // ── Create: only the document owner, during initial profile setup ──
+      allow create: if request.auth != null
+                    && request.auth.uid == hunterId
+                    && !request.resource.data.keys().hasAny([
+                      'membershipType',
+                      'membershipExpiry',
+                      'pendingMaxRewardAds',
+                      'pendingMaxRewardStartedAt',
+                      'lastRewardClaim'
+                    ]);
+
+      // ── Update: owner can update gameplay fields ──
+      // Rejects any update that attempts to modify protected membership fields.
+      allow update: if request.auth != null
+                    && (
+                      // Own document: block membership field writes
+                      (request.auth.uid == hunterId
+                       && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                         'membershipType',
+                         'membershipExpiry',
+                         'pendingMaxRewardAds',
+                         'pendingMaxRewardStartedAt',
+                         'lastRewardClaim'
+                       ]))
+                      ||
+                      // Cross-user duel stats (temporary exception)
+                      // Only allows incrementing duelWins or duelLosses on
+                      // another user's document. Will be migrated to Cloud
+                      // Functions in a future phase.
+                      (request.auth.uid != hunterId
+                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                         'duelWins', 'duelLosses'
+                       ]))
+                    );
+
+      // ── Delete: never allowed from client ──
+      allow delete: if false;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // SUBSCRIPTIONS COLLECTION (legacy — read-only, no new writes)
+    // ══════════════════════════════════════════════════════════════════════
+    match /subscriptions/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // DUELS COLLECTION
+    // ══════════════════════════════════════════════════════════════════════
+    match /duels/{duelId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if false;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // DEFAULT: deny everything else
+    // ══════════════════════════════════════════════════════════════════════
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

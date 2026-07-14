@@ -147,7 +147,7 @@ class MembershipFeatures {
 ///
 /// ## What this service does NOT do
 /// - It never writes to Firestore. Membership is only ever upgraded by the
-///   backend after a Razorpay payment is verified server-side.
+///   backend after a Google Play Billing purchase is verified server-side.
 /// - It never exposes the raw `membership` string from Firestore to callers
 ///   — the only string exposed is the human-readable [membershipName].
 ///
@@ -198,7 +198,7 @@ class MembershipService {
   ///
   /// This is a no-op if membership has already been loaded once during this
   /// app session — call [reload] instead to force a fresh read (for example
-  /// right after the backend confirms a Razorpay payment and updates
+  /// right after the backend confirms a Google Play Billing purchase and updates
   /// Firestore).
   ///
   /// If there is no signed-in user, or the hunter document / fields are
@@ -213,8 +213,8 @@ class MembershipService {
   /// in-memory cache.
   ///
   /// Intended to be called after an event that may have changed the user's
-  /// membership server-side (e.g. the backend just verified a Razorpay
-  /// payment and updated `hunters/{uid}`), or when the user pulls-to-refresh
+  /// membership server-side (e.g. the backend just verified a Google Play
+  /// Billing purchase and updated `hunters/{uid}`), or when the user pulls-to-refresh
   /// a membership/account screen.
   Future<void> reload() async {
     _hasLoaded = false;
@@ -256,7 +256,7 @@ class MembershipService {
   ///
   /// This method NEVER writes to Firestore. Membership fields are owned
   /// exclusively by the backend, which updates them after verifying a
-  /// Razorpay payment.
+  /// Google Play Billing purchase.
   Future<void> _readFromFirestore() async {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;

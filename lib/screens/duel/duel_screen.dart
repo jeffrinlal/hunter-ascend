@@ -662,7 +662,9 @@ class _DuelScreenState extends State<DuelScreen> {
 
           // ── Completed result screen ──
           if (duel['status'] == 'completed') {
-            final bool won      = duel['winner'] == user?.uid;
+            final String winnerUid = (duel['winner'] ?? '').toString();
+            final bool won = winnerUid == user?.uid && winnerUid.isNotEmpty;
+            final bool draw = winnerUid.isEmpty;
             final String vField = isPlayer1 ? 'player1ViewedResult' : 'player2ViewedResult';
 
             if (duel[vField] == false) {
@@ -670,6 +672,20 @@ class _DuelScreenState extends State<DuelScreen> {
                 FirebaseFirestore.instance.collection('duels').doc(widget.duelId).update({vField: true});
               });
             }
+
+            // Determine result visuals.
+            final Color resultColor = draw
+                ? HunterTheme.gold
+                : (won ? Colors.amber : HunterTheme.danger);
+            final IconData resultIcon = draw
+                ? Icons.balance
+                : (won ? Icons.emoji_events : Icons.close);
+            final String resultTitle = draw
+                ? 'DRAW'
+                : (won ? 'VICTORY' : 'DEFEATED');
+            final String resultMessage = draw
+                ? 'Equally matched. Challenge again to decide.'
+                : (won ? 'You have proven your worth, Hunter.' : 'Train harder. Rise again.');
 
             return Container(
               color: _bg,
@@ -680,28 +696,24 @@ class _DuelScreenState extends State<DuelScreen> {
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: won
-                            ? Colors.amber.withValues(alpha: 0.1)
-                            : HunterTheme.danger.withValues(alpha: 0.1),
+                        color: resultColor.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: won
-                              ? Colors.amber.withValues(alpha: 0.5)
-                              : HunterTheme.danger.withValues(alpha: 0.5),
+                          color: resultColor.withValues(alpha: 0.5),
                           width: 2,
                         ),
                       ),
                       child: Icon(
-                        won ? Icons.emoji_events : Icons.close,
-                        color: won ? Colors.amber : HunterTheme.danger,
+                        resultIcon,
+                        color: resultColor,
                         size: 72,
                       ),
                     ),
                     const SizedBox(height: 28),
                     Text(
-                      won ? "VICTORY" : "DEFEATED",
+                      resultTitle,
                       style: TextStyle(
-                        color: won ? Colors.amber : HunterTheme.danger,
+                        color: resultColor,
                         fontSize: 36,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 4,
@@ -709,7 +721,7 @@ class _DuelScreenState extends State<DuelScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      won ? "You have proven your worth, Hunter." : "Train harder. Rise again.",
+                      resultMessage,
                       style: TextStyle(color: HunterTheme.textTertiary, fontSize: 14),
                     ),
                     const SizedBox(height: 32),

@@ -762,7 +762,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
+                                borderSide: BorderSide(
                                     color: _orange, width: 1.5),
                               ),
                             ),

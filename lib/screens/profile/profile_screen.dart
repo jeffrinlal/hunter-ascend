@@ -162,8 +162,8 @@ class _ProfileScreenState extends State<ProfileScreen>
               : 50;
           final vit  = weight > 0 ? 65 : 40;
 
-          return CustomScrollView(
-            slivers: [
+          return NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
               // ── Header ──────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Stack(
@@ -620,10 +620,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                 ),
               ),
+            ],
 
-              // ── Tab content ─────────────────────────────────────────
-              SliverFillRemaining(
-                child: TabBarView(
+            // ── Tab content ─────────────────────────────────────────
+            body: TabBarView(
                   controller: _tabController,
                   children: [
 
@@ -736,8 +736,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                     _buildWeightHistoryTab(user),
                   ],
                 ),
-              ),
-            ],
           );
         },
       ),

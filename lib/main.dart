@@ -72,6 +72,14 @@ void main() async {
         final prefs = await SharedPreferences.getInstance();
         hasCompletedSetup = prefs.getBool('hasCompletedSetup') ?? false;
 
+        // One-time migration: force Dark Mode for all users on this update.
+        // After this runs once, users can freely switch themes in Settings.
+        final migrated = prefs.getBool('themeMigrationCompleted') ?? false;
+        if (!migrated) {
+            await prefs.setBool('darkMode', true);
+            await prefs.setBool('themeMigrationCompleted', true);
+        }
+
         final isDarkMode = prefs.getBool('darkMode') ?? false;
         HunterTheme.isDark = isDarkMode;
         themeNotifier.value = isDarkMode ? ThemeMode.dark : ThemeMode.light;

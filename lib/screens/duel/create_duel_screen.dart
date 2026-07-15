@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
@@ -35,9 +36,16 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
   String _selectedDifficulty = 'Medium'; // Easy | Medium | Hard
 
   // ── AI Duel Quest generation ────────────────────────────────────────
-  int _aiQuestCount = 4; // 2-6
+  int _aiQuestCount = 4; // 4-6
   bool _isGeneratingAI = false;
   List<Map<String, dynamic>> _aiGeneratedQuests = [];
+
+  // ── Live opponent Hunter lookup ─────────────────────────────────────
+  Timer? _hunterLookupTimer;
+  // null = nothing shown, true = found, false = not found
+  bool? _opponentFound;
+  bool _opponentChecking = false;
+  bool _opponentCheckError = false;
 
   // ── Rewarded ad (reuses the same google_mobile_ads RewardedAd flow
   // used elsewhere in the app, e.g. dashboard streak-recovery ad) ────────
@@ -52,15 +60,63 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
       hunterNameController.text = widget.hunterName!;
     }
 
+    hunterNameController.addListener(_onOpponentNameChanged);
     _loadDuelRewardedAd();
+
+    // Trigger initial check if a name was pre-filled.
+    if (hunterNameController.text.trim().length >= 3) {
+      _onOpponentNameChanged();
+    }
   }
 
   @override
   void dispose() {
+    _hunterLookupTimer?.cancel();
     hunterNameController.dispose();
     questController.dispose();
     _duelRewardedAd?.dispose();
     super.dispose();
+  }
+
+  void _onOpponentNameChanged() {
+    _hunterLookupTimer?.cancel();
+    final name = hunterNameController.text.trim();
+
+    if (name.length < 3) {
+      setState(() {
+        _opponentFound = null;
+        _opponentChecking = false;
+        _opponentCheckError = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _opponentChecking = true;
+      _opponentCheckError = false;
+    });
+
+    _hunterLookupTimer = Timer(const Duration(milliseconds: 400), () async {
+      try {
+        final result = await FirebaseFirestore.instance
+            .collection('hunters')
+            .where('hunterName', isEqualTo: name)
+            .limit(1)
+            .get();
+        if (!mounted) return;
+        setState(() {
+          _opponentFound = result.docs.isNotEmpty;
+          _opponentChecking = false;
+        });
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _opponentFound = null;
+          _opponentChecking = false;
+          _opponentCheckError = true;
+        });
+      }
+    });
   }
 
   void addQuest() {
@@ -119,6 +175,19 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Enter a Hunter Name")),
         );
+        return;
+      }
+
+      if (_opponentFound != true) {
+        if (_opponentChecking) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Please wait — verifying Hunter Name...")),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Hunter not found. Check the name and try again.")),
+          );
+        }
         return;
       }
 
@@ -456,6 +525,16 @@ Return ONLY a JSON array, no markdown, no explanation:
       _showOpponentRequiredDialog();
       return;
     }
+    if (_opponentFound != true) {
+      if (_opponentChecking) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please wait — verifying Hunter Name...")),
+        );
+      } else {
+        _showOpponentRequiredDialog();
+      }
+      return;
+    }
 
     int tempCount = _aiQuestCount;
 
@@ -475,7 +554,7 @@ Return ONLY a JSON array, no markdown, no explanation:
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: [2, 3, 4, 5, 6]
+                children: [4, 5, 6]
                     .map((c) => _selectableChip(
                   label: '$c',
                   selected: tempCount == c,
@@ -1005,6 +1084,53 @@ Return ONLY a JSON array, no markdown, no explanation:
                       hint: 'Enter Hunter Name',
                       icon: Icons.person_search,
                     ),
+                    // ── Live opponent lookup indicator ──
+                    if (_opponentChecking)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(children: [
+                          SizedBox(
+                            width: 12, height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: HunterTheme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('Checking...',
+                            style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12)),
+                        ]),
+                      )
+                    else if (_opponentFound == true)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(children: [
+                          Icon(Icons.check_circle, color: HunterTheme.success, size: 14),
+                          const SizedBox(width: 6),
+                          Text('Hunter found',
+                            style: TextStyle(color: HunterTheme.success, fontSize: 12, fontWeight: FontWeight.w600)),
+                        ]),
+                      )
+                    else if (_opponentFound == false)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(children: [
+                          Icon(Icons.cancel, color: HunterTheme.danger, size: 14),
+                          const SizedBox(width: 6),
+                          Text('Hunter not found',
+                            style: TextStyle(color: HunterTheme.danger, fontSize: 12, fontWeight: FontWeight.w600)),
+                        ]),
+                      )
+                    else if (_opponentCheckError)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(children: [
+                          Icon(Icons.warning_amber_rounded, color: HunterTheme.gold, size: 14),
+                          const SizedBox(width: 6),
+                          Text('Unable to verify Hunter',
+                            style: TextStyle(color: HunterTheme.gold, fontSize: 12, fontWeight: FontWeight.w600)),
+                        ]),
+                      ),
 
                     const SizedBox(height: 20),
 

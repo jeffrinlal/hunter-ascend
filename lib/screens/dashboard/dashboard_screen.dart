@@ -749,7 +749,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final snap = await txn.get(ref);
           final d = snap.data() ?? {};
           int curXp = (d['xp'] ?? 0) as int;
-          curXp = (curXp - 100).clamp(0, 999999);
+          curXp = (curXp - 20).clamp(0, 999999);
           txn.update(ref, {'xp': curXp});
         });
 
@@ -757,7 +757,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                "⚠️ Ad unavailable. -100 XP penalty applied.",
+                "⚠️ Ad unavailable. -20 XP penalty applied.",
               ),
             ),
           );

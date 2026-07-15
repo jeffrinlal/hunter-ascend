@@ -335,19 +335,18 @@ class CalorieTrackerCard extends StatefulWidget {
 }
 
 class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
-  // ── Premium light palette (fixed) ─────────────────────────────────────
-  static const Color _bg = Color(0xFFFAFAFA); // page / input background
-  static const Color _card = Color(0xFFFFFFFF); // white card
-  static const Color _blue = Color(0xFFFF6B2B); // protein accent (orange)
-  static const Color _blueDim = Color(0xFFEFEFEF); // track / secondary surface
-  static Color get _border =>
-      const Color(0xFFFF6B2B).withOpacity(0.2); // tinted border
+  // ── Theme-aware palette ─────────────────────────────────────────────────
+  static Color get _bg => HunterTheme.background;
+  static Color get _card => HunterTheme.cardColor;
+  static Color get _blue => HunterTheme.primary; // brand accent
+  static Color get _blueDim => HunterTheme.border; // track / secondary surface
+  static Color get _border => HunterTheme.primary.withOpacity(0.2);
   static const Color _green = Color(0xFF34C759); // carbs
   static const Color _red = Color(0xFFFF5A5F); // fats / over-goal (coral)
-  static const Color _orange = Color(0xFFFF6B2B); // brand accent
-  static const Color _textPrimary = Color(0xFF1A1A1A);
-  static const Color _textSecondary = Color(0xFF666666);
-  static const Color _textTertiary = Color(0xFF999999);
+  static Color get _orange => HunterTheme.primary; // brand accent
+  static Color get _textPrimary => HunterTheme.textPrimary;
+  static Color get _textSecondary => HunterTheme.textSecondary;
+  static Color get _textTertiary => HunterTheme.textTertiary;
 
   final TextEditingController _foodController = TextEditingController();
   bool _isLoading = false;
@@ -998,7 +997,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
             style: TextStyle(color: _textSecondary, fontSize: 11)),
         const SizedBox(height: 4),
         Text(label,
-            style: const TextStyle(color: _textTertiary, fontSize: 11)),
+            style: TextStyle(color: _textTertiary, fontSize: 11)),
       ],
     );
   }
@@ -1023,7 +1022,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
         ),
         const SizedBox(height: 6),
         Text("${value.toStringAsFixed(0)}g / ${goal}g",
-            style: const TextStyle(color: _textSecondary, fontSize: 11)),
+            style: TextStyle(color: _textSecondary, fontSize: 11)),
       ],
     );
   }

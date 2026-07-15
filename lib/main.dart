@@ -463,11 +463,19 @@ class _AssessmentScreenState extends State<AssessmentScreen>
     bool _nameChecking = false;
     bool _nameCheckError = false;
 
+    // ── Field validation errors ──
+    String? _ageError;
+    String? _heightError;
+    String? _weightError;
+
     @override
     void initState() {
         super.initState();
 
         nameController.addListener(_onNameChanged);
+        ageController.addListener(_validateAge);
+        heightController.addListener(_validateHeight);
+        weightController.addListener(_validateWeight);
 
         _fadeController = AnimationController(
             vsync: this,
@@ -539,6 +547,48 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                 });
             }
         });
+    }
+
+    void _validateAge() {
+        final text = ageController.text.trim();
+        String? error;
+        if (text.isEmpty) {
+            error = 'Age is required';
+        } else {
+            final age = int.tryParse(text);
+            if (age == null || age < 13 || age > 100) {
+                error = 'Enter a valid age (13\u2013100)';
+            }
+        }
+        if (error != _ageError) setState(() => _ageError = error);
+    }
+
+    void _validateHeight() {
+        final text = heightController.text.trim();
+        String? error;
+        if (text.isEmpty) {
+            error = 'Height is required';
+        } else {
+            final h = double.tryParse(text);
+            if (h == null || h < 100 || h > 250) {
+                error = 'Enter a valid height (100\u2013250 cm)';
+            }
+        }
+        if (error != _heightError) setState(() => _heightError = error);
+    }
+
+    void _validateWeight() {
+        final text = weightController.text.trim();
+        String? error;
+        if (text.isEmpty) {
+            error = 'Weight is required';
+        } else {
+            final w = double.tryParse(text);
+            if (w == null || w < 20 || w > 300) {
+                error = 'Enter a valid weight (20\u2013300 kg)';
+            }
+        }
+        if (error != _weightError) setState(() => _weightError = error);
     }
 
     @override
@@ -762,6 +812,25 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                         icon: Icons.calendar_today_outlined,
                                                         keyboardType: TextInputType.number,
                                                     ),
+                                                    if (_ageError != null)
+                                                        Padding(
+                                                            padding: const EdgeInsets.only(top: 6),
+                                                            child: Row(
+                                                                children: [
+                                                                    Icon(Icons.error_outline,
+                                                                        color: HunterTheme.danger, size: 13),
+                                                                    const SizedBox(width: 6),
+                                                                    Text(
+                                                                        _ageError!,
+                                                                        style: TextStyle(
+                                                                            color: HunterTheme.danger,
+                                                                            fontSize: 11,
+                                                                            fontWeight: FontWeight.w600,
+                                                                        ),
+                                                                    ),
+                                                                ],
+                                                            ),
+                                                        ),
                                                     const SizedBox(height: 22),
                                                     _sectionLabel('PHYSICAL DATA'),
                                                     const SizedBox(height: 12),
@@ -786,16 +855,68 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                             ),
                                                         ],
                                                     ),
+                                                    if (_heightError != null || _weightError != null)
+                                                        Padding(
+                                                            padding: const EdgeInsets.only(top: 6),
+                                                            child: Column(
+                                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                                children: [
+                                                                    if (_heightError != null)
+                                                                        Padding(
+                                                                            padding: const EdgeInsets.only(bottom: 4),
+                                                                            child: Row(
+                                                                                children: [
+                                                                                    Icon(Icons.error_outline,
+                                                                                        color: HunterTheme.danger, size: 13),
+                                                                                    const SizedBox(width: 6),
+                                                                                    Text(
+                                                                                        _heightError!,
+                                                                                        style: TextStyle(
+                                                                                            color: HunterTheme.danger,
+                                                                                            fontSize: 11,
+                                                                                            fontWeight: FontWeight.w600,
+                                                                                        ),
+                                                                                    ),
+                                                                                ],
+                                                                            ),
+                                                                        ),
+                                                                    if (_weightError != null)
+                                                                        Row(
+                                                                            children: [
+                                                                                Icon(Icons.error_outline,
+                                                                                    color: HunterTheme.danger, size: 13),
+                                                                                const SizedBox(width: 6),
+                                                                                Text(
+                                                                                    _weightError!,
+                                                                                    style: TextStyle(
+                                                                                        color: HunterTheme.danger,
+                                                                                        fontSize: 11,
+                                                                                        fontWeight: FontWeight.w600,
+                                                                                    ),
+                                                                                ),
+                                                                            ],
+                                                                        ),
+                                                                ],
+                                                            ),
+                                                        ),
                                                 ],
                                             ),
                                         ),
                                         const SizedBox(height: 28),
                                         GestureDetector(
                                             onTap: () async {
-                                                if (nameController.text.trim().isEmpty ||
-                                                    ageController.text.trim().isEmpty ||
-                                                    heightController.text.trim().isEmpty ||
-                                                    weightController.text.trim().isEmpty) {
+                                                // Run all validators to show errors.
+                                                _validateAge();
+                                                _validateHeight();
+                                                _validateWeight();
+
+                                                final nameEmpty = nameController.text.trim().isEmpty;
+                                                final hasErrors = nameEmpty ||
+                                                    _ageError != null ||
+                                                    _heightError != null ||
+                                                    _weightError != null;
+
+                                                if (hasErrors) {
                                                     ScaffoldMessenger.of(context).showSnackBar(
                                                         SnackBar(
                                                             backgroundColor: HunterTheme.cardColor,
@@ -805,7 +926,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                                 borderRadius: BorderRadius.circular(6),
                                                             ),
                                                             content: const Text(
-                                                                '[ ERROR ] Please complete all Hunter data.',
+                                                                '[ ERROR ] Please fix the highlighted fields.',
                                                                 style: TextStyle(
                                                                     color: Colors.redAccent,
                                                                     letterSpacing: 0.5,

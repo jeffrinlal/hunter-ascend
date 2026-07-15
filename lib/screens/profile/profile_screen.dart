@@ -260,28 +260,28 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFFFF0E8),
+                                  color: HunterTheme.primary.withOpacity(0.08),
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                      color: const Color(0xFFFF6B2B)),
+                                      color: HunterTheme.primary),
                                 ),
                                 child: Column(
                                   crossAxisAlignment:
                                   CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
+                                    Text(
                                       "⚠️ You're a Guest!",
                                       style: TextStyle(
-                                        color: Color(0xFF1A1A1A),
+                                        color: HunterTheme.textPrimary,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 15,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    const Text(
+                                    Text(
                                       "Link Google to save your progress",
                                       style: TextStyle(
-                                        color: Color(0xFF1A1A1A),
+                                        color: HunterTheme.textSecondary,
                                         fontSize: 13,
                                       ),
                                     ),
@@ -294,7 +294,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                             : _linkGoogleAccount,
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor:
-                                          const Color(0xFFFF6B2B),
+                                          HunterTheme.primary,
                                           foregroundColor: Colors.white,
                                           padding: const EdgeInsets.symmetric(
                                               vertical: 12),

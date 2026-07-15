@@ -335,19 +335,18 @@ class CalorieTrackerCard extends StatefulWidget {
 }
 
 class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
-  // ── Premium light palette (fixed) ─────────────────────────────────────
-  static const Color _bg = Color(0xFFFAFAFA); // page / input background
-  static const Color _card = Color(0xFFFFFFFF); // white card
-  static const Color _blue = Color(0xFFFF6B2B); // protein accent (orange)
-  static const Color _blueDim = Color(0xFFEFEFEF); // track / secondary surface
-  static Color get _border =>
-      const Color(0xFFFF6B2B).withOpacity(0.2); // tinted border
+  // ── Theme-aware palette ─────────────────────────────────────────────────
+  static Color get _bg => HunterTheme.background;
+  static Color get _card => HunterTheme.cardColor;
+  static Color get _blue => HunterTheme.primary; // brand accent
+  static Color get _blueDim => HunterTheme.border; // track / secondary surface
+  static Color get _border => HunterTheme.primary.withOpacity(0.2);
   static const Color _green = Color(0xFF34C759); // carbs
   static const Color _red = Color(0xFFFF5A5F); // fats / over-goal (coral)
-  static const Color _orange = Color(0xFFFF6B2B); // brand accent
-  static const Color _textPrimary = Color(0xFF1A1A1A);
-  static const Color _textSecondary = Color(0xFF666666);
-  static const Color _textTertiary = Color(0xFF999999);
+  static Color get _orange => HunterTheme.primary; // brand accent
+  static Color get _textPrimary => HunterTheme.textPrimary;
+  static Color get _textSecondary => HunterTheme.textSecondary;
+  static Color get _textTertiary => HunterTheme.textTertiary;
 
   final TextEditingController _foodController = TextEditingController();
   bool _isLoading = false;
@@ -747,11 +746,11 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                         Expanded(
                           child: TextField(
                             controller: _foodController,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: _textPrimary, fontSize: 14),
                             decoration: InputDecoration(
                               hintText: "Type food name...",
-                              hintStyle: const TextStyle(
+                              hintStyle: TextStyle(
                                   color: _textSecondary, fontSize: 13),
                               filled: true,
                               fillColor: _bg,
@@ -801,7 +800,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                     color: _orange.withOpacity(0.4))),
-                            child: const Icon(Icons.camera_alt,
+                            child: Icon(Icons.camera_alt,
                                 color: _orange, size: 20),
                           ),
                         ),
@@ -816,7 +815,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Text(
                               "💡 FOOD SEARCH TIPS",
                               style: TextStyle(
@@ -878,7 +877,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
         Expanded(
           child: Text(
             "Hello $hunterName!",
-            style: const TextStyle(
+            style: TextStyle(
               color: _textPrimary,
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -944,7 +943,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                       children: [
                         Text(
                           "$totalCals",
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: _textPrimary,
                             fontSize: 38,
                             fontWeight: FontWeight.bold,
@@ -954,7 +953,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                         const SizedBox(height: 4),
                         Text(
                           "of $calorieGoal kcal",
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: _textSecondary,
                             fontSize: 12,
                           ),
@@ -994,11 +993,11 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
           style: TextStyle(
               color: color, fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        const Text("kcal",
+        Text("kcal",
             style: TextStyle(color: _textSecondary, fontSize: 11)),
         const SizedBox(height: 4),
         Text(label,
-            style: const TextStyle(color: _textTertiary, fontSize: 11)),
+            style: TextStyle(color: _textTertiary, fontSize: 11)),
       ],
     );
   }
@@ -1023,7 +1022,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
         ),
         const SizedBox(height: 6),
         Text("${value.toStringAsFixed(0)}g / ${goal}g",
-            style: const TextStyle(color: _textSecondary, fontSize: 11)),
+            style: TextStyle(color: _textSecondary, fontSize: 11)),
       ],
     );
   }

@@ -160,6 +160,35 @@ class NotificationService {
     );
   }
 
+  /// Schedules a single daily reminder based on the user's preference.
+  /// Cancels all previous reminder tasks first, then schedules only the
+  /// selected one. The streak reminder (9 PM) is always kept.
+  ///
+  /// [preference] must be 'Morning', 'Afternoon', 'Evening', or '' (off).
+  Future<void> scheduleForPreference(String preference) async {
+    await Workmanager().cancelAll();
+
+    final now = DateTime.now();
+
+    // Always keep the streak safety reminder regardless of preference.
+    await _scheduleDaily(streakTask, 4, 21, 0, now);
+
+    if (preference.isEmpty) return; // Daily reminders off — only streak remains.
+
+    // Schedule only the selected daily reminder.
+    switch (preference) {
+      case 'Morning':
+        await _scheduleDaily(morningTask, 1, 8, 0, now);
+        break;
+      case 'Afternoon':
+        await _scheduleDaily(afternoonTask, 2, 14, 0, now);
+        break;
+      case 'Evening':
+        await _scheduleDaily(eveningTask, 3, 19, 0, now);
+        break;
+    }
+  }
+
   Future<void> cancelAll() async {
     await _notifications.cancelAll();
     await Workmanager().cancelAll();

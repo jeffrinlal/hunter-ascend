@@ -19,6 +19,7 @@ import 'package:hunter_ascend/screens/map/map_screen.dart';
 import 'package:hunter_ascend/screens/nutrition/nutrition_screen.dart';
 import 'dart:typed_data';
 import 'package:hunter_ascend/services/connectivity_service.dart';
+import 'package:hunter_ascend/services/notification_service.dart';
 import 'package:hunter_ascend/services/update_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1480,6 +1481,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         .collection('hunters')
                         .doc(user.uid)
                         .update({'notificationTime': opt['label']});
+                    await NotificationService().scheduleForPreference(opt['label'] as String);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -1548,9 +1550,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         .collection('hunters')
                         .doc(user.uid)
                         .update({'notificationTime': ''});
+                    await NotificationService().scheduleForPreference('');
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("🔕 Reminders turned off")),
+                        const SnackBar(content: Text("🔕 Daily reminders turned off")),
                       );
                     }
                   },
@@ -1566,7 +1569,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     child: Center(
                       child: Text(
-                        "TURN OFF REMINDERS",
+                        "TURN OFF DAILY REMINDERS",
                         style: TextStyle(
                           color: HunterTheme.danger,
                           fontWeight: FontWeight.bold,
@@ -1575,6 +1578,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                     ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Streak protection reminders remain enabled to help you maintain your streak.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: HunterTheme.textTertiary,
+                    fontSize: 10.5,
+                    height: 1.4,
                   ),
                 ),
               ],

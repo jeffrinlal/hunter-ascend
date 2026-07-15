@@ -89,7 +89,12 @@ void main() async {
 Future<void> _deferredInit() async {
     try {
         await NotificationService().init();
-        await NotificationService().scheduleAllNotifications();
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null) {
+            final doc = await FirebaseFirestore.instance.collection('hunters').doc(uid).get();
+            final pref = (doc.data()?['notificationTime'] ?? '').toString();
+            await NotificationService().scheduleForPreference(pref);
+        }
         await FacebookAppEvents().logEvent(name: 'fb_mobile_activate_app');
     } catch (e) {
         debugPrint("deferredInit: $e");

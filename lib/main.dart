@@ -456,9 +456,18 @@ class _AssessmentScreenState extends State<AssessmentScreen>
     late Animation<double> _fadeAnim;
     late Animation<double> _pulseAnim;
 
+    // ── Hunter Name availability check ──
+    Timer? _nameCheckTimer;
+    // null = nothing shown, true = available, false = taken
+    bool? _nameAvailable;
+    bool _nameChecking = false;
+    bool _nameCheckError = false;
+
     @override
     void initState() {
         super.initState();
+
+        nameController.addListener(_onNameChanged);
 
         _fadeController = AnimationController(
             vsync: this,
@@ -481,6 +490,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
 
     @override
     void dispose() {
+        _nameCheckTimer?.cancel();
         _fadeController.dispose();
         _pulseController.dispose();
         nameController.dispose();
@@ -488,6 +498,47 @@ class _AssessmentScreenState extends State<AssessmentScreen>
         heightController.dispose();
         weightController.dispose();
         super.dispose();
+    }
+
+    void _onNameChanged() {
+        _nameCheckTimer?.cancel();
+        final name = nameController.text.trim();
+
+        if (name.length < 3) {
+            setState(() {
+                _nameAvailable = null;
+                _nameChecking = false;
+                _nameCheckError = false;
+            });
+            return;
+        }
+
+        setState(() {
+            _nameChecking = true;
+            _nameCheckError = false;
+        });
+
+        _nameCheckTimer = Timer(const Duration(milliseconds: 400), () async {
+            final nameKey = name.toLowerCase();
+            try {
+                final doc = await FirebaseFirestore.instance
+                    .collection('hunterNames')
+                    .doc(nameKey)
+                    .get();
+                if (!mounted) return;
+                setState(() {
+                    _nameAvailable = !doc.exists;
+                    _nameChecking = false;
+                });
+            } catch (_) {
+                if (!mounted) return;
+                setState(() {
+                    _nameAvailable = null;
+                    _nameChecking = false;
+                    _nameCheckError = true;
+                });
+            }
+        });
     }
 
     @override
@@ -622,6 +673,88 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                         icon: Icons.person_outline,
                                                         keyboardType: TextInputType.text,
                                                     ),
+                                                    // ── Live availability indicator ──
+                                                    if (_nameChecking)
+                                                        Padding(
+                                                            padding: const EdgeInsets.only(top: 8),
+                                                            child: Row(
+                                                                children: [
+                                                                    SizedBox(
+                                                                        width: 12,
+                                                                        height: 12,
+                                                                        child: CircularProgressIndicator(
+                                                                            strokeWidth: 1.5,
+                                                                            color: HunterTheme.primary,
+                                                                        ),
+                                                                    ),
+                                                                    const SizedBox(width: 8),
+                                                                    Text(
+                                                                        'Checking...',
+                                                                        style: TextStyle(
+                                                                            color: HunterTheme.textTertiary,
+                                                                            fontSize: 12,
+                                                                        ),
+                                                                    ),
+                                                                ],
+                                                            ),
+                                                        )
+                                                    else if (_nameAvailable == true)
+                                                        Padding(
+                                                            padding: const EdgeInsets.only(top: 8),
+                                                            child: Row(
+                                                                children: [
+                                                                    Icon(Icons.check_circle,
+                                                                        color: HunterTheme.success, size: 14),
+                                                                    const SizedBox(width: 6),
+                                                                    Text(
+                                                                        'Hunter Name available',
+                                                                        style: TextStyle(
+                                                                            color: HunterTheme.success,
+                                                                            fontSize: 12,
+                                                                            fontWeight: FontWeight.w600,
+                                                                        ),
+                                                                    ),
+                                                                ],
+                                                            ),
+                                                        )
+                                                    else if (_nameAvailable == false)
+                                                        Padding(
+                                                            padding: const EdgeInsets.only(top: 8),
+                                                            child: Row(
+                                                                children: [
+                                                                    Icon(Icons.cancel,
+                                                                        color: HunterTheme.danger, size: 14),
+                                                                    const SizedBox(width: 6),
+                                                                    Text(
+                                                                        'Hunter Name already taken',
+                                                                        style: TextStyle(
+                                                                            color: HunterTheme.danger,
+                                                                            fontSize: 12,
+                                                                            fontWeight: FontWeight.w600,
+                                                                        ),
+                                                                    ),
+                                                                ],
+                                                            ),
+                                                        )
+                                                    else if (_nameCheckError)
+                                                        Padding(
+                                                            padding: const EdgeInsets.only(top: 8),
+                                                            child: Row(
+                                                                children: [
+                                                                    Icon(Icons.warning_amber_rounded,
+                                                                        color: HunterTheme.gold, size: 14),
+                                                                    const SizedBox(width: 6),
+                                                                    Text(
+                                                                        'Unable to verify Hunter Name',
+                                                                        style: TextStyle(
+                                                                            color: HunterTheme.gold,
+                                                                            fontSize: 12,
+                                                                            fontWeight: FontWeight.w600,
+                                                                        ),
+                                                                    ),
+                                                                ],
+                                                            ),
+                                                        ),
                                                     const SizedBox(height: 14),
                                                     _HunterTextField(
                                                         controller: ageController,

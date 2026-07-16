@@ -45,6 +45,10 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
@@ -61,6 +65,8 @@ dependencies {
     implementation("com.unity3d.ads:unity-ads:4.18.0")
     implementation("com.google.ads.mediation:unity:4.18.0.0")
     implementation("com.google.ads.mediation:inmobi:10.6.7.0")
+    implementation("com.google.ads.mediation:facebook:6.18.0.0")
+    implementation("com.google.ads.mediation:liftoffmonetize:7.7.4.0")
     implementation("androidx.core:core-ktx:1.16.0")
 }
 

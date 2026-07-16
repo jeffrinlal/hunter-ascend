@@ -250,6 +250,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
           .collection('duel_requests')
           .where('toUid', isEqualTo: opponentId)
           .where('status', isEqualTo: 'pending')
+          .limit(1)
           .get();
 
       if (!mounted) return;

@@ -182,6 +182,7 @@ class _MainShellState extends State<MainShell> {
             .collection('duels')
             .where('participants', arrayContains: user.uid)
             .where('status', isEqualTo: 'completed')
+            .limit(10)
             .get();
 
         for (final doc in completedSnapshot.docs) {

@@ -834,6 +834,7 @@ class _MapScreenState extends State<MapScreen> {
                 .collection('runs')
                 .where('uid', isEqualTo: user.uid)
                 .orderBy('createdAt', descending: true)
+                .limit(10)
                 .snapshots(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return Center(child: CircularProgressIndicator(color: _blue));

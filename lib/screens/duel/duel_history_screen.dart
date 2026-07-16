@@ -63,6 +63,7 @@ class DuelHistoryScreen extends StatelessWidget {
       body: FutureBuilder<QuerySnapshot>(
         future: FirebaseFirestore.instance
             .collection('duels')
+            .where('participants', arrayContains: user?.uid)
             .orderBy('createdAt', descending: true)
             .limit(20)
             .get(),
@@ -73,10 +74,7 @@ class DuelHistoryScreen extends StatelessWidget {
             );
           }
 
-          final myDuels = snapshot.data!.docs.where((doc) {
-            final duel = doc.data() as Map<String, dynamic>;
-            return duel['player1'] == user?.uid || duel['player2'] == user?.uid;
-          }).toList();
+          final myDuels = snapshot.data!.docs;
 
           // ── Summary counts ──
           int wins = 0, losses = 0, cancelled = 0;

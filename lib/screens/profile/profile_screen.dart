@@ -13,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:hunter_ascend/screens/profile/membership_screen.dart';
 import 'package:hunter_ascend/screens/profile/reports/reports_tab.dart';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
@@ -31,6 +32,24 @@ class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _linkingGoogle = false;
+
+  // ── Cached profile picture bytes ──────────────────────────────────────
+  // Avoids re-decoding the Base64 string on every StreamBuilder rebuild
+  // (which fires whenever ANY field on the hunter doc changes — XP, streak,
+  // quests, etc.). Decoding only occurs when the raw string actually changes
+  // (i.e. the user uploaded a new picture).
+  String? _cachedProfilePicBase64;
+  Uint8List? _cachedProfilePicBytes;
+
+  /// Returns the decoded profile picture bytes, re-decoding only when the
+  /// raw Base64 string has changed since the last call.
+  Uint8List? _decodedProfilePic(String? base64Data) {
+    if (base64Data == null) return null;
+    if (base64Data == _cachedProfilePicBase64) return _cachedProfilePicBytes;
+    _cachedProfilePicBase64 = base64Data;
+    _cachedProfilePicBytes = base64Decode(base64Data);
+    return _cachedProfilePicBytes;
+  }
 
   String _getRank(int xp) {
     if (xp < 1500) return 'E';
@@ -350,8 +369,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                                         .instance.membershipName
                                         .toLowerCase(),
                                     radius: 53,
-                                    image: data['profilePicture'] != null
-                                        ? MemoryImage(base64Decode(data['profilePicture']))
+                                    image: _decodedProfilePic(data['profilePicture'] as String?) != null
+                                        ? MemoryImage(_cachedProfilePicBytes!)
                                         : null,
                                     child: data['profilePicture'] == null
                                         ? Icon(Icons.person,
@@ -1235,7 +1254,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     radius: 44,
                     backgroundColor: const Color(0xFF14161C),
                     backgroundImage: profilePicture != null
-                        ? MemoryImage(base64Decode(profilePicture))
+                        ? MemoryImage(_decodedProfilePic(profilePicture)!)
                         : null,
                     child: profilePicture == null
                         ? Text(

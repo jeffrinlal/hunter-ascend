@@ -340,9 +340,12 @@ class _MembershipScreenState extends State<MembershipScreen>
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (context, _, __) => _themedBuild(context),
+    return ValueListenableBuilder<MembershipTier>(
+      valueListenable: MembershipService.instance.tierNotifier,
+      builder: (context, _, __) => ValueListenableBuilder<ThemeMode>(
+        valueListenable: themeNotifier,
+        builder: (context, _, __) => _themedBuild(context),
+      ),
     );
   }
 

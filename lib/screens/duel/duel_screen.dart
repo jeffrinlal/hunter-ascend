@@ -48,6 +48,7 @@ class _DuelScreenState extends State<DuelScreen> {
   @override
   void initState() {
     super.initState();
+    MembershipService.instance.tierNotifier.addListener(_onMembershipChanged);
     loadBannerAd();
     _restoreActiveQuest();
   }
@@ -105,9 +106,22 @@ class _DuelScreenState extends State<DuelScreen> {
 
   @override
   void dispose() {
+    MembershipService.instance.tierNotifier.removeListener(_onMembershipChanged);
     _countdownTimer?.cancel();
     bannerAd?.dispose();
     super.dispose();
+  }
+
+  void _onMembershipChanged() {
+    if (!mounted) return;
+    if (MembershipService.instance.showBannerAds) {
+      if (bannerAd == null) loadBannerAd();
+    } else {
+      bannerAd?.dispose();
+      bannerAd = null;
+      isBannerReady = false;
+    }
+    setState(() {});
   }
 
   void loadBannerAd() {

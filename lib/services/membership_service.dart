@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -134,20 +136,23 @@ class MembershipFeatures {
 /// features it unlocks.
 ///
 /// ## Responsibilities
-/// - Reads the current hunter's membership fields from
-///   `hunters/{uid}` (`membership`, `subscriptionActive`, `membershipExpiry`).
-/// - Caches the result in memory so Firestore is only read once per app
-///   session (call [reload] to force a refresh, e.g. after a purchase is
-///   confirmed by the backend).
+/// - Listens to the current hunter's membership fields from
+///   `hunters/{uid}` (`membership`, `subscriptionActive`, `membershipExpiry`)
+///   via a **real-time Firestore snapshot listener** so changes made
+///   anywhere (in-app purchase, backend verification, another device) are
+///   reflected immediately.
+/// - Exposes a [tierNotifier] (`ValueNotifier<MembershipTier>`) that fires
+///   whenever the effective tier changes, allowing widgets to rebuild
+///   reactively without needing manual refresh or app restart.
 /// - Exposes simple boolean/string getters (`isPro`, `isMax`, `showBannerAds`,
-///   etc.) so screens never compare raw membership strings
-///   directly.
+///   etc.) so screens never compare raw membership strings directly.
 /// - Keeps every Basic/Pro/Max feature rule in a single place: the
 ///   [MembershipFeatures] configuration model.
 ///
 /// ## What this service does NOT do
 /// - It never writes to Firestore. Membership is only ever upgraded by the
-///   backend after a Google Play Billing purchase is verified server-side.
+///   backend after a Google Play Billing purchase is verified server-side
+///   (or by MembershipRewardService for rewarded-ad grants).
 /// - It never exposes the raw `membership` string from Firestore to callers
 ///   — the only string exposed is the human-readable [membershipName].
 ///
@@ -155,9 +160,11 @@ class MembershipFeatures {
 /// ```dart
 /// await MembershipService.instance.loadMembership(); // once, e.g. on app start / login
 ///
-/// if (MembershipService.instance.showBannerAds) {
-///   // show banner ad
-/// }
+/// // React to tier changes anywhere in the widget tree:
+/// ValueListenableBuilder<MembershipTier>(
+///   valueListenable: MembershipService.instance.tierNotifier,
+///   builder: (context, tier, _) { ... },
+/// );
 ///
 /// // On logout:
 /// MembershipService.instance.clearCache();
@@ -191,6 +198,33 @@ class MembershipService {
   /// or [reload] is called multiple times before the first call resolves.
   Future<void>? _pendingFetch;
 
+  /// The active Firestore snapshot listener subscription.
+  /// Cancelled on [clearCache] or when the UID changes.
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _snapshotSub;
+
+  /// The UID that the current snapshot listener is attached to.
+  /// Used to detect account switches.
+  String? _listeningUid;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Reactive Notifier
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// A [ValueNotifier] that emits whenever the **effective** membership tier
+  /// changes.
+  ///
+  /// Widgets that depend on membership should wrap their membership-sensitive
+  /// subtree in a [ValueListenableBuilder] listening to this notifier. This
+  /// ensures instant UI updates when membership changes — no restart,
+  /// navigation hack, or manual refresh required.
+  ///
+  /// The value always reflects [_effectiveTier] (i.e. expired premium tiers
+  /// are reported as [MembershipTier.basic]).
+  final ValueNotifier<MembershipTier> tierNotifier =
+      ValueNotifier<MembershipTier>(MembershipTier.basic);
+
+  // ─────────────────────────────────────────────────────────────────────────
+
   /// Whether membership data has been successfully loaded at least once
   /// during this app session.
   ///
@@ -198,13 +232,11 @@ class MembershipService {
   /// info is available, without triggering another Firestore read.
   bool get isLoaded => _hasLoaded;
 
-  /// Loads the current hunter's membership data from Firestore and caches it
-  /// in memory.
+  /// Loads the current hunter's membership data from Firestore and starts a
+  /// real-time snapshot listener so future changes are picked up instantly.
   ///
   /// This is a no-op if membership has already been loaded once during this
-  /// app session — call [reload] instead to force a fresh read (for example
-  /// right after the backend confirms a Google Play Billing purchase and updates
-  /// Firestore).
+  /// app session — call [reload] instead to force a fresh read.
   ///
   /// If there is no signed-in user, or the hunter document / fields are
   /// missing, membership safely falls back to [MembershipTier.basic] with no
@@ -212,6 +244,7 @@ class MembershipService {
   Future<void> loadMembership() async {
     if (_hasLoaded) return;
     await _fetchAndCache();
+    _startListening();
   }
 
   /// Forces a fresh read of membership data from Firestore, discarding the
@@ -219,11 +252,13 @@ class MembershipService {
   ///
   /// Intended to be called after an event that may have changed the user's
   /// membership server-side (e.g. the backend just verified a Google Play
-  /// Billing purchase and updated `hunters/{uid}`), or when the user pulls-to-refresh
-  /// a membership/account screen.
+  /// Billing purchase and updated `hunters/{uid}`).
+  ///
+  /// Also restarts the snapshot listener if needed.
   Future<void> reload() async {
     _hasLoaded = false;
     await _fetchAndCache();
+    _startListening();
   }
 
   /// Resets all cached membership data back to the Basic defaults.
@@ -233,10 +268,74 @@ class MembershipService {
   /// membership state. After calling this, [loadMembership] will perform a
   /// fresh Firestore read the next time it is called.
   void clearCache() {
+    _stopListening();
     _applyDefaults();
     _hasLoaded = false;
     _pendingFetch = null;
+    tierNotifier.value = MembershipTier.basic;
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Real-time Firestore Listener
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Starts (or restarts) a real-time snapshot listener on `hunters/{uid}`.
+  ///
+  /// If a listener is already active for the same UID, this is a no-op.
+  /// If the UID has changed (account switch), the old listener is cancelled
+  /// first.
+  void _startListening() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    // Already listening for this user — nothing to do.
+    if (_snapshotSub != null && _listeningUid == uid) return;
+
+    // UID changed or no listener yet — (re)start.
+    _stopListening();
+    _listeningUid = uid;
+
+    _snapshotSub = FirebaseFirestore.instance
+        .collection(_huntersCollection)
+        .doc(uid)
+        .snapshots()
+        .listen(
+      (snapshot) {
+        if (!snapshot.exists) {
+          _applyDefaults();
+        } else {
+          _applyDocumentData(snapshot.data());
+        }
+        _hasLoaded = true;
+        _notifyIfChanged();
+      },
+      onError: (e) {
+        debugPrint('MembershipService: snapshot listener error — $e');
+        // Keep whatever was previously cached rather than crashing.
+      },
+    );
+  }
+
+  /// Cancels the active Firestore snapshot listener.
+  void _stopListening() {
+    _snapshotSub?.cancel();
+    _snapshotSub = null;
+    _listeningUid = null;
+  }
+
+  /// Compares the current effective tier with the notifier's value and
+  /// updates the notifier if they differ, triggering all listeners to
+  /// rebuild.
+  void _notifyIfChanged() {
+    final effective = _effectiveTier;
+    if (tierNotifier.value != effective) {
+      tierNotifier.value = effective;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // One-shot Firestore Read (used for initial load before listener fires)
+  // ─────────────────────────────────────────────────────────────────────────
 
   /// Performs the actual Firestore read, coalescing concurrent calls into a
   /// single in-flight request.
@@ -283,6 +382,7 @@ class MembershipService {
 
       _applyDocumentData(snapshot.data());
       _hasLoaded = true;
+      _notifyIfChanged();
     } catch (e) {
       debugPrint('MembershipService: failed to load membership — $e');
       // Keep whatever was previously cached (or the Basic defaults) instead
@@ -435,7 +535,7 @@ class MembershipService {
 
   /// Whether banner ads should be shown to this hunter.
   ///
-  /// Basic: true · Pro: true · Max: false.
+  /// Basic: true · Pro: false · Max: false.
   bool get showBannerAds => _features.bannerAds;
 
   /// Whether rewarded ads should be offered to this hunter.

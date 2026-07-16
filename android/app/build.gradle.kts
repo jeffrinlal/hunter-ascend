@@ -66,7 +66,7 @@ dependencies {
     implementation("com.google.ads.mediation:unity:4.18.0.0")
     implementation("com.google.ads.mediation:inmobi:10.6.7.0")
     implementation("com.google.ads.mediation:facebook:6.18.0.0")
-    implementation("com.google.ads.mediation:liftoffmonetize:7.7.4.0")
+    implementation("com.google.ads.mediation:vungle:7.7.4.1")
     implementation("androidx.core:core-ktx:1.16.0")
 }
 

@@ -656,14 +656,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     // ── Resources owned exclusively by the Home tab ──
-    // The Missions tab (questsOnly=true) does not display the main banner,
-    // rewarded ads, or punishment ads, so those are not loaded here to avoid
-    // duplicate ad requests from the IndexedStack sibling.
+    // The Missions tab (questsOnly=true) does not display rewarded ads or
+    // punishment ads, so those are not loaded here to avoid duplicate ad
+    // requests from the IndexedStack sibling. However, the Missions tab DOES
+    // display the main banner ad inside the Active Mission card.
     if (!widget.questsOnly) {
-      loadBannerAd();
       loadRewardedAd();
       loadPunishmentAd();
       initStepCounter();
+    }
+
+    // Banner ad is shown in the Missions tab's Active Quest card.
+    if (widget.questsOnly) {
+      loadBannerAd();
     }
 
 
@@ -711,13 +716,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// Handles membership tier changes. Disposes banner ads on upgrade (Pro/Max
   /// don't show banners) or loads them on downgrade (back to Basic).
   /// Guards against loading ads multiple times by checking existing state.
-  /// Each instance only manages ads it owns (Home: bannerAd; Missions: weeklyBannerAd).
+  /// Missions tab owns bannerAd + weeklyBannerAd; Home tab owns no banner ads.
   void _onMembershipTierChanged() {
     if (!mounted) return;
     final showAds = MembershipService.instance.showBannerAds;
     if (!showAds) {
       // Upgraded — dispose any active banner ads owned by this instance.
-      if (!widget.questsOnly && bannerAd != null) {
+      if (widget.questsOnly && bannerAd != null) {
         bannerAd!.dispose();
         bannerAd = null;
         isBannerReady = false;
@@ -729,7 +734,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } else {
       // Downgraded — load banner ads only if not already loaded/loading.
-      if (!widget.questsOnly && bannerAd == null) loadBannerAd();
+      if (widget.questsOnly && bannerAd == null) loadBannerAd();
       if (widget.questsOnly && weeklyBannerAd == null) loadWeeklyBannerAd();
     }
     setState(() {});

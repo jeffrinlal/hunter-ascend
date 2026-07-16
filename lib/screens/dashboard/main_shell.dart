@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
-import 'package:hunter_ascend/screens/dashboard/dashboard_screen.dart';
+import 'package:hunter_ascend/screens/dashboard/home_dashboard_screen.dart';
+import 'package:hunter_ascend/screens/dashboard/missions_screen.dart';
 import 'package:hunter_ascend/screens/leaderboard/global_rankings_screen.dart';
 import 'package:hunter_ascend/screens/profile/profile_screen.dart';
 import 'package:hunter_ascend/screens/duel/duel_screen.dart';
@@ -141,15 +142,14 @@ class _MainShellState extends State<MainShell> {
   }
 
   late final List<Widget> _tabs = [
-    DashboardScreen(
+    HomeDashboardScreen(
       fatLoss: widget.fatLoss,
       discipline: widget.discipline,
       muscleGain: widget.muscleGain,
       selfImprovement: widget.selfImprovement,
       bioQuests: widget.bioQuests,
     ),
-    DashboardScreen(
-      questsOnly: true,
+    MissionsScreen(
       fatLoss: widget.fatLoss,
       discipline: widget.discipline,
       muscleGain: widget.muscleGain,

@@ -106,6 +106,19 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
+  // ── Cached Firestore streams (stable identity across rebuilds) ──────────
+  late final Stream<DocumentSnapshot> _hunterStream = FirebaseFirestore.instance
+      .collection('hunters')
+      .doc(FirebaseAuth.instance.currentUser?.uid)
+      .snapshots();
+
+  late final Stream<QuerySnapshot> _weightHistoryStream = FirebaseFirestore
+      .instance
+      .collection('weight_history')
+      .where('uid', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+      .orderBy('date', descending: true)
+      .snapshots();
+
   @override
   void initState() {
     super.initState();
@@ -132,10 +145,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     return Scaffold(
       backgroundColor: HunterTheme.background,
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('hunters')
-            .doc(user?.uid)
-            .snapshots(),
+        stream: _hunterStream,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return SafeArea(
@@ -764,11 +774,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   // ── Inline Weight History Tab ──────────────────────────────────────
   Widget _buildWeightHistoryTab(User? user) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('weight_history')
-          .where('uid', isEqualTo: user?.uid)
-          .orderBy('date', descending: true)
-          .snapshots(),
+      stream: _weightHistoryStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _centeredScrollSafe(

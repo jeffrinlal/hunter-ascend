@@ -45,6 +45,12 @@ class _DuelScreenState extends State<DuelScreen> {
   BannerAd? bannerAd;
   bool isBannerReady = false;
 
+  // Cached stream (stable identity across rebuilds).
+  late final Stream<DocumentSnapshot> _duelStream = FirebaseFirestore.instance
+      .collection('duels')
+      .doc(widget.duelId)
+      .snapshots();
+
   @override
   void initState() {
     super.initState();
@@ -622,7 +628,7 @@ class _DuelScreenState extends State<DuelScreen> {
         ),
       ),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('duels').doc(widget.duelId).snapshots(),
+        stream: _duelStream,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return Center(child: CircularProgressIndicator(color: _blue));

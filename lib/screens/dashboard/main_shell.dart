@@ -39,6 +39,15 @@ class _MainShellState extends State<MainShell> {
   int _index = 0;
   bool _isOpeningDuels = false;
 
+  // Cached stream for the duel-request notification badge (stable identity).
+  late final Stream<QuerySnapshot> _duelRequestBadgeStream = FirebaseFirestore
+      .instance
+      .collection('duel_requests')
+      .where('toUid', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+      .where('status', isEqualTo: 'pending')
+      .limit(1)
+      .snapshots();
+
   @override
   void initState() {
     super.initState();
@@ -300,12 +309,7 @@ class _MainShellState extends State<MainShell> {
               ),
               NavigationDestination(
                 icon: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('duel_requests')
-                      .where('toUid', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-                      .where('status', isEqualTo: 'pending')
-                      .limit(1)
-                      .snapshots(),
+                  stream: _duelRequestBadgeStream,
                   builder: (context, snap) {
                     final hasPending = snap.hasData && snap.data!.docs.isNotEmpty;
                     return Stack(

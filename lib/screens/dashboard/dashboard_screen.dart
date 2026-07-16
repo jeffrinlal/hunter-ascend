@@ -557,6 +557,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final TextEditingController customQuestController = TextEditingController();
   StreamSubscription<StepCount>? _stepSubscription;
 
+  // Cached Firestore streams (stable identity — prevents re-subscription on rebuild).
+  late final Stream<DocumentSnapshot> _hunterDocStream = FirebaseFirestore
+      .instance
+      .collection('hunters')
+      .doc(FirebaseAuth.instance.currentUser?.uid)
+      .snapshots();
+
+  late final Stream<QuerySnapshot> _customQuestsStream = FirebaseFirestore
+      .instance
+      .collection('custom_quests')
+      .where('uid', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+      .snapshots();
+
   // ── Ads ──────────────────────────────────────────────────
   BannerAd? bannerAd;
   bool isBannerReady = false;
@@ -2011,17 +2024,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               const SizedBox(height: 16),
               if (!widget.questsOnly) ...[
-                _buildTopBar(),
-                const SizedBox(height: 20),
                 StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance.collection('hunters').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
+                  stream: _hunterDocStream,
                   builder: (context, snap) {
-                    final loading = !snap.hasData;
-                    if (loading) return buildDashboardSkeleton();
+                    if (!snap.hasData) return buildDashboardSkeleton();
+                    final hunterData = snap.data!.data() as Map<String, dynamic>? ?? {};
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildHunterCard(),
+                        _buildTopBar(hunterData),
+                        const SizedBox(height: 20),
+                        _buildHunterCard(hunterData),
                         const SizedBox(height: 16),
                         StepsCard(steps: todaySteps),
                         const SizedBox(height: 16),
@@ -2051,40 +2064,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ── Top Bar ──────────────────────────────────────────────
-  Widget _buildTopBar() {
+  Widget _buildTopBar(Map<String, dynamic> hunterData) {
+    final hasNotif = (hunterData['notificationTime'] ?? '').toString().isNotEmpty;
+    final streak = (hunterData['streak'] ?? 0) as int;
+
     return Row(
       children: [
         GestureDetector(
           onTap: () => _showNotificationDialog(),
-          child: StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance.collection('hunters').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
-            builder: (context, snapshot) {
-              bool hasNotif = false;
-              if (snapshot.hasData && snapshot.data!.exists) {
-                final data = snapshot.data!.data() as Map<String, dynamic>;
-                hasNotif = (data['notificationTime'] ?? '').toString().isNotEmpty;
-              }
-              return Stack(
-                children: [
-                  Icon(
-                    hasNotif ? Icons.notifications_active : Icons.notifications_none,
-                    color: hasNotif ? _blue : HunterTheme.textSecondary,
-                    size: 24,
-                  ),
-                  if (hasNotif)
-                    Positioned(
-                      right: 0, top: 0,
-                      child: Container(
-                        width: 8, height: 8,
-                        decoration: BoxDecoration(
-                          color: HunterTheme.success,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
+          child: Stack(
+            children: [
+              Icon(
+                hasNotif ? Icons.notifications_active : Icons.notifications_none,
+                color: hasNotif ? _blue : HunterTheme.textSecondary,
+                size: 24,
+              ),
+              if (hasNotif)
+                Positioned(
+                  right: 0, top: 0,
+                  child: Container(
+                    width: 8, height: 8,
+                    decoration: BoxDecoration(
+                      color: HunterTheme.success,
+                      shape: BoxShape.circle,
                     ),
-                ],
-              );
-            },
+                  ),
+                ),
+            ],
           ),
         ),
         const Spacer(),
@@ -2095,20 +2101,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ]),
         ),
         const Spacer(),
-        StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance.collection('hunters').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
-          builder: (context, snapshot) {
-            int streak = 0;
-            if (snapshot.hasData && snapshot.data!.exists) {
-              streak = (snapshot.data!.data() as Map<String, dynamic>)['streak'] ?? 0;
-            }
-            return Row(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.local_fire_department, color: Colors.orange, size: 22),
-              const SizedBox(width: 3),
-              Text("$streak", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
-            ]);
-          },
-        ),
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.local_fire_department, color: Colors.orange, size: 22),
+          const SizedBox(width: 3),
+          Text("$streak", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
+        ]),
       ],
     );
   }
@@ -2125,7 +2122,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ── Hunter Card ──────────────────────────────────────────
-  Widget _buildHunterCard() {
+  Widget _buildHunterCard(Map<String, dynamic> hunterData) {
+    final pic = hunterData['profilePicture'] as String?;
+    final name = (hunterData['hunterName'] ?? 'Hunter').toString();
+    final liveXp = (hunterData['xp'] ?? xp) as int;
+    final liveLevel = (hunterData['level'] ?? level) as int;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -2147,43 +2149,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   border: Border.all(color: _blue, width: 2),
                   boxShadow: [BoxShadow(color: _blue.withOpacity(0.4), blurRadius: 16)],
                 ),
-                child: StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance.collection('hunters').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
-                  builder: (context, snap) {
-                    final data = snap.data?.data() as Map<String, dynamic>?;
-                    final pic = data?['profilePicture'];
-                    if (pic != null) {
-                      return ClipOval(
+                child: pic != null
+                    ? ClipOval(
                         child: Image.memory(
                           _profilePicBytes(pic),
                           fit: BoxFit.cover,
                           width: 72,
                           height: 72,
                         ),
-                      );
-                    }
-                    return Center(
-                      child: Icon(Icons.person, color: _blue, size: 40),
-                    );
-                  },
-                ),
+                      )
+                    : Center(child: Icon(Icons.person, color: _blue, size: 40)),
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance.collection('hunters').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
-                  builder: (context, snapshot) {
-                    String name = "Hunter";
-                    if (snapshot.hasData && snapshot.data!.exists) {
-                      name = (snapshot.data!.data() as Map<String, dynamic>)['hunterName'] ?? "Hunter";
-                    }
-                    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(name, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      Text("$hunterRank HUNTER", style: TextStyle(color: rankColor, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                    ]);
-                  },
-                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(name, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text("$hunterRank HUNTER", style: TextStyle(color: rankColor, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                ]),
               ),
 
               // ── Shield Badge replaces old rank badge ──
@@ -2193,40 +2176,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           const SizedBox(height: 16),
 
-          // Level + XP — read live from the hunter document so XP/level update
-          // immediately when Firestore changes, instead of using the local
-          // fields which are only refreshed on (re)initialization.
-          StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance.collection('hunters').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
-            builder: (context, snapshot) {
-              final data = snapshot.data?.data() as Map<String, dynamic>?;
-              final liveXp = (data?['xp'] ?? xp) as int;
-              final liveLevel = (data?['level'] ?? level) as int;
-              return Column(
-                children: [
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Text("LEVEL $liveLevel", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 30, fontWeight: FontWeight.bold)),
-                    Text("$liveXp / 500 XP", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
-                  ]),
+          // Level + XP
+          Column(
+            children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text("LEVEL $liveLevel", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 30, fontWeight: FontWeight.bold)),
+                Text("$liveXp / 500 XP", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
+              ]),
 
-                  const SizedBox(height: 8),
+              const SizedBox(height: 8),
 
-                  // XP bar
-                  TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0, end: liveXp / 500),
-                    duration: const Duration(milliseconds: 800),
-                    builder: (context, value, _) => ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: LinearProgressIndicator(
-                        value: value, minHeight: 8,
-                        backgroundColor: _blueDim,
-                        valueColor: AlwaysStoppedAnimation<Color>(_blue),
-                      ),
-                    ),
+              // XP bar
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: liveXp / 500),
+                duration: const Duration(milliseconds: 800),
+                builder: (context, value, _) => ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: LinearProgressIndicator(
+                    value: value, minHeight: 8,
+                    backgroundColor: _blueDim,
+                    valueColor: AlwaysStoppedAnimation<Color>(_blue),
                   ),
-                ],
-              );
-            },
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -2326,7 +2299,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ── Quests Section ───────────────────────────────────────
   Widget _buildQuestsSection() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('custom_quests').where('uid', isEqualTo: FirebaseAuth.instance.currentUser?.uid).snapshots(),
+      stream: _customQuestsStream,
       builder: (context, customSnapshot) {
         final customDocs = customSnapshot.data?.docs ?? [];
         final totalQuests = generatedQuests.length + customDocs.length;
@@ -2399,7 +2372,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const Spacer(),
               StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance.collection('hunters').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
+                stream: _hunterDocStream,
                 builder: (context, snapshot) {
                   String mode = "MODE";
                   if (snapshot.hasData && snapshot.data!.exists) {

@@ -180,6 +180,15 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchText = '';
 
+  // Cached leaderboard stream (stable identity across rebuilds).
+  late final Stream<QuerySnapshot> _leaderboardStream = FirebaseFirestore
+      .instance
+      .collection('hunters')
+      .orderBy('level', descending: true)
+      .orderBy('xp', descending: true)
+      .limit(50)
+      .snapshots();
+
   // Live stream of the current user's hunter document for the status card.
   // Keeps "Your Hunter Status" in real-time sync regardless of whether the
   // user is in the top 50 leaderboard results.
@@ -509,12 +518,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
             _rankHeader(),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('hunters')
-                    .orderBy('level', descending: true)
-                    .orderBy('xp', descending: true)
-                    .limit(50)
-                    .snapshots(),
+                stream: _leaderboardStream,
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
                     return SingleChildScrollView(

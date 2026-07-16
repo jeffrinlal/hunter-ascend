@@ -22,12 +22,12 @@ class ConnectivityService with WidgetsBindingObserver {
 
   Timer? _timer;
 
-  /// Starts periodic monitoring (every 5 seconds) and registers the
+  /// Starts periodic monitoring (every 15 seconds) and registers the
   /// lifecycle observer to pause/resume automatically.
   void start() {
     _check(); // immediate first check
     _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 5), (_) => _check());
+    _timer = Timer.periodic(const Duration(seconds: 15), (_) => _check());
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -49,7 +49,7 @@ class ConnectivityService with WidgetsBindingObserver {
       // App returning to foreground — resume polling.
       _check(); // immediate check on resume
       _timer?.cancel();
-      _timer = Timer.periodic(const Duration(seconds: 5), (_) => _check());
+      _timer = Timer.periodic(const Duration(seconds: 15), (_) => _check());
     }
   }
 

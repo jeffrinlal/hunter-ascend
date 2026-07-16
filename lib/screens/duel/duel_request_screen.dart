@@ -28,6 +28,14 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
   bool isBannerReady = false;
   bool _isResponding = false;
 
+  // Cached stream (stable identity across rebuilds).
+  late final Stream<QuerySnapshot> _requestStream = FirebaseFirestore.instance
+      .collection('duel_requests')
+      .where('toUid', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+      .where('status', isEqualTo: 'pending')
+      .limit(1)
+      .snapshots();
+
   @override
   void initState() {
     super.initState();
@@ -90,12 +98,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
         ),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('duel_requests')
-            .where('toUid', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-            .where('status', isEqualTo: 'pending')
-            .limit(1)
-            .snapshots(),
+        stream: _requestStream,
         builder: (context, snapshot) {
 
           if (!snapshot.hasData) {

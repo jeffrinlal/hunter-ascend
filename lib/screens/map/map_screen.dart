@@ -35,6 +35,15 @@ class _MapScreenState extends State<MapScreen> {
   LatLng? _currentPosition;
   List<LatLng> _routePoints = [];
 
+  // Cached stream for run history (stable identity across rebuilds).
+  late final Stream<QuerySnapshot> _runsHistoryStream = FirebaseFirestore
+      .instance
+      .collection('runs')
+      .where('uid', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+      .orderBy('createdAt', descending: true)
+      .limit(10)
+      .snapshots();
+
   // ── Tracking ─────────────────────────────────────────────
   bool _isTracking = false;
   bool _isPaused = false;
@@ -830,12 +839,7 @@ class _MapScreenState extends State<MapScreen> {
       children: [
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('runs')
-                .where('uid', isEqualTo: user.uid)
-                .orderBy('createdAt', descending: true)
-                .limit(10)
-                .snapshots(),
+            stream: _runsHistoryStream,
             builder: (context, snapshot) {
               if (!snapshot.hasData) return Center(child: CircularProgressIndicator(color: _blue));
 

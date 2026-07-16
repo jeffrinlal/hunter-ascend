@@ -31,7 +31,6 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
   @override
   void initState() {
     super.initState();
-    MembershipService.instance.tierNotifier.addListener(_onMembershipChanged);
     loadBannerAd();
   }
 
@@ -48,21 +47,8 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
     bannerAd!.load();
   }
 
-  void _onMembershipChanged() {
-    if (!mounted) return;
-    if (MembershipService.instance.showBannerAds) {
-      if (bannerAd == null) loadBannerAd();
-    } else {
-      bannerAd?.dispose();
-      bannerAd = null;
-      isBannerReady = false;
-    }
-    setState(() {});
-  }
-
   @override
   void dispose() {
-    MembershipService.instance.tierNotifier.removeListener(_onMembershipChanged);
     bannerAd?.dispose();
     super.dispose();
   }

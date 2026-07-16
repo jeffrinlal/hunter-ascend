@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -191,6 +193,29 @@ class MembershipService {
   /// or [reload] is called multiple times before the first call resolves.
   Future<void>? _pendingFetch;
 
+  /// The active Firestore real-time listener. Only one exists at a time.
+  /// Cancelled on [clearCache] or when the listened UID changes.
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _snapshotSub;
+
+  /// The UID the current snapshot listener is bound to.
+  String? _listeningUid;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Reactive notifier
+  //
+  // A single ValueNotifier that fires whenever the effective tier changes.
+  // Screens that cache membership-dependent objects (e.g. banner ads) can
+  // listen; screens that already rebuild on Firestore streams do not need to.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Fires whenever the effective membership tier changes.
+  ///
+  /// Only screens that cache membership-dependent state at init (e.g.
+  /// banner ads) need to listen. Screens with their own Firestore
+  /// StreamBuilder on the hunter doc rebuild automatically.
+  final ValueNotifier<MembershipTier> tierNotifier =
+      ValueNotifier<MembershipTier>(MembershipTier.basic);
+
   /// Whether membership data has been successfully loaded at least once
   /// during this app session.
   ///
@@ -212,6 +237,7 @@ class MembershipService {
   Future<void> loadMembership() async {
     if (_hasLoaded) return;
     await _fetchAndCache();
+    _ensureListening();
   }
 
   /// Forces a fresh read of membership data from Firestore, discarding the
@@ -224,6 +250,7 @@ class MembershipService {
   Future<void> reload() async {
     _hasLoaded = false;
     await _fetchAndCache();
+    _ensureListening();
   }
 
   /// Resets all cached membership data back to the Basic defaults.
@@ -233,9 +260,11 @@ class MembershipService {
   /// membership state. After calling this, [loadMembership] will perform a
   /// fresh Firestore read the next time it is called.
   void clearCache() {
+    _stopListening();
     _applyDefaults();
     _hasLoaded = false;
     _pendingFetch = null;
+    tierNotifier.value = MembershipTier.basic;
   }
 
   /// Performs the actual Firestore read, coalescing concurrent calls into a
@@ -254,6 +283,63 @@ class MembershipService {
       await fetch;
     } finally {
       _pendingFetch = null;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Real-time Firestore listener (single instance, idempotent)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Starts a real-time listener on `hunters/{uid}` if one is not already
+  /// active for the current user. If the UID has changed (account switch),
+  /// the old listener is cancelled first.
+  ///
+  /// This is intentionally idempotent — calling it multiple times with the
+  /// same UID is a no-op and cannot create duplicate subscriptions.
+  void _ensureListening() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    // Already listening for this exact user — nothing to do.
+    if (_snapshotSub != null && _listeningUid == uid) return;
+
+    // Different user or no listener yet — (re)start.
+    _stopListening();
+    _listeningUid = uid;
+
+    _snapshotSub = FirebaseFirestore.instance
+        .collection(_huntersCollection)
+        .doc(uid)
+        .snapshots()
+        .listen(
+      (snapshot) {
+        if (!snapshot.exists) {
+          _applyDefaults();
+        } else {
+          _applyDocumentData(snapshot.data());
+        }
+        _hasLoaded = true;
+        _notifyIfChanged();
+      },
+      onError: (e) {
+        debugPrint('MembershipService: snapshot listener error — $e');
+      },
+    );
+  }
+
+  /// Cancels the active Firestore listener.
+  void _stopListening() {
+    _snapshotSub?.cancel();
+    _snapshotSub = null;
+    _listeningUid = null;
+  }
+
+  /// Updates [tierNotifier] only if the effective tier has actually changed.
+  /// This prevents spurious rebuilds when unrelated document fields update.
+  void _notifyIfChanged() {
+    final effective = _effectiveTier;
+    if (tierNotifier.value != effective) {
+      tierNotifier.value = effective;
     }
   }
 
@@ -283,6 +369,7 @@ class MembershipService {
 
       _applyDocumentData(snapshot.data());
       _hasLoaded = true;
+      _notifyIfChanged();
     } catch (e) {
       debugPrint('MembershipService: failed to load membership — $e');
       // Keep whatever was previously cached (or the Basic defaults) instead

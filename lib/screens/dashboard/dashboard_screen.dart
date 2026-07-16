@@ -625,6 +625,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
 
+    // React to membership tier changes so banner ads are disposed/loaded
+    // immediately when the user upgrades or downgrades.
+    MembershipService.instance.tierNotifier.addListener(_onMembershipTierChanged);
+
     updateQuestCountdown();
 
     countdownTimer = Timer.periodic(
@@ -667,6 +671,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
+    MembershipService.instance.tierNotifier.removeListener(_onMembershipTierChanged);
     _questCountdownTimer?.cancel();
     _weeklyCountdownTimer?.cancel();
     _stepSubscription?.cancel();
@@ -678,6 +683,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
     punishmentAd?.dispose();
     customQuestController.dispose();
     super.dispose();
+  }
+
+  /// Handles membership tier changes. Disposes banner ads on upgrade (Pro/Max
+  /// don't show banners) or loads them on downgrade (back to Basic).
+  /// Guards against loading ads multiple times by checking existing state.
+  void _onMembershipTierChanged() {
+    if (!mounted) return;
+    final showAds = MembershipService.instance.showBannerAds;
+    if (!showAds) {
+      // Upgraded — dispose any active banner ads.
+      if (bannerAd != null) {
+        bannerAd!.dispose();
+        bannerAd = null;
+        isBannerReady = false;
+      }
+      if (weeklyBannerAd != null) {
+        weeklyBannerAd!.dispose();
+        weeklyBannerAd = null;
+        weeklyBannerReady = false;
+      }
+    } else {
+      // Downgraded — load banner ads only if not already loaded/loading.
+      if (bannerAd == null) loadBannerAd();
+      if (widget.questsOnly && weeklyBannerAd == null) loadWeeklyBannerAd();
+    }
+    setState(() {});
   }
 
   // ── Ads ──────────────────────────────────────────────────

@@ -629,17 +629,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // immediately when the user upgrades or downgrades.
     MembershipService.instance.tierNotifier.addListener(_onMembershipTierChanged);
 
-    updateQuestCountdown();
+    // The countdown timer + timeUntilReset are only displayed and used by
+    // the Missions tab (questsOnly=true). The Home tab never renders
+    // timeUntilReset and the midnight rollover logic inside
+    // updateQuestCountdown() is already gated to questsOnly. Running the
+    // timer on Home would fire a wasted setState() every minute.
+    if (widget.questsOnly) {
+      updateQuestCountdown();
+      countdownTimer = Timer.periodic(
+        const Duration(minutes: 1),
+            (_) => updateQuestCountdown(),
+      );
+    }
 
-    countdownTimer = Timer.periodic(
-      const Duration(minutes: 1),
-          (_) => updateQuestCountdown(),
-    );
-
-    loadBannerAd();
-    loadRewardedAd();
-    loadPunishmentAd();
+    // ── Resources owned exclusively by the Home tab ──
+    // The Missions tab (questsOnly=true) does not display the main banner,
+    // rewarded ads, or punishment ads, so those are not loaded here to avoid
+    // duplicate ad requests from the IndexedStack sibling.
     if (!widget.questsOnly) {
+      loadBannerAd();
+      loadRewardedAd();
+      loadPunishmentAd();
       initStepCounter();
     }
 
@@ -656,7 +666,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       await checkDailyReset();
       if (!widget.questsOnly) await _maybeRequestReview();
     });
-    _restoreDashboardActiveQuest();
+    if (widget.questsOnly) _restoreDashboardActiveQuest();
     if (!widget.questsOnly) _loadWaterIntake();
     if (widget.questsOnly) _loadWeeklyMissions();
     if (widget.questsOnly) _restoreWeeklyActiveQuest();
@@ -688,24 +698,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// Handles membership tier changes. Disposes banner ads on upgrade (Pro/Max
   /// don't show banners) or loads them on downgrade (back to Basic).
   /// Guards against loading ads multiple times by checking existing state.
+  /// Each instance only manages ads it owns (Home: bannerAd; Missions: weeklyBannerAd).
   void _onMembershipTierChanged() {
     if (!mounted) return;
     final showAds = MembershipService.instance.showBannerAds;
     if (!showAds) {
-      // Upgraded — dispose any active banner ads.
-      if (bannerAd != null) {
+      // Upgraded — dispose any active banner ads owned by this instance.
+      if (!widget.questsOnly && bannerAd != null) {
         bannerAd!.dispose();
         bannerAd = null;
         isBannerReady = false;
       }
-      if (weeklyBannerAd != null) {
+      if (widget.questsOnly && weeklyBannerAd != null) {
         weeklyBannerAd!.dispose();
         weeklyBannerAd = null;
         weeklyBannerReady = false;
       }
     } else {
       // Downgraded — load banner ads only if not already loaded/loading.
-      if (bannerAd == null) loadBannerAd();
+      if (!widget.questsOnly && bannerAd == null) loadBannerAd();
       if (widget.questsOnly && weeklyBannerAd == null) loadWeeklyBannerAd();
     }
     setState(() {});

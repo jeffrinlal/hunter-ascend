@@ -7,7 +7,6 @@ import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
 import 'package:hunter_ascend/data/models/leaderboard_entry.dart';
 import 'package:hunter_ascend/data/repositories/leaderboard_repository.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
-import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
@@ -494,18 +493,16 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
             const SizedBox(height: 8),
             // ── Content ──
             Expanded(
-              child: _searchMode
-                  ? _buildSearchContent(currentUid)
-                  : _loading && _entries.isEmpty
-                      ? SingleChildScrollView(padding: const EdgeInsets.all(16), child: buildLeaderboardSkeleton())
-                      : RefreshIndicator(
-                          color: HunterTheme.primary,
-                          onRefresh: () async {
-                            final fresh = await LeaderboardRepository.instance.fetch(_activeTab, forceRefresh: true);
-                            if (mounted) setState(() => _entries = fresh);
-                          },
-                          child: _buildLeaderboardBody(currentUid),
-                        ),
+              child: _loading && _entries.isEmpty
+                  ? SingleChildScrollView(padding: const EdgeInsets.all(16), child: buildLeaderboardSkeleton())
+                  : RefreshIndicator(
+                      color: HunterTheme.primary,
+                      onRefresh: () async {
+                        final fresh = await LeaderboardRepository.instance.fetch(_activeTab, forceRefresh: true);
+                        if (mounted) setState(() => _entries = fresh);
+                      },
+                      child: _buildLeaderboardBody(currentUid),
+                    ),
             ),
           ],
         ),
@@ -513,46 +510,41 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     );
   }
 
-  Widget _buildSearchContent(String? currentUid) {
-    if (_searchText.isEmpty) return Container(color: HunterTheme.background);
-    return FutureBuilder<QuerySnapshot>(
-      future: FirebaseFirestore.instance.collection('hunters').where('hunterName', isEqualTo: _searchText).limit(1).get(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox();
-        if (snapshot.data!.docs.isEmpty) return Container(color: HunterTheme.background);
-        final hunter = snapshot.data!.docs.first.data() as Map<String, dynamic>;
-        return Center(child: GestureDetector(
-          onTap: () { if (snapshot.data!.docs.first.id == currentUid) return; Navigator.push(context, MaterialPageRoute(builder: (_) => PublicHunterProfileScreen(hunterUid: snapshot.data!.docs.first.id))); },
-          child: Container(margin: const EdgeInsets.all(20), padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: HunterTheme.cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: HunterTheme.primary), boxShadow: [BoxShadow(color: HunterTheme.primary.withOpacity(0.12), blurRadius: 20, spreadRadius: 1)]),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              hunter['profilePicture'] != null && hunter['profilePicture'].toString().isNotEmpty ? CircleAvatar(radius: 30, backgroundImage: MemoryImage(_decodedAvatar(hunter['profilePicture']))) : Icon(Icons.person, color: HunterTheme.primary, size: 60),
-              const SizedBox(height: 12), Text(hunter['hunterName'] ?? 'Unknown', style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8), Text('Level ${hunter['level'] ?? 1}', style: TextStyle(color: HunterTheme.textSecondary)),
-              Text('${hunter['xp'] ?? 0} XP', style: TextStyle(color: HunterTheme.textSecondary)),
-            ])),
-        ));
-      },
-    );
-  }
-
   Widget _buildLeaderboardBody(String? currentUid) {
-    final entries = _entries;
+    // Apply search filter if in search mode.
+    final isSearching = _searchMode && _searchText.isNotEmpty;
+    final entries = isSearching
+        ? _entries.where((e) => e.hunterName.toLowerCase().contains(_searchText.toLowerCase())).toList()
+        : _entries;
     int myRank = 0;
-    for (int i = 0; i < entries.length; i++) { if (entries[i].uid == currentUid) { myRank = i + 1; break; } }
+    for (int i = 0; i < _entries.length; i++) { if (_entries[i].uid == currentUid) { myRank = i + 1; break; } }
     final limit = _activeTab == LeaderboardTab.overall ? 30 : 20;
+
+    // Empty search results
+    if (isSearching && entries.isEmpty) {
+      return CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(child: Text('No hunters found', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 14))),
+          ),
+        ],
+      );
+    }
 
     return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
-        // Your Position
-        SliverToBoxAdapter(child: _buildYourPosition(currentUid, myRank, limit)),
-        // Podium
-        if (entries.isNotEmpty) SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 4), child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [_buildPodiumItem(context, entries, 1, currentUid), _buildPodiumItem(context, entries, 0, currentUid), _buildPodiumItem(context, entries, 2, currentUid)]))),
+        // Your Position (hidden during search)
+        if (!isSearching) SliverToBoxAdapter(child: _buildYourPosition(currentUid, myRank, limit)),
+        // Podium (hidden during search — filtered results don't have ranked positions)
+        if (!isSearching && entries.isNotEmpty) SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 4), child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [_buildPodiumItem(context, entries, 1, currentUid), _buildPodiumItem(context, entries, 0, currentUid), _buildPodiumItem(context, entries, 2, currentUid)]))),
         // Divider
-        SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), child: Row(children: [Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08))), Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text('LEADERBOARD', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold))), Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08)))]))),
-        // List items (#4+) with animated: false
+        if (!isSearching) SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), child: Row(children: [Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08))), Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text('LEADERBOARD', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold))), Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08)))]))),
+        // List items — during search: show all filtered results; normal: show #4+
         SliverPadding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 16), sliver: SliverList(delegate: SliverChildBuilderDelegate((context, listIndex) {
-          final index = listIndex + 3;
+          final index = isSearching ? listIndex : listIndex + 3;
           if (index >= entries.length) return null;
           final entry = entries[index];
           final isMe = entry.uid == currentUid;
@@ -579,7 +571,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
               ]),
             ))),
           );
-        }, childCount: entries.length > 3 ? entries.length - 3 : 0))),
+        }, childCount: isSearching ? entries.length : (entries.length > 3 ? entries.length - 3 : 0)))),
       ],
     );
   }

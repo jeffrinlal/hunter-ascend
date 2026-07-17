@@ -190,13 +190,12 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
       bioQuests: widget.bioQuests,
     ),
     const GlobalRankingsScreen(),
-    const SizedBox.shrink(), // Duels = push action (see _openDuels)
+    const CreateDuelScreen(embedded: true),
     const ProfileScreen(),
   ];
 
-  // Preserves the original Dashboard duel-routing behavior verbatim:
-  // active duel -> DuelScreen, pending request -> DuelRequestScreen,
-  // otherwise -> CreateDuelScreen. Pushed as a route (keeps its own AppBar).
+  // Checks for active duel or pending request and pushes them on top.
+  // If neither exists, the Duels tab (CreateDuelScreen) is already shown.
   Future<void> _openDuels() async {
     if (_isOpeningDuels) return;
     _isOpeningDuels = true;
@@ -243,6 +242,13 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
 
       if (!mounted) return;
       if (hasActiveDuel) {
+        // Show the Duels tab first (so bottom nav highlights correctly),
+        // then push the active duel screen on top.
+        if (_index != 3) {
+          _transitionController.value = 0;
+          setState(() => _index = 3);
+          _transitionController.forward();
+        }
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => DuelScreen(duelId: duelId!)));
         return;
@@ -255,12 +261,21 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
           .get();
       if (!mounted) return;
       if (pendingRequest.docs.isNotEmpty) {
+        if (_index != 3) {
+          _transitionController.value = 0;
+          setState(() => _index = 3);
+          _transitionController.forward();
+        }
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => const DuelRequestScreen()));
         return;
       }
-      Navigator.push(
-          context, MaterialPageRoute(builder: (_) => const CreateDuelScreen()));
+      // No active duel or pending request — just show the Duels tab.
+      if (_index != 3) {
+        _transitionController.value = 0;
+        setState(() => _index = 3);
+        _transitionController.forward();
+      }
     } catch (e) {
       debugPrint("openDuels: $e");
     } finally {
@@ -325,6 +340,8 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
             labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
             onDestinationSelected: (i) {
               if (i == 3) {
+                // Check for active duel / pending request; if none, just
+                // switch to the Duels tab which shows CreateDuelScreen.
                 _openDuels();
                 return;
               }

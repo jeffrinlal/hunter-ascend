@@ -16,9 +16,15 @@ import 'package:hunter_ascend/services/membership_service.dart';
 class CreateDuelScreen extends StatefulWidget {
   final String? hunterName;
 
+  /// When true, the screen is embedded inside MainShell's IndexedStack
+  /// (Duels tab) and should NOT show a back button. When false, it was
+  /// pushed as a standalone route (e.g. with a pre-filled hunterName).
+  final bool embedded;
+
   const CreateDuelScreen({
     super.key,
     this.hunterName,
+    this.embedded = false,
   });
 
   @override
@@ -76,6 +82,66 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
     questController.dispose();
     _duelRewardedAd?.dispose();
     super.dispose();
+  }
+
+  /// Returns true if the user has entered meaningful data that would be lost.
+  bool _hasUnsavedData() {
+    return hunterNameController.text.trim().isNotEmpty ||
+        questController.text.trim().isNotEmpty ||
+        duelQuests.isNotEmpty ||
+        _aiGeneratedQuests.isNotEmpty;
+  }
+
+  /// Shows a discard confirmation if there's unsaved data, then pops.
+  /// Only relevant when the screen is NOT embedded (pushed as a route).
+  Future<void> _maybePopWithConfirmation() async {
+    if (!_hasUnsavedData()) {
+      Navigator.pop(context);
+      return;
+    }
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HunterTheme.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Discard changes?',
+            style: TextStyle(color: HunterTheme.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        content: Text(
+          'You have unsaved duel data. Are you sure you want to leave?',
+          style: TextStyle(color: HunterTheme.textSecondary, fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: TextStyle(color: HunterTheme.textTertiary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Discard', style: TextStyle(color: HunterTheme.dangerAlt, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (discard == true && mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  /// Resets the form to its initial state (used after successful submission
+  /// when the screen is embedded in the Duels tab).
+  void _resetForm() {
+    setState(() {
+      hunterNameController.clear();
+      questController.clear();
+      duelQuests.clear();
+      _aiGeneratedQuests.clear();
+      _selectedDuration = 3;
+      _selectedDifficulty = 'Medium';
+      _aiQuestCount = 4;
+      _opponentFound = null;
+      _opponentChecking = false;
+      _opponentCheckError = false;
+    });
   }
 
   void _onOpponentNameChanged() {
@@ -294,7 +360,11 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("⚔️ Duel challenge sent!")),
         );
-        Navigator.pop(context);
+        if (widget.embedded) {
+          _resetForm();
+        } else {
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       debugPrint("submitDuel: $e");
@@ -846,11 +916,14 @@ Return ONLY a JSON array, no markdown, no explanation:
       appBar: AppBar(
         backgroundColor: HunterTheme.background,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios,
-              color: HunterTheme.textSecondary, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
+        leading: widget.embedded
+            ? null
+            : IconButton(
+                icon: Icon(Icons.arrow_back_ios,
+                    color: HunterTheme.textSecondary, size: 20),
+                onPressed: () => _maybePopWithConfirmation(),
+              ),
         title: Row(
           children: [
             Icon(Icons.close, color: HunterTheme.dangerAlt, size: 20),

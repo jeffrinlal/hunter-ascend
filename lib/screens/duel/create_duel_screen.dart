@@ -11,20 +11,16 @@ import 'package:http/http.dart' as http;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/core/navigation_controller.dart';
+import 'package:hunter_ascend/widgets/hunter_bottom_nav.dart';
 
 /// Form to create/send a duel challenge to another hunter.
 class CreateDuelScreen extends StatefulWidget {
   final String? hunterName;
 
-  /// When true, the screen is embedded inside MainShell's IndexedStack
-  /// (Duels tab) and should NOT show a back button. When false, it was
-  /// pushed as a standalone route (e.g. with a pre-filled hunterName).
-  final bool embedded;
-
   const CreateDuelScreen({
     super.key,
     this.hunterName,
-    this.embedded = false,
   });
 
   @override
@@ -35,6 +31,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
   final TextEditingController hunterNameController = TextEditingController();
   final TextEditingController questController = TextEditingController();
   bool _isSubmitting = false;
+  bool _isPopping = false;
   List<Map<String, dynamic>> duelQuests = [];
 
   // ── Duel Settings ────────────────────────────────────────────────────
@@ -69,6 +66,10 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
     hunterNameController.addListener(_onOpponentNameChanged);
     _loadDuelRewardedAd();
 
+    // Listen to tabNotifier — if another tab is selected while this screen
+    // is visible, pop back to MainShell (which handles the tab switch).
+    tabNotifier.addListener(_onTabChanged);
+
     // Trigger initial check if a name was pre-filled.
     if (hunterNameController.text.trim().length >= 3) {
       _onOpponentNameChanged();
@@ -77,6 +78,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
 
   @override
   void dispose() {
+    tabNotifier.removeListener(_onTabChanged);
     _hunterLookupTimer?.cancel();
     hunterNameController.dispose();
     questController.dispose();
@@ -93,9 +95,10 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
   }
 
   /// Shows a discard confirmation if there's unsaved data, then pops.
-  /// Only relevant when the screen is NOT embedded (pushed as a route).
   Future<void> _maybePopWithConfirmation() async {
+    if (_isPopping) return;
     if (!_hasUnsavedData()) {
+      _isPopping = true;
       Navigator.pop(context);
       return;
     }
@@ -123,25 +126,25 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
       ),
     );
     if (discard == true && mounted) {
+      _isPopping = true;
       Navigator.pop(context);
+    } else {
+      // User cancelled — restore tabNotifier to Duels (3) so the bottom
+      // nav still highlights the correct tab.
+      tabNotifier.value = 3;
     }
   }
 
-  /// Resets the form to its initial state (used after successful submission
-  /// when the screen is embedded in the Duels tab).
-  void _resetForm() {
-    setState(() {
-      hunterNameController.clear();
-      questController.clear();
-      duelQuests.clear();
-      _aiGeneratedQuests.clear();
-      _selectedDuration = 3;
-      _selectedDifficulty = 'Medium';
-      _aiQuestCount = 4;
-      _opponentFound = null;
-      _opponentChecking = false;
-      _opponentCheckError = false;
-    });
+  /// Called when tabNotifier changes. If the user selected a different tab
+  /// via the bottom nav, pop this screen (with discard confirmation if needed).
+  void _onTabChanged() {
+    if (tabNotifier.value == 3) return; // Still on Duels — ignore.
+    _maybePopWithConfirmation();
+  }
+
+  /// Called when the user taps a destination on the bottom nav.
+  void _onBottomNavTap(int index) {
+    tabNotifier.value = index;
   }
 
   void _onOpponentNameChanged() {
@@ -360,11 +363,7 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("⚔️ Duel challenge sent!")),
         );
-        if (widget.embedded) {
-          _resetForm();
-        } else {
-          Navigator.pop(context);
-        }
+        Navigator.pop(context);
       }
     } catch (e) {
       debugPrint("submitDuel: $e");
@@ -916,14 +915,11 @@ Return ONLY a JSON array, no markdown, no explanation:
       appBar: AppBar(
         backgroundColor: HunterTheme.background,
         elevation: 0,
-        automaticallyImplyLeading: false,
-        leading: widget.embedded
-            ? null
-            : IconButton(
-                icon: Icon(Icons.arrow_back_ios,
-                    color: HunterTheme.textSecondary, size: 20),
-                onPressed: () => _maybePopWithConfirmation(),
-              ),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios,
+              color: HunterTheme.textSecondary, size: 20),
+          onPressed: () => _maybePopWithConfirmation(),
+        ),
         title: Row(
           children: [
             Icon(Icons.close, color: HunterTheme.dangerAlt, size: 20),
@@ -952,6 +948,11 @@ Return ONLY a JSON array, no markdown, no explanation:
             },
           ),
         ],
+      ),
+      bottomNavigationBar: HunterBottomNav(
+        selectedIndex: 3,
+        showDuelBadge: false,
+        onDestinationSelected: _onBottomNavTap,
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),

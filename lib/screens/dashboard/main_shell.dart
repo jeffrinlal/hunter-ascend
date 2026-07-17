@@ -12,6 +12,9 @@ import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/screens/profile/membership_screen.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
+import 'package:hunter_ascend/core/navigation_controller.dart';
+import 'package:hunter_ascend/widgets/hunter_bottom_nav.dart';
+import 'dart:async';
 
 /// Persistent shell hosting the main app screens behind a bottom NavigationBar.
 /// Tabs: Home (Dashboard), Quests, Leaderboard, Duels, Profile.
@@ -40,6 +43,8 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> with SingleTickerProviderStateMixin {
   int _index = 0;
   bool _isOpeningDuels = false;
+  bool _hasDuelBadge = false;
+  StreamSubscription<QuerySnapshot>? _badgeSub;
 
   // ── Page transition animation ──────────────────────────────────────────
   // Animates the incoming tab with a quick fade + slide. IndexedStack
@@ -66,19 +71,32 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
     curve: Curves.easeOutCubic,
   ));
 
-  // Cached stream for the duel-request notification badge (stable identity).
-  late final Stream<QuerySnapshot> _duelRequestBadgeStream = FirebaseFirestore
-      .instance
-      .collection('duel_requests')
-      .where('toUid', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-      .where('status', isEqualTo: 'pending')
-      .limit(1)
-      .snapshots();
-
   @override
   void initState() {
     super.initState();
     _transitionController.value = 1.0; // Start fully visible (no animation on first render).
+
+    // Listen to tabNotifier for tab changes from pushed routes.
+    tabNotifier.addListener(_onTabNotifierChanged);
+
+    // Listen to duel-request badge stream.
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      _badgeSub = FirebaseFirestore.instance
+          .collection('duel_requests')
+          .where('toUid', isEqualTo: uid)
+          .where('status', isEqualTo: 'pending')
+          .limit(1)
+          .snapshots()
+          .listen((snap) {
+        if (!mounted) return;
+        final hasPending = snap.docs.isNotEmpty;
+        if (hasPending != _hasDuelBadge) {
+          setState(() => _hasDuelBadge = hasPending);
+        }
+      });
+    }
+
     // Check for membership expiration after the first frame renders.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkMembershipExpired();
@@ -87,8 +105,41 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
 
   @override
   void dispose() {
+    tabNotifier.removeListener(_onTabNotifierChanged);
+    _badgeSub?.cancel();
     _transitionController.dispose();
     super.dispose();
+  }
+
+  /// Responds to tabNotifier changes (triggered by HunterBottomNav in
+  /// pushed routes like CreateDuelScreen).
+  void _onTabNotifierChanged() {
+    final newIndex = tabNotifier.value;
+    if (newIndex == 3) {
+      // Duels tab selected from a pushed route — _openDuels() is already
+      // called by _onDestinationSelected when tapped from MainShell itself,
+      // so only trigger here if we're not already opening duels.
+      if (!_isOpeningDuels) _openDuels();
+    } else if (newIndex != _index) {
+      _transitionController.value = 0;
+      setState(() => _index = newIndex);
+      _transitionController.forward();
+    }
+  }
+
+  /// Called when a destination is selected on the bottom nav (from MainShell).
+  void _onDestinationSelected(int i) {
+    if (i == 3) {
+      tabNotifier.value = 3; // Keep tabNotifier in sync for pushed routes.
+      _openDuels();
+      return;
+    }
+    if (i != _index) {
+      tabNotifier.value = i; // Keep tabNotifier in sync.
+      _transitionController.value = 0;
+      setState(() => _index = i);
+      _transitionController.forward();
+    }
   }
 
   /// Shows a one-time dialog if the user's membership has expired since
@@ -190,12 +241,13 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
       bioQuests: widget.bioQuests,
     ),
     const GlobalRankingsScreen(),
-    const CreateDuelScreen(embedded: true),
+    const SizedBox.shrink(), // Duels = push action (see _openDuels)
     const ProfileScreen(),
   ];
 
-  // Checks for active duel or pending request and pushes them on top.
-  // If neither exists, the Duels tab (CreateDuelScreen) is already shown.
+  // Preserves the original Dashboard duel-routing behavior verbatim:
+  // active duel -> DuelScreen, pending request -> DuelRequestScreen,
+  // otherwise -> CreateDuelScreen. Pushed as a route (keeps its own AppBar).
   Future<void> _openDuels() async {
     if (_isOpeningDuels) return;
     _isOpeningDuels = true;
@@ -242,13 +294,6 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
 
       if (!mounted) return;
       if (hasActiveDuel) {
-        // Show the Duels tab first (so bottom nav highlights correctly),
-        // then push the active duel screen on top.
-        if (_index != 3) {
-          _transitionController.value = 0;
-          setState(() => _index = 3);
-          _transitionController.forward();
-        }
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => DuelScreen(duelId: duelId!)));
         return;
@@ -261,21 +306,12 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
           .get();
       if (!mounted) return;
       if (pendingRequest.docs.isNotEmpty) {
-        if (_index != 3) {
-          _transitionController.value = 0;
-          setState(() => _index = 3);
-          _transitionController.forward();
-        }
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => const DuelRequestScreen()));
         return;
       }
-      // No active duel or pending request — just show the Duels tab.
-      if (_index != 3) {
-        _transitionController.value = 0;
-        setState(() => _index = 3);
-        _transitionController.forward();
-      }
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const CreateDuelScreen()));
     } catch (e) {
       debugPrint("openDuels: $e");
     } finally {
@@ -292,8 +328,6 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   }
 
   Widget _themedBuild(BuildContext context) {
-    final inactive = HunterTheme.textSecondary;
-
     return Scaffold(
       backgroundColor: HunterTheme.background,
       body: FadeTransition(
@@ -303,106 +337,10 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
           child: IndexedStack(index: _index, children: _tabs),
         ),
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: HunterTheme.cardColor,
-          border: Border(
-            top: BorderSide(
-              color: HunterTheme.primary.withOpacity(0.2),
-              width: 1,
-            ),
-          ),
-        ),
-        child: NavigationBarTheme(
-          data: NavigationBarThemeData(
-            backgroundColor: HunterTheme.cardColor,
-            indicatorColor: HunterTheme.primary.withOpacity(0.14),
-            labelTextStyle: WidgetStateProperty.resolveWith(
-                  (states) => TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: states.contains(WidgetState.selected)
-                    ? HunterTheme.primary
-                    : inactive,
-              ),
-            ),
-            iconTheme: WidgetStateProperty.resolveWith(
-                  (states) => IconThemeData(
-                color: states.contains(WidgetState.selected)
-                    ? HunterTheme.primary
-                    : inactive,
-              ),
-            ),
-          ),
-          child: NavigationBar(
-            selectedIndex: _index,
-            height: 66,
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            onDestinationSelected: (i) {
-              if (i == 3) {
-                // Check for active duel / pending request; if none, just
-                // switch to the Duels tab which shows CreateDuelScreen.
-                _openDuels();
-                return;
-              }
-              if (i != _index) {
-                _transitionController.value = 0;
-                setState(() => _index = i);
-                _transitionController.forward();
-              }
-            },
-            destinations: [
-              const NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home_filled),
-                label: 'Home',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.checklist_outlined),
-                selectedIcon: Icon(Icons.checklist),
-                label: 'Missions',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.leaderboard_outlined),
-                selectedIcon: Icon(Icons.leaderboard),
-                label: 'Leaderboard',
-              ),
-              NavigationDestination(
-                icon: StreamBuilder<QuerySnapshot>(
-                  stream: _duelRequestBadgeStream,
-                  builder: (context, snap) {
-                    final hasPending = snap.hasData && snap.data!.docs.isNotEmpty;
-                    return Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        const Icon(Icons.sports_kabaddi),
-                        if (hasPending)
-                          Positioned(
-                            right: -4,
-                            top: -4,
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-                label: 'Duels',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.person_outline),
-                selectedIcon: Icon(Icons.person),
-                label: 'Profile',
-              ),
-            ],
-          ),
-        ),
+      bottomNavigationBar: HunterBottomNav(
+        selectedIndex: _index,
+        showDuelBadge: _hasDuelBadge,
+        onDestinationSelected: _onDestinationSelected,
       ),
     );
   }

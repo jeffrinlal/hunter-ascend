@@ -37,9 +37,26 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with SingleTickerProviderStateMixin {
   int _index = 0;
   bool _isOpeningDuels = false;
+
+  // ── Page transition animation ──────────────────────────────────────────
+  late final AnimationController _transitionController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+  );
+  late final Animation<double> _fadeAnimation = CurvedAnimation(
+    parent: _transitionController,
+    curve: Curves.easeOutCubic,
+  );
+  late final Animation<Offset> _slideAnimation = Tween<Offset>(
+    begin: const Offset(0.04, 0),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(
+    parent: _transitionController,
+    curve: Curves.easeOutCubic,
+  ));
 
   // Cached stream for the duel-request notification badge (stable identity).
   late final Stream<QuerySnapshot> _duelRequestBadgeStream = FirebaseFirestore
@@ -53,10 +70,17 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
+    _transitionController.value = 1.0; // Start fully visible (no animation on first render).
     // Check for membership expiration after the first frame renders.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkMembershipExpired();
     });
+  }
+
+  @override
+  void dispose() {
+    _transitionController.dispose();
+    super.dispose();
   }
 
   /// Shows a one-time dialog if the user's membership has expired since
@@ -249,7 +273,13 @@ class _MainShellState extends State<MainShell> {
 
     return Scaffold(
       backgroundColor: HunterTheme.background,
-      body: IndexedStack(index: _index, children: _tabs),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SlideTransition(
+          position: _slideAnimation,
+          child: IndexedStack(index: _index, children: _tabs),
+        ),
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: HunterTheme.cardColor,
@@ -290,7 +320,11 @@ class _MainShellState extends State<MainShell> {
                 _openDuels();
                 return;
               }
-              setState(() => _index = i);
+              if (i != _index) {
+                _transitionController.value = 0;
+                setState(() => _index = i);
+                _transitionController.forward();
+              }
             },
             destinations: [
               const NavigationDestination(

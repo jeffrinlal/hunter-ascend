@@ -11,6 +11,10 @@ import 'package:hunter_ascend/services/ai_quest_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
+import 'package:hunter_ascend/data/models/hunter_data.dart';
+import 'package:hunter_ascend/data/models/custom_quest.dart';
+import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
+import 'package:hunter_ascend/data/repositories/quest_repository.dart';
 
 
 /// Missions screen: daily quests, weekly missions, AI quest generation,
@@ -231,19 +235,6 @@ class _MissionsScreenState extends State<MissionsScreen> {
   List<String> completedQuests = [];
 
   final TextEditingController customQuestController = TextEditingController();
-
-  // Cached Firestore streams (stable identity).
-  late final Stream<DocumentSnapshot> _hunterDocStream = FirebaseFirestore
-      .instance
-      .collection('hunters')
-      .doc(FirebaseAuth.instance.currentUser?.uid)
-      .snapshots();
-
-  late final Stream<QuerySnapshot> _customQuestsStream = FirebaseFirestore
-      .instance
-      .collection('custom_quests')
-      .where('uid', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-      .snapshots();
 
   // ── Ads ──────────────────────────────────────────────────
   BannerAd? bannerAd;
@@ -1277,11 +1268,12 @@ class _MissionsScreenState extends State<MissionsScreen> {
 
   // ── Quests Section ───────────────────────────────────────
   Widget _buildQuestsSection() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: _customQuestsStream,
+    return StreamBuilder<List<CustomQuest>>(
+      stream: QuestRepository.instance.watch(),
+      initialData: QuestRepository.instance.getCached(),
       builder: (context, customSnapshot) {
-        final customDocs = customSnapshot.data?.docs ?? [];
-        final totalQuests = generatedQuests.length + customDocs.length;
+        final customQuests = customSnapshot.data ?? [];
+        final totalQuests = generatedQuests.length + customQuests.length;
         final completedCount = completedQuests.length;
 
         return Column(
@@ -1336,13 +1328,14 @@ class _MissionsScreenState extends State<MissionsScreen> {
               const Spacer(),
 
 
-              StreamBuilder<DocumentSnapshot>(
-                stream: _hunterDocStream,
+              StreamBuilder<HunterData?>(
+                stream: HunterRepository.instance.watch(),
+                initialData: HunterRepository.instance.getCached(),
                 builder: (context, snapshot) {
                   String mode = "MODE";
-                  if (snapshot.hasData && snapshot.data!.exists) {
-                    final data = snapshot.data!.data() as Map<String, dynamic>;
-                    if (data['disciplineMode'] != null) mode = data['disciplineMode'].toString().toUpperCase();
+                  final hunter = snapshot.data;
+                  if (hunter != null && hunter.disciplineMode != null) {
+                    mode = hunter.disciplineMode!.toUpperCase();
                   }
                   return GestureDetector(
                     onTap: showDisciplineModeDialog,
@@ -1395,23 +1388,25 @@ class _MissionsScreenState extends State<MissionsScreen> {
 
 
             // Custom quests
-            ...customDocs.map((doc) {
-              final data = doc.data() as Map<String, dynamic>;
+            ...customQuests.map((quest) {
               return _buildQuestTile(
-                name: data['name'],
-                xp: data['xp'],
+                name: quest.name,
+                xp: quest.xp,
                 icon: Icons.edit_note,
-                isCompleted: completedQuests.contains(data['name']),
+                isCompleted: completedQuests.contains(quest.name),
                 isCustom: true,
-                onTap: () => startQuest(data['name'], data['xp']),
+                onTap: () => startQuest(quest.name, quest.xp),
                 onDelete: () => showDialog(
                   context: context,
                   builder: (_) => AlertDialog(
                     title: const Text("Delete Mission?"),
-                    content: Text(data['name']),
+                    content: Text(quest.name),
                     actions: [
                       TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL")),
-                      ElevatedButton(onPressed: () async { await doc.reference.delete(); if (mounted) Navigator.pop(context); }, child: const Text("DELETE")),
+                      ElevatedButton(onPressed: () async {
+                        await FirebaseFirestore.instance.collection('custom_quests').doc(quest.id).delete();
+                        if (mounted) Navigator.pop(context);
+                      }, child: const Text("DELETE")),
                     ],
                   ),
                 ),

@@ -33,8 +33,9 @@ class ThemeService {
   /// Full key: `specialThemeExpiry_<themeName>` e.g. `specialThemeExpiry_crystalGlass`
   static const String _specialExpiryPrefix = 'specialThemeExpiry_';
 
-  /// Duration a special theme remains unlocked after watching an ad.
-  static const Duration specialUnlockDuration = Duration(hours: 24);
+  /// Default duration a special theme remains unlocked if [AppThemeData.unlockDuration]
+  /// is not specified. Individual themes override this via their own field.
+  static const Duration _defaultUnlockDuration = Duration(hours: 24);
 
   /// Fires whenever the active dark theme changes.
   /// The gallery and any other listeners can rebuild on this.
@@ -125,7 +126,8 @@ class ThemeService {
     final themeData = ThemeRegistry.getByTheme(theme);
     if (!themeData.isAdRewardTheme) return;
 
-    final expiry = DateTime.now().add(specialUnlockDuration);
+    final duration = themeData.unlockDuration ?? _defaultUnlockDuration;
+    final expiry = DateTime.now().add(duration);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(
       '$_specialExpiryPrefix${theme.name}',

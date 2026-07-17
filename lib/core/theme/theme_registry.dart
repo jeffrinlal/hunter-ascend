@@ -231,6 +231,7 @@ class ThemeRegistry {
     description: 'Frosted elegance. Translucent layers of ice and light.',
     requiredTier: MembershipTier.basic, // access gated by ThemeUnlockType, not tier
     unlockType: ThemeUnlockType.adReward,
+    unlockDuration: Duration(hours: 24),
     background: Color(0xFF0E1218),
     surface: Color(0xFF161C24),
     card: Color(0xFF1E2832),

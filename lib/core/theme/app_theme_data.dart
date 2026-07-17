@@ -60,6 +60,7 @@ class AppThemeData {
     required this.textFaint,
     required this.border,
     this.unlockType = ThemeUnlockType.membership,
+    this.unlockDuration,
   });
 
   /// The enum identifier for this theme.
@@ -77,6 +78,11 @@ class AppThemeData {
 
   /// How this theme is unlocked. Defaults to [ThemeUnlockType.membership].
   final ThemeUnlockType unlockType;
+
+  /// How long this theme remains unlocked after an ad-reward.
+  /// Only relevant when [unlockType] is [ThemeUnlockType.adReward].
+  /// Defaults to `null` (not applicable for membership themes).
+  final Duration? unlockDuration;
 
   /// Whether this theme uses the ad-reward unlock mechanism.
   bool get isAdRewardTheme => unlockType == ThemeUnlockType.adReward;

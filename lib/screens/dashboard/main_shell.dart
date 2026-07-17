@@ -52,7 +52,7 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
     duration: const Duration(milliseconds: 200),
   );
   late final Animation<double> _fadeAnimation = Tween<double>(
-    begin: 0.0,
+    begin: 0.6,
     end: 1.0,
   ).animate(CurvedAnimation(
     parent: _transitionController,

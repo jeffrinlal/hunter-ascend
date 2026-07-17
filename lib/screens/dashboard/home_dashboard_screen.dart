@@ -23,6 +23,8 @@ import 'package:hunter_ascend/screens/dashboard/dashboard_screen.dart';
 import 'package:hunter_ascend/widgets/glass/glass_card.dart';
 import 'package:hunter_ascend/widgets/glass/glass_background.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
+import 'package:hunter_ascend/data/models/hunter_data.dart';
+import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 
 
 /// Home dashboard: hunter stats, steps, water, streak, notifications, quick actions.
@@ -81,13 +83,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
 
   StreamSubscription<StepCount>? _stepSubscription;
-
-  // Cached Firestore stream (stable identity — prevents re-subscription on rebuild).
-  late final Stream<DocumentSnapshot> _hunterDocStream = FirebaseFirestore
-      .instance
-      .collection('hunters')
-      .doc(FirebaseAuth.instance.currentUser?.uid)
-      .snapshots();
 
   // ── Ads ──────────────────────────────────────────────────
   RewardedAd? rewardedAd;
@@ -1113,17 +1108,18 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 16),
-                StreamBuilder<DocumentSnapshot>(
-                  stream: _hunterDocStream,
+                StreamBuilder<HunterData?>(
+                  stream: HunterRepository.instance.watch(),
+                  initialData: HunterRepository.instance.getCached(),
                   builder: (context, snap) {
-                    if (!snap.hasData) return buildDashboardSkeleton();
-                    final hunterData = snap.data!.data() as Map<String, dynamic>? ?? {};
+                    final hunter = snap.data;
+                    if (hunter == null) return buildDashboardSkeleton();
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildTopBar(hunterData),
+                        _buildTopBar(hunter),
                         const SizedBox(height: 20),
-                        _buildHunterCard(hunterData),
+                        _buildHunterCard(hunter),
                         const SizedBox(height: 16),
                         StepsCard(steps: todaySteps),
                         const SizedBox(height: 16),
@@ -1145,9 +1141,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
 
   // ── Top Bar ──────────────────────────────────────────────
-  Widget _buildTopBar(Map<String, dynamic> hunterData) {
-    final hasNotif = (hunterData['notificationTime'] ?? '').toString().isNotEmpty;
-    final streak = (hunterData['streak'] ?? 0) as int;
+  Widget _buildTopBar(HunterData hunter) {
+    final hasNotif = (hunter.notificationTime ?? '').isNotEmpty;
+    final streak = hunter.streak;
 
     return Row(
       children: [
@@ -1201,11 +1197,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }
 
   // ── Hunter Card ──────────────────────────────────────────
-  Widget _buildHunterCard(Map<String, dynamic> hunterData) {
-    final pic = hunterData['profilePicture'] as String?;
-    final name = (hunterData['hunterName'] ?? 'Hunter').toString();
-    final liveXp = (hunterData['xp'] ?? xp) as int;
-    final liveLevel = (hunterData['level'] ?? level) as int;
+  Widget _buildHunterCard(HunterData hunter) {
+    final pic = hunter.profilePicture;
+    final name = hunter.hunterName;
+    final liveXp = hunter.xp;
+    final liveLevel = hunter.level;
 
     return GlassCard(
       child: Column(

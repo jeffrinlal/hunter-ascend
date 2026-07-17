@@ -15,6 +15,8 @@ import 'package:hunter_ascend/services/notification_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
+import 'package:hunter_ascend/data/hive_init.dart';
+import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'package:hunter_ascend/widgets/connectivity_banner.dart';
 import 'dart:math' as math;
 import 'package:facebook_app_events/facebook_app_events.dart';
@@ -87,6 +89,9 @@ void main() async {
 
         // Load and validate the user's selected premium dark theme.
         await ThemeService.instance.initialize();
+
+        // Initialize Hive local cache.
+        await HiveInit.initialize();
     } catch (e) {
         debugPrint("startup: $e");
     }

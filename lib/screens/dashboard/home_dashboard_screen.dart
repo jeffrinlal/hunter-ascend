@@ -1089,6 +1089,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
 
   // ── Build ────────────────────────────────────────────────
+  int _buildCount = 0;
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -1098,6 +1100,13 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }
 
   Widget _themedBuild(BuildContext context) {
+    _buildCount++;
+    debugPrint('[HIVE-UI] _themedBuild #$_buildCount called');
+
+    final stream = HunterRepository.instance.watch();
+    final cached = HunterRepository.instance.getCached();
+    debugPrint('[HIVE-UI] stream.hashCode=${identityHashCode(stream)}, cached=${cached != null ? "Lv${cached.level}" : "null"}');
+
     return Scaffold(
       backgroundColor: _bg,
       body: GlassBackground(
@@ -1109,8 +1118,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
               children: [
                 const SizedBox(height: 16),
                 StreamBuilder<HunterData?>(
-                  stream: HunterRepository.instance.watch(),
-                  initialData: HunterRepository.instance.getCached(),
+                  stream: stream,
+                  initialData: cached,
                   builder: (context, snap) {
                     debugPrint('[HIVE-UI] StreamBuilder: state=${snap.connectionState}, hasData=${snap.hasData}, data=${snap.data != null ? "Lv${snap.data!.level}" : "null"}');
                     final hunter = snap.data;

@@ -67,8 +67,9 @@ class HunterRepository {
   /// does not create duplicate Firestore listeners.
   Stream<HunterData?> watch() {
     _ensureListening();
-    debugPrint('[HIVE] watch() called — controller: ${_controller != null ? "exists" : "NULL"}, isClosed: ${_controller?.isClosed}');
-    return _controller!.stream;
+    final stream = _controller!.stream;
+    debugPrint('[HIVE] watch() → controller: ${_controller != null ? "exists" : "NULL"}, isClosed: ${_controller?.isClosed}, stream.hashCode: ${identityHashCode(stream)}');
+    return stream;
   }
 
   /// Clears the local cache and cancels the Firestore listener.
@@ -100,14 +101,19 @@ class HunterRepository {
   /// Creates the broadcast StreamController on first call.
   void _ensureListening() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null) {
+      debugPrint('[HIVE] _ensureListening: uid is null — skipping');
+      return;
+    }
 
     // Already listening for this user — no-op.
     if (_firestoreSub != null && _listeningUid == uid && _controller != null) {
+      debugPrint('[HIVE] _ensureListening: already listening for $uid — no-op');
       return;
     }
 
     // Different user or first call — (re)start.
+    debugPrint('[HIVE] _ensureListening: STARTING new listener for $uid (was: $_listeningUid)');
     _stopListening();
     _listeningUid = uid;
 
@@ -137,14 +143,20 @@ class HunterRepository {
   /// and emits to the stream.
   void _onSnapshot(
       DocumentSnapshot<Map<String, dynamic>> snapshot, String uid) {
-    if (!snapshot.exists) return;
+    if (!snapshot.exists) {
+      debugPrint('[HIVE] _onSnapshot: document does not exist');
+      return;
+    }
     final data = snapshot.data();
-    if (data == null) return;
+    if (data == null) {
+      debugPrint('[HIVE] _onSnapshot: data is null');
+      return;
+    }
 
     final hunterData = HunterData.fromFirestore(data);
     _lastEmitted = hunterData;
 
-    debugPrint('[HIVE] Firestore snapshot received (${hunterData.hunterName}, Lv${hunterData.level}, ${hunterData.xp}XP)');
+    debugPrint('[HIVE] _onSnapshot: received (${hunterData.hunterName}, Lv${hunterData.level}, ${hunterData.xp}XP)');
 
     // Write to Hive (immediate, no debounce).
     _writeToCache(hunterData, uid);
@@ -152,6 +164,9 @@ class HunterRepository {
     // Emit to stream.
     if (_controller != null && !_controller!.isClosed) {
       _controller!.add(hunterData);
+      debugPrint('[HIVE] _onSnapshot: emitted to stream');
+    } else {
+      debugPrint('[HIVE] _onSnapshot: WARNING — controller is null or closed, cannot emit');
     }
   }
 

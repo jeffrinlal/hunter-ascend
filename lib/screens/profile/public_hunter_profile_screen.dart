@@ -400,6 +400,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                               MaterialPageRoute(
                                 builder: (_) => CreateDuelScreen(
                                   hunterName: data['hunterName'],
+                                  pushed: true,
                                 ),
                               ),
                             );

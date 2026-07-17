@@ -190,13 +190,12 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
       bioQuests: widget.bioQuests,
     ),
     const GlobalRankingsScreen(),
-    const SizedBox.shrink(), // Duels = push action (see _openDuels)
+    const CreateDuelScreen(), // Duels tab (same pattern as other tabs)
     const ProfileScreen(),
   ];
 
-  // Preserves the original Dashboard duel-routing behavior verbatim:
-  // active duel -> DuelScreen, pending request -> DuelRequestScreen,
-  // otherwise -> CreateDuelScreen. Pushed as a route (keeps its own AppBar).
+  // Checks for active duel or pending request. If found, pushes on top.
+  // Otherwise just switches to the Duels tab (CreateDuelScreen).
   Future<void> _openDuels() async {
     if (_isOpeningDuels) return;
     _isOpeningDuels = true;
@@ -259,8 +258,12 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
             MaterialPageRoute(builder: (_) => const DuelRequestScreen()));
         return;
       }
-      Navigator.push(
-          context, MaterialPageRoute(builder: (_) => const CreateDuelScreen()));
+      // No active duel or pending request — switch to the Duels tab.
+      if (_index != 3) {
+        _transitionController.value = 0;
+        setState(() => _index = 3);
+        _transitionController.forward();
+      }
     } catch (e) {
       debugPrint("openDuels: $e");
     } finally {

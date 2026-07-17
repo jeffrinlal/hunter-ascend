@@ -16,9 +16,15 @@ import 'package:hunter_ascend/services/membership_service.dart';
 class CreateDuelScreen extends StatefulWidget {
   final String? hunterName;
 
+  /// When true, the screen was pushed as a standalone route (e.g. from
+  /// PublicHunterProfileScreen) and shows a back button + pops on success.
+  /// When false (default), the screen lives inside MainShell's IndexedStack.
+  final bool pushed;
+
   const CreateDuelScreen({
     super.key,
     this.hunterName,
+    this.pushed = false,
   });
 
   @override
@@ -76,6 +82,23 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
     questController.dispose();
     _duelRewardedAd?.dispose();
     super.dispose();
+  }
+
+  /// Resets the form to its initial state after a successful duel creation
+  /// (only used when the screen is in the IndexedStack, not pushed).
+  void _resetForm() {
+    setState(() {
+      hunterNameController.clear();
+      questController.clear();
+      duelQuests.clear();
+      _aiGeneratedQuests.clear();
+      _selectedDuration = 3;
+      _selectedDifficulty = 'Medium';
+      _aiQuestCount = 4;
+      _opponentFound = null;
+      _opponentChecking = false;
+      _opponentCheckError = false;
+    });
   }
 
   void _onOpponentNameChanged() {
@@ -294,7 +317,11 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("⚔️ Duel challenge sent!")),
         );
-        Navigator.pop(context);
+        if (widget.pushed) {
+          Navigator.pop(context);
+        } else {
+          _resetForm();
+        }
       }
     } catch (e) {
       debugPrint("submitDuel: $e");
@@ -846,11 +873,14 @@ Return ONLY a JSON array, no markdown, no explanation:
       appBar: AppBar(
         backgroundColor: HunterTheme.background,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios,
-              color: HunterTheme.textSecondary, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
+        leading: widget.pushed
+            ? IconButton(
+                icon: Icon(Icons.arrow_back_ios,
+                    color: HunterTheme.textSecondary, size: 20),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
         title: Row(
           children: [
             Icon(Icons.close, color: HunterTheme.dangerAlt, size: 20),

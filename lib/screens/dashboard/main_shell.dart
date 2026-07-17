@@ -42,16 +42,24 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   bool _isOpeningDuels = false;
 
   // ── Page transition animation ──────────────────────────────────────────
+  // Animates the incoming tab with a quick fade + slide. IndexedStack
+  // switches the visible child immediately (it cannot show two children
+  // at once), so a true crossfade is impossible without abandoning state
+  // preservation. Instead, we animate the entrance of the new page with
+  // a very subtle reveal (opacity 0→1, 2% slide) that feels responsive.
   late final AnimationController _transitionController = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 220),
+    duration: const Duration(milliseconds: 200),
   );
-  late final Animation<double> _fadeAnimation = CurvedAnimation(
+  late final Animation<double> _fadeAnimation = Tween<double>(
+    begin: 0.0,
+    end: 1.0,
+  ).animate(CurvedAnimation(
     parent: _transitionController,
-    curve: Curves.easeOutCubic,
-  );
+    curve: Curves.easeOut,
+  ));
   late final Animation<Offset> _slideAnimation = Tween<Offset>(
-    begin: const Offset(0.04, 0),
+    begin: const Offset(0.015, 0),
     end: Offset.zero,
   ).animate(CurvedAnimation(
     parent: _transitionController,

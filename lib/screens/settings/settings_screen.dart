@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hunter_ascend/screens/auth/login_screen.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/screens/settings/theme_gallery_screen.dart';
 
 /// App settings: theme toggle, account, and links.
 class SettingsScreen extends StatelessWidget {
@@ -471,6 +472,22 @@ class SettingsScreen extends StatelessWidget {
                       const SizedBox(height: 10),
 
                       const _DarkModeTile(),
+
+                      const SizedBox(height: 10),
+
+                      _SettingsTile(
+                        icon: Icons.palette_outlined,
+                        title: 'Premium Themes',
+                        subtitle: 'Customize your hunter experience',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ThemeGalleryScreen(),
+                            ),
+                          );
+                        },
+                      ),
 
                       const SizedBox(height: 24),
                       _sectionLabel('GENERAL'),

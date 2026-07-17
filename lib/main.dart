@@ -14,6 +14,7 @@ import 'package:hunter_ascend/screens/auth/login_screen.dart';
 import 'package:hunter_ascend/services/notification_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/widgets/connectivity_banner.dart';
 import 'dart:math' as math;
 import 'package:facebook_app_events/facebook_app_events.dart';
@@ -83,6 +84,9 @@ void main() async {
         final isDarkMode = prefs.getBool('darkMode') ?? false;
         HunterTheme.isDark = isDarkMode;
         themeNotifier.value = isDarkMode ? ThemeMode.dark : ThemeMode.light;
+
+        // Load and validate the user's selected premium dark theme.
+        await ThemeService.instance.initialize();
     } catch (e) {
         debugPrint("startup: $e");
     }
@@ -130,6 +134,7 @@ class HunterAscendApp extends StatelessWidget {
                     ),
                     child: MaterialApp(
                     debugShowCheckedModeBanner: false,
+                    scaffoldMessengerKey: ThemeService.scaffoldMessengerKey,
                     title: 'Hunter Ascend',
                     theme: HunterTheme.lightTheme,
                     darkTheme: HunterTheme.darkTheme,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hunter_ascend/core/theme/app_theme_data.dart';
 
 /// Global theme-mode notifier (light by default). Persisted via
 /// shared_preferences in main.dart / settings_screen.dart.
@@ -14,13 +15,27 @@ final ValueNotifier<ThemeMode> themeNotifier =
 ///
 /// Tokens are dynamic getters keyed off [isDark] (set once per build by the
 /// app-level theme listener) so a single source drives every screen's palette.
+///
+/// Premium dark themes are supported via [activeDarkTheme]. When set, the
+/// dark-mode getters return the premium theme's colors instead of the
+/// hardcoded defaults. Light mode is unaffected.
 class HunterTheme {
   HunterTheme._();
 
   /// Set from the ValueListenableBuilder wrapping MaterialApp before each build.
   static bool isDark = false;
 
-  // ── LIGHT palette ─────────────────────────────────────────────────────
+  /// The currently active premium dark-mode theme. When `null`, the original
+  /// hardcoded dark palette is used. Set by [ThemeService] on startup and
+  /// whenever the user changes their theme selection.
+  static AppThemeData? _activeDarkTheme;
+
+  /// Sets the active dark theme. Called by [ThemeService].
+  static set activeDarkTheme(AppThemeData? theme) {
+    _activeDarkTheme = theme;
+  }
+
+  // ── LIGHT palette (unchanged — only one light palette) ────────────────
   static const _lBackground    = Color(0xFFFAFAFA);
   static const _lSurface       = Color(0xFFFFF0E8);
   static const _lCard          = Color(0xFFFFFFFF);
@@ -31,16 +46,27 @@ class HunterTheme {
   static const _lTextFaint     = Color(0xFFBBBBBB);
   static const _lBorder        = Color(0xFFFFE0D0);
 
-  // ── DARK palette (original) ───────────────────────────────────────────
-  static const _dBackground    = Color(0xFF080C14);
-  static const _dSurface       = Color(0xFF0D1620);
-  static const _dCard          = Color(0xFF111523);
-  static const _dPrimary       = Color(0xFF00E5FF);
-  static const _dTextPrimary   = Color(0xFFF5F7FA);
-  static const _dTextSecondary = Color(0xFFB8C2D9);
-  static const _dTextTertiary  = Color(0xFF8898BB);
-  static const _dTextFaint     = Color(0xFF5A6478);
-  static const _dBorder        = Color(0xFF1E2D4A);
+  // ── DARK palette defaults (used when _activeDarkTheme is null) ────────
+  static const _dDefaultBackground    = Color(0xFF080C14);
+  static const _dDefaultSurface       = Color(0xFF0D1620);
+  static const _dDefaultCard          = Color(0xFF111523);
+  static const _dDefaultPrimary       = Color(0xFF00E5FF);
+  static const _dDefaultTextPrimary   = Color(0xFFF5F7FA);
+  static const _dDefaultTextSecondary = Color(0xFFB8C2D9);
+  static const _dDefaultTextTertiary  = Color(0xFF8898BB);
+  static const _dDefaultTextFaint     = Color(0xFF5A6478);
+  static const _dDefaultBorder        = Color(0xFF1E2D4A);
+
+  // ── Dark palette getters (read from active theme or defaults) ─────────
+  static Color get _dBackground    => _activeDarkTheme?.background    ?? _dDefaultBackground;
+  static Color get _dSurface       => _activeDarkTheme?.surface       ?? _dDefaultSurface;
+  static Color get _dCard          => _activeDarkTheme?.card          ?? _dDefaultCard;
+  static Color get _dPrimary       => _activeDarkTheme?.primary       ?? _dDefaultPrimary;
+  static Color get _dTextPrimary   => _activeDarkTheme?.textPrimary   ?? _dDefaultTextPrimary;
+  static Color get _dTextSecondary => _activeDarkTheme?.textSecondary ?? _dDefaultTextSecondary;
+  static Color get _dTextTertiary  => _activeDarkTheme?.textTertiary  ?? _dDefaultTextTertiary;
+  static Color get _dTextFaint     => _activeDarkTheme?.textFaint     ?? _dDefaultTextFaint;
+  static Color get _dBorder        => _activeDarkTheme?.border        ?? _dDefaultBorder;
 
   // ── Dynamic core tokens (used across all screens) ─────────────────────
   static Color get background    => isDark ? _dBackground    : _lBackground;
@@ -95,7 +121,7 @@ class HunterTheme {
         brightness: Brightness.dark,
         bg: _dBackground, card: _dCard, accent: _dPrimary,
         textP: _dTextPrimary, textS: _dTextSecondary,
-        onAccent: const Color(0xFF080C14),
+        onAccent: _dBackground,
       );
 
   static ThemeData _build({

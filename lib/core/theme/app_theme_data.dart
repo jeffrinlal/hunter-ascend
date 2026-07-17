@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 
+/// Defines how a theme is unlocked.
+///
+/// [membership] — gated by Free/Pro/Max tier (existing behavior).
+/// [adReward] — unlocked temporarily by watching a rewarded ad.
+enum ThemeUnlockType {
+  membership,
+  adReward,
+}
+
 /// Identifies each available dark theme in the app.
 ///
 /// Used as a type-safe key for theme lookup, persistence, and comparison
@@ -15,7 +24,8 @@ enum AppTheme {
   shadowMonarch,
   royalGold,
   obsidianBlack,
-  neonCyber;
+  neonCyber,
+  crystalGlass;
 
   /// Parses a persisted string ID back into the enum.
   /// Falls back to [AppTheme.dark] for unrecognized values.
@@ -49,6 +59,7 @@ class AppThemeData {
     required this.textTertiary,
     required this.textFaint,
     required this.border,
+    this.unlockType = ThemeUnlockType.membership,
   });
 
   /// The enum identifier for this theme.
@@ -61,7 +72,14 @@ class AppThemeData {
   final String description;
 
   /// The minimum membership tier required to use this theme.
+  /// Only relevant when [unlockType] is [ThemeUnlockType.membership].
   final MembershipTier requiredTier;
+
+  /// How this theme is unlocked. Defaults to [ThemeUnlockType.membership].
+  final ThemeUnlockType unlockType;
+
+  /// Whether this theme uses the ad-reward unlock mechanism.
+  bool get isAdRewardTheme => unlockType == ThemeUnlockType.adReward;
 
   // ── Core palette tokens ────────────────────────────────────────────────
   final Color background;

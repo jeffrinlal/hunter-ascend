@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/app_theme_data.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 
+// Re-export so consumers don't need a separate import for ThemeUnlockType.
+export 'package:hunter_ascend/core/theme/app_theme_data.dart' show ThemeUnlockType;
+
 /// Central registry of all available dark-mode themes.
 ///
 /// Adding a new theme requires only adding one [AppThemeData] entry to
@@ -25,7 +28,12 @@ class ThemeRegistry {
     _royalGold,
     _obsidianBlack,
     _neonCyber,
+    _crystalGlass,
   ];
+
+  /// Returns all themes that use ad-reward unlock (Special Themes section).
+  static List<AppThemeData> get specialThemes =>
+      allThemes.where((t) => t.unlockType == ThemeUnlockType.adReward).toList();
 
   /// Returns the [AppThemeData] for the given [AppTheme] enum value.
   /// Falls back to [defaultDarkTheme] if not found (should never happen
@@ -37,9 +45,12 @@ class ThemeRegistry {
     return defaultDarkTheme;
   }
 
-  /// Returns all themes that require the given [tier].
+  /// Returns all membership-gated themes that require the given [tier].
+  /// Excludes ad-reward (special) themes — those are shown in their own section.
   static List<AppThemeData> themesForTier(MembershipTier tier) {
-    return allThemes.where((t) => t.requiredTier == tier).toList();
+    return allThemes
+        .where((t) => t.requiredTier == tier && !t.isAdRewardTheme)
+        .toList();
   }
 
   // ── Theme Definitions ──────────────────────────────────────────────────
@@ -208,5 +219,26 @@ class ThemeRegistry {
     textTertiary: Color(0xFF657872),
     textFaint: Color(0xFF434E4A),
     border: Color(0xFF232A28),
+  );
+
+  /// Crystal Glass — Glassmorphism-inspired special theme.
+  /// Cool blue-grey base with frosted translucency feel. The palette uses
+  /// soft whites, muted blue accents, and elevated surface contrast to
+  /// simulate glass layers. Unlocked by watching a rewarded ad (24 hours).
+  static const _crystalGlass = AppThemeData(
+    theme: AppTheme.crystalGlass,
+    name: 'Crystal Glass',
+    description: 'Frosted elegance. Translucent layers of ice and light.',
+    requiredTier: MembershipTier.basic, // access gated by ThemeUnlockType, not tier
+    unlockType: ThemeUnlockType.adReward,
+    background: Color(0xFF0E1218),
+    surface: Color(0xFF161C24),
+    card: Color(0xFF1E2832),
+    primary: Color(0xFF88C8F8),
+    textPrimary: Color(0xFFECF2F8),
+    textSecondary: Color(0xFFA4B8CC),
+    textTertiary: Color(0xFF708498),
+    textFaint: Color(0xFF4A5E70),
+    border: Color(0xFF2A3A4A),
   );
 }

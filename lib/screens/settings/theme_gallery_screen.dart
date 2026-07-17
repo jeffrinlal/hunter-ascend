@@ -3,8 +3,10 @@ import 'package:hunter_ascend/core/theme/app_theme_data.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_registry.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
+import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/screens/profile/membership_screen.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 /// Theme Gallery screen: displays all available dark themes grouped by
 /// membership tier. Tapping a theme opens a preview bottom sheet; locked
@@ -99,6 +101,8 @@ class ThemeGalleryScreen extends StatelessWidget {
                       _buildSection(context, 'PRO', MembershipTier.pro, activeTheme),
                       const SizedBox(height: 20),
                       _buildSection(context, 'MAX', MembershipTier.max, activeTheme),
+                      const SizedBox(height: 20),
+                      _SpecialThemesSection(activeTheme: activeTheme),
                       const SizedBox(height: 30),
                     ],
                   );
@@ -369,6 +373,27 @@ class _ThemeCard extends StatelessWidget {
   }
 
   Widget _tierBadge() {
+    // Special themes show a different badge.
+    if (themeData.isAdRewardTheme) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: HunterTheme.purpleLight.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: HunterTheme.purpleLight.withOpacity(0.3), width: 0.5),
+        ),
+        child: Text(
+          '\u2B50 SPECIAL',
+          style: TextStyle(
+            color: HunterTheme.purpleLight,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1,
+          ),
+        ),
+      );
+    }
+
     final tier = themeData.requiredTier;
     String label;
     Color color;
@@ -624,6 +649,27 @@ class _ThemePreviewSheet extends StatelessWidget {
   }
 
   Widget _previewTierBadge(MembershipTier tier) {
+    // For ad-reward themes, show special badge instead of tier.
+    if (themeData.isAdRewardTheme) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: HunterTheme.purpleLight.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: HunterTheme.purpleLight.withOpacity(0.3), width: 0.5),
+        ),
+        child: Text(
+          '\u2B50 SPECIAL',
+          style: TextStyle(
+            color: HunterTheme.purpleLight,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
+      );
+    }
+
     String label;
     Color color;
     switch (tier) {
@@ -653,6 +699,371 @@ class _ThemePreviewSheet extends StatelessWidget {
           fontWeight: FontWeight.w700,
           letterSpacing: 0.5,
         ),
+      ),
+    );
+  }
+}
+
+// ── Special Themes Section ────────────────────────────────────────────────────
+
+/// Displays the "SPECIAL THEMES" section with ad-reward-gated themes.
+/// Shows lock/availability status and handles the unlock flow.
+class _SpecialThemesSection extends StatefulWidget {
+  final AppTheme activeTheme;
+  const _SpecialThemesSection({required this.activeTheme});
+
+  @override
+  State<_SpecialThemesSection> createState() => _SpecialThemesSectionState();
+}
+
+class _SpecialThemesSectionState extends State<_SpecialThemesSection> {
+  RewardedAd? _rewardedAd;
+  bool _isAdLoading = false;
+  // Cache unlock status per theme for synchronous rendering.
+  final Map<AppTheme, DateTime?> _expiryCache = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExpiryData();
+    _preloadAd();
+  }
+
+  @override
+  void dispose() {
+    _rewardedAd?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadExpiryData() async {
+    for (final t in ThemeRegistry.specialThemes) {
+      final expiry = await ThemeService.instance.getSpecialThemeExpiry(t.theme);
+      if (mounted) setState(() => _expiryCache[t.theme] = expiry);
+    }
+  }
+
+  void _preloadAd() {
+    _isAdLoading = true;
+    RewardedAd.load(
+      adUnitId: AppConstants.streakRecoveryRewardedAdUnitId,
+      request: const AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (ad) {
+          _rewardedAd = ad;
+          if (mounted) setState(() => _isAdLoading = false);
+        },
+        onAdFailedToLoad: (error) {
+          debugPrint('Special theme ad failed to load: $error');
+          if (mounted) setState(() => _isAdLoading = false);
+        },
+      ),
+    );
+  }
+
+  bool _isUnlocked(AppTheme theme) {
+    final expiry = _expiryCache[theme];
+    if (expiry == null) return false;
+    return expiry.isAfter(DateTime.now());
+  }
+
+  String _formatExpiry(DateTime expiry) {
+    final now = DateTime.now();
+    final remaining = expiry.difference(now);
+    if (remaining.isNegative) return 'Expired';
+    if (remaining.inHours >= 1) {
+      return 'Available for ${remaining.inHours}h ${remaining.inMinutes.remainder(60)}m';
+    }
+    return 'Available for ${remaining.inMinutes}m';
+  }
+
+  void _onSpecialThemeTap(AppThemeData themeData) {
+    if (_isUnlocked(themeData.theme)) {
+      // Already unlocked — show preview and allow apply.
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _ThemePreviewSheet(themeData: themeData),
+      );
+    } else {
+      // Locked — show ad unlock dialog.
+      _showAdUnlockDialog(themeData);
+    }
+  }
+
+  void _showAdUnlockDialog(AppThemeData themeData) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        backgroundColor: HunterTheme.cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: HunterTheme.border, width: 1),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Glass icon
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: HunterTheme.purpleLight.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: HunterTheme.purpleLight.withOpacity(0.3),
+                    width: 1.5,
+                  ),
+                ),
+                child: Icon(Icons.auto_awesome,
+                    color: HunterTheme.purpleLight, size: 28),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                themeData.name,
+                style: TextStyle(
+                  color: HunterTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Watch a rewarded ad to unlock\n${themeData.name} for 24 hours.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: HunterTheme.textSecondary,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: (_rewardedAd == null)
+                      ? null
+                      : () {
+                          Navigator.pop(ctx);
+                          _showRewardedAd(themeData);
+                        },
+                  icon: const Icon(Icons.play_circle_outline, size: 20),
+                  label: Text(
+                    _rewardedAd == null ? 'Loading Ad...' : 'Watch Ad',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: HunterTheme.primary,
+                    disabledBackgroundColor: HunterTheme.border,
+                    foregroundColor: Colors.white,
+                    disabledForegroundColor: HunterTheme.textTertiary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: () => Navigator.pop(ctx),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Text(
+                    'Maybe Later',
+                    style: TextStyle(
+                      color: HunterTheme.textTertiary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showRewardedAd(AppThemeData themeData) {
+    if (_rewardedAd == null) return;
+
+    _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        _rewardedAd = null;
+        _preloadAd(); // Preload next ad.
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        ad.dispose();
+        _rewardedAd = null;
+        _preloadAd();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ad failed to show. Please try again.')),
+          );
+        }
+      },
+    );
+
+    _rewardedAd!.show(onUserEarnedReward: (ad, reward) async {
+      await ThemeService.instance.unlockSpecialTheme(themeData.theme);
+      await _loadExpiryData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${themeData.name} unlocked for 24 hours!'),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final specialThemes = ThemeRegistry.specialThemes;
+    if (specialThemes.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 3,
+              height: 12,
+              decoration: BoxDecoration(
+                color: HunterTheme.purpleLight,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'SPECIAL THEMES',
+              style: TextStyle(
+                color: HunterTheme.textPrimary.withOpacity(0.35),
+                fontSize: 10,
+                letterSpacing: 2.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...specialThemes.map((t) {
+          final unlocked = _isUnlocked(t.theme);
+          final expiry = _expiryCache[t.theme];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: GestureDetector(
+              onTap: () => _onSpecialThemeTap(t),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: HunterTheme.cardColor,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: (widget.activeTheme == t.theme)
+                        ? HunterTheme.primary.withOpacity(0.6)
+                        : HunterTheme.border,
+                    width: (widget.activeTheme == t.theme) ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Color preview
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _colorDot(t.primary),
+                        const SizedBox(width: 4),
+                        _colorDot(t.background),
+                        const SizedBox(width: 4),
+                        _colorDot(t.card),
+                      ],
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            t.name,
+                            style: TextStyle(
+                              color: HunterTheme.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          if (unlocked && expiry != null)
+                            Text(
+                              _formatExpiry(expiry),
+                              style: TextStyle(
+                                color: HunterTheme.success,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: HunterTheme.purpleLight.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                    color: HunterTheme.purpleLight.withOpacity(0.3),
+                                    width: 0.5),
+                              ),
+                              child: Text(
+                                '\u2B50 SPECIAL',
+                                style: TextStyle(
+                                  color: HunterTheme.purpleLight,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (widget.activeTheme == t.theme)
+                      Icon(Icons.check_circle,
+                          color: HunterTheme.primary, size: 20)
+                    else if (!unlocked)
+                      Icon(Icons.play_circle_outline,
+                          color: HunterTheme.textFaint, size: 18)
+                    else
+                      Icon(Icons.check_circle_outline,
+                          color: HunterTheme.success, size: 18),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _colorDot(Color color) {
+    return Container(
+      width: 18,
+      height: 18,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: HunterTheme.border, width: 1),
       ),
     );
   }

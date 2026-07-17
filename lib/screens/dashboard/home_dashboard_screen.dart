@@ -1109,40 +1109,38 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
     return Scaffold(
       backgroundColor: _bg,
-      body: GlassBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
-                StreamBuilder<HunterData?>(
-                  stream: stream,
-                  initialData: cached,
-                  builder: (context, snap) {
-                    debugPrint('[HIVE-UI] StreamBuilder: state=${snap.connectionState}, hasData=${snap.hasData}, data=${snap.data != null ? "Lv${snap.data!.level}" : "null"}');
-                    final hunter = snap.data;
-                    if (hunter == null) return buildDashboardSkeleton();
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildTopBar(hunter),
-                        const SizedBox(height: 20),
-                        _buildHunterCard(hunter),
-                        const SizedBox(height: 16),
-                        StepsCard(steps: todaySteps),
-                        const SizedBox(height: 16),
-                        _buildQuickActions(),
-                        const SizedBox(height: 16),
-                        _buildWaterCard(),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 30),
-              ],
-            ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 16),
+              StreamBuilder<HunterData?>(
+                stream: stream,
+                initialData: cached,
+                builder: (context, snap) {
+                  debugPrint('[HIVE-UI] StreamBuilder: state=${snap.connectionState}, hasData=${snap.hasData}, data=${snap.data != null ? "Lv${snap.data!.level}" : "null"}');
+                  final hunter = snap.data;
+                  if (hunter == null) return buildDashboardSkeleton();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTopBar(hunter),
+                      const SizedBox(height: 20),
+                      _buildHunterCard(hunter),
+                      const SizedBox(height: 16),
+                      StepsCard(steps: todaySteps),
+                      const SizedBox(height: 16),
+                      _buildQuickActions(),
+                      const SizedBox(height: 16),
+                      _buildWaterCard(),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 30),
+            ],
           ),
         ),
       ),

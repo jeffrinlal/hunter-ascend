@@ -5,6 +5,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hunter_ascend/screens/profile/public_hunter_profile_screen.dart';
 import 'package:hunter_ascend/widgets/skeleton_loaders.dart';
+import 'package:hunter_ascend/data/models/leaderboard_entry.dart';
+import 'package:hunter_ascend/data/repositories/leaderboard_repository.dart';
+import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
+import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
@@ -174,31 +178,20 @@ class GlobalRankingsScreen extends StatefulWidget {
       _GlobalRankingsScreenState();
 }
 
-class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
+class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
+    with SingleTickerProviderStateMixin {
 
   bool _searchMode = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchText = '';
 
-  // Cached leaderboard stream (stable identity across rebuilds).
-  late final Stream<QuerySnapshot> _leaderboardStream = FirebaseFirestore
-      .instance
-      .collection('hunters')
-      .orderBy('level', descending: true)
-      .orderBy('xp', descending: true)
-      .limit(50)
-      .snapshots();
+  // ── Tab controller for Overall / Weekly / Daily ──
+  late final TabController _tabController = TabController(length: 3, vsync: this);
+  LeaderboardTab _activeTab = LeaderboardTab.overall;
 
-  // Live stream of the current user's hunter document for the status card.
-  // Keeps "Your Hunter Status" in real-time sync regardless of whether the
-  // user is in the top 50 leaderboard results.
-  late final Stream<DocumentSnapshot>? _myHunterStream = _createMyHunterStream();
-
-  Stream<DocumentSnapshot>? _createMyHunterStream() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return null;
-    return FirebaseFirestore.instance.collection('hunters').doc(uid).snapshots();
-  }
+  // ── Leaderboard data (from repository) ──
+  List<LeaderboardEntry> _entries = [];
+  bool _loading = true;
 
   // Caches decoded avatar bytes keyed by the Base64 string, so each unique
   // profile picture is decoded only once and the same Uint8List is reused
@@ -209,9 +202,39 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen> {
       _avatarCache[base64Data] ??= base64Decode(base64Data);
 
   @override
+  void initState() {
+    super.initState();
+    _tabController.addListener(_onTabChanged);
+    _loadLeaderboard();
+  }
+
+  @override
   void dispose() {
+    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging) return;
+    final tabs = [LeaderboardTab.overall, LeaderboardTab.weekly, LeaderboardTab.daily];
+    setState(() => _activeTab = tabs[_tabController.index]);
+    _loadLeaderboard();
+  }
+
+  Future<void> _loadLeaderboard() async {
+    // Show cached data instantly.
+    final cached = LeaderboardRepository.instance.getCached(_activeTab);
+    if (cached != null && cached.isNotEmpty) {
+      setState(() { _entries = cached; _loading = false; });
+    } else {
+      setState(() => _loading = true);
+    }
+    // Refresh in background (or immediately if stale/empty).
+    final fresh = await LeaderboardRepository.instance.fetch(_activeTab);
+    if (mounted) {
+      setState(() { _entries = fresh; _loading = false; });
+    }
   }
 
   String getRankTitle(int level) {

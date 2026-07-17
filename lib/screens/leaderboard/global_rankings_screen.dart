@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -296,36 +295,45 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     return HunterTheme.textSecondary;
   }
 
-  // ── Podium item (top 3) ────────────────────────────────────────────────
-  Widget _buildPodiumItem(
-      BuildContext context, List<QueryDocumentSnapshot> hunters, int index, String? currentUid) {
-    if (index >= hunters.length) {
-      return const Expanded(child: SizedBox());
-    }
+  /// Resolves effective membership from a LeaderboardEntry.
+  String _entryMembership(LeaderboardEntry entry) {
+    final raw = entry.membership ?? 'basic';
+    final tier = MembershipTier.fromString(raw);
+    if (tier == MembershipTier.basic) return 'basic';
+    final expiry = _parseExpiry(entry.membershipExpiry);
+    if (expiry != null && expiry.isBefore(DateTime.now())) return 'basic';
+    return raw;
+  }
 
-    final doc = hunters[index];
-    final hunter = doc.data() as Map<String, dynamic>;
-    final isMe = doc.id == currentUid;
-    final level = (hunter['level'] ?? 1) as int;
+  /// Returns the appropriate XP label based on active tab.
+  String _xpLabel(LeaderboardEntry entry) {
+    switch (_activeTab) {
+      case LeaderboardTab.weekly: return '${entry.weeklyXp} WXP';
+      case LeaderboardTab.daily: return '${entry.dailyXp} DXP';
+      case LeaderboardTab.overall: return '${entry.xp} XP';
+    }
+  }
+
+  // ── Podium item (top 3) using LeaderboardEntry ──────────────────────────
+  Widget _buildPodiumItem(
+      BuildContext context, List<LeaderboardEntry> entries, int index, String? currentUid) {
+    if (index >= entries.length) return const Expanded(child: SizedBox());
+
+    final entry = entries[index];
+    final isMe = entry.uid == currentUid;
+    final level = entry.level;
     final rc = _rankColor(level);
     final posColor = _positionColor(index);
     final isFirst = index == 0;
-
+    final membership = _entryMembership(entry);
     final double avatarSize = isFirst ? 76 : 60;
     final double pedestalHeight = index == 0 ? 78 : (index == 1 ? 58 : 44);
 
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          if (doc.id == currentUid) return;
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PublicHunterProfileScreen(
-                hunterUid: doc.id,
-              ),
-            ),
-          );
+          if (entry.uid == currentUid) return;
+          Navigator.push(context, MaterialPageRoute(builder: (_) => PublicHunterProfileScreen(hunterUid: entry.uid)));
         },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -333,114 +341,30 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
             mainAxisAlignment: MainAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
-              TopRankBadge(
-                position: index + 1,
-                color: posColor,
-                size: isFirst ? 40 : 32,
-              ),
+              TopRankBadge(position: index + 1, color: posColor, size: isFirst ? 40 : 32),
               const SizedBox(height: 8),
-              PremiumAvatar(
-                membership: _effectiveMembership(hunter),
-                radius: avatarSize / 2,
-                image: hunter['profilePicture'] != null &&
-                    hunter['profilePicture'].toString().isNotEmpty
-                    ? MemoryImage(
-                  _decodedAvatar(hunter['profilePicture']),
-                )
-                    : null,
-                child: Icon(
-                  Icons.person,
-                  color: rc,
-                  size: isFirst ? 38 : 30,
-                ),
-              ),
+              PremiumAvatar(membership: membership, radius: avatarSize / 2,
+                image: entry.profilePicture != null && entry.profilePicture!.isNotEmpty ? MemoryImage(_decodedAvatar(entry.profilePicture!)) : null,
+                child: Icon(Icons.person, color: rc, size: isFirst ? 38 : 30)),
               const SizedBox(height: 8),
-              Column(
-                children: [
-                  Text(
-                    hunter['hunterName'] ?? 'Unknown',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: isMe ? HunterTheme.primary : HunterTheme.textPrimary,
-                      fontSize: isFirst ? 15 : 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  MembershipBadge(
-                    membership: _effectiveMembership(hunter),
-                    fontSize: 7,
-                  ),
-                ],
-              ),
+              Column(children: [
+                Text(entry.hunterName, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: TextStyle(color: isMe ? HunterTheme.primary : HunterTheme.textPrimary, fontSize: isFirst ? 15 : 13, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                MembershipBadge(membership: membership, fontSize: 7),
+              ]),
               const SizedBox(height: 2),
-              Text(
-                '${getRankTitle(level)} · Lv.$level',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: HunterTheme.textSecondary,
-                  fontSize: 10,
-                ),
-              ),
+              Text('${getRankTitle(level)} · Lv.$level', maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 10)),
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: HunterTheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: HunterTheme.primary.withOpacity(0.3),
-                  ),
-                ),
-                child: Text(
-                  '${hunter['xp'] ?? 0} XP',
-                  style: TextStyle(
-                    color: HunterTheme.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                  ),
-                ),
+                decoration: BoxDecoration(color: HunterTheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: HunterTheme.primary.withOpacity(0.3))),
+                child: Text(_xpLabel(entry), style: TextStyle(color: HunterTheme.primary, fontWeight: FontWeight.bold, fontSize: 11)),
               ),
               const SizedBox(height: 10),
               Container(
-                height: pedestalHeight,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      posColor.withOpacity(0.85),
-                      posColor.withOpacity(0.45),
-                    ],
-                  ),
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(10),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: posColor.withOpacity(0.25),
-                      blurRadius: 12,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      color: HunterTheme.textPrimary,
-                      fontSize: isFirst ? 26 : 20,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
+                height: pedestalHeight, width: double.infinity,
+                decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [posColor.withOpacity(0.85), posColor.withOpacity(0.45)]), borderRadius: const BorderRadius.vertical(top: Radius.circular(10)), boxShadow: [BoxShadow(color: posColor.withOpacity(0.25), blurRadius: 12, spreadRadius: 1)]),
+                child: Center(child: Text('${index + 1}', style: TextStyle(color: HunterTheme.textPrimary, fontSize: isFirst ? 26 : 20, fontWeight: FontWeight.w900))),
               ),
             ],
           ),
@@ -533,605 +457,153 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
   }
 
   Widget _themedBuild(BuildContext context) {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+
     return Scaffold(
       backgroundColor: HunterTheme.background,
       body: SafeArea(
         child: Column(
           children: [
             _rankHeader(),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: _leaderboardStream,
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                      child: buildLeaderboardSkeleton(),
-                    );
-                  }
-
-                  final hunters = snapshot.data!.docs;
-                  final currentUid = FirebaseAuth.instance.currentUser?.uid;
-
-                  Map<String, dynamic>? myHunter;
-                  int myRank = 0;
-                  for (int i = 0; i < hunters.length; i++) {
-                    if (hunters[i].id == currentUid) {
-                      myHunter = hunters[i].data() as Map<String, dynamic>;
-                      myRank = i + 1;
-                      break;
-                    }
-                  }
-
-                  // If the current user is not in the top 50, their status
-                  // card uses the dedicated _myHunterStream instead.
-                  // myRank stays 0 which displays as "50+".
-
-                  return _searchMode
-                      ? (_searchText.isEmpty
-                      ? Container(
-                    color: HunterTheme.background,
-                  )
-                      : FutureBuilder<QuerySnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('hunters')
-                        .where('hunterName', isEqualTo: _searchText)
-                        .limit(1)
-                        .get(),
-                    builder: (context, snapshot) {
-
-                      if (!snapshot.hasData) {
-                        return const SizedBox();
-                      }
-
-                      if (snapshot.data!.docs.isEmpty) {
-                        return Container(
-                          color: HunterTheme.background,
-                        );
-                      }
-
-                      final hunter =
-                      snapshot.data!.docs.first.data() as Map<String, dynamic>;
-
-                      return Center(
-                        child: GestureDetector(
-                          onTap: () {
-                            if (snapshot.data!.docs.first.id == currentUid) return;
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => PublicHunterProfileScreen(
-                                  hunterUid: snapshot.data!.docs.first.id,
-                                ),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.all(20),
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: HunterTheme.cardColor,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: HunterTheme.primary,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: HunterTheme.primary.withOpacity(0.12),
-                                  blurRadius: 20,
-                                  spreadRadius: 1,
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                hunter['profilePicture'] != null &&
-                                    hunter['profilePicture'].toString().isNotEmpty
-                                    ? CircleAvatar(
-                                  radius: 30,
-                                  backgroundImage: MemoryImage(
-                                    _decodedAvatar(hunter['profilePicture']),
-                                  ),
-                                )
-                                    : Icon(
-                                  Icons.person,
-                                  color: HunterTheme.primary,
-                                  size: 60,
-                                ),
-
-                                const SizedBox(height: 12),
-
-                                Text(
-                                  hunter['hunterName'] ?? 'Unknown',
-                                  style: TextStyle(
-                                    color: HunterTheme.textPrimary,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-
-                                const SizedBox(height: 8),
-
-                                Text(
-                                  'Level ${hunter['level'] ?? 1}',
-                                  style: TextStyle(color: HunterTheme.textSecondary),
-                                ),
-
-                                Text(
-                                  '${hunter['xp'] ?? 0} XP',
-                                  style: TextStyle(color: HunterTheme.textSecondary),
-                                ),
-
-                                Text(
-                                  hunter['hunterId'] ?? '',
-                                  style: TextStyle(color: HunterTheme.textTertiary),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ))
-                      : Column(
-                    children: [
-                      // ── My Hunter Status Card (live stream) ─────────────────
-                      if (_myHunterStream != null)
-                        StreamBuilder<DocumentSnapshot>(
-                          stream: _myHunterStream,
-                          builder: (context, mySnap) {
-                            final myData = mySnap.data?.data() as Map<String, dynamic>?;
-                            final myMembership = _effectiveMembership(myData);
-                            final myPremium = _isPremium(myMembership);
-                            // On premium (dark gradient) cards, all text must
-                            // be white/near-white for contrast.
-                            final labelColor = myPremium
-                                ? Colors.white
-                                : HunterTheme.primary;
-                            final nameColor = myPremium
-                                ? Colors.white
-                                : HunterTheme.textPrimary;
-                            final subColor = myPremium
-                                ? Colors.white70
-                                : HunterTheme.textSecondary;
-                            return Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                              child: PremiumCardDecorator(
-                                membership: myMembership,
-                                borderRadius: BorderRadius.circular(16),
-                                child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
-                                color: myPremium
-                                    ? Colors.transparent
-                                    : HunterTheme.cardColor,
-                                border: myPremium
-                                    ? null
-                                    : Border.all(
-                                  color: HunterTheme.primary.withOpacity(0.35),
-                                  width: 1.5,
-                                ),
-                                boxShadow: myPremium
-                                    ? null
-                                    : [
-                                  BoxShadow(
-                                    color: HunterTheme.primary.withOpacity(0.1),
-                                    blurRadius: 20,
-                                    spreadRadius: 2,
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: 4, height: 4,
-                                        decoration: BoxDecoration(
-                                          color: labelColor,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'YOUR HUNTER STATUS',
-                                        style: TextStyle(
-                                          color: labelColor,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 2.5,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        width: 4, height: 4,
-                                        decoration: BoxDecoration(
-                                          color: labelColor,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 14),
-                                  Row(
-                                    children: [
-                                      // Avatar with rank ring + actual profile picture
-                                      PremiumAvatar(
-                                        membership: myMembership,
-                                        radius: 24,
-                                        image: myData != null &&
-                                            myData['profilePicture'] != null &&
-                                            myData['profilePicture'].toString().isNotEmpty
-                                            ? MemoryImage(
-                                                _decodedAvatar(myData['profilePicture']),
-                                              )
-                                            : null,
-                                        child: Icon(
-                                          Icons.person,
-                                          color: myData != null
-                                              ? _rankColor(myData['level'] ?? 1)
-                                              : HunterTheme.primary,
-                                          size: 28,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              myData?['hunterName'] ?? 'Unknown Hunter',
-                                              style: TextStyle(
-                                                color: nameColor,
-                                                fontSize: 17,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 3),
-                                            Text(
-                                              myData != null
-                                                  ? '${getRankTitle(myData['level'] ?? 1)}  ·  Level ${myData['level']}'
-                                                  : '',
-                                              style: TextStyle(color: subColor, fontSize: 12),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        children: [
-                                          Text(
-                                            myData != null ? '${myData['xp']} XP' : '',
-                                            style: TextStyle(
-                                              color: labelColor,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: myPremium
-                                                  ? Colors.white.withOpacity(0.15)
-                                                  : HunterTheme.primary.withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(20),
-                                              border: Border.all(
-                                                color: myPremium
-                                                    ? Colors.white.withOpacity(0.5)
-                                                    : HunterTheme.primary.withOpacity(0.35),
-                                              ),
-                                            ),
-                                            child: Text(
-                                              myRank > 0 ? '# $myRank' : '50+',
-                                              style: TextStyle(
-                                                color: labelColor,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                                letterSpacing: 1.5,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            ),
-                            );
-                          },
-                        ),
-
-                      // ── Podium (Top 3) ─────────────────────────────────────
-                      if (hunters.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              _buildPodiumItem(context, hunters, 1, currentUid), // 2nd - left
-                              _buildPodiumItem(context, hunters, 0, currentUid), // 1st - center
-                              _buildPodiumItem(context, hunters, 2, currentUid), // 3rd - right
-                            ],
-                          ),
-                        ),
-
-                      // ── Divider with label ─────────────────────────────────
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        child: Row(
-                          children: [
-                            Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08))),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 12),
-                              child: Text(
-                                'LEADERBOARD',
-                                style: TextStyle(
-                                  color: HunterTheme.textTertiary,
-                                  fontSize: 10,
-                                  letterSpacing: 2,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08))),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      // ── Leaderboard list (rank 4 onwards) ──────────────────
-                      Expanded(
-                        child: ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                          itemCount: hunters.length > 3 ? hunters.length - 3 : 0,
-                          itemBuilder: (context, listIndex) {
-                            final index = listIndex + 3;
-                            final hunter = hunters[index].data() as Map<String, dynamic>;
-                            final isMe = hunters[index].id == currentUid;
-                            final level = (hunter['level'] ?? 1) as int;
-                            final rc = _rankColor(level);
-                            final membership = _effectiveMembership(hunter);
-                            final isPremium = _isPremium(membership);
-                            // Text colors: white/near-white on premium cards
-                            // (dark gold/purple backgrounds) for contrast.
-                            final nameColor = isPremium
-                                ? Colors.white
-                                : (isMe
-                                    ? HunterTheme.primary
-                                    : HunterTheme.textPrimary);
-                            final subColor = isPremium
-                                ? Colors.white70
-                                : rc.withOpacity(0.7);
-
-                            return GestureDetector(
-                              onTap: () {
-                                if (hunters[index].id == currentUid) return;
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => PublicHunterProfileScreen(
-                                      hunterUid: hunters[index].id,
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: PremiumCardDecorator(
-                                  membership: membership,
-                                  child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 11,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isPremium
-                                      ? Colors.transparent
-                                      : (isMe
-                                          ? HunterTheme.surface
-                                          : HunterTheme.cardColor),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: isPremium
-                                      ? null
-                                      : Border.all(
-                                    color: isMe
-                                        ? HunterTheme.primary.withOpacity(0.4)
-                                        : HunterTheme.textPrimary.withOpacity(0.06),
-                                    width: 1,
-                                  ),
-                                  boxShadow: isPremium
-                                      ? null
-                                      : [
-                                    BoxShadow(
-                                      color: HunterTheme.primary.withOpacity(0.04),
-                                      blurRadius: 10,
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  children: [
-                                    // ── Rank badge ──
-                                    SizedBox(
-                                      width: 40,
-                                      child: Center(
-                                        child: Container(
-                                          width: 28, height: 28,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: isPremium
-                                                ? Colors.white.withOpacity(0.15)
-                                                : (isMe
-                                                    ? HunterTheme.primary.withOpacity(0.12)
-                                                    : HunterTheme.textPrimary.withOpacity(0.04)),
-                                            border: Border.all(
-                                              color: isPremium
-                                                  ? Colors.white.withOpacity(0.4)
-                                                  : (isMe
-                                                      ? HunterTheme.primary.withOpacity(0.4)
-                                                      : HunterTheme.textPrimary.withOpacity(0.08)),
-                                            ),
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              '${index + 1}',
-                                              style: TextStyle(
-                                                color: isPremium
-                                                    ? Colors.white
-                                                    : (isMe
-                                                        ? HunterTheme.primary
-                                                        : HunterTheme.textSecondary),
-                                                fontSize: index < 9 ? 13 : 11,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-
-                                    const SizedBox(width: 10),
-
-                                    // ── Avatar ──
-                                    PremiumAvatar(
-                                      membership: membership,
-                                      radius: 19,
-                                      image: hunter['profilePicture'] != null &&
-                                          hunter['profilePicture'].toString().isNotEmpty
-                                          ? MemoryImage(
-                                        _decodedAvatar(hunter['profilePicture']),
-                                      )
-                                          : null,
-                                      child: Icon(
-                                        Icons.person,
-                                        color: rc,
-                                        size: 20,
-                                      ),
-                                    ),
-
-                                    const SizedBox(width: 12),
-
-                                    // ── Name + rank ──
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Flexible(
-                                                child: Text(
-                                                  hunter['hunterName'] ?? 'Unknown',
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                    color: nameColor,
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ),
-
-                                              const SizedBox(width: 6),
-
-                                              MembershipBadge(
-                                                membership: membership,
-                                                fontSize: 8,
-                                              ),
-
-                                              if (isMe) ...[
-                                                const SizedBox(width: 6),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                    horizontal: 6,
-                                                    vertical: 2,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: isPremium
-                                                        ? Colors.white.withOpacity(0.18)
-                                                        : HunterTheme.primary.withOpacity(0.12),
-                                                    borderRadius: BorderRadius.circular(6),
-                                                    border: Border.all(
-                                                      color: isPremium
-                                                          ? Colors.white.withOpacity(0.5)
-                                                          : HunterTheme.primary.withOpacity(0.3),
-                                                    ),
-                                                  ),
-                                                  child: Text(
-                                                    'YOU',
-                                                    style: TextStyle(
-                                                      color: isPremium
-                                                          ? Colors.white
-                                                          : HunterTheme.primary,
-                                                      fontSize: 9,
-                                                      fontWeight: FontWeight.bold,
-                                                      letterSpacing: 1,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                          const SizedBox(height: 3),
-                                          Text(
-                                            '${getRankTitle(level)}  ·  Lv.$level',
-                                            style: TextStyle(
-                                              color: subColor,
-                                              fontSize: 11,
-                                              letterSpacing: 0.3,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-
-                                    // ── XP chip ──
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 10, vertical: 5),
-                                      decoration: BoxDecoration(
-                                        color: isPremium
-                                            ? Colors.white.withOpacity(0.15)
-                                            : HunterTheme.primary.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: isPremium
-                                              ? Colors.white.withOpacity(0.45)
-                                              : HunterTheme.primary.withOpacity(0.3),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        '${hunter['xp'] ?? 0} XP',
-                                        style: TextStyle(
-                                          color: isPremium
-                                              ? Colors.white
-                                              : HunterTheme.primary,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              ),
-                            ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  );
-                },
+            // ── Tab Bar ──
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: HunterTheme.cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: HunterTheme.border),
               ),
+              child: TabBar(
+                controller: _tabController,
+                labelColor: HunterTheme.primary,
+                unselectedLabelColor: HunterTheme.textTertiary,
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicator: BoxDecoration(
+                  color: HunterTheme.primary.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                dividerHeight: 0,
+                labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1),
+                tabs: const [
+                  Tab(text: '\u{1F3C6} Overall'),
+                  Tab(text: '\u{1F4C5} Weekly'),
+                  Tab(text: '\u26A1 Daily'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            // ── Content ──
+            Expanded(
+              child: _searchMode
+                  ? _buildSearchContent(currentUid)
+                  : _loading && _entries.isEmpty
+                      ? SingleChildScrollView(padding: const EdgeInsets.all(16), child: buildLeaderboardSkeleton())
+                      : RefreshIndicator(
+                          color: HunterTheme.primary,
+                          onRefresh: () async {
+                            final fresh = await LeaderboardRepository.instance.fetch(_activeTab, forceRefresh: true);
+                            if (mounted) setState(() => _entries = fresh);
+                          },
+                          child: _buildLeaderboardBody(currentUid),
+                        ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildSearchContent(String? currentUid) {
+    if (_searchText.isEmpty) return Container(color: HunterTheme.background);
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance.collection('hunters').where('hunterName', isEqualTo: _searchText).limit(1).get(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox();
+        if (snapshot.data!.docs.isEmpty) return Container(color: HunterTheme.background);
+        final hunter = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+        return Center(child: GestureDetector(
+          onTap: () { if (snapshot.data!.docs.first.id == currentUid) return; Navigator.push(context, MaterialPageRoute(builder: (_) => PublicHunterProfileScreen(hunterUid: snapshot.data!.docs.first.id))); },
+          child: Container(margin: const EdgeInsets.all(20), padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: HunterTheme.cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: HunterTheme.primary), boxShadow: [BoxShadow(color: HunterTheme.primary.withOpacity(0.12), blurRadius: 20, spreadRadius: 1)]),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              hunter['profilePicture'] != null && hunter['profilePicture'].toString().isNotEmpty ? CircleAvatar(radius: 30, backgroundImage: MemoryImage(_decodedAvatar(hunter['profilePicture']))) : Icon(Icons.person, color: HunterTheme.primary, size: 60),
+              const SizedBox(height: 12), Text(hunter['hunterName'] ?? 'Unknown', style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8), Text('Level ${hunter['level'] ?? 1}', style: TextStyle(color: HunterTheme.textSecondary)),
+              Text('${hunter['xp'] ?? 0} XP', style: TextStyle(color: HunterTheme.textSecondary)),
+            ])),
+        ));
+      },
+    );
+  }
+
+  Widget _buildLeaderboardBody(String? currentUid) {
+    final entries = _entries;
+    int myRank = 0;
+    for (int i = 0; i < entries.length; i++) { if (entries[i].uid == currentUid) { myRank = i + 1; break; } }
+    final limit = _activeTab == LeaderboardTab.overall ? 30 : 20;
+
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        // Your Position
+        SliverToBoxAdapter(child: _buildYourPosition(currentUid, myRank, limit)),
+        // Podium
+        if (entries.isNotEmpty) SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 4), child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [_buildPodiumItem(context, entries, 1, currentUid), _buildPodiumItem(context, entries, 0, currentUid), _buildPodiumItem(context, entries, 2, currentUid)]))),
+        // Divider
+        SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), child: Row(children: [Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08))), Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text('LEADERBOARD', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold))), Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08)))]))),
+        // List items (#4+) with animated: false
+        SliverPadding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 16), sliver: SliverList(delegate: SliverChildBuilderDelegate((context, listIndex) {
+          final index = listIndex + 3;
+          if (index >= entries.length) return null;
+          final entry = entries[index];
+          final isMe = entry.uid == currentUid;
+          final level = entry.level;
+          final rc = _rankColor(level);
+          final membership = _entryMembership(entry);
+          final isPremium = _isPremium(membership);
+          final nameColor = isPremium ? Colors.white : (isMe ? HunterTheme.primary : HunterTheme.textPrimary);
+          final subColor = isPremium ? Colors.white70 : rc.withOpacity(0.7);
+          return GestureDetector(onTap: () { if (entry.uid == currentUid) return; Navigator.push(context, MaterialPageRoute(builder: (_) => PublicHunterProfileScreen(hunterUid: entry.uid))); },
+            child: Padding(padding: const EdgeInsets.only(bottom: 8), child: PremiumCardDecorator(membership: membership, animated: false, child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              decoration: BoxDecoration(color: isPremium ? Colors.transparent : (isMe ? HunterTheme.surface : HunterTheme.cardColor), borderRadius: BorderRadius.circular(14), border: isPremium ? null : Border.all(color: isMe ? HunterTheme.primary.withOpacity(0.4) : HunterTheme.textPrimary.withOpacity(0.06), width: 1), boxShadow: isPremium ? null : [BoxShadow(color: HunterTheme.primary.withOpacity(0.04), blurRadius: 10)]),
+              child: Row(children: [
+                SizedBox(width: 40, child: Center(child: Container(width: 28, height: 28, decoration: BoxDecoration(shape: BoxShape.circle, color: isPremium ? Colors.white.withOpacity(0.15) : (isMe ? HunterTheme.primary.withOpacity(0.12) : HunterTheme.textPrimary.withOpacity(0.04)), border: Border.all(color: isPremium ? Colors.white.withOpacity(0.4) : (isMe ? HunterTheme.primary.withOpacity(0.4) : HunterTheme.textPrimary.withOpacity(0.08)))), child: Center(child: Text('${index + 1}', style: TextStyle(color: isPremium ? Colors.white : (isMe ? HunterTheme.primary : HunterTheme.textSecondary), fontSize: index < 9 ? 13 : 11, fontWeight: FontWeight.bold)))))),
+                const SizedBox(width: 10),
+                PremiumAvatar(membership: membership, radius: 19, image: entry.profilePicture != null && entry.profilePicture!.isNotEmpty ? MemoryImage(_decodedAvatar(entry.profilePicture!)) : null, child: Icon(Icons.person, color: rc, size: 20)),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [Flexible(child: Text(entry.hunterName, overflow: TextOverflow.ellipsis, style: TextStyle(color: nameColor, fontSize: 14, fontWeight: FontWeight.w600))), const SizedBox(width: 6), MembershipBadge(membership: membership, fontSize: 8), if (isMe) ...[const SizedBox(width: 6), Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: isPremium ? Colors.white.withOpacity(0.18) : HunterTheme.primary.withOpacity(0.12), borderRadius: BorderRadius.circular(6), border: Border.all(color: isPremium ? Colors.white.withOpacity(0.5) : HunterTheme.primary.withOpacity(0.3))), child: Text('YOU', style: TextStyle(color: isPremium ? Colors.white : HunterTheme.primary, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1)))]]),
+                  const SizedBox(height: 3), Text('${getRankTitle(level)}  ·  Lv.$level', style: TextStyle(color: subColor, fontSize: 11, letterSpacing: 0.3)),
+                ])),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), decoration: BoxDecoration(color: isPremium ? Colors.white.withOpacity(0.15) : HunterTheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: isPremium ? Colors.white.withOpacity(0.45) : HunterTheme.primary.withOpacity(0.3))), child: Text(_xpLabel(entry), style: TextStyle(color: isPremium ? Colors.white : HunterTheme.primary, fontWeight: FontWeight.bold, fontSize: 12))),
+              ]),
+            ))),
+          );
+        }, childCount: entries.length > 3 ? entries.length - 3 : 0))),
+      ],
+    );
+  }
+
+  Widget _buildYourPosition(String? currentUid, int myRank, int limit) {
+    final hunter = HunterRepository.instance.getCached();
+    if (hunter == null) return const SizedBox.shrink();
+    final myMembership = _effectiveMembership({'membershipType': hunter.membershipType, 'membershipExpiry': hunter.membershipExpiry});
+    final myPremium = _isPremium(myMembership);
+    final labelColor = myPremium ? Colors.white : HunterTheme.primary;
+    final nameColor = myPremium ? Colors.white : HunterTheme.textPrimary;
+    final subColor = myPremium ? Colors.white70 : HunterTheme.textSecondary;
+    return Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 12), child: PremiumCardDecorator(membership: myMembership, borderRadius: BorderRadius.circular(16), child: Container(
+      padding: const EdgeInsets.all(16), decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: myPremium ? Colors.transparent : HunterTheme.cardColor, border: myPremium ? null : Border.all(color: HunterTheme.primary.withOpacity(0.35), width: 1.5), boxShadow: myPremium ? null : [BoxShadow(color: HunterTheme.primary.withOpacity(0.1), blurRadius: 20, spreadRadius: 2)]),
+      child: Column(children: [
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 4, height: 4, decoration: BoxDecoration(color: labelColor, shape: BoxShape.circle)), const SizedBox(width: 8), Text('YOUR POSITION', style: TextStyle(color: labelColor, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 2.5)), const SizedBox(width: 8), Container(width: 4, height: 4, decoration: BoxDecoration(color: labelColor, shape: BoxShape.circle))]),
+        const SizedBox(height: 14),
+        Row(children: [
+          PremiumAvatar(membership: myMembership, radius: 24, image: hunter.profilePicture != null && hunter.profilePicture!.isNotEmpty ? MemoryImage(_decodedAvatar(hunter.profilePicture!)) : null, child: Icon(Icons.person, color: _rankColor(hunter.level), size: 28)),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(hunter.hunterName, style: TextStyle(color: nameColor, fontSize: 17, fontWeight: FontWeight.w700)), const SizedBox(height: 3), Text('${getRankTitle(hunter.level)}  ·  Level ${hunter.level}', style: TextStyle(color: subColor, fontSize: 12))])),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [Text('${hunter.xp} XP', style: TextStyle(color: labelColor, fontWeight: FontWeight.bold, fontSize: 14)), const SizedBox(height: 6), Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: myPremium ? Colors.white.withOpacity(0.15) : HunterTheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: myPremium ? Colors.white.withOpacity(0.5) : HunterTheme.primary.withOpacity(0.35))), child: Text(myRank > 0 ? '# $myRank' : '$limit+', style: TextStyle(color: labelColor, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)))]),
+        ]),
+      ]),
+    )));
   }
 }

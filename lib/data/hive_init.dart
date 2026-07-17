@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:hunter_ascend/data/cache_constants.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
+import 'package:hunter_ascend/data/models/weight_entry.dart';
 
 /// Initializes Hive, registers adapters, and handles cache versioning.
 ///
@@ -23,6 +24,9 @@ class HiveInit {
     if (!Hive.isAdapterRegistered(0)) {
       Hive.registerAdapter(HunterDataAdapter());
     }
+    if (!Hive.isAdapterRegistered(1)) {
+      Hive.registerAdapter(WeightEntryAdapter());
+    }
 
     // Open metadata box first to check version.
     final meta = await Hive.openBox(CacheConstants.metadataBox);
@@ -39,6 +43,7 @@ class HiveInit {
 
     // Open data boxes.
     await Hive.openBox<HunterData>(CacheConstants.hunterBox);
+    await Hive.openBox<List>(CacheConstants.weightBox);
 
     // Update last sync timestamp.
     await meta.put(
@@ -55,6 +60,9 @@ class HiveInit {
     final hunterBox = Hive.box<HunterData>(CacheConstants.hunterBox);
     await hunterBox.clear();
 
+    final weightBox = Hive.box<List>(CacheConstants.weightBox);
+    await weightBox.clear();
+
     final meta = Hive.box(CacheConstants.metadataBox);
     await meta.delete(CacheConstants.keyCachedUid);
   }
@@ -67,7 +75,15 @@ class HiveInit {
       }
       await Hive.deleteBoxFromDisk(CacheConstants.hunterBox);
     } catch (e) {
-      debugPrint('[HIVE] Failed to delete box — $e');
+      debugPrint('[HIVE] Failed to delete hunterBox — $e');
+    }
+    try {
+      if (Hive.isBoxOpen(CacheConstants.weightBox)) {
+        await Hive.box<List>(CacheConstants.weightBox).close();
+      }
+      await Hive.deleteBoxFromDisk(CacheConstants.weightBox);
+    } catch (e) {
+      debugPrint('[HIVE] Failed to delete weightBox — $e');
     }
   }
 }

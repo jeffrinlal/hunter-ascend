@@ -1112,6 +1112,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   stream: HunterRepository.instance.watch(),
                   initialData: HunterRepository.instance.getCached(),
                   builder: (context, snap) {
+                    debugPrint('[HIVE-UI] StreamBuilder: state=${snap.connectionState}, hasData=${snap.hasData}, data=${snap.data != null ? "Lv${snap.data!.level}" : "null"}');
                     final hunter = snap.data;
                     if (hunter == null) return buildDashboardSkeleton();
                     return Column(

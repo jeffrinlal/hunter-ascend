@@ -67,6 +67,7 @@ class HunterRepository {
   /// does not create duplicate Firestore listeners.
   Stream<HunterData?> watch() {
     _ensureListening();
+    debugPrint('[HIVE] watch() called — controller: ${_controller != null ? "exists" : "NULL"}, isClosed: ${_controller?.isClosed}');
     return _controller!.stream;
   }
 

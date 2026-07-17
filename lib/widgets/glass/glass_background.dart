@@ -3,10 +3,10 @@ import 'package:hunter_ascend/core/theme/app_theme_data.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 
-/// DIAGNOSTIC BUILD — Step 5: Positioned.fill(_GlassDecorations as passthrough) + child.
-/// _GlassDecorations is a SizedBox.expand() — no actual decorations rendered.
-/// If dashboard works: the decoration widget slot is fine. Next: add content inside it.
-/// If dashboard is black: the _GlassDecorations widget class itself causes an issue.
+/// DIAGNOSTIC BUILD — Step 6: _GlassDecorations with a simple gradient.
+/// No blur, no clip, no animations.
+/// If dashboard works: gradients are fine. Next: restore full decoration stack.
+/// If dashboard is black: a gradient in the decoration layer causes the issue.
 class GlassBackground extends StatelessWidget {
   const GlassBackground({super.key, required this.child});
 
@@ -26,10 +26,21 @@ class GlassBackground extends StatelessWidget {
   }
 }
 
-/// DIAGNOSTIC — Step 5: Empty passthrough. No decorations.
+/// DIAGNOSTIC — Step 6: Single gradient only. No blur, no clip, no animation.
 class _GlassDecorations extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return const SizedBox.expand();
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color(0x11000000),
+            Color(0x00000000),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+    );
   }
 }

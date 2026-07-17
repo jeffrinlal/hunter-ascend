@@ -3,9 +3,9 @@ import 'package:hunter_ascend/core/theme/app_theme_data.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 
-/// DIAGNOSTIC BUILD — Step 1: Simple passthrough (just returns child).
-/// If dashboard works: the bug is in the Stack/Positioned/decorative layers.
-/// If dashboard is black: the bug is something else (should not happen).
+/// DIAGNOSTIC BUILD — Step 2: Simplest possible Stack wrapping child.
+/// If dashboard works: the bug is in the decorative layers or Positioned wrappers.
+/// If dashboard is black: the Stack itself is the problem.
 class GlassBackground extends StatelessWidget {
   const GlassBackground({super.key, required this.child});
 
@@ -13,7 +13,12 @@ class GlassBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Step 1: Just return the child. No Stack, no decorations.
-    return child;
+    // Step 2: Simplest Stack with just the child.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        child,
+      ],
+    );
   }
 }

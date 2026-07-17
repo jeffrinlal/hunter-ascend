@@ -3,10 +3,10 @@ import 'package:hunter_ascend/core/theme/app_theme_data.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 
-/// DIAGNOSTIC BUILD — Step 8: Production gradient + first radial glow.
-/// No second glow, no blur, no clip, no animations.
-/// If dashboard works: radial glows are fine. Next: add second glow.
-/// If dashboard is black: the radial glow widget causes the issue.
+/// DIAGNOSTIC BUILD — Step 9: Production gradient + both radial glows.
+/// No blur, no clip, no animations.
+/// If dashboard works: all static decorations are fine. Next: advanced rendering.
+/// If dashboard is black: the second radial glow causes the issue.
 class GlassBackground extends StatelessWidget {
   const GlassBackground({super.key, required this.child});
 
@@ -26,7 +26,7 @@ class GlassBackground extends StatelessWidget {
   }
 }
 
-/// DIAGNOSTIC — Step 8: Production gradient + first radial glow only.
+/// DIAGNOSTIC — Step 9: Production gradient + both radial glows.
 class _GlassDecorations extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -62,6 +62,25 @@ class _GlassDecorations extends StatelessWidget {
               gradient: RadialGradient(
                 colors: [
                   HunterTheme.primary.withOpacity(0.06),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // Second radial glow (bottom-right)
+        Positioned(
+          bottom: -100,
+          right: -80,
+          child: Container(
+            width: 320,
+            height: 320,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  HunterTheme.primary.withOpacity(0.04),
                   Colors.transparent,
                 ],
               ),

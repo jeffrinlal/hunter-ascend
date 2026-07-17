@@ -36,6 +36,11 @@ class HunterRepository {
   /// Broadcast so multiple widgets can listen without duplicating the source.
   StreamController<HunterData?>? _controller;
 
+  /// Cached stream reference. Broadcast StreamController.stream creates a new
+  /// object on every access — we store it once to ensure StreamBuilder always
+  /// sees the same identity and never re-subscribes unnecessarily.
+  Stream<HunterData?>? _cachedStream;
+
   /// The last emitted HunterData (kept in memory for synchronous access).
   HunterData? _lastEmitted;
 
@@ -67,9 +72,8 @@ class HunterRepository {
   /// does not create duplicate Firestore listeners.
   Stream<HunterData?> watch() {
     _ensureListening();
-    final stream = _controller!.stream;
-    debugPrint('[HIVE] watch() → controller: ${_controller != null ? "exists" : "NULL"}, isClosed: ${_controller?.isClosed}, stream.hashCode: ${identityHashCode(stream)}');
-    return stream;
+    debugPrint('[HIVE] watch() → controller: ${_controller != null ? "exists" : "NULL"}, isClosed: ${_controller?.isClosed}, stream.hashCode: ${identityHashCode(_cachedStream)}');
+    return _cachedStream!;
   }
 
   /// Clears the local cache and cancels the Firestore listener.
@@ -120,6 +124,7 @@ class HunterRepository {
     debugPrint('[HIVE] _ensureListening: starting Firestore listener for $uid');
 
     _controller = StreamController<HunterData?>.broadcast();
+    _cachedStream = _controller!.stream;
 
     // Validate UID matches cached data.
     _validateCachedUid(uid);
@@ -215,5 +220,6 @@ class HunterRepository {
     _listeningUid = null;
     _controller?.close();
     _controller = null;
+    _cachedStream = null;
   }
 }

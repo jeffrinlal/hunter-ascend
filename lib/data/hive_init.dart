@@ -20,7 +20,6 @@ class HiveInit {
   /// from the next Firestore snapshot.
   static Future<void> initialize() async {
     await Hive.initFlutter();
-    debugPrint('[HIVE] Hive.initFlutter() complete');
 
     // Register adapters (safe to call multiple times — Hive ignores duplicates).
     if (!Hive.isAdapterRegistered(0)) {
@@ -42,9 +41,6 @@ class HiveInit {
         meta.get(CacheConstants.keyCacheVersion, defaultValue: 0) as int;
 
     if (storedVersion < CacheConstants.cacheVersion) {
-      // Schema changed — invalidate all cached data.
-      debugPrint('[HIVE] Cache version mismatch '
-          '($storedVersion < ${CacheConstants.cacheVersion}). Clearing caches.');
       await _deleteDataBoxes();
       await meta.put(CacheConstants.keyCacheVersion, CacheConstants.cacheVersion);
     }
@@ -60,8 +56,6 @@ class HiveInit {
       CacheConstants.keyLastSyncTimestamp,
       DateTime.now().millisecondsSinceEpoch,
     );
-
-    debugPrint('[HIVE] Initialization complete (version: ${CacheConstants.cacheVersion})');
   }
 
   /// Clears all data boxes (called on logout or UID mismatch).

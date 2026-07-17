@@ -52,12 +52,7 @@ class HunterRepository {
     try {
       final box = Hive.box<HunterData>(CacheConstants.hunterBox);
       final cached = box.get('current');
-      if (cached != null) {
-        _lastEmitted = cached;
-        debugPrint('[HIVE] getCached: loaded (${cached.hunterName}, Lv${cached.level}, ${cached.xp}XP)');
-      } else {
-        debugPrint('[HIVE] getCached: no cache found');
-      }
+      if (cached != null) _lastEmitted = cached;
       return cached;
     } catch (e) {
       debugPrint('[HIVE] getCached ERROR: $e');
@@ -72,14 +67,12 @@ class HunterRepository {
   /// does not create duplicate Firestore listeners.
   Stream<HunterData?> watch() {
     _ensureListening();
-    debugPrint('[HIVE] watch() → controller: ${_controller != null ? "exists" : "NULL"}, isClosed: ${_controller?.isClosed}, stream.hashCode: ${identityHashCode(_cachedStream)}');
     return _cachedStream!;
   }
 
   /// Clears the local cache and cancels the Firestore listener.
   /// Call on logout or account switch.
   Future<void> clearCache() async {
-    debugPrint('[HIVE] clearCache: clearing all cached data + stopping listener');
     _stopListening();
     _lastEmitted = null;
     try {
@@ -105,23 +98,16 @@ class HunterRepository {
   /// Creates the broadcast StreamController on first call.
   void _ensureListening() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
-      debugPrint('[HIVE] _ensureListening: uid is null — skipping');
-      return;
-    }
+    if (uid == null) return;
 
     // Already listening for this user — no-op.
     if (_firestoreSub != null && _listeningUid == uid && _controller != null) {
-      debugPrint('[HIVE] _ensureListening: already listening for $uid — no-op');
       return;
     }
 
     // Different user or first call — (re)start.
-    debugPrint('[HIVE] _ensureListening: STARTING new listener for $uid (was: $_listeningUid)');
     _stopListening();
     _listeningUid = uid;
-
-    debugPrint('[HIVE] _ensureListening: starting Firestore listener for $uid');
 
     _controller = StreamController<HunterData?>.broadcast();
     _cachedStream = _controller!.stream;
@@ -140,28 +126,16 @@ class HunterRepository {
         debugPrint('[HIVE] Firestore listener ERROR: $e');
       },
     );
-
-    debugPrint('[HIVE] Firestore listener started');
   }
 
-  /// Handles each Firestore snapshot: converts to domain model, caches,
-  /// and emits to the stream.
   void _onSnapshot(
       DocumentSnapshot<Map<String, dynamic>> snapshot, String uid) {
-    if (!snapshot.exists) {
-      debugPrint('[HIVE] _onSnapshot: document does not exist');
-      return;
-    }
+    if (!snapshot.exists) return;
     final data = snapshot.data();
-    if (data == null) {
-      debugPrint('[HIVE] _onSnapshot: data is null');
-      return;
-    }
+    if (data == null) return;
 
     final hunterData = HunterData.fromFirestore(data);
     _lastEmitted = hunterData;
-
-    debugPrint('[HIVE] _onSnapshot: received (${hunterData.hunterName}, Lv${hunterData.level}, ${hunterData.xp}XP)');
 
     // Write to Hive (immediate, no debounce).
     _writeToCache(hunterData, uid);
@@ -169,9 +143,6 @@ class HunterRepository {
     // Emit to stream.
     if (_controller != null && !_controller!.isClosed) {
       _controller!.add(hunterData);
-      debugPrint('[HIVE] _onSnapshot: emitted to stream');
-    } else {
-      debugPrint('[HIVE] _onSnapshot: WARNING — controller is null or closed, cannot emit');
     }
   }
 
@@ -180,14 +151,10 @@ class HunterRepository {
     try {
       final box = Hive.box<HunterData>(CacheConstants.hunterBox);
       box.put('current', hunterData);
-
-      // Record which UID this cache belongs to.
       final meta = Hive.box(CacheConstants.metadataBox);
       meta.put(CacheConstants.keyCachedUid, uid);
       meta.put(CacheConstants.keyLastSyncTimestamp,
           DateTime.now().millisecondsSinceEpoch);
-
-      debugPrint('[HIVE] Cache updated');
     } catch (e) {
       debugPrint('[HIVE] _writeToCache ERROR: $e');
     }
@@ -199,7 +166,6 @@ class HunterRepository {
       final meta = Hive.box(CacheConstants.metadataBox);
       final cachedUid = meta.get(CacheConstants.keyCachedUid) as String?;
       if (cachedUid != null && cachedUid != currentUid) {
-        debugPrint('[HIVE] UID MISMATCH: cached=$cachedUid, current=$currentUid — clearing stale cache');
         final box = Hive.box<HunterData>(CacheConstants.hunterBox);
         box.clear();
         meta.delete(CacheConstants.keyCachedUid);
@@ -210,11 +176,7 @@ class HunterRepository {
     }
   }
 
-  /// Cancels the Firestore subscription and closes the stream controller.
   void _stopListening() {
-    if (_firestoreSub != null) {
-      debugPrint('[HIVE] Firestore listener stopped');
-    }
     _firestoreSub?.cancel();
     _firestoreSub = null;
     _listeningUid = null;

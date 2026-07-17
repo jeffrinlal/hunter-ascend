@@ -105,10 +105,7 @@ class _MapScreenState extends State<MapScreen> {
     // requested or rendered for those hunters.
     if (!MembershipService.instance.showBannerAds) return;
 
-    final adUnitId = Platform.isAndroid
-        ? AppConstants.mapHistoryBannerAdUnitId
-    // TODO: Replace with your real iOS banner ad unit ID for production
-        : AppConstants.testBannerAdUnitId;
+    final adUnitId = AppConstants.mapHistoryBannerAdUnitId;
 
     _bannerAd = AdsService.createBannerAd(
       adUnitId: adUnitId,

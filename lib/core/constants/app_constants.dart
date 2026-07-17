@@ -3,37 +3,55 @@
 /// replaces — this changes only where the value is declared, never the value.
 library;
 
+import 'package:flutter/foundation.dart';
+
 class AppConstants {
   AppConstants._();
 
-  // ── AdMob banner ad unit IDs ───────────────────────────────────────────
-  /// Banner used on the Calorie Tracker and Duel Request screens.
-  static const String challengeBannerAdUnitId =
+  // ── Production AdMob banner ad unit IDs ────────────────────────────────
+  static const String _prodChallengeBannerAdUnitId =
       'ca-app-pub-5435480116436845/4699186117';
 
-  /// Banner used on the Dashboard (home + weekly) and the Duel screen.
-  static const String dashboardBannerAdUnitId =
+  static const String _prodDashboardBannerAdUnitId =
       'ca-app-pub-5435480116436845/4995463929';
 
-  /// Banner used on the Map History screen.
-  static const String mapHistoryBannerAdUnitId =
+  static const String _prodMapHistoryBannerAdUnitId =
       'ca-app-pub-5435480116436845/6580125873';
 
-  // ── AdMob rewarded ad unit IDs ─────────────────────────────────────────
-  /// Rewarded ad for streak recovery and membership claims.
-  static const String streakRecoveryRewardedAdUnitId =
+  // ── Production AdMob rewarded ad unit IDs ──────────────────────────────
+  static const String _prodStreakRecoveryRewardedAdUnitId =
       'ca-app-pub-5435480116436845/4406856317';
 
-  /// Rewarded ad for discipline punishment.
-  static const String punishmentRewardedAdUnitId =
+  static const String _prodPunishmentRewardedAdUnitId =
       'ca-app-pub-5435480116436845/7002658082';
 
-  // ── AdMob test ad unit IDs (debug builds only) ─────────────────────────
-  /// Google's official test rewarded ad unit ID.
-  static const String testRewardedAdUnitId =
+  // ── Google official test ad unit IDs ───────────────────────────────────
+  static const String _testBannerAdUnitId =
+      'ca-app-pub-3940256099942544/6300978111';
+
+  static const String _testRewardedAdUnitId =
       'ca-app-pub-3940256099942544/5224354917';
 
-  /// Google's official test banner ad unit ID.
-  static const String testBannerAdUnitId =
-      'ca-app-pub-3940256099942544/6300978111';
+  // ── Public getters: automatically return test IDs in debug, ────────────
+  // ── production IDs in release builds. ──────────────────────────────────
+
+  /// Banner used on the Calorie Tracker and Duel Request screens.
+  static String get challengeBannerAdUnitId =>
+      kDebugMode ? _testBannerAdUnitId : _prodChallengeBannerAdUnitId;
+
+  /// Banner used on the Dashboard (home + weekly) and the Duel screen.
+  static String get dashboardBannerAdUnitId =>
+      kDebugMode ? _testBannerAdUnitId : _prodDashboardBannerAdUnitId;
+
+  /// Banner used on the Map History screen.
+  static String get mapHistoryBannerAdUnitId =>
+      kDebugMode ? _testBannerAdUnitId : _prodMapHistoryBannerAdUnitId;
+
+  /// Rewarded ad for streak recovery and membership claims.
+  static String get streakRecoveryRewardedAdUnitId =>
+      kDebugMode ? _testRewardedAdUnitId : _prodStreakRecoveryRewardedAdUnitId;
+
+  /// Rewarded ad for discipline punishment.
+  static String get punishmentRewardedAdUnitId =>
+      kDebugMode ? _testRewardedAdUnitId : _prodPunishmentRewardedAdUnitId;
 }

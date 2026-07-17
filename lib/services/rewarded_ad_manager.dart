@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
 
+
 /// Manages rewarded ad loading, caching, and lifecycle for the membership
 /// screen. Automatically preloads the next ad after one is consumed.
 ///
@@ -35,16 +36,8 @@ class RewardedAdManager {
   /// Maximum retry attempts before giving up.
   static const int _maxRetries = 3;
 
-  /// Rewarded ad unit ID.
-  ///
-  /// Uses Google's official test ad unit in debug mode.
-  /// Production ID is centralized in [AppConstants].
-  static String get _adUnitId {
-    if (kDebugMode) {
-      return AppConstants.testRewardedAdUnitId;
-    }
-    return AppConstants.streakRecoveryRewardedAdUnitId;
-  }
+  /// Rewarded ad unit ID. Debug/release switching is handled by AppConstants.
+  static String get _adUnitId => AppConstants.streakRecoveryRewardedAdUnitId;
 
   // ── Public State ─────────────────────────────────────────────────────────
 

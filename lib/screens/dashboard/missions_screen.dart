@@ -10,6 +10,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hunter_ascend/services/ai_quest_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/core/theme/theme_service.dart';
 
 
 /// Missions screen: daily quests, weekly missions, AI quest generation,
@@ -1153,9 +1154,9 @@ class _MissionsScreenState extends State<MissionsScreen> {
   // ── Build ────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (context, _, __) => _themedBuild(context),
+    return ListenableBuilder(
+      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      builder: (context, _) => _themedBuild(context),
     );
   }
 

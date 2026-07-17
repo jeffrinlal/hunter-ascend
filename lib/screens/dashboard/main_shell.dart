@@ -11,6 +11,7 @@ import 'package:hunter_ascend/screens/duel/duel_request_screen.dart';
 import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/screens/profile/membership_screen.dart';
+import 'package:hunter_ascend/core/theme/theme_service.dart';
 
 /// Persistent shell hosting the main app screens behind a bottom NavigationBar.
 /// Tabs: Home (Dashboard), Quests, Leaderboard, Duels, Profile.
@@ -237,9 +238,9 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (context, _, __) => _themedBuild(context),
+    return ListenableBuilder(
+      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      builder: (context, _) => _themedBuild(context),
     );
   }
 

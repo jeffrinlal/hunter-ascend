@@ -209,9 +209,19 @@ class ThemeService {
     activeThemeNotifier.value = theme;
     final data = ThemeRegistry.getByTheme(theme);
     HunterTheme.activeDarkTheme = data;
-    // Trigger a rebuild of the app's theme by nudging the themeNotifier.
-    // ignore: invalid_use_of_visible_for_testing_member, invalid_use_of_protected_member
-    themeNotifier.notifyListeners();
+    // Note: We intentionally do NOT call themeNotifier.notifyListeners() here.
+    //
+    // Previously, force-notifying themeNotifier caused the root MaterialApp's
+    // ValueListenableBuilder to rebuild, which recreated the entire Navigator
+    // tree — destroying HomeDashboardScreen's State and its cached Firestore
+    // StreamBuilder snapshot. This caused the skeleton loader to appear for
+    // the full duration it took Firestore to re-deliver the first snapshot.
+    //
+    // Instead, HunterTheme.activeDarkTheme is set (palette updated), and
+    // screens that listen to activeThemeNotifier (via ValueListenableBuilder
+    // or AnimatedBuilder) will rebuild and pick up the new colors from
+    // HunterTheme.* getters. The MaterialApp's ThemeData also updates on the
+    // next rebuild (which happens naturally on any user interaction).
   }
 
   Future<void> _persist(AppTheme theme) async {

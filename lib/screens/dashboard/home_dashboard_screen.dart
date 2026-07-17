@@ -22,6 +22,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:hunter_ascend/screens/dashboard/dashboard_screen.dart';
 import 'package:hunter_ascend/widgets/glass/glass_card.dart';
 import 'package:hunter_ascend/widgets/glass/glass_background.dart';
+import 'package:hunter_ascend/core/theme/theme_service.dart';
 
 
 /// Home dashboard: hunter stats, steps, water, streak, notifications, quick actions.
@@ -1095,9 +1096,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   // ── Build ────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (context, _, __) => _themedBuild(context),
+    return ListenableBuilder(
+      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      builder: (context, _) => _themedBuild(context),
     );
   }
 

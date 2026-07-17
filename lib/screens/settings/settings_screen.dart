@@ -10,6 +10,7 @@ import 'package:hunter_ascend/screens/settings/theme_gallery_screen.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'package:hunter_ascend/data/repositories/weight_repository.dart';
 import 'package:hunter_ascend/data/repositories/quest_repository.dart';
+import 'package:hunter_ascend/data/repositories/leaderboard_repository.dart';
 
 /// App settings: theme toggle, account, and links.
 class SettingsScreen extends StatelessWidget {
@@ -26,6 +27,7 @@ class SettingsScreen extends StatelessWidget {
       await HunterRepository.instance.clearCache();
       await WeightRepository.instance.clearCache();
       await QuestRepository.instance.clearCache();
+      await LeaderboardRepository.instance.clearCache();
 
       if (user.isAnonymous) {
         // Delete Firestore data first (while auth token is still valid),
@@ -301,6 +303,7 @@ class SettingsScreen extends StatelessWidget {
       await HunterRepository.instance.clearCache();
       await WeightRepository.instance.clearCache();
       await QuestRepository.instance.clearCache();
+      await LeaderboardRepository.instance.clearCache();
 
       // Re-authenticate with Google before deletion (required by Firebase
       // for destructive operations if the sign-in is not recent).

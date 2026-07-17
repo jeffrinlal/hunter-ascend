@@ -14,6 +14,7 @@ import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:hunter_ascend/services/ads_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/services/xp_service.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -394,19 +395,8 @@ class _MapScreenState extends State<MapScreen> {
         }
       }
 
-      // Award XP atomically (matches completeQuest's transaction pattern).
-      // Reads the LATEST Firestore xp/level, applies the reward, and writes
-      // atomically so concurrent rewards (step, mission, penalty) cannot be lost.
-      final ref = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
-      await FirebaseFirestore.instance.runTransaction((txn) async {
-        final snap = await txn.get(ref);
-        final data = snap.data() ?? {};
-        int curXp = (data['xp'] ?? 0) as int;
-        int curLevel = (data['level'] ?? 1) as int;
-        curXp += _xpEarned;
-        while (curXp >= 500) { curXp -= 500; curLevel++; }
-        txn.update(ref, {'xp': curXp, 'level': curLevel});
-      });
+      // Award XP via centralized service (handles daily/weekly XP tracking).
+      await XpService.instance.awardXp(amount: _xpEarned);
 
       if (mounted) {
         setState(() {

@@ -10,6 +10,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hunter_ascend/services/ai_quest_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/services/xp_service.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/models/custom_quest.dart';
@@ -495,24 +496,12 @@ class _MissionsScreenState extends State<MissionsScreen> {
     });
 
     if (user != null) {
-      final ref = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
-      int newXp = xp;
-      int newLevel = level;
-      await FirebaseFirestore.instance.runTransaction((txn) async {
-        final snap = await txn.get(ref);
-        final data = snap.data() ?? {};
-        int curXp = (data['xp'] ?? 0) as int;
-        int curLevel = (data['level'] ?? 1) as int;
-        final int startLevel = curLevel;
-        curXp += reward;
-        while (curXp >= 500) { curXp -= 500; curLevel++; }
-        txn.update(ref, {'xp': curXp, 'level': curLevel});
-        newXp = curXp;
-        newLevel = curLevel;
-        leveledUp = curLevel > startLevel;
-      });
-      if (mounted) setState(() { xp = newXp; level = newLevel; });
-      else { xp = newXp; level = newLevel; }
+      final result = await XpService.instance.awardXp(amount: reward);
+      if (result != null) {
+        if (mounted) setState(() { xp = result.xp; level = result.level; });
+        else { xp = result.xp; level = result.level; }
+        leveledUp = result.leveledUp;
+      }
     }
     await updateStreak(); await saveCompletedQuest(completedQuestName);
 
@@ -880,24 +869,12 @@ class _MissionsScreenState extends State<MissionsScreen> {
     });
 
     if (user != null) {
-      final ref = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
-      int newXp = xp;
-      int newLevel = level;
-      await FirebaseFirestore.instance.runTransaction((txn) async {
-        final snap = await txn.get(ref);
-        final data = snap.data() ?? {};
-        int curXp = (data['xp'] ?? 0) as int;
-        int curLevel = (data['level'] ?? 1) as int;
-        final int startLevel = curLevel;
-        curXp += reward;
-        while (curXp >= 500) { curXp -= 500; curLevel++; }
-        txn.update(ref, {'xp': curXp, 'level': curLevel});
-        newXp = curXp;
-        newLevel = curLevel;
-        leveledUp = curLevel > startLevel;
-      });
-      if (mounted) setState(() { xp = newXp; level = newLevel; });
-      else { xp = newXp; level = newLevel; }
+      final result = await XpService.instance.awardXp(amount: reward);
+      if (result != null) {
+        if (mounted) setState(() { xp = result.xp; level = result.level; });
+        else { xp = result.xp; level = result.level; }
+        leveledUp = result.leveledUp;
+      }
       await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
         'weeklyMissions': weeklyMissions,
         'questsDone': FieldValue.increment(1),

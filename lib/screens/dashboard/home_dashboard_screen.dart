@@ -18,6 +18,7 @@ import 'dart:typed_data';
 import 'package:hunter_ascend/services/notification_service.dart';
 import 'package:hunter_ascend/services/update_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/services/xp_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:hunter_ascend/screens/dashboard/dashboard_screen.dart';
 import 'package:hunter_ascend/widgets/glass/glass_card.dart';
@@ -314,11 +315,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
         if (todayCount >= 10000 && !_stepRewardGrantedToday) {
           _stepRewardGrantedToday = true;
+          await XpService.instance.awardXp(amount: 25);
           await FirebaseFirestore.instance
               .collection('hunters')
               .doc(user.uid)
               .update({
-            'xp': FieldValue.increment(25),
             'lastStepRewardDate': today,
           });
           if (mounted) {

@@ -76,13 +76,18 @@ class HunterDataAdapter extends TypeAdapter<HunterData> {
       discipline: fields[45] as bool? ?? false,
       muscleGain: fields[46] as bool? ?? false,
       selfImprovement: fields[47] as bool? ?? false,
+      // Leaderboard XP
+      weeklyXp: fields[49] as int? ?? 0,
+      dailyXp: fields[50] as int? ?? 0,
+      weeklyResetEpoch: fields[51] as int? ?? 0,
+      dailyResetEpoch: fields[52] as int? ?? 0,
     );
   }
 
   @override
   void write(BinaryWriter writer, HunterData obj) {
     writer
-      ..writeByte(49) // total number of fields
+      ..writeByte(53) // total number of fields
       // Core identity
       ..writeByte(0)..write(obj.hunterName)
       ..writeByte(1)..write(obj.xp)
@@ -141,7 +146,12 @@ class HunterDataAdapter extends TypeAdapter<HunterData> {
       ..writeByte(44)..write(obj.fatLoss)
       ..writeByte(45)..write(obj.discipline)
       ..writeByte(46)..write(obj.muscleGain)
-      ..writeByte(47)..write(obj.selfImprovement);
+      ..writeByte(47)..write(obj.selfImprovement)
+      // Leaderboard XP
+      ..writeByte(49)..write(obj.weeklyXp)
+      ..writeByte(50)..write(obj.dailyXp)
+      ..writeByte(51)..write(obj.weeklyResetEpoch)
+      ..writeByte(52)..write(obj.dailyResetEpoch);
   }
 
   @override

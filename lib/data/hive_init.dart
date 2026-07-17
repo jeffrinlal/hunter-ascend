@@ -4,6 +4,7 @@ import 'package:hunter_ascend/data/cache_constants.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/models/weight_entry.dart';
 import 'package:hunter_ascend/data/models/custom_quest.dart';
+import 'package:hunter_ascend/data/models/leaderboard_entry.dart';
 
 /// Initializes Hive, registers adapters, and handles cache versioning.
 ///
@@ -31,6 +32,9 @@ class HiveInit {
     if (!Hive.isAdapterRegistered(2)) {
       Hive.registerAdapter(CustomQuestAdapter());
     }
+    if (!Hive.isAdapterRegistered(3)) {
+      Hive.registerAdapter(LeaderboardEntryAdapter());
+    }
 
     // Open metadata box first to check version.
     final meta = await Hive.openBox(CacheConstants.metadataBox);
@@ -49,6 +53,7 @@ class HiveInit {
     await Hive.openBox<HunterData>(CacheConstants.hunterBox);
     await Hive.openBox<List>(CacheConstants.weightBox);
     await Hive.openBox<List>(CacheConstants.questBox);
+    await Hive.openBox(CacheConstants.leaderboardBox);
 
     // Update last sync timestamp.
     await meta.put(

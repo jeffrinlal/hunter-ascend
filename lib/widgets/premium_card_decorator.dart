@@ -20,12 +20,14 @@ class PremiumCardDecorator extends StatelessWidget {
   final String membership;
   final Widget child;
   final BorderRadius borderRadius;
+  final bool animated;
 
   const PremiumCardDecorator({
     super.key,
     required this.membership,
     required this.child,
     this.borderRadius = const BorderRadius.all(Radius.circular(14)),
+    this.animated = true,
   });
 
   @override
@@ -33,10 +35,88 @@ class PremiumCardDecorator extends StatelessWidget {
     final tier = MembershipTier.fromString(membership);
     if (tier == MembershipTier.basic) return child;
 
+    if (!animated) {
+      return _StaticPremiumCard(
+        tier: tier,
+        borderRadius: borderRadius,
+        child: child,
+      );
+    }
+
     return _AnimatedPremiumCard(
       tier: tier,
       borderRadius: borderRadius,
       child: child,
+    );
+  }
+}
+
+/// Static version of the premium card decorator for use in scrollable lists.
+/// Same gradient + border + glow as the animated version, but with zero
+/// per-frame repaint cost (no AnimationController, no CustomPaint, no
+/// shimmer, no particles, no rotating ring).
+///
+/// Visually identical to a single frame of the animated version.
+class _StaticPremiumCard extends StatelessWidget {
+  final MembershipTier tier;
+  final Widget child;
+  final BorderRadius borderRadius;
+
+  const _StaticPremiumCard({
+    required this.tier,
+    required this.child,
+    required this.borderRadius,
+  });
+
+  bool get _isMax => tier == MembershipTier.max;
+
+  List<Color> get _gradientColors => _isMax
+      ? [
+          const Color(0xFF1A0A2E),
+          const Color(0xFF2D1B4E),
+          const Color(0xFF1A1400),
+          const Color(0xFF2D1B4E),
+        ]
+      : [
+          const Color(0xFF1A1400),
+          const Color(0xFF2D2200),
+          const Color(0xFF1A1400),
+        ];
+
+  Color get _borderColor => _isMax ? HunterTheme.purple : HunterTheme.gold;
+  Color get _glowColor => _isMax ? HunterTheme.purple : HunterTheme.gold;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: borderRadius,
+        boxShadow: [
+          BoxShadow(
+            color: _glowColor.withOpacity(_isMax ? 0.4 : 0.3),
+            blurRadius: _isMax ? 20 : 16,
+            spreadRadius: _isMax ? 2 : 1,
+          ),
+        ],
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: _gradientColors,
+          ),
+          border: Border.all(
+            color: _borderColor.withOpacity(0.9),
+            width: _isMax ? 2.0 : 1.6,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: borderRadius,
+          child: child,
+        ),
+      ),
     );
   }
 }

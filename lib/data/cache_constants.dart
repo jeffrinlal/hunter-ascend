@@ -14,6 +14,7 @@ class CacheConstants {
   static const String hunterBox = 'hunterBox';
   static const String weightBox = 'weightBox';
   static const String questBox = 'questBox';
+  static const String leaderboardBox = 'leaderboardBox';
 
   // ── Metadata keys ──────────────────────────────────────────────────────
   static const String keyCacheVersion = 'cacheVersion';

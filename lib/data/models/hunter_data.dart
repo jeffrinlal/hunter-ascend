@@ -80,6 +80,11 @@ class HunterData {
     this.discipline = false,
     this.muscleGain = false,
     this.selfImprovement = false,
+    // ── Leaderboard XP ──
+    this.weeklyXp = 0,
+    this.dailyXp = 0,
+    this.weeklyResetEpoch = 0,
+    this.dailyResetEpoch = 0,
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -182,6 +187,15 @@ class HunterData {
   @HiveField(47) final bool selfImprovement;
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // LEADERBOARD XP (daily/weekly with lazy epoch-based reset)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  @HiveField(49) final int weeklyXp;
+  @HiveField(50) final int dailyXp;
+  @HiveField(51) final int weeklyResetEpoch;
+  @HiveField(52) final int dailyResetEpoch;
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // FACTORY: Firestore → Domain
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -246,6 +260,11 @@ class HunterData {
       discipline: data['discipline'] == true,
       muscleGain: data['muscleGain'] == true,
       selfImprovement: data['selfImprovement'] == true,
+      // Leaderboard XP
+      weeklyXp: (data['weeklyXp'] ?? 0) as int,
+      dailyXp: (data['dailyXp'] ?? 0) as int,
+      weeklyResetEpoch: (data['weeklyResetEpoch'] ?? 0) as int,
+      dailyResetEpoch: (data['dailyResetEpoch'] ?? 0) as int,
     );
   }
 
@@ -296,6 +315,10 @@ class HunterData {
       'discipline': discipline,
       'muscleGain': muscleGain,
       'selfImprovement': selfImprovement,
+      'weeklyXp': weeklyXp,
+      'dailyXp': dailyXp,
+      'weeklyResetEpoch': weeklyResetEpoch,
+      'dailyResetEpoch': dailyResetEpoch,
     };
   }
 
@@ -353,6 +376,10 @@ class HunterData {
     bool? discipline,
     bool? muscleGain,
     bool? selfImprovement,
+    int? weeklyXp,
+    int? dailyXp,
+    int? weeklyResetEpoch,
+    int? dailyResetEpoch,
   }) {
     return HunterData(
       hunterName: hunterName ?? this.hunterName,
@@ -404,6 +431,10 @@ class HunterData {
       discipline: discipline ?? this.discipline,
       muscleGain: muscleGain ?? this.muscleGain,
       selfImprovement: selfImprovement ?? this.selfImprovement,
+      weeklyXp: weeklyXp ?? this.weeklyXp,
+      dailyXp: dailyXp ?? this.dailyXp,
+      weeklyResetEpoch: weeklyResetEpoch ?? this.weeklyResetEpoch,
+      dailyResetEpoch: dailyResetEpoch ?? this.dailyResetEpoch,
     );
   }
 

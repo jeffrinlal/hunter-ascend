@@ -19,6 +19,10 @@ import 'package:hunter_ascend/screens/profile/reports/reports_tab.dart';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
 import 'package:hunter_ascend/widgets/premium_avatar.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/data/models/hunter_data.dart';
+import 'package:hunter_ascend/data/models/weight_entry.dart';
+import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
+import 'package:hunter_ascend/data/repositories/weight_repository.dart';
 
 /// The signed-in hunter's own profile: stats, physique, history, and sharing.
 class ProfileScreen extends StatefulWidget {
@@ -106,18 +110,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  // ── Cached Firestore streams (stable identity across rebuilds) ──────────
-  late final Stream<DocumentSnapshot> _hunterStream = FirebaseFirestore.instance
-      .collection('hunters')
-      .doc(FirebaseAuth.instance.currentUser?.uid)
-      .snapshots();
-
-  late final Stream<QuerySnapshot> _weightHistoryStream = FirebaseFirestore
-      .instance
-      .collection('weight_history')
-      .where('uid', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-      .orderBy('date', descending: true)
-      .snapshots();
+  // ── Streams from repositories ──────────────────────────────────────────
 
   @override
   void initState() {
@@ -144,10 +137,12 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     return Scaffold(
       backgroundColor: HunterTheme.background,
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: _hunterStream,
+      body: StreamBuilder<HunterData?>(
+        stream: HunterRepository.instance.watch(),
+        initialData: HunterRepository.instance.getCached(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          final hunter = snapshot.data;
+          if (hunter == null) {
             return SafeArea(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -156,20 +151,18 @@ class _ProfileScreenState extends State<ProfileScreen>
             );
           }
 
-          final data = snapshot.data!.data() as Map<String, dynamic>;
-
-          final hunterName     = data['hunterName'] ?? 'Unknown Hunter';
-          final xp             = (data['xp'] ?? 0) as int;
-          final level          = (data['level'] ?? 1) as int;
-          final duelWins       = (data['duelWins'] ?? 0) as int;
-          final duelLosses     = (data['duelLosses'] ?? 0) as int;
-          final questsDone     = (data['questsDone'] ?? 0) as int;
+          final hunterName     = hunter.hunterName;
+          final xp             = hunter.xp;
+          final level          = hunter.level;
+          final duelWins       = hunter.duelWins;
+          final duelLosses     = hunter.duelLosses;
+          final questsDone     = hunter.questsDone;
           final totalDuels     = duelWins + duelLosses;
-          final streak         = (data['streak'] ?? 0) as int;
+          final streak         = hunter.streak;
 
-          final height         = (data['height'] ?? 0).toDouble();
-          final weight         = (data['weight'] ?? 0).toDouble();
-          final startingWeight = (data['startingWeight'] ?? weight).toDouble();
+          final height         = hunter.height;
+          final weight         = hunter.weight;
+          final startingWeight = hunter.startingWeight > 0 ? hunter.startingWeight : weight;
 
           double bmi = 0;
           if (height > 0) bmi = weight / math.pow(height / 100, 2);
@@ -232,8 +225,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     str: str,
                                     vit: vit,
                                     agi: agi,
-                                    profilePicture:
-                                    data['profilePicture'] as String?,
+                                    profilePicture: hunter.profilePicture,
                                   ),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
@@ -379,10 +371,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                                         .instance.membershipName
                                         .toLowerCase(),
                                     radius: 53,
-                                    image: _decodedProfilePic(data['profilePicture'] as String?) != null
+                                    image: _decodedProfilePic(hunter.profilePicture) != null
                                         ? MemoryImage(_cachedProfilePicBytes!)
                                         : null,
-                                    child: data['profilePicture'] == null
+                                    child: hunter.profilePicture == null
                                         ? Icon(Icons.person,
                                         size: 60,
                                         color: rankColor.withOpacity(0.9))
@@ -659,7 +651,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     // ── REPORTS (premium: Pro/Max) ────────────────────
                     ReportsTab(
                       uid: user?.uid ?? '',
-                      hunterData: data,
+                      hunterData: hunter.toFirestore(),
                     ),
 
                     // ── PHYSIQUE ──────────────────────────────────────
@@ -773,8 +765,9 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   // ── Inline Weight History Tab ──────────────────────────────────────
   Widget _buildWeightHistoryTab(User? user) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: _weightHistoryStream,
+    return StreamBuilder<List<WeightEntry>>(
+      stream: WeightRepository.instance.watch(),
+      initialData: WeightRepository.instance.getCached(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _centeredScrollSafe(
@@ -787,15 +780,14 @@ class _ProfileScreenState extends State<ProfileScreen>
           );
         }
 
-        if (!snapshot.hasData) {
+        final entries = snapshot.data;
+        if (entries == null) {
           return _centeredScrollSafe(
             child: CircularProgressIndicator(color: HunterTheme.primary),
           );
         }
 
-        final docs = snapshot.data!.docs;
-
-        if (docs.isEmpty) {
+        if (entries.isEmpty) {
           return _centeredScrollSafe(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -815,29 +807,29 @@ class _ProfileScreenState extends State<ProfileScreen>
           );
         }
 
-        final currentWeight  = (docs.first['weight'] as num).toDouble();
-        final startingWeight = (docs.last['weight']  as num).toDouble();
+        final currentWeight  = entries.first.weight;
+        final startingWeight = entries.last.weight;
         final weightLost     = startingWeight - currentWeight;
 
         String title;
         String message;
         if (weightLost >= 20) {
-          title   = "👑 Legendary Hunter";
+          title   = "\ud83d\udc51 Legendary Hunter";
           message = "This isn't luck. This is discipline.";
         } else if (weightLost >= 10) {
-          title   = "⭐ Elite Progress";
+          title   = "\u2b50 Elite Progress";
           message = "You are becoming the person you promised yourself you'd be.";
         } else if (weightLost >= 5) {
-          title   = "🏆 Transformation Begins";
+          title   = "\ud83c\udfc6 Transformation Begins";
           message = "Most hunters quit early. You didn't.";
         } else if (weightLost >= 3) {
-          title   = "⚔️ Momentum Rising";
+          title   = "\u2694\ufe0f Momentum Rising";
           message = "Your consistency is becoming visible.";
         } else if (weightLost > 0) {
-          title   = "🔥 First Victories";
+          title   = "\ud83d\udd25 First Victories";
           message = "You've started the journey. Keep moving forward, Hunter.";
         } else {
-          title   = "🌱 New Hunter";
+          title   = "\ud83c\udf31 New Hunter";
           message = "Every Hunter starts somewhere.";
         }
 
@@ -858,8 +850,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                   children: [
                     Text(
                       weightLost >= 0
-                          ? "🔥 Total Lost: ${weightLost.toStringAsFixed(1)} kg"
-                          : "📈 Total Gained: ${weightLost.abs().toStringAsFixed(1)} kg",
+                          ? "\ud83d\udd25 Total Lost: ${weightLost.toStringAsFixed(1)} kg"
+                          : "\ud83d\udcc8 Total Gained: ${weightLost.abs().toStringAsFixed(1)} kg",
                       style: TextStyle(
                         color: weightLost >= 0
                             ? Colors.greenAccent
@@ -885,10 +877,8 @@ class _ProfileScreenState extends State<ProfileScreen>
               const SizedBox(height: 16),
 
               // Entry list
-              ...docs.map((doc) {
-                final d    = doc.data() as Map<String, dynamic>;
-                final w    = (d['weight'] as num).toDouble();
-                final date = (d['date'] as Timestamp).toDate();
+              ...entries.map((entry) {
+                final date = entry.dateTime;
                 final dateStr =
                     "${date.day.toString().padLeft(2, '0')}/"
                     "${date.month.toString().padLeft(2, '0')}/"
@@ -922,7 +912,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 color: HunterTheme.textSecondary, fontSize: 13)),
                       ),
                       Text(
-                        '${w.toStringAsFixed(1)} kg',
+                        '${entry.weight.toStringAsFixed(1)} kg',
                         style: TextStyle(
                           color: HunterTheme.textPrimary,
                           fontSize: 16,

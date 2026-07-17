@@ -3,9 +3,10 @@ import 'package:hunter_ascend/core/theme/app_theme_data.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 
-/// DIAGNOSTIC BUILD — Step 4: Positioned.fill(Container(transparent)) + child.
-/// If dashboard works: Positioned.fill layout is fine. Next: decorative layers.
-/// If dashboard is black: Positioned.fill is the offending widget.
+/// DIAGNOSTIC BUILD — Step 5: Positioned.fill(_GlassDecorations as passthrough) + child.
+/// _GlassDecorations is a SizedBox.expand() — no actual decorations rendered.
+/// If dashboard works: the decoration widget slot is fine. Next: add content inside it.
+/// If dashboard is black: the _GlassDecorations widget class itself causes an issue.
 class GlassBackground extends StatelessWidget {
   const GlassBackground({super.key, required this.child});
 
@@ -13,15 +14,22 @@ class GlassBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Step 4: Positioned.fill wrapping a transparent Container.
     return Stack(
       fit: StackFit.expand,
       children: [
         Positioned.fill(
-          child: Container(color: Colors.transparent),
+          child: _GlassDecorations(),
         ),
         child,
       ],
     );
+  }
+}
+
+/// DIAGNOSTIC — Step 5: Empty passthrough. No decorations.
+class _GlassDecorations extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox.expand();
   }
 }

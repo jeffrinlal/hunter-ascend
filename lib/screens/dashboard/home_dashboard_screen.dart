@@ -20,6 +20,8 @@ import 'package:hunter_ascend/services/update_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:hunter_ascend/screens/dashboard/dashboard_screen.dart';
+import 'package:hunter_ascend/widgets/glass/glass_card.dart';
+import 'package:hunter_ascend/widgets/glass/glass_background.dart';
 
 
 /// Home dashboard: hunter stats, steps, water, streak, notifications, quick actions.
@@ -1102,36 +1104,38 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   Widget _themedBuild(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              StreamBuilder<DocumentSnapshot>(
-                stream: _hunterDocStream,
-                builder: (context, snap) {
-                  if (!snap.hasData) return buildDashboardSkeleton();
-                  final hunterData = snap.data!.data() as Map<String, dynamic>? ?? {};
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildTopBar(hunterData),
-                      const SizedBox(height: 20),
-                      _buildHunterCard(hunterData),
-                      const SizedBox(height: 16),
-                      StepsCard(steps: todaySteps),
-                      const SizedBox(height: 16),
-                      _buildQuickActions(),
-                      const SizedBox(height: 16),
-                      _buildWaterCard(),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 30),
-            ],
+      body: GlassBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                StreamBuilder<DocumentSnapshot>(
+                  stream: _hunterDocStream,
+                  builder: (context, snap) {
+                    if (!snap.hasData) return buildDashboardSkeleton();
+                    final hunterData = snap.data!.data() as Map<String, dynamic>? ?? {};
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildTopBar(hunterData),
+                        const SizedBox(height: 20),
+                        _buildHunterCard(hunterData),
+                        const SizedBox(height: 16),
+                        StepsCard(steps: todaySteps),
+                        const SizedBox(height: 16),
+                        _buildQuickActions(),
+                        const SizedBox(height: 16),
+                        _buildWaterCard(),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 30),
+              ],
+            ),
           ),
         ),
       ),
@@ -1202,15 +1206,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     final liveXp = (hunterData['xp'] ?? xp) as int;
     final liveLevel = (hunterData['level'] ?? level) as int;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _border, width: 1.5),
-        boxShadow: [BoxShadow(color: _blue.withOpacity(0.15), blurRadius: 20, spreadRadius: 1)],
-      ),
+    return GlassCard(
       child: Column(
         children: [
           Row(
@@ -1549,23 +1545,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     final filledDrops =
         (waterIntakeMl / selectedCupSize).floor().clamp(0, dropCount).toInt();
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: HunterTheme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: HunterTheme.primary.withOpacity(0.3),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: HunterTheme.primary.withOpacity(0.08),
-            blurRadius: 12,
-          ),
-        ],
-      ),
+    return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1686,22 +1666,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: GlassCard(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: HunterTheme.cardColor,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: HunterTheme.primary.withOpacity(0.5),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: HunterTheme.primary.withOpacity(0.08),
-              blurRadius: 12,
-            ),
-          ],
-        ),
+        borderRadius: 14,
         child: Column(
           children: [
             Icon(icon, color: HunterTheme.primary, size: 26),

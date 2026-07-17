@@ -3,10 +3,11 @@ import 'package:hunter_ascend/core/theme/app_theme_data.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 
-/// DIAGNOSTIC BUILD — Step 6: _GlassDecorations with a simple gradient.
-/// No blur, no clip, no animations.
-/// If dashboard works: gradients are fine. Next: restore full decoration stack.
-/// If dashboard is black: a gradient in the decoration layer causes the issue.
+/// DIAGNOSTIC BUILD — Step 7: _GlassDecorations with original production gradient.
+/// Uses HunterTheme.background and HunterTheme.surface (dynamic theme colors).
+/// No radial glows, no blur, no clip, no animations.
+/// If dashboard works: theme-aware gradient is fine. Next: add radial glow #1.
+/// If dashboard is black: reading HunterTheme colors in decoration causes issue.
 class GlassBackground extends StatelessWidget {
   const GlassBackground({super.key, required this.child});
 
@@ -26,19 +27,22 @@ class GlassBackground extends StatelessWidget {
   }
 }
 
-/// DIAGNOSTIC — Step 6: Single gradient only. No blur, no clip, no animation.
+/// DIAGNOSTIC — Step 7: Original production LinearGradient only.
+/// Uses dynamic HunterTheme colors (theme-aware).
 class _GlassDecorations extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
+    return DecoratedBox(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [
-            Color(0x11000000),
-            Color(0x00000000),
+            HunterTheme.background,
+            HunterTheme.surface,
+            HunterTheme.background,
           ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+          stops: const [0.0, 0.5, 1.0],
         ),
       ),
     );

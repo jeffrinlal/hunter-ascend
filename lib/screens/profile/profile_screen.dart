@@ -157,7 +157,6 @@ class _ProfileScreenState extends State<ProfileScreen>
           final duelWins       = hunter.duelWins;
           final duelLosses     = hunter.duelLosses;
           final questsDone     = hunter.questsDone;
-          final totalDuels     = duelWins + duelLosses;
           final streak         = hunter.streak;
 
           final height         = hunter.height;

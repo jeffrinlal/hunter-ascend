@@ -57,6 +57,7 @@ class HunterData {
     this.membershipType,
     this.subscriptionActive = false,
     this.reviewRequested = false,
+    this.membershipExpiry,
     // ── Duel & quest statistics ──
     this.duelWins = 0,
     this.duelLosses = 0,
@@ -144,6 +145,7 @@ class HunterData {
   @HiveField(24) final String? membershipType;
   @HiveField(25) final bool subscriptionActive;
   @HiveField(23) final bool reviewRequested;
+  @HiveField(48) final String? membershipExpiry;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // DUEL & QUEST STATISTICS
@@ -221,6 +223,7 @@ class HunterData {
       membershipType: data['membershipType']?.toString() ?? data['membership']?.toString(),
       subscriptionActive: data['subscriptionActive'] == true,
       reviewRequested: data['reviewRequested'] == true,
+      membershipExpiry: _timestampToString(data['membershipExpiry']),
       // Duel & quest statistics
       duelWins: (data['duelWins'] ?? 0) as int,
       duelLosses: (data['duelLosses'] ?? 0) as int,
@@ -277,6 +280,7 @@ class HunterData {
       if (lastPunishmentDate != null) 'lastPunishmentDate': lastPunishmentDate,
       if (notificationTime != null) 'notificationTime': notificationTime,
       if (membershipType != null) 'membershipType': membershipType,
+      if (membershipExpiry != null) 'membershipExpiry': membershipExpiry,
       'subscriptionActive': subscriptionActive,
       'reviewRequested': reviewRequested,
       'duelWins': duelWins,
@@ -329,6 +333,7 @@ class HunterData {
     String? membershipType,
     bool? subscriptionActive,
     bool? reviewRequested,
+    String? membershipExpiry,
     int? duelWins,
     int? duelLosses,
     int? questsDone,
@@ -379,6 +384,7 @@ class HunterData {
       membershipType: membershipType ?? this.membershipType,
       subscriptionActive: subscriptionActive ?? this.subscriptionActive,
       reviewRequested: reviewRequested ?? this.reviewRequested,
+      membershipExpiry: membershipExpiry ?? this.membershipExpiry,
       duelWins: duelWins ?? this.duelWins,
       duelLosses: duelLosses ?? this.duelLosses,
       questsDone: questsDone ?? this.questsDone,

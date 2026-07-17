@@ -53,6 +53,7 @@ class HunterDataAdapter extends TypeAdapter<HunterData> {
       membershipType: fields[24] as String?,
       subscriptionActive: fields[25] as bool? ?? false,
       reviewRequested: fields[23] as bool? ?? false,
+      membershipExpiry: fields[48] as String?,
       // Duel & quest statistics
       duelWins: fields[29] as int? ?? 0,
       duelLosses: fields[30] as int? ?? 0,
@@ -81,7 +82,7 @@ class HunterDataAdapter extends TypeAdapter<HunterData> {
   @override
   void write(BinaryWriter writer, HunterData obj) {
     writer
-      ..writeByte(48) // total number of fields
+      ..writeByte(49) // total number of fields
       // Core identity
       ..writeByte(0)..write(obj.hunterName)
       ..writeByte(1)..write(obj.xp)
@@ -118,6 +119,7 @@ class HunterDataAdapter extends TypeAdapter<HunterData> {
       ..writeByte(24)..write(obj.membershipType)
       ..writeByte(25)..write(obj.subscriptionActive)
       ..writeByte(23)..write(obj.reviewRequested)
+      ..writeByte(48)..write(obj.membershipExpiry)
       // Duel & quest statistics
       ..writeByte(29)..write(obj.duelWins)
       ..writeByte(30)..write(obj.duelLosses)

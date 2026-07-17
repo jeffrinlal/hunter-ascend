@@ -104,15 +104,7 @@ class HunterRepository {
     _stopListening();
     _listeningUid = uid;
 
-    _controller = StreamController<HunterData?>.broadcast(
-      onListen: () {
-        // Emit cached data immediately when the first listener attaches.
-        final cached = getCached();
-        if (cached != null && _controller != null && !_controller!.isClosed) {
-          _controller!.add(cached);
-        }
-      },
-    );
+    _controller = StreamController<HunterData?>.broadcast();
 
     // Validate UID matches cached data.
     _validateCachedUid(uid);

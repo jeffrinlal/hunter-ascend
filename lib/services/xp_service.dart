@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:hunter_ascend/data/repositories/leaderboard_repository.dart';
 
 /// Centralized XP awarding service.
 ///
@@ -35,7 +36,7 @@ class XpService {
     final ref = FirebaseFirestore.instance.collection('hunters').doc(uid);
 
     try {
-      return await FirebaseFirestore.instance.runTransaction<XpAwardResult>((txn) async {
+      final result = await FirebaseFirestore.instance.runTransaction<XpAwardResult>((txn) async {
         final snap = await txn.get(ref);
         final data = snap.data() ?? {};
 
@@ -88,6 +89,11 @@ class XpService {
           leveledUp: curLevel > startLevel,
         );
       });
+
+      // Mark leaderboard cache as stale so the next screen open fetches fresh data.
+      LeaderboardRepository.instance.markStale();
+
+      return result;
     } catch (e) {
       debugPrint('XpService.awardXp: $e');
       return null;

@@ -91,6 +91,19 @@ class LeaderboardRepository {
     }
   }
 
+  /// Marks all leaderboard tabs as stale so the next [fetch] call
+  /// forces a Firestore refresh. Called after XP is awarded.
+  void markStale() {
+    try {
+      final box = Hive.box(CacheConstants.leaderboardBox);
+      for (final tab in LeaderboardTab.values) {
+        box.delete(_timestampKey(tab));
+      }
+    } catch (e) {
+      debugPrint('[HIVE] LeaderboardRepository.markStale ERROR: $e');
+    }
+  }
+
   // ── Private ──────────────────────────────────────────────────────────────
 
   Query<Map<String, dynamic>> _buildQuery(LeaderboardTab tab) {

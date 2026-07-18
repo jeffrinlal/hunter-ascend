@@ -310,7 +310,24 @@ class _MissionsScreenState extends State<MissionsScreen> {
     bannerAd = AdsService.createBannerAd(
       adUnitId: AppConstants.dashboardBannerAdUnitId,
       onAdLoaded: (ad) { if (mounted) setState(() => isBannerReady = true); },
-      onAdFailedToLoad: (ad, error) { debugPrint("BANNER FAILED: $error"); ad.dispose(); },
+      onAdFailedToLoad: (ad, error) {
+        debugPrint("BANNER FAILED: $error");
+        ad.dispose();
+        bannerAd = null;
+        // Retry once after a short delay.
+        if (mounted) {
+          Future.delayed(const Duration(seconds: 3), () {
+            if (mounted && bannerAd == null) {
+              bannerAd = AdsService.createBannerAd(
+                adUnitId: AppConstants.dashboardBannerAdUnitId,
+                onAdLoaded: (ad) { if (mounted) setState(() => isBannerReady = true); },
+                onAdFailedToLoad: (ad, error) { debugPrint("BANNER RETRY FAILED: $error"); ad.dispose(); bannerAd = null; },
+              );
+              bannerAd!.load();
+            }
+          });
+        }
+      },
     );
     bannerAd!.load();
   }
@@ -323,6 +340,20 @@ class _MissionsScreenState extends State<MissionsScreen> {
       onAdFailedToLoad: (ad, error) {
         debugPrint("WEEKLY BANNER FAILED: $error");
         ad.dispose();
+        weeklyBannerAd = null;
+        // Retry once after a short delay.
+        if (mounted) {
+          Future.delayed(const Duration(seconds: 3), () {
+            if (mounted && weeklyBannerAd == null) {
+              weeklyBannerAd = AdsService.createBannerAd(
+                adUnitId: AppConstants.dashboardBannerAdUnitId,
+                onAdLoaded: (ad) { if (mounted) setState(() => weeklyBannerReady = true); },
+                onAdFailedToLoad: (ad, error) { debugPrint("WEEKLY BANNER RETRY FAILED: $error"); ad.dispose(); weeklyBannerAd = null; },
+              );
+              weeklyBannerAd!.load();
+            }
+          });
+        }
       },
     );
     weeklyBannerAd!.load();

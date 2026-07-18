@@ -128,7 +128,34 @@ class _DuelScreenState extends State<DuelScreen> {
         if (!mounted) return;
         setState(() => isBannerReady = true);
       },
-      onAdFailedToLoad: (ad, error) { debugPrint("BANNER FAILED: $error"); ad.dispose(); },
+      onAdFailedToLoad: (ad, error) {
+        debugPrint("DUEL BANNER FAILED: $error");
+        ad.dispose();
+        bannerAd = null;
+        // Retry once after a short delay.
+        if (mounted) {
+          Future.delayed(const Duration(seconds: 3), () {
+            if (mounted && bannerAd == null) _retryBannerAd();
+          });
+        }
+      },
+    );
+    bannerAd!.load();
+  }
+
+  void _retryBannerAd() {
+    if (!MembershipService.instance.showBannerAds) return;
+    bannerAd = AdsService.createBannerAd(
+      adUnitId: AppConstants.dashboardBannerAdUnitId,
+      onAdLoaded: (ad) {
+        if (!mounted) return;
+        setState(() => isBannerReady = true);
+      },
+      onAdFailedToLoad: (ad, error) {
+        debugPrint("DUEL BANNER RETRY FAILED: $error");
+        ad.dispose();
+        bannerAd = null;
+      },
     );
     bannerAd!.load();
   }
@@ -531,7 +558,12 @@ class _DuelScreenState extends State<DuelScreen> {
         ),
         if (isBannerReady) ...[
           const SizedBox(height: 12),
-          Center(child: SizedBox(width: bannerAd!.size.width.toDouble(), height: bannerAd!.size.height.toDouble(), child: AdWidget(ad: bannerAd!))),
+          Center(child: SizedBox(
+            key: const ValueKey('duel_banner_ad'),
+            width: bannerAd!.size.width.toDouble(),
+            height: bannerAd!.size.height.toDouble(),
+            child: AdWidget(ad: bannerAd!),
+          )),
         ],
       ]),
     );

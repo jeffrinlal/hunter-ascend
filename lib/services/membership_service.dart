@@ -186,6 +186,13 @@ class MembershipService {
   /// Consumed (reset to null) by [consumeExpiredTier].
   MembershipTier? _lastExpiredTier;
 
+  /// The specific expiry timestamp for which the dialog has already been
+  /// shown. Prevents re-arming [_lastExpiredTier] on subsequent Firestore
+  /// snapshot emissions while the same expiry is still in effect.
+  /// Reset on logout ([clearCache]) so a new session or a renewed-then-
+  /// re-expired membership (with a different expiry) triggers the dialog.
+  DateTime? _lastShownExpiryTimestamp;
+
   /// Whether a successful load has completed at least once this session.
   bool _hasLoaded = false;
 
@@ -264,6 +271,7 @@ class MembershipService {
     _applyDefaults();
     _hasLoaded = false;
     _pendingFetch = null;
+    _lastShownExpiryTimestamp = null;
     tierNotifier.value = MembershipTier.basic;
   }
 
@@ -392,11 +400,14 @@ class MembershipService {
 
     // ── Auto-expiration check ──
     // If the stored tier is premium but the expiry is in the past,
-    // record it for the one-time dialog. The stored _tier is preserved;
-    // the effective tier (used by all getters) will be Basic.
+    // record it for the one-time dialog — but only if this specific expiry
+    // hasn't already been shown. This prevents re-arming the flag on every
+    // Firestore snapshot while the same expired membership persists.
     if (_tier != MembershipTier.basic && _membershipExpiry != null &&
         _membershipExpiry!.isBefore(DateTime.now())) {
-      _lastExpiredTier = _tier;
+      if (_lastShownExpiryTimestamp != _membershipExpiry) {
+        _lastExpiredTier = _tier;
+      }
     }
   }
 
@@ -505,10 +516,15 @@ class MembershipService {
   /// Returns the tier that just expired and clears the flag.
   ///
   /// Call this once to show the expiration dialog. Subsequent calls
-  /// return `null` until a new expiration is detected.
+  /// return `null` until a new expiration is detected (i.e. the user
+  /// renews and their membership expires again with a different timestamp).
   MembershipTier? consumeExpiredTier() {
     final tier = _lastExpiredTier;
     _lastExpiredTier = null;
+    if (tier != null) {
+      // Record the specific expiry that was shown so it won't re-arm.
+      _lastShownExpiryTimestamp = _membershipExpiry;
+    }
     return tier;
   }
 

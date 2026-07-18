@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/membership_reward_service.dart';
 import 'package:hunter_ascend/services/rewarded_ad_manager.dart';
@@ -340,9 +341,9 @@ class _MembershipScreenState extends State<MembershipScreen>
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (context, _, __) => _themedBuild(context),
+    return ListenableBuilder(
+      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      builder: (context, _) => _themedBuild(context),
     );
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/screens/nutrition/calorie_tracker_screen.dart';
 
 /// Nutrition tab: hosts the [CalorieTrackerCard] on a scrollable page.
@@ -8,9 +9,9 @@ class NutritionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (context, _, __) => Scaffold(
+    return ListenableBuilder(
+      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      builder: (context, _) => Scaffold(
         backgroundColor: HunterTheme.background,
         resizeToAvoidBottomInset: true,
         appBar: AppBar(

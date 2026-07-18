@@ -2,21 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hunter_ascend/core/theme/theme_service.dart';
 
 /// Read-only list of the hunter's past duels and their outcomes.
 class DuelHistoryScreen extends StatelessWidget {
   const DuelHistoryScreen({super.key});
 
-  static Color get _bg => HunterTheme.background;
-  static Color get _card => HunterTheme.cardColor;
-  static Color get _blue => HunterTheme.primary;
-  static Color get _blueDim => HunterTheme.border;
-  static Color get _border => HunterTheme.border;
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (context, _, __) => _themedBuild(context),
+    return ListenableBuilder(
+      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      builder: (context, _) => _themedBuild(context),
     );
   }
 
@@ -24,9 +20,9 @@ class DuelHistoryScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: HunterTheme.background,
       appBar: AppBar(
-        backgroundColor: _bg,
+        backgroundColor: HunterTheme.background,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new, color: HunterTheme.textSecondary, size: 20),
@@ -46,7 +42,7 @@ class DuelHistoryScreen extends StatelessWidget {
             TextSpan(
               text: "HISTORY",
               style: TextStyle(
-                color: _blue,
+                color: HunterTheme.primary,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1,
@@ -57,7 +53,7 @@ class DuelHistoryScreen extends StatelessWidget {
         centerTitle: true,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: _border),
+          child: Container(height: 1, color: HunterTheme.border),
         ),
       ),
       body: FutureBuilder<QuerySnapshot>(
@@ -68,9 +64,36 @@ class DuelHistoryScreen extends StatelessWidget {
             .limit(20)
             .get(),
         builder: (context, snapshot) {
+          // ── Error state ──
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, color: HunterTheme.danger, size: 48),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Failed to load duel history',
+                      style: TextStyle(color: HunterTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Check your connection and try again.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: HunterTheme.textTertiary, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // ── Loading state ──
           if (!snapshot.hasData) {
             return Center(
-              child: CircularProgressIndicator(color: _blue),
+              child: CircularProgressIndicator(color: HunterTheme.primary),
             );
           }
 
@@ -96,11 +119,11 @@ class DuelHistoryScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: _blueDim,
+                      color: HunterTheme.border,
                       shape: BoxShape.circle,
-                      border: Border.all(color: _border, width: 1.5),
+                      border: Border.all(color: HunterTheme.border, width: 1.5),
                     ),
-                    child: Icon(Icons.sports_kabaddi, color: _blue, size: 40),
+                    child: Icon(Icons.sports_kabaddi, color: HunterTheme.primary, size: 40),
                   ),
                   const SizedBox(height: 20),
                   Text(
@@ -149,10 +172,10 @@ class DuelHistoryScreen extends StatelessWidget {
                   const SizedBox(width: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(20)),
+                    decoration: BoxDecoration(color: HunterTheme.border, borderRadius: BorderRadius.circular(20)),
                     child: Text(
                       "${myDuels.length}",
-                      style: TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: HunterTheme.primary, fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ]),
@@ -204,7 +227,7 @@ class DuelHistoryScreen extends StatelessWidget {
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: _card,
+                      color: HunterTheme.cardColor,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: accentColor.withOpacity(
@@ -285,7 +308,7 @@ class DuelHistoryScreen extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
         decoration: BoxDecoration(
-          color: _card,
+          color: HunterTheme.cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: color.withOpacity(0.3), width: 1.2),
         ),

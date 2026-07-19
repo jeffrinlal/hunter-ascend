@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/widgets/dashboard/steps_card.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
+import 'package:hunter_ascend/services/milestone_service.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -330,6 +331,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         }
         if (!mounted) return;
         setState(() => todaySteps = todayCount);
+        // Check for step milestone celebrations.
+        MilestoneService.checkStepMilestones(context, todayCount);
       },
       onError: (error) => debugPrint("\u274c Step counter error: $error"),
       cancelOnError: false,

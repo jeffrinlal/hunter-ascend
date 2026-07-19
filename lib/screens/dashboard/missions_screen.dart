@@ -11,6 +11,7 @@ import 'package:hunter_ascend/services/ai_quest_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/widgets/dashboard/sleep_card.dart';
 import 'package:hunter_ascend/widgets/dashboard/sleep_ambience_picker.dart';
+import 'package:hunter_ascend/widgets/dashboard/sleep_summary_dialog.dart';
 import 'package:hunter_ascend/screens/dashboard/sleep_start_screen.dart';
 import 'package:hunter_ascend/services/sleep_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
@@ -1199,23 +1200,7 @@ class _MissionsScreenState extends State<MissionsScreen> {
     final result = await SleepService.instance.stopSleep();
     if (!mounted || result == null) return;
 
-    final hours = result.durationMinutes ~/ 60;
-    final mins = result.durationMinutes % 60;
-    final durationStr = hours > 0 ? '${hours}h ${mins}m' : '${mins}m';
-
-    if (result.xpAwarded > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(
-          '\ud83c\udf19 Sleep complete! $durationStr \u2022 +${result.xpAwarded} XP${result.leveledUp ? ' \ud83c\udf89 LEVEL UP!' : ''}',
-        )),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(
-          '\ud83c\udf19 Sleep tracked: $durationStr \u2022 ${result.durationMinutes < 240 ? 'Need 4+ hours for XP' : 'Already rewarded today'}',
-        )),
-      );
-    }
+    SleepSummaryDialog.show(context, result);
   }
 
   Widget _themedBuild(BuildContext context) {

@@ -372,6 +372,23 @@ class _MembershipScreenState extends State<MembershipScreen>
                       _Header(),
                       const SizedBox(height: 24),
                       _CurrentPlanBanner(membership: membership),
+                      const SizedBox(height: 16),
+
+                      // ── Basic Mode Toggle ──
+                      if (membership.actualTier != MembershipTier.basic)
+                        _BasicModeToggle(
+                          isBasicMode: membership.isBasicModeActive,
+                          actualTierName: membership.actualTier == MembershipTier.max ? 'Max' : 'Pro',
+                          onToggle: () async {
+                            if (membership.isBasicModeActive) {
+                              await membership.disableBasicMode();
+                            } else {
+                              await membership.enableBasicMode();
+                            }
+                            if (mounted) setState(() {});
+                          },
+                        ),
+
                       const SizedBox(height: 28),
 
                       // ── Basic Card ──
@@ -632,6 +649,72 @@ class _CurrentPlanBanner extends StatelessWidget {
           ]),
         ],
       ]),
+    );
+  }
+}
+
+
+/// Toggle button for Basic Mode override.
+class _BasicModeToggle extends StatelessWidget {
+  const _BasicModeToggle({
+    required this.isBasicMode,
+    required this.actualTierName,
+    required this.onToggle,
+  });
+
+  final bool isBasicMode;
+  final String actualTierName;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isBasicMode ? HunterTheme.primary : HunterTheme.textSecondary;
+
+    return GestureDetector(
+      onTap: onToggle,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isBasicMode ? Icons.toggle_on_rounded : Icons.toggle_off_rounded,
+              color: color,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isBasicMode ? 'Switch Back to $actualTierName' : 'Use Basic Mode',
+                    style: TextStyle(
+                      color: HunterTheme.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isBasicMode
+                        ? 'Restore your $actualTierName membership experience.'
+                        : 'Temporarily use the app as a Basic user.',
+                    style: TextStyle(
+                      color: HunterTheme.textTertiary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

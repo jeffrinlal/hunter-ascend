@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// The membership tiers supported by Hunter Ascend.
 ///
@@ -193,6 +194,21 @@ class MembershipService {
   /// re-expired membership (with a different expiry) triggers the dialog.
   DateTime? _lastShownExpiryTimestamp;
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Basic Mode Override
+  //
+  // Allows a Pro/Max hunter to temporarily experience the app as Basic
+  // (ads shown, premium features hidden) without modifying their actual
+  // membership or expiry. Persisted across app restarts.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  static const String _basicModePrefsKey = 'membership_basic_mode_override';
+
+  /// When true, [_effectiveTier] returns Basic even if the actual membership
+  /// is Pro/Max and not expired. Cleared automatically if the membership
+  /// actually expires (no longer meaningful to override).
+  bool _basicModeOverride = false;
+
   /// Whether a successful load has completed at least once this session.
   bool _hasLoaded = false;
 
@@ -243,6 +259,7 @@ class MembershipService {
   /// active subscription rather than throwing.
   Future<void> loadMembership() async {
     if (_hasLoaded) return;
+    await _loadBasicModeOverride();
     await _fetchAndCache();
     _ensureListening();
   }
@@ -272,6 +289,7 @@ class MembershipService {
     _hasLoaded = false;
     _pendingFetch = null;
     _lastShownExpiryTimestamp = null;
+    _basicModeOverride = false;
     tierNotifier.value = MembershipTier.basic;
   }
 
@@ -408,6 +426,14 @@ class MembershipService {
       if (_lastShownExpiryTimestamp != _membershipExpiry) {
         _lastExpiredTier = _tier;
       }
+      // Clear Basic Mode override — membership has actually expired, so
+      // the override is no longer meaningful (user is already Basic).
+      if (_basicModeOverride) {
+        _basicModeOverride = false;
+        SharedPreferences.getInstance().then((prefs) {
+          prefs.setBool(_basicModePrefsKey, false);
+        });
+      }
     }
   }
 
@@ -439,11 +465,17 @@ class MembershipService {
   MembershipFeatures get _features => MembershipFeatures.forTier(_effectiveTier);
 
   /// The effective tier: if the stored tier is premium but expired,
-  /// this returns Basic. Otherwise returns the stored tier.
+  /// this returns Basic. If Basic Mode override is active (and membership
+  /// is still valid), this also returns Basic. Otherwise returns the stored tier.
   /// All public getters use this — never [_tier] directly.
   MembershipTier get _effectiveTier {
+    // Expired membership → always Basic (regardless of override).
     if (_tier != MembershipTier.basic && _membershipExpiry != null &&
         _membershipExpiry!.isBefore(DateTime.now())) {
+      return MembershipTier.basic;
+    }
+    // Basic Mode override active → treat as Basic.
+    if (_basicModeOverride && _tier != MembershipTier.basic) {
       return MembershipTier.basic;
     }
     return _tier;
@@ -506,6 +538,51 @@ class MembershipService {
   /// `null` when there is no subscription or no expiry has been set (e.g.
   /// Basic tier, or a Pro/Max grant with no expiry configured).
   DateTime? get membershipExpiry => _membershipExpiry;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Basic Mode Override — Public API
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Whether the Basic Mode override is currently active.
+  ///
+  /// When true, the app behaves as Basic even though the user holds a valid
+  /// Pro/Max membership. The actual membership and expiry are unchanged.
+  bool get isBasicModeActive => _basicModeOverride && _tier != MembershipTier.basic;
+
+  /// The user's actual (non-overridden) membership tier. Returns the real
+  /// tier even while Basic Mode is active. Returns Basic if expired.
+  MembershipTier get actualTier {
+    if (_tier != MembershipTier.basic && _membershipExpiry != null &&
+        _membershipExpiry!.isBefore(DateTime.now())) {
+      return MembershipTier.basic;
+    }
+    return _tier;
+  }
+
+  /// Enables Basic Mode: the app will behave as Basic until [disableBasicMode]
+  /// is called or the membership actually expires.
+  Future<void> enableBasicMode() async {
+    if (_tier == MembershipTier.basic) return; // No-op for Basic users.
+    _basicModeOverride = true;
+    _notifyIfChanged();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_basicModePrefsKey, true);
+  }
+
+  /// Disables Basic Mode: restores the user's actual Pro/Max experience.
+  Future<void> disableBasicMode() async {
+    _basicModeOverride = false;
+    _notifyIfChanged();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_basicModePrefsKey, false);
+  }
+
+  /// Loads the persisted Basic Mode override state from SharedPreferences.
+  /// Called once during [loadMembership].
+  Future<void> _loadBasicModeOverride() async {
+    final prefs = await SharedPreferences.getInstance();
+    _basicModeOverride = prefs.getBool(_basicModePrefsKey) ?? false;
+  }
 
   /// Whether a membership expiration was detected on the most recent load.
   ///

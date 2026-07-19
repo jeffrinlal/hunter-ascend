@@ -11,6 +11,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/services/milestone_service.dart';
 
 /// Live 1v1 duel screen: shows progress, countdown, and result for [duelId].
 class DuelScreen extends StatefulWidget {
@@ -224,6 +225,17 @@ class _DuelScreenState extends State<DuelScreen> {
       // A tie leaves winnerUid empty — skip updateDuelStats to avoid doc('').
       if (completedDuel != null && winnerUid.isNotEmpty) {
         await updateDuelStats(completedDuel!, winnerUid);
+
+        // Celebrate if the local hunter won.
+        final localUid = FirebaseAuth.instance.currentUser?.uid;
+        if (winnerUid == localUid && mounted) {
+          MilestoneService.show(
+            context,
+            type: MilestoneType.duelVictory,
+            title: 'Duel Victory!',
+            subtitle: 'Another hunter has fallen. Victory is yours.',
+          );
+        }
       }
     } catch (e) {
       debugPrint("autoCompleteDuel: $e");

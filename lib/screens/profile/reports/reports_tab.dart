@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
+import 'package:hunter_ascend/services/membership_service.dart';
 
 import 'models/report_data.dart';
 import 'services/report_service.dart';
@@ -53,7 +54,9 @@ class ReportsTab extends StatefulWidget {
 }
 
 class _ReportsTabState extends State<ReportsTab> {
-  bool get _premium => ReportMembership.isPremium(widget.hunterData);
+  bool get _premium =>
+      ReportMembership.isPremium(widget.hunterData) &&
+      !MembershipService.instance.isBasicModeActive;
 
   @override
   Widget build(BuildContext context) {

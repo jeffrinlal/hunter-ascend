@@ -1132,8 +1132,19 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         todaySteps: todaySteps,
                         waterIntakeMl: waterIntakeMl,
                         waterGoalMl: waterGoalMl,
-                        quickActions: _buildQuickActions(),
-                        waterCard: _buildWaterCard(),
+                        selectedCupSize: selectedCupSize,
+                        onAddWater: _addWater,
+                        onRemoveWater: _removeWater,
+                        onSetCupSize: _setCupSize,
+                        onEditWaterGoal: _showWaterGoalSheet,
+                        onNutritionTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const NutritionScreen()),
+                        ),
+                        onMapTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MapScreen()),
+                        ),
                         onNotificationTap: () => _showNotificationDialog(),
                       );
                     }
@@ -1143,8 +1154,19 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         todaySteps: todaySteps,
                         waterIntakeMl: waterIntakeMl,
                         waterGoalMl: waterGoalMl,
-                        quickActions: _buildQuickActions(),
-                        waterCard: _buildWaterCard(),
+                        selectedCupSize: selectedCupSize,
+                        onAddWater: _addWater,
+                        onRemoveWater: _removeWater,
+                        onSetCupSize: _setCupSize,
+                        onEditWaterGoal: _showWaterGoalSheet,
+                        onNutritionTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const NutritionScreen()),
+                        ),
+                        onMapTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MapScreen()),
+                        ),
                         onNotificationTap: () => _showNotificationDialog(),
                       );
                     }

@@ -70,6 +70,21 @@ void main() async {
 
         await createHunterProfile();
         await MembershipService.instance.loadMembership();
+        // TEMP DEBUG (membership investigation) — prints the exact state of
+        // MembershipService immediately after the startup load completes,
+        // so it can be compared against the raw Firestore value and against
+        // what HomeDashboardScreen/ProfileScreen see later. Remove once the
+        // Basic Mode override hypothesis is confirmed or ruled out.
+        debugPrint(
+          'main(): MembershipService AFTER loadMembership() — '
+          'storedTier=${MembershipService.instance.storedTier} '
+          'actualTier=${MembershipService.instance.actualTier} '
+          'isBasicModeActive=${MembershipService.instance.isBasicModeActive} '
+          'isBasic=${MembershipService.instance.isBasic} '
+          'isPro=${MembershipService.instance.isPro} '
+          'isMax=${MembershipService.instance.isMax} '
+          'isLoaded=${MembershipService.instance.isLoaded}',
+        );
         await MobileAds.instance.initialize();
 
         final prefs = await SharedPreferences.getInstance();

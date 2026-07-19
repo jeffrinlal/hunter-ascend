@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hunter_ascend/services/xp_service.dart';
 
@@ -117,11 +117,10 @@ class SleepService {
 
     final endTime = DateTime.now();
     final duration = endTime.difference(_startTime!);
-    final minutes = duration.inMinutes;
+    final minutes = duration.inMinutes.clamp(0, 1440); // Cap at 24h; ignore negative (clock changes).
 
     // Reset state.
     _active = false;
-    final startTimeCopy = _startTime;
     _startTime = null;
     _selectedAmbience = null;
     _selectedAmbienceDuration = null;

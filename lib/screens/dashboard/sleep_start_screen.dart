@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/services/sleep_service.dart';
 
 /// Immersive full-screen animation shown briefly when a sleep session begins.

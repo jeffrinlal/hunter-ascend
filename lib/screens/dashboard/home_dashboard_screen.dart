@@ -1126,6 +1126,15 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
                     // ── Tier-based layout selection ──
                     final membership = MembershipService.instance;
+                    // TEMP DEBUG (membership investigation) — remove once
+                    // Pro/Max layout selection is confirmed stable in the field.
+                    debugPrint(
+                      'HomeDashboardScreen: storedTier=${membership.storedTier} '
+                      'effectiveTier(isBasic/isPro/isMax)='
+                      '${membership.isBasic}/${membership.isPro}/${membership.isMax} '
+                      'isLoaded=${membership.isLoaded} '
+                      'layout=${membership.isMax ? "Max" : membership.isPro ? "Pro" : "Basic"}',
+                    );
                     if (membership.isMax) {
                       return MaxDashboardLayout(
                         hunter: hunter,

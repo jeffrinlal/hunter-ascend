@@ -223,6 +223,26 @@ class MembershipService {
   /// The UID the current snapshot listener is bound to.
   String? _listeningUid;
 
+  /// Listens to [FirebaseAuth.authStateChanges] so the membership listener
+  /// can be (re)started whenever a UID actually becomes available — not
+  /// just once at cold start.
+  ///
+  /// ## Why this exists
+  /// [loadMembership] is awaited exactly once in `main()`, before the first
+  /// frame renders. At that instant `FirebaseAuth.instance.currentUser` may
+  /// still be `null` if the persisted auth session hasn't finished
+  /// restoring yet (a real, observed race — especially right after
+  /// anonymous sign-in). When that happens, [_readFromFirestore] and
+  /// [_ensureListening] both bail out on the null UID *without* setting
+  /// [_hasLoaded], and since nothing else in the app calls [loadMembership]
+  /// or [reload] automatically, the service would otherwise stay stuck on
+  /// the Basic default — with no Firestore listener running — for the rest
+  /// of the session. Binding to auth state changes closes that race
+  /// permanently: as soon as a UID appears (or changes, e.g. login after
+  /// logout), the fetch + listener are (re)established.
+  bool _authListenerBound = false;
+  StreamSubscription<User?>? _authStateSub;
+
   // ─────────────────────────────────────────────────────────────────────────
   // Reactive notifier
   //
@@ -258,10 +278,36 @@ class MembershipService {
   /// missing, membership safely falls back to [MembershipTier.basic] with no
   /// active subscription rather than throwing.
   Future<void> loadMembership() async {
+    _bindAuthStateListener();
     if (_hasLoaded) return;
     await _loadBasicModeOverride();
     await _fetchAndCache();
     _ensureListening();
+  }
+
+  /// Binds a single, idempotent listener to [FirebaseAuth.authStateChanges]
+  /// so membership is (re)fetched and the live listener (re)started the
+  /// moment a UID becomes available or changes — instead of relying solely
+  /// on the one-shot call in `main()`, which can race with auth restoration.
+  ///
+  /// Safe to call multiple times; only binds once per app session.
+  void _bindAuthStateListener() {
+    if (_authListenerBound) return;
+    _authListenerBound = true;
+    _authStateSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user == null) {
+        // Signed out — handled explicitly by clearCache() on logout flows,
+        // but guard here too in case auth drops out from under us.
+        return;
+      }
+      if (_listeningUid == user.uid && _hasLoaded) {
+        // Already tracking this exact user — nothing to do.
+        return;
+      }
+      // New/changed UID became available — fetch once and (re)start the
+      // live listener for it.
+      unawaited(_fetchAndCache().then((_) => _ensureListening()));
+    });
   }
 
   /// Forces a fresh read of membership data from Firestore, discarding the

@@ -129,8 +129,18 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Listens to MembershipService.tierNotifier (in addition to the theme
+    // notifiers) so the membership badge, avatar frame/glow, and the
+    // "Hunter Membership" banner update immediately when the tier changes
+    // (e.g. after watching a rewarded ad, or after MembershipService's
+    // Firestore listener catches up) — not just when the HunterData
+    // StreamBuilder below happens to rebuild for an unrelated field change.
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        MembershipService.instance.tierNotifier,
+      ]),
       builder: (context, _) => _themedBuild(context),
     );
   }

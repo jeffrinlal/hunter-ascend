@@ -91,10 +91,13 @@ class SleepService {
   // ── Start Sleep ─────────────────────────────────────────────────────────
 
   /// Starts a sleep session with the selected ambience settings.
+  /// Returns immediately without changes if a session is already active.
   Future<void> startSleep({
     required SleepAmbience ambience,
     required AmbienceDuration duration,
   }) async {
+    if (_active) return; // Prevent overwriting an existing session.
+
     _active = true;
     _startTime = DateTime.now();
     _selectedAmbience = ambience;

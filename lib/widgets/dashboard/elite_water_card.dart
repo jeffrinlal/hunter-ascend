@@ -124,7 +124,7 @@ class EliteWaterCard extends StatelessWidget {
           border: Border.all(color: Colors.cyanAccent),
           boxShadow: [BoxShadow(color: Colors.cyanAccent.withOpacity(0.35), blurRadius: 6)],
         ),
-        child: const Icon(icon, color: Colors.cyanAccent, size: 16),
+        child: Icon(icon, color: Colors.cyanAccent, size: 16),
       ),
     );
   }

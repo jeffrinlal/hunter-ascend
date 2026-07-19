@@ -1134,6 +1134,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         waterGoalMl: waterGoalMl,
                         quickActions: _buildQuickActions(),
                         waterCard: _buildWaterCard(),
+                        onNotificationTap: () => _showNotificationDialog(),
                       );
                     }
                     if (membership.isPro) {
@@ -1144,6 +1145,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         waterGoalMl: waterGoalMl,
                         quickActions: _buildQuickActions(),
                         waterCard: _buildWaterCard(),
+                        onNotificationTap: () => _showNotificationDialog(),
                       );
                     }
 

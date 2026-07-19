@@ -20,6 +20,7 @@ class ProDashboardLayout extends StatelessWidget {
   final int waterGoalMl;
   final Widget quickActions;
   final Widget waterCard;
+  final VoidCallback? onNotificationTap;
 
   const ProDashboardLayout({
     super.key,
@@ -29,6 +30,7 @@ class ProDashboardLayout extends StatelessWidget {
     required this.waterGoalMl,
     required this.quickActions,
     required this.waterCard,
+    this.onNotificationTap,
   });
 
   Uint8List? _decodeAvatar(String? base64) {
@@ -52,6 +54,10 @@ class ProDashboardLayout extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ── Top Bar (notification + streak) ──
+        _TopBar(hunter: hunter, onNotificationTap: onNotificationTap),
+        const SizedBox(height: 16),
+
         // ── Premium Hero Header ──
         _PremiumHeader(hunter: hunter, accent: accent),
         const SizedBox(height: 24),
@@ -252,6 +258,57 @@ class _PremiumHeader extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+/// Shared top bar with notification icon and streak for Pro/Max layouts.
+class _TopBar extends StatelessWidget {
+  final HunterData hunter;
+  final VoidCallback? onNotificationTap;
+
+  const _TopBar({required this.hunter, this.onNotificationTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasNotif = (hunter.notificationTime ?? '').isNotEmpty;
+
+    return Row(
+      children: [
+        GestureDetector(
+          onTap: onNotificationTap,
+          child: Stack(
+            children: [
+              Icon(
+                hasNotif ? Icons.notifications_active : Icons.notifications_none,
+                color: hasNotif ? HunterTheme.primary : HunterTheme.textSecondary,
+                size: 24,
+              ),
+              if (hasNotif)
+                Positioned(
+                  right: 0, top: 0,
+                  child: Container(
+                    width: 8, height: 8,
+                    decoration: BoxDecoration(
+                      color: HunterTheme.success,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const Spacer(),
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.local_fire_department, color: Colors.orange, size: 22),
+          const SizedBox(width: 3),
+          Text(
+            '${hunter.streak}',
+            style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+        ]),
+      ],
     );
   }
 }

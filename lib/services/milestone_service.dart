@@ -217,6 +217,52 @@ class MilestoneService {
       );
     }
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Streak Milestone Celebrations
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Streak values that trigger a celebration. Add more entries to celebrate
+  /// additional milestones without changing any other code.
+  static const Map<int, String> _streakMilestones = {
+    7: 'Consistency creates champions.',
+    30: 'Your discipline is becoming a habit.',
+    100: 'Few hunters reach this level of consistency.',
+    365: 'A true Ascended Hunter.',
+  };
+
+  static const String _keyStreakMilestonesCelebrated = 'milestone_streak_celebrated';
+
+  /// Checks if [streak] matches a streak milestone and celebrates if it
+  /// hasn't been celebrated before. Safe to call on every streak update —
+  /// only triggers once per milestone (persisted via SharedPreferences).
+  static Future<void> checkStreakMilestone(BuildContext context, int streak) async {
+    if (!_streakMilestones.containsKey(streak)) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final celebrated = (prefs.getStringList(_keyStreakMilestonesCelebrated) ?? [])
+        .map((s) => int.tryParse(s) ?? 0)
+        .toSet();
+
+    if (celebrated.contains(streak)) return;
+
+    // Record before showing to prevent duplicates.
+    celebrated.add(streak);
+    await prefs.setStringList(
+      _keyStreakMilestonesCelebrated,
+      celebrated.map((m) => m.toString()).toList(),
+    );
+
+    if (!context.mounted) return;
+
+    show(
+      context,
+      type: MilestoneType.streak,
+      title: '$streak Day Streak!',
+      subtitle: _streakMilestones[streak]!,
+      icon: streak >= 365 ? Icons.emoji_events_rounded : Icons.local_fire_department_rounded,
+    );
+  }
 }
 
 class _QueuedMilestone {

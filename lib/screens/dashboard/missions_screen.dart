@@ -547,7 +547,12 @@ class _MissionsScreenState extends State<MissionsScreen> {
         }
       }
     }
-    await updateStreak(); await saveCompletedQuest(completedQuestName);
+    await updateStreak().then((newStreak) {
+      if (newStreak != null && mounted) {
+        MilestoneService.checkStreakMilestone(context, newStreak);
+      }
+    });
+    await saveCompletedQuest(completedQuestName);
 
     if (!mounted) return;
     MilestoneService.show(
@@ -565,13 +570,14 @@ class _MissionsScreenState extends State<MissionsScreen> {
     }
   }
 
-  Future<void> updateStreak() async {
+  Future<int?> updateStreak() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) return null;
     final ref = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
     final today = DateTime.now();
     final todayString = "${today.year}-${today.month}-${today.day}";
 
+    int? newStreak;
     await FirebaseFirestore.instance.runTransaction((txn) async {
       final snap = await txn.get(ref);
       final data = snap.data() ?? {};
@@ -592,7 +598,9 @@ class _MissionsScreenState extends State<MissionsScreen> {
         }
       }
       txn.update(ref, {'streak': streak, 'lastQuestDate': todayString});
+      newStreak = streak;
     });
+    return newStreak;
   }
 
 

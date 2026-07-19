@@ -77,7 +77,7 @@ class EliteWaterCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('$waterIntakeMl / $waterGoalMl ml', style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+              Text('$waterIntakeMl / $waterGoalMl ml', style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
               Row(children: [
                 _circleBtn(Icons.remove, onRemove),
                 const SizedBox(width: 8),

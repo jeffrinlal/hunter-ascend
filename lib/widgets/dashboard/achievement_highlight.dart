@@ -26,8 +26,11 @@ class AchievementHighlightRow extends StatelessWidget {
       (Icons.local_fire_department_rounded, '$streak', 'Day Streak', Colors.orange),
     ];
 
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final rowHeight = (90 * textScale).clamp(90.0, 120.0);
+
     return SizedBox(
-      height: 90,
+      height: rowHeight,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),

@@ -147,7 +147,7 @@ class _PremiumHero extends StatelessWidget {
     final avatarBytes = hunter.profilePicture != null && hunter.profilePicture!.isNotEmpty
         ? base64Decode(hunter.profilePicture!)
         : null;
-    final heroHeight = MediaQuery.of(context).size.height * 0.36;
+    final heroHeight = (MediaQuery.of(context).size.height * 0.36).clamp(220.0, 340.0);
     final hasNotif = (hunter.notificationTime ?? '').isNotEmpty;
 
     return Stack(
@@ -221,6 +221,7 @@ class _PremiumHero extends StatelessWidget {
               ),
               Text(
                 hunter.hunterName,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 15, fontWeight: FontWeight.w600),
               ),

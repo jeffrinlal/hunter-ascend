@@ -93,8 +93,8 @@ class PremiumWaterCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('$waterIntakeMl ml', style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.w800)),
-                  Text('of $waterGoalMl ml goal', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12)),
+                  Text('$waterIntakeMl ml', style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.w800), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text('of $waterGoalMl ml goal', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),

@@ -79,10 +79,10 @@ class PremiumMissionCard extends StatelessWidget {
                 Row(children: [
                   Icon(Icons.directions_walk_rounded, color: accent, size: 16),
                   const SizedBox(width: 6),
-                  Text('PREMIUM MISSION', style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
+                  Flexible(child: Text('PREMIUM MISSION', style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.4), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 ]),
                 const SizedBox(height: 6),
-                Text('$steps steps', style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.w800)),
+                Text('$steps steps', style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.w800), maxLines: 1, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 2),
                 Text(
                   complete ? '🏆 Goal Completed! +25 XP' : 'Goal: 10,000 steps',

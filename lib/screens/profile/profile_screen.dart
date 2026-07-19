@@ -164,18 +164,6 @@ class _ProfileScreenState extends State<ProfileScreen>
             );
           }
 
-          // TEMP DEBUG (membership investigation) — remove once the
-          // Profile membership badge is confirmed stable in the field.
-          debugPrint(
-            'ProfileScreen: hunter.membershipType=${hunter.membershipType} '
-            'MembershipService.storedTier=${MembershipService.instance.storedTier} '
-            'MembershipService.membershipName=${MembershipService.instance.membershipName} '
-            'MembershipService.actualTier=${MembershipService.instance.actualTier} '
-            'isBasicModeActive=${MembershipService.instance.isBasicModeActive} '
-            'isLoaded=${MembershipService.instance.isLoaded} '
-            'badgeWillUse=${MembershipService.instance.membershipName.toLowerCase()}',
-          );
-
           final hunterName     = hunter.hunterName;
           final xp             = hunter.xp;
           final level          = hunter.level;

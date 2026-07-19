@@ -57,7 +57,7 @@ class _EliteMissionCardState extends State<EliteMissionCard> with SingleTickerPr
               Row(children: [
                 Icon(Icons.bolt_rounded, color: accent, size: 16),
                 const SizedBox(width: 6),
-                Text('ELITE MISSION', style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                Flexible(child: Text('ELITE MISSION', style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 2), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 const Spacer(),
                 Text('$percent%', style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w700)),
               ]),
@@ -98,7 +98,7 @@ class _EliteMissionCardState extends State<EliteMissionCard> with SingleTickerPr
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${widget.steps} / 10,000 steps', style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
+                      Text('${widget.steps} / 10,000 steps', style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.w800), maxLines: 1, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 4),
                       Text(
                         complete ? '⚡ Mission complete — +25 XP' : 'Push further, Hunter.',

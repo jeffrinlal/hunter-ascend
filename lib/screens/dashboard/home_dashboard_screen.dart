@@ -1029,15 +1029,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
     if (!doc.exists) return;
     final data = doc.data()!;
-    // TEMP DEBUG (membership investigation) — ground-truth raw Firestore
-    // read, bypassing HunterRepository and MembershipService entirely, so
-    // the actual stored value can be compared against what each service
-    // reports. Remove once the membership pipeline is confirmed stable.
-    debugPrint(
-      'HomeDashboardScreen.loadHunterData: RAW Firestore read for uid=${user.uid} — '
-      "membershipType=${data['membershipType']} membership(legacy)=${data['membership']} "
-      "membershipExpiry=${data['membershipExpiry']}",
-    );
     if (!mounted) return;
     setState(() {
       xp = data['xp'] ?? 0;
@@ -1135,19 +1126,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
                     // ── Tier-based layout selection ──
                     final membership = MembershipService.instance;
-                    // TEMP DEBUG (membership investigation) — remove once
-                    // Pro/Max layout selection is confirmed stable in the field.
-                    debugPrint(
-                      'HomeDashboardScreen: HunterRepository.hunter.membershipType='
-                      '${hunter.membershipType} '
-                      'MembershipService.storedTier=${membership.storedTier} '
-                      'MembershipService.actualTier=${membership.actualTier} '
-                      'isBasicModeActive=${membership.isBasicModeActive} '
-                      'effectiveTier(isBasic/isPro/isMax)='
-                      '${membership.isBasic}/${membership.isPro}/${membership.isMax} '
-                      'isLoaded=${membership.isLoaded} '
-                      'layout=${membership.isMax ? "Max" : membership.isPro ? "Pro" : "Basic"}',
-                    );
                     if (membership.isMax) {
                       return MaxDashboardLayout(
                         hunter: hunter,

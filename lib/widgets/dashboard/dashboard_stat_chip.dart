@@ -18,8 +18,10 @@ class DashboardStatChipRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final rowHeight = (96 * textScale).clamp(96.0, 130.0);
     return SizedBox(
-      height: 96,
+      height: rowHeight,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),

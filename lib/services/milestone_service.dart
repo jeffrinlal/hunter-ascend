@@ -196,6 +196,27 @@ class MilestoneService {
       default: return 'Keep pushing forward!';
     }
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Level-Up Celebrations
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Enqueues a celebration for each level gained between [oldLevel] and
+  /// [newLevel]. Handles multi-level jumps by showing one dialog per level.
+  /// Call this after XpService.awardXp() returns with leveledUp == true.
+  static void celebrateLevelUps(BuildContext context, int oldLevel, int newLevel) {
+    if (newLevel <= oldLevel) return;
+
+    for (int lvl = oldLevel + 1; lvl <= newLevel; lvl++) {
+      show(
+        context,
+        type: MilestoneType.levelUp,
+        title: 'Level $lvl Reached!',
+        subtitle: 'Your strength continues to grow.',
+        icon: Icons.star_rounded,
+      );
+    }
+  }
 }
 
 class _QueuedMilestone {

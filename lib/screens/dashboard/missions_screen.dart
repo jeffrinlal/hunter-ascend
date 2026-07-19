@@ -14,6 +14,7 @@ import 'package:hunter_ascend/widgets/dashboard/sleep_ambience_picker.dart';
 import 'package:hunter_ascend/widgets/dashboard/sleep_summary_dialog.dart';
 import 'package:hunter_ascend/screens/dashboard/sleep_start_screen.dart';
 import 'package:hunter_ascend/services/sleep_service.dart';
+import 'package:hunter_ascend/services/milestone_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/xp_service.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
@@ -535,11 +536,15 @@ class _MissionsScreenState extends State<MissionsScreen> {
     });
 
     if (user != null) {
+      final oldLevel = level;
       final result = await XpService.instance.awardXp(amount: reward);
       if (result != null) {
         if (mounted) setState(() { xp = result.xp; level = result.level; });
         else { xp = result.xp; level = result.level; }
         leveledUp = result.leveledUp;
+        if (leveledUp && mounted) {
+          MilestoneService.celebrateLevelUps(context, oldLevel, result.level);
+        }
       }
     }
     await updateStreak(); await saveCompletedQuest(completedQuestName);
@@ -561,23 +566,6 @@ class _MissionsScreenState extends State<MissionsScreen> {
     );
     Future.delayed(const Duration(seconds: 1), () { if (context.mounted) Navigator.pop(context); });
 
-
-    if (leveledUp) {
-      showDialog(
-        context: context, barrierDismissible: false,
-        builder: (_) => Scaffold(
-          backgroundColor: HunterTheme.background,
-          body: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.bolt, color: _blue, size: 140),
-            const SizedBox(height: 30),
-            Text("LEVEL UP", style: TextStyle(color: _blue, fontSize: 40, fontWeight: FontWeight.bold, letterSpacing: 4)),
-            const SizedBox(height: 20),
-            Text("LEVEL $level", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 28)),
-          ])),
-        ),
-      );
-      Future.delayed(const Duration(seconds: 2), () { if (context.mounted) Navigator.pop(context); });
-    }
     } catch (e) {
       debugPrint("completeQuest: $e");
     } finally {
@@ -908,11 +896,15 @@ class _MissionsScreenState extends State<MissionsScreen> {
     });
 
     if (user != null) {
+      final oldLevel = level;
       final result = await XpService.instance.awardXp(amount: reward);
       if (result != null) {
         if (mounted) setState(() { xp = result.xp; level = result.level; });
         else { xp = result.xp; level = result.level; }
         leveledUp = result.leveledUp;
+        if (leveledUp && mounted) {
+          MilestoneService.celebrateLevelUps(context, oldLevel, result.level);
+        }
       }
       await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
         'weeklyMissions': weeklyMissions,
@@ -937,23 +929,6 @@ class _MissionsScreenState extends State<MissionsScreen> {
     );
     Future.delayed(const Duration(seconds: 1), () { if (context.mounted) Navigator.pop(context); });
 
-
-    if (leveledUp) {
-      showDialog(
-        context: context, barrierDismissible: false,
-        builder: (_) => Scaffold(
-          backgroundColor: HunterTheme.background,
-          body: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.bolt, color: _blue, size: 140),
-            const SizedBox(height: 30),
-            Text("LEVEL UP", style: TextStyle(color: _blue, fontSize: 40, fontWeight: FontWeight.bold, letterSpacing: 4)),
-            const SizedBox(height: 20),
-            Text("LEVEL $level", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 28)),
-          ])),
-        ),
-      );
-      Future.delayed(const Duration(seconds: 2), () { if (context.mounted) Navigator.pop(context); });
-    }
     } catch (e) {
       debugPrint("completeWeeklyQuest: $e");
     } finally {

@@ -27,6 +27,7 @@ class HunterDataAdapter extends TypeAdapter<HunterData> {
       height: (fields[26] as num?)?.toDouble() ?? 0,
       weight: (fields[27] as num?)?.toDouble() ?? 0,
       startingWeight: (fields[28] as num?)?.toDouble() ?? 0,
+      targetWeight: (fields[53] as num?)?.toDouble(),
       // Water tracking
       waterIntakeMl: fields[5] as int? ?? 0,
       waterIntakeDate: fields[6] as String? ?? '',
@@ -87,7 +88,7 @@ class HunterDataAdapter extends TypeAdapter<HunterData> {
   @override
   void write(BinaryWriter writer, HunterData obj) {
     writer
-      ..writeByte(53) // total number of fields
+      ..writeByte(54) // total number of fields
       // Core identity
       ..writeByte(0)..write(obj.hunterName)
       ..writeByte(1)..write(obj.xp)
@@ -98,6 +99,7 @@ class HunterDataAdapter extends TypeAdapter<HunterData> {
       ..writeByte(26)..write(obj.height)
       ..writeByte(27)..write(obj.weight)
       ..writeByte(28)..write(obj.startingWeight)
+      ..writeByte(53)..write(obj.targetWeight)
       // Water tracking
       ..writeByte(5)..write(obj.waterIntakeMl)
       ..writeByte(6)..write(obj.waterIntakeDate)

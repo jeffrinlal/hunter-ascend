@@ -25,6 +25,7 @@ import 'package:hunter_ascend/data/models/weight_entry.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'package:hunter_ascend/data/repositories/weight_repository.dart';
 import 'package:hunter_ascend/services/milestone_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// The signed-in hunter's own profile: stats, physique, history, and sharing.
 class ProfileScreen extends StatefulWidget {
@@ -164,6 +165,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           final height         = hunter.height;
           final weight         = hunter.weight;
           final startingWeight = hunter.startingWeight > 0 ? hunter.startingWeight : weight;
+          final targetWeight   = hunter.targetWeight;
 
           double bmi = 0;
           if (height > 0) bmi = weight / math.pow(height / 100, 2);
@@ -723,6 +725,83 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     ],
                                   ),
                                 ),
+                                // ── Target Weight Progress ──
+                                if (targetWeight != null && targetWeight! > 0) ...[
+                                  const SizedBox(height: 14),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: HunterTheme.primary.withOpacity(0.06),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: HunterTheme.primary.withOpacity(0.15)),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text('Target', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11, fontWeight: FontWeight.w600)),
+                                            GestureDetector(
+                                              onTap: () => _showSetTargetWeightDialog(),
+                                              child: Text('Edit', style: TextStyle(color: HunterTheme.primary, fontSize: 11, fontWeight: FontWeight.w600)),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          '${targetWeight!.toStringAsFixed(1)} kg',
+                                          style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        () {
+                                          final remaining = (weight - targetWeight!).abs();
+                                          final bool isFatLoss = targetWeight! < startingWeight;
+                                          final bool goalReached = isFatLoss ? weight <= targetWeight! : weight >= targetWeight!;
+                                          return Text(
+                                            goalReached
+                                                ? 'Goal reached!'
+                                                : '${remaining.toStringAsFixed(1)} kg to goal',
+                                            style: TextStyle(
+                                              color: goalReached ? HunterTheme.success : HunterTheme.textSecondary,
+                                              fontSize: 12,
+                                              fontWeight: goalReached ? FontWeight.w700 : FontWeight.w500,
+                                            ),
+                                          );
+                                        }(),
+                                      ],
+                                    ),
+                                  ),
+                                ] else ...[
+                                  const SizedBox(height: 14),
+                                  GestureDetector(
+                                    onTap: () => _showSetTargetWeightDialog(),
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      decoration: BoxDecoration(
+                                        color: HunterTheme.surface,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: HunterTheme.border),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.flag_outlined, color: HunterTheme.primary, size: 16),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Set Target Weight',
+                                            style: TextStyle(
+                                              color: HunterTheme.primary,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -1470,6 +1549,88 @@ class _ProfileScreenState extends State<ProfileScreen>
     } catch (e) {
       debugPrint("uploadProfilePicture: $e");
     }
+  }
+
+  void _showSetTargetWeightDialog() {
+    final controller = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          backgroundColor: HunterTheme.cardColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Set Target Weight', style: TextStyle(color: HunterTheme.textPrimary)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Enter your goal weight in kg.',
+                style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                style: TextStyle(color: HunterTheme.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Target weight (kg)',
+                  hintStyle: TextStyle(color: HunterTheme.textTertiary),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: HunterTheme.primary, width: 1),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: HunterTheme.primary, width: 2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('CANCEL', style: TextStyle(color: HunterTheme.textTertiary)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: HunterTheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () async {
+                final target = double.tryParse(controller.text);
+                if (target == null || target <= 20) return;
+
+                final user = FirebaseAuth.instance.currentUser;
+                if (user == null) return;
+
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('hunters')
+                      .doc(user.uid)
+                      .update({'targetWeight': target});
+
+                  // Reset weight goal celebration for the new target.
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('milestone_weight_goal_target_celebrated');
+
+                  if (mounted) {
+                    Navigator.pop(context);
+                    setState(() {});
+                  }
+                } catch (e) {
+                  debugPrint("setTargetWeight: $e");
+                }
+              },
+              child: const Text('SAVE', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void showUpdateWeightDialog() {

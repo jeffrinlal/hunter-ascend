@@ -473,6 +473,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
     final ageController = TextEditingController();
     final heightController = TextEditingController();
     final weightController = TextEditingController();
+    final targetWeightController = TextEditingController();
 
     late AnimationController _fadeController;
     late AnimationController _pulseController;
@@ -528,6 +529,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
         ageController.dispose();
         heightController.dispose();
         weightController.dispose();
+        targetWeightController.dispose();
         super.dispose();
     }
 
@@ -925,6 +927,23 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                 ],
                                             ),
                                         ),
+                                        const SizedBox(height: 14),
+                                        _HunterTextField(
+                                            controller: targetWeightController,
+                                            label: 'Target Weight (kg)',
+                                            icon: Icons.flag_outlined,
+                                            keyboardType: TextInputType.number,
+                                        ),
+                                        Padding(
+                                            padding: const EdgeInsets.only(top: 6),
+                                            child: Text(
+                                                'Your ideal goal weight. You can change this later.',
+                                                style: TextStyle(
+                                                    color: HunterTheme.textTertiary,
+                                                    fontSize: 10.5,
+                                                ),
+                                            ),
+                                        ),
                                         const SizedBox(height: 28),
                                         GestureDetector(
                                             onTap: () async {
@@ -1006,6 +1025,8 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                                 'height': double.parse(heightController.text),
                                                                 'weight': double.parse(weightController.text),
                                                                 'startingWeight': double.parse(weightController.text),
+                                                                if (targetWeightController.text.trim().isNotEmpty)
+                                                                  'targetWeight': double.parse(targetWeightController.text),
                                                                 'onboardingComplete': true,
                                                             });
                                                         });

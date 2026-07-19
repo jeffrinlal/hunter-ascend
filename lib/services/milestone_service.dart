@@ -266,47 +266,43 @@ class MilestoneService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Weight Goal Celebrations
+  // Weight Goal Celebration
   // ─────────────────────────────────────────────────────────────────────────
 
-  /// Weight loss milestones in kg. Celebrate each threshold once ever.
-  static const List<int> _weightLossMilestones = [5, 10, 15, 20, 25, 30];
-  static const String _keyWeightGoalCelebrated = 'milestone_weight_goal_celebrated';
+  static const String _keyWeightGoalTargetCelebrated = 'milestone_weight_goal_target_celebrated';
 
-  /// Checks if recording [newWeight] achieves a weight-loss milestone
-  /// relative to the user's starting weight. Celebrates once per milestone.
+  /// Checks if recording [newWeight] achieves the hunter's target weight.
+  /// Celebrates once per target. If the user edits their target, the
+  /// celebration state is reset (handled by the Profile edit dialog).
+  ///
+  /// Supports both fat loss (target < starting) and muscle gain (target > starting).
   static Future<void> checkWeightGoal(BuildContext context, double newWeight) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Get starting weight from HunterRepository cache (fast, synchronous).
-    // Import not needed — we read directly from SharedPreferences or use
-    // the HunterData cache if available.
-    final hunter = await _getStartingWeight();
-    if (hunter == null || hunter <= 0) return;
+    // Read targetWeight and startingWeight from cached HunterData.
+    final hunterData = _getCachedHunterData();
+    if (hunterData == null) return;
 
-    final lost = hunter - newWeight;
-    if (lost <= 0) return; // No weight lost relative to start.
+    final targetWeight = hunterData.targetWeight;
+    if (targetWeight == null || targetWeight <= 0) return;
 
-    final celebrated = (prefs.getStringList(_keyWeightGoalCelebrated) ?? [])
-        .map((s) => int.tryParse(s) ?? 0)
-        .toSet();
+    final startingWeight = hunterData.startingWeight;
+    if (startingWeight <= 0) return;
 
-    // Find the highest uncelebrated milestone reached.
-    int? newMilestone;
-    for (final milestone in _weightLossMilestones) {
-      if (lost >= milestone && !celebrated.contains(milestone)) {
-        newMilestone = milestone;
-      }
-    }
+    // Determine direction: fat loss or muscle gain.
+    final isFatLoss = targetWeight < startingWeight;
+    final goalReached = isFatLoss
+        ? newWeight <= targetWeight
+        : newWeight >= targetWeight;
 
-    if (newMilestone == null) return;
+    if (!goalReached) return;
+
+    // Check if this target has already been celebrated.
+    final celebratedTarget = prefs.getDouble(_keyWeightGoalTargetCelebrated);
+    if (celebratedTarget == targetWeight) return;
 
     // Record before showing.
-    celebrated.add(newMilestone);
-    await prefs.setStringList(
-      _keyWeightGoalCelebrated,
-      celebrated.map((m) => m.toString()).toList(),
-    );
+    await prefs.setDouble(_keyWeightGoalTargetCelebrated, targetWeight);
 
     if (!context.mounted) return;
 
@@ -314,20 +310,16 @@ class MilestoneService {
       context,
       type: MilestoneType.custom,
       title: 'Goal Achieved!',
-      subtitle: 'You\'ve lost ${newMilestone}kg. Your discipline is paying off.',
+      subtitle: 'You reached your target weight. Your discipline is paying off.',
       icon: Icons.monitor_weight_outlined,
     );
   }
 
-  /// Reads the starting weight from the cached HunterData.
-  static Future<double?> _getStartingWeight() async {
+  /// Reads the cached HunterData from Hive (avoids async/circular deps).
+  static dynamic _getCachedHunterData() {
     try {
-      // Use Hive directly to avoid circular dependency with HunterRepository.
       final box = Hive.box<dynamic>('hunter_box');
-      final cached = box.get('current');
-      if (cached == null) return null;
-      // HunterData has a startingWeight field at HiveField(28).
-      return (cached as dynamic).startingWeight as double?;
+      return box.get('current');
     } catch (_) {
       return null;
     }

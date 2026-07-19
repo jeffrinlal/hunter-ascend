@@ -31,6 +31,7 @@ class HunterData {
     this.height = 0,
     this.weight = 0,
     this.startingWeight = 0,
+    this.targetWeight,
     // ── Water tracking ──
     this.waterIntakeMl = 0,
     this.waterIntakeDate = '',
@@ -104,6 +105,7 @@ class HunterData {
   @HiveField(26) final double height;
   @HiveField(27) final double weight;
   @HiveField(28) final double startingWeight;
+  @HiveField(53) final double? targetWeight;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // WATER TRACKING
@@ -211,6 +213,7 @@ class HunterData {
       height: ((data['height'] ?? 0) as num).toDouble(),
       weight: ((data['weight'] ?? 0) as num).toDouble(),
       startingWeight: ((data['startingWeight'] ?? data['weight'] ?? 0) as num).toDouble(),
+      targetWeight: data['targetWeight'] != null ? (data['targetWeight'] as num).toDouble() : null,
       // Water tracking
       waterIntakeMl: ((data['waterIntakeMl'] ?? 0) as num).toInt(),
       waterIntakeDate: (data['waterIntakeDate'] ?? '').toString(),
@@ -282,6 +285,7 @@ class HunterData {
       'height': height,
       'weight': weight,
       'startingWeight': startingWeight,
+      if (targetWeight != null) 'targetWeight': targetWeight,
       'waterIntakeMl': waterIntakeMl,
       'waterIntakeDate': waterIntakeDate,
       'selectedCupSize': selectedCupSize,
@@ -335,6 +339,7 @@ class HunterData {
     double? height,
     double? weight,
     double? startingWeight,
+    double? targetWeight,
     int? waterIntakeMl,
     String? waterIntakeDate,
     int? selectedCupSize,
@@ -390,6 +395,7 @@ class HunterData {
       height: height ?? this.height,
       weight: weight ?? this.weight,
       startingWeight: startingWeight ?? this.startingWeight,
+      targetWeight: targetWeight ?? this.targetWeight,
       waterIntakeMl: waterIntakeMl ?? this.waterIntakeMl,
       waterIntakeDate: waterIntakeDate ?? this.waterIntakeDate,
       selectedCupSize: selectedCupSize ?? this.selectedCupSize,

@@ -1,25 +1,37 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
-import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/widgets/dashboard/animated_xp_ring.dart';
+import 'package:hunter_ascend/widgets/dashboard/dashboard_stat_chip.dart';
 import 'package:hunter_ascend/widgets/dashboard/dashboard_stats_grid.dart';
-import 'package:hunter_ascend/widgets/dashboard/steps_card.dart';
-import 'package:hunter_ascend/widgets/glass/glass_card.dart';
+import 'package:hunter_ascend/widgets/dashboard/entrance_fade_slide.dart';
+import 'package:hunter_ascend/widgets/dashboard/premium_mission_card.dart';
+import 'package:hunter_ascend/widgets/dashboard/premium_quick_actions.dart';
+import 'package:hunter_ascend/widgets/dashboard/premium_water_card.dart';
 
 /// Premium Dashboard layout for Pro members.
 ///
-/// Purely presentational — all data is passed in from the parent
-/// HomeDashboardScreen which owns the business logic and streams.
+/// Structurally distinct from the Basic dashboard: a large curved hero
+/// (~38% of screen height) with a hunter avatar floating inside a large
+/// animated XP ring that overlaps the hero's bottom edge, a horizontally
+/// scrollable quick-actions row, floating stat chips, and redesigned
+/// mission/water cards. All values (xp, level, steps, water, streak) are
+/// passed in from the parent screen, which owns every Firestore
+/// read/write and business-logic calculation — this widget only decides
+/// how those values are laid out and styled.
 class ProDashboardLayout extends StatelessWidget {
   final HunterData hunter;
   final int todaySteps;
   final int waterIntakeMl;
   final int waterGoalMl;
-  final Widget quickActions;
-  final Widget waterCard;
+  final int selectedCupSize;
+  final VoidCallback onAddWater;
+  final VoidCallback onRemoveWater;
+  final ValueChanged<int> onSetCupSize;
+  final VoidCallback onEditWaterGoal;
+  final VoidCallback onNutritionTap;
+  final VoidCallback onMapTap;
   final VoidCallback? onNotificationTap;
 
   const ProDashboardLayout({
@@ -28,22 +40,22 @@ class ProDashboardLayout extends StatelessWidget {
     required this.todaySteps,
     required this.waterIntakeMl,
     required this.waterGoalMl,
-    required this.quickActions,
-    required this.waterCard,
+    required this.selectedCupSize,
+    required this.onAddWater,
+    required this.onRemoveWater,
+    required this.onSetCupSize,
+    required this.onEditWaterGoal,
+    required this.onNutritionTap,
+    required this.onMapTap,
     this.onNotificationTap,
   });
-
-  Uint8List? _decodeAvatar(String? base64) {
-    if (base64 == null || base64.isEmpty) return null;
-    return base64Decode(base64);
-  }
 
   String _rankTitle(int level) {
     if (level >= 30) return 'S RANK';
     if (level >= 20) return 'A RANK';
     if (level >= 15) return 'B RANK';
     if (level >= 10) return 'C RANK';
-    if (level >= 5)  return 'D RANK';
+    if (level >= 5) return 'D RANK';
     return 'E RANK';
   }
 
@@ -54,260 +66,192 @@ class ProDashboardLayout extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Top Bar (notification + streak) ──
-        _TopBar(hunter: hunter, onNotificationTap: onNotificationTap),
-        const SizedBox(height: 16),
+        EntranceFadeSlide(
+          child: _PremiumHero(
+            hunter: hunter,
+            accent: accent,
+            rankTitle: _rankTitle(hunter.level),
+            onNotificationTap: onNotificationTap,
+          ),
+        ),
+        const SizedBox(height: 52), // Reserves space for the floating avatar/ring overlap.
 
-        // ── Premium Hero Header ──
-        _PremiumHeader(hunter: hunter, accent: accent),
-        const SizedBox(height: 24),
+        EntranceFadeSlide(
+          delay: const Duration(milliseconds: 90),
+          child: PremiumQuickActions(onNutritionTap: onNutritionTap, onMapTap: onMapTap),
+        ),
+        const SizedBox(height: 20),
 
-        // ── XP Progress Section ──
-        GlassCard(
-          child: Row(
-            children: [
-              AnimatedXpRing(xp: hunter.xp, level: hunter.level, size: 100),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Level ${hunter.level}',
-                      style: TextStyle(
-                        color: HunterTheme.textPrimary,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _rankTitle(hunter.level),
-                      style: TextStyle(
-                        color: accent,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${hunter.xp} / 500 XP to next level',
-                      style: TextStyle(
-                        color: HunterTheme.textTertiary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+        EntranceFadeSlide(
+          delay: const Duration(milliseconds: 140),
+          child: Text(
+            "TODAY'S PROGRESS",
+            style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.5),
+          ),
+        ),
+        const SizedBox(height: 12),
+        EntranceFadeSlide(
+          delay: const Duration(milliseconds: 160),
+          child: DashboardStatChipRow(
+            stats: [
+              DashboardStat(label: 'Steps', value: '$todaySteps', icon: Icons.directions_walk_rounded, color: HunterTheme.primary),
+              DashboardStat(label: 'Streak', value: '${hunter.streak}d', icon: Icons.local_fire_department_rounded, color: Colors.orange),
+              DashboardStat(label: 'Daily XP', value: '${hunter.dailyXp}', icon: Icons.bolt_rounded, color: HunterTheme.gold),
+              DashboardStat(label: 'Water', value: '${(waterIntakeMl / 1000).toStringAsFixed(1)}L', icon: Icons.water_drop_rounded, color: Colors.cyan),
             ],
           ),
         ),
         const SizedBox(height: 20),
 
-        // ── Today's Progress ──
-        Text(
-          "TODAY'S PROGRESS",
-          style: TextStyle(
-            color: HunterTheme.textSecondary,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.5,
+        EntranceFadeSlide(
+          delay: const Duration(milliseconds: 200),
+          child: PremiumMissionCard(steps: todaySteps),
+        ),
+        const SizedBox(height: 16),
+
+        EntranceFadeSlide(
+          delay: const Duration(milliseconds: 240),
+          child: PremiumWaterCard(
+            waterIntakeMl: waterIntakeMl,
+            waterGoalMl: waterGoalMl,
+            selectedCupSize: selectedCupSize,
+            onAdd: onAddWater,
+            onRemove: onRemoveWater,
+            onSetCupSize: onSetCupSize,
+            onEditGoal: onEditWaterGoal,
           ),
         ),
-        const SizedBox(height: 12),
-        DashboardStatsGrid(
-          stats: [
-            DashboardStat(
-              label: 'Steps',
-              value: '$todaySteps',
-              icon: Icons.directions_walk_rounded,
-              color: HunterTheme.primary,
-            ),
-            DashboardStat(
-              label: 'Streak',
-              value: '${hunter.streak} days',
-              icon: Icons.local_fire_department_rounded,
-              color: Colors.orange,
-            ),
-            DashboardStat(
-              label: 'Daily XP',
-              value: '${hunter.dailyXp}',
-              icon: Icons.bolt_rounded,
-              color: HunterTheme.gold,
-            ),
-            DashboardStat(
-              label: 'Water',
-              value: '${(waterIntakeMl / 1000).toStringAsFixed(1)}L',
-              icon: Icons.water_drop_rounded,
-              color: Colors.cyan,
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-
-        // ── Steps Card ──
-        StepsCard(steps: todaySteps),
-        const SizedBox(height: 16),
-
-        // ── Quick Actions ──
-        quickActions,
-        const SizedBox(height: 16),
-
-        // ── Water Card ──
-        waterCard,
       ],
     );
   }
 }
 
-/// Premium header with gradient background, avatar, and PRO badge.
-class _PremiumHeader extends StatelessWidget {
+/// Large curved premium hero (~38% of screen height) with the hunter's
+/// avatar floating inside a large animated XP ring that overlaps the
+/// hero's rounded bottom edge.
+class _PremiumHero extends StatelessWidget {
   final HunterData hunter;
   final Color accent;
+  final String rankTitle;
+  final VoidCallback? onNotificationTap;
 
-  const _PremiumHeader({required this.hunter, required this.accent});
+  const _PremiumHero({
+    required this.hunter,
+    required this.accent,
+    required this.rankTitle,
+    this.onNotificationTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final avatarBytes = hunter.profilePicture != null && hunter.profilePicture!.isNotEmpty
         ? base64Decode(hunter.profilePicture!)
         : null;
+    final heroHeight = MediaQuery.of(context).size.height * 0.36;
+    final hasNotif = (hunter.notificationTime ?? '').isNotEmpty;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            accent.withOpacity(0.12),
-            HunterTheme.cardColor,
-          ],
-        ),
-        border: Border.all(color: accent.withOpacity(0.25)),
-      ),
-      child: Row(
-        children: [
-          // Avatar
-          Container(
-            width: 64, height: 64,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: accent, width: 2.5),
-              boxShadow: [BoxShadow(color: accent.withOpacity(0.3), blurRadius: 12)],
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        Container(
+          width: double.infinity,
+          height: heroHeight,
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 40),
+          decoration: BoxDecoration(
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(48),
+              bottomRight: Radius.circular(48),
             ),
-            child: avatarBytes != null
-                ? ClipOval(child: Image.memory(avatarBytes, fit: BoxFit.cover, width: 64, height: 64))
-                : Center(child: Icon(Icons.person, color: accent, size: 32)),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                accent.withOpacity(0.85),
+                HunterTheme.primary.withOpacity(0.75),
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(color: accent.withOpacity(0.35), blurRadius: 30, offset: const Offset(0, 12)),
+            ],
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.22),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withOpacity(0.5)),
+                    ),
+                    child: const Text(
+                      'PRO MEMBER',
+                      style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.4),
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: onNotificationTap,
+                    child: Icon(
+                      hasNotif ? Icons.notifications_active : Icons.notifications_none,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  Icon(Icons.military_tech_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 6),
+                  Text(
+                    rankTitle,
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1.5),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'LEVEL ${hunter.level}',
+                style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w900),
+              ),
+              Text(
+                hunter.hunterName,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          bottom: -46,
+          child: SizedBox(
+            width: 128,
+            height: 128,
+            child: Stack(
+              alignment: Alignment.center,
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        hunter.hunterName,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: HunterTheme.textPrimary,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: accent.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: accent.withOpacity(0.4)),
-                      ),
-                      child: Text(
-                        'PRO',
-                        style: TextStyle(
-                          color: accent,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.local_fire_department, color: Colors.orange, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${hunter.streak} day streak',
-                      style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12),
-                    ),
-                  ],
+                AnimatedXpRing(xp: hunter.xp, level: hunter.level, size: 128, accentColor: accent),
+                Container(
+                  width: 84,
+                  height: 84,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: HunterTheme.cardColor,
+                    border: Border.all(color: accent, width: 2.5),
+                  ),
+                  child: avatarBytes != null
+                      ? ClipOval(child: Image.memory(avatarBytes, fit: BoxFit.cover, width: 84, height: 84))
+                      : Center(child: Icon(Icons.person, color: accent, size: 40)),
                 ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-
-/// Shared top bar with notification icon and streak for Pro/Max layouts.
-class _TopBar extends StatelessWidget {
-  final HunterData hunter;
-  final VoidCallback? onNotificationTap;
-
-  const _TopBar({required this.hunter, this.onNotificationTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final hasNotif = (hunter.notificationTime ?? '').isNotEmpty;
-
-    return Row(
-      children: [
-        GestureDetector(
-          onTap: onNotificationTap,
-          child: Stack(
-            children: [
-              Icon(
-                hasNotif ? Icons.notifications_active : Icons.notifications_none,
-                color: hasNotif ? HunterTheme.primary : HunterTheme.textSecondary,
-                size: 24,
-              ),
-              if (hasNotif)
-                Positioned(
-                  right: 0, top: 0,
-                  child: Container(
-                    width: 8, height: 8,
-                    decoration: BoxDecoration(
-                      color: HunterTheme.success,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-            ],
-          ),
         ),
-        const Spacer(),
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.local_fire_department, color: Colors.orange, size: 22),
-          const SizedBox(width: 3),
-          Text(
-            '${hunter.streak}',
-            style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ]),
       ],
     );
   }

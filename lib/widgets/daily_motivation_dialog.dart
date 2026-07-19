@@ -29,9 +29,14 @@ const List<String> _quotes = [
 class DailyMotivationDialog extends StatefulWidget {
   const DailyMotivationDialog({super.key});
 
-  /// Shows the dialog if the daily reward hasn't been claimed yet.
-  /// Returns without showing anything if already claimed.
+  /// Shows the dialog if the daily reward hasn't been claimed yet
+  /// and the current time is between 5:00 AM and 11:59 AM (local).
+  /// Returns without showing anything if already claimed or outside the window.
   static Future<void> showIfEligible(BuildContext context) async {
+    // Morning-only: 5:00 AM to 11:59 AM local time.
+    final hour = DateTime.now().hour;
+    if (hour < 5 || hour >= 12) return;
+
     await DailyRewardService.instance.initialize();
     if (!DailyRewardService.instance.shouldShowReward) return;
     if (!context.mounted) return;
@@ -106,14 +111,14 @@ class _DailyMotivationDialogState extends State<DailyMotivationDialog> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    HunterTheme.primary.withOpacity(0.2),
-                    HunterTheme.gold.withOpacity(0.15),
+                    HunterTheme.gold.withOpacity(0.2),
+                    HunterTheme.primary.withOpacity(0.12),
                   ],
                 ),
-                border: Border.all(color: HunterTheme.primary.withOpacity(0.4)),
+                border: Border.all(color: HunterTheme.gold.withOpacity(0.4)),
               ),
               child: Icon(
-                Icons.wb_sunny_rounded,
+                Icons.wb_twilight_rounded,
                 color: HunterTheme.gold,
                 size: 36,
               ),
@@ -122,7 +127,7 @@ class _DailyMotivationDialogState extends State<DailyMotivationDialog> {
 
             // ── Title ──
             Text(
-              'Good Morning, Hunter',
+              'Good Morning, Hunter!',
               style: TextStyle(
                 color: HunterTheme.textPrimary,
                 fontSize: 20,
@@ -162,25 +167,40 @@ class _DailyMotivationDialogState extends State<DailyMotivationDialog> {
             ),
             const SizedBox(height: 20),
 
-            // ── Reward info ──
+            // ── Reward Section ──
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: HunterTheme.success.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: HunterTheme.success.withOpacity(0.3)),
+                color: HunterTheme.success.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: HunterTheme.success.withOpacity(0.25)),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              child: Column(
                 children: [
-                  Icon(Icons.bolt, color: HunterTheme.success, size: 18),
-                  const SizedBox(width: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.card_giftcard_rounded, color: HunterTheme.gold, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Daily Hunter Reward',
+                        style: TextStyle(
+                          color: HunterTheme.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   Text(
-                    'Daily Hunter Reward: +${DailyRewardService.rewardXp} XP',
+                    '+${DailyRewardService.rewardXp} XP',
                     style: TextStyle(
                       color: HunterTheme.success,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ],
@@ -216,13 +236,22 @@ class _DailyMotivationDialogState extends State<DailyMotivationDialog> {
                           strokeWidth: 2, color: Colors.white,
                         ),
                       )
-                    : Text(
-                        _claimed ? 'CLAIMED!' : 'CLAIM REWARD',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          letterSpacing: 1,
-                        ),
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (!_claimed) ...[
+                            const Icon(Icons.card_giftcard_rounded, size: 18),
+                            const SizedBox(width: 8),
+                          ],
+                          Text(
+                            _claimed ? 'CLAIMED!' : 'CLAIM REWARD',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ],
                       ),
               ),
             ),

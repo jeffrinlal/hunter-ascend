@@ -9,6 +9,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hunter_ascend/services/ai_quest_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
+import 'package:hunter_ascend/widgets/dashboard/sleep_card.dart';
+import 'package:hunter_ascend/widgets/dashboard/sleep_ambience_picker.dart';
+import 'package:hunter_ascend/screens/dashboard/sleep_start_screen.dart';
+import 'package:hunter_ascend/services/sleep_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/xp_service.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
@@ -268,6 +272,9 @@ class _MissionsScreenState extends State<MissionsScreen> {
     _restoreDashboardActiveQuest();
     _loadWeeklyMissions();
     _restoreWeeklyActiveQuest();
+
+    // Initialize sleep mission state.
+    SleepService.instance.initialize();
   }
 
   @override
@@ -1159,6 +1166,58 @@ class _MissionsScreenState extends State<MissionsScreen> {
     );
   }
 
+  // ── Sleep Mission ─────────────────────────────────────────
+  void _onSleepStartTap() async {
+    final selection = await SleepAmbiencePicker.show(context);
+    if (selection == null || !mounted) return;
+
+    await SleepService.instance.startSleep(
+      ambience: selection.ambience,
+      duration: selection.duration,
+    );
+
+    if (!mounted) return;
+
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        opaque: true,
+        pageBuilder: (_, __, ___) => SleepStartScreen(
+          ambience: selection.ambience,
+          duration: selection.duration,
+        ),
+        transitionsBuilder: (_, animation, __, child) => FadeTransition(
+          opacity: animation,
+          child: child,
+        ),
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+    );
+  }
+
+  Future<void> _onSleepStopTap() async {
+    final result = await SleepService.instance.stopSleep();
+    if (!mounted || result == null) return;
+
+    final hours = result.durationMinutes ~/ 60;
+    final mins = result.durationMinutes % 60;
+    final durationStr = hours > 0 ? '${hours}h ${mins}m' : '${mins}m';
+
+    if (result.xpAwarded > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          '\ud83c\udf19 Sleep complete! $durationStr \u2022 +${result.xpAwarded} XP${result.leveledUp ? ' \ud83c\udf89 LEVEL UP!' : ''}',
+        )),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          '\ud83c\udf19 Sleep tracked: $durationStr \u2022 ${result.durationMinutes < 240 ? 'Need 4+ hours for XP' : 'Already rewarded today'}',
+        )),
+      );
+    }
+  }
+
   Widget _themedBuild(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
@@ -1168,6 +1227,11 @@ class _MissionsScreenState extends State<MissionsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const SizedBox(height: 16),
+              SleepCard(
+                onStartTap: _onSleepStartTap,
+                onStopTap: _onSleepStopTap,
+              ),
               const SizedBox(height: 16),
               if (questStarted) _buildActiveQuestCard(),
               _buildQuestsSection(),

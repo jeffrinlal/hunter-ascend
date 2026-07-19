@@ -4,10 +4,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/widgets/dashboard/steps_card.dart';
-import 'package:hunter_ascend/widgets/dashboard/sleep_card.dart';
-import 'package:hunter_ascend/widgets/dashboard/sleep_ambience_picker.dart';
-import 'package:hunter_ascend/screens/dashboard/sleep_start_screen.dart';
-import 'package:hunter_ascend/services/sleep_service.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -168,9 +164,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     });
 
     _loadWaterIntake();
-
-    // Initialize sleep mission state.
-    SleepService.instance.initialize();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkForAppUpdate();
@@ -1105,60 +1098,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     );
   }
 
-  // ── Sleep Mission ─────────────────────────────────────────
-  void _onSleepStartTap() async {
-    final selection = await SleepAmbiencePicker.show(context);
-    if (selection == null || !mounted) return;
-
-    // Start the sleep session.
-    await SleepService.instance.startSleep(
-      ambience: selection.ambience,
-      duration: selection.duration,
-    );
-
-    if (!mounted) return;
-
-    // Show immersive animation.
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        opaque: true,
-        pageBuilder: (_, __, ___) => SleepStartScreen(
-          ambience: selection.ambience,
-          duration: selection.duration,
-        ),
-        transitionsBuilder: (_, animation, __, child) => FadeTransition(
-          opacity: animation,
-          child: child,
-        ),
-        transitionDuration: const Duration(milliseconds: 400),
-      ),
-    );
-  }
-
-  Future<void> _onSleepStopTap() async {
-    final result = await SleepService.instance.stopSleep();
-    if (!mounted || result == null) return;
-
-    final hours = result.durationMinutes ~/ 60;
-    final mins = result.durationMinutes % 60;
-    final durationStr = hours > 0 ? '${hours}h ${mins}m' : '${mins}m';
-
-    if (result.xpAwarded > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(
-          '\ud83c\udf19 Sleep complete! $durationStr \u2022 +${result.xpAwarded} XP${result.leveledUp ? ' \ud83c\udf89 LEVEL UP!' : ''}',
-        )),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(
-          '\ud83c\udf19 Sleep tracked: $durationStr \u2022 ${result.durationMinutes < 240 ? 'Need 4+ hours for XP' : 'Already rewarded today'}',
-        )),
-      );
-    }
-  }
-
   Widget _themedBuild(BuildContext context) {
     final stream = HunterRepository.instance.watch();
     final cached = HunterRepository.instance.getCached();
@@ -1187,11 +1126,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         _buildHunterCard(hunter),
                         const SizedBox(height: 16),
                         StepsCard(steps: todaySteps),
-                        const SizedBox(height: 16),
-                        SleepCard(
-                          onStartTap: _onSleepStartTap,
-                          onStopTap: _onSleepStopTap,
-                        ),
                         const SizedBox(height: 16),
                         _buildQuickActions(),
                         const SizedBox(height: 16),

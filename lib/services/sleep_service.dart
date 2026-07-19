@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hunter_ascend/services/xp_service.dart';
 
 /// Ambience options for the sleep mission.
-enum SleepAmbience { rain, ocean, forest, campfire, whiteNoise, nightCrickets }
+enum SleepAmbience { none, rain, ocean, forest, campfire, whiteNoise, nightCrickets }
 
 /// Duration options for ambience playback.
 enum AmbienceDuration { thirtyMin, fortyFiveMin, sixtyMin, untilStopped }
@@ -36,6 +36,8 @@ class SleepService {
   static const String _keyAmbience = 'sleep_ambience';
   static const String _keyAmbienceDuration = 'sleep_ambience_duration';
   static const String _keyLastRewardDate = 'sleep_last_reward_date';
+  static const String _keyLastChosenAmbience = 'sleep_last_chosen_ambience';
+  static const String _keyLastChosenDuration = 'sleep_last_chosen_duration';
 
   // ── State ───────────────────────────────────────────────────────────────
   bool _active = false;
@@ -53,6 +55,22 @@ class SleepService {
   DateTime? get startTime => _startTime;
   SleepAmbience? get selectedAmbience => _selectedAmbience;
   AmbienceDuration? get selectedAmbienceDuration => _selectedAmbienceDuration;
+
+  /// The user's last chosen ambience (persisted). Defaults to [SleepAmbience.none].
+  SleepAmbience _lastChosenAmbience = SleepAmbience.none;
+  AmbienceDuration _lastChosenDuration = AmbienceDuration.thirtyMin;
+
+  SleepAmbience get lastChosenAmbience => _lastChosenAmbience;
+  AmbienceDuration get lastChosenDuration => _lastChosenDuration;
+
+  /// Saves the user's ambience/duration choice for next time.
+  Future<void> saveLastChoice(SleepAmbience ambience, AmbienceDuration duration) async {
+    _lastChosenAmbience = ambience;
+    _lastChosenDuration = duration;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_keyLastChosenAmbience, ambience.index);
+    await prefs.setInt(_keyLastChosenDuration, duration.index);
+  }
 
   /// Whether the user has already been rewarded today.
   bool get hasRewardedToday {
@@ -85,6 +103,15 @@ class SleepService {
         ? AmbienceDuration.values[durationIndex]
         : null;
     _lastRewardDate = prefs.getString(_keyLastRewardDate);
+    // Load last chosen ambience/duration preferences.
+    final lastAmbienceIdx = prefs.getInt(_keyLastChosenAmbience);
+    _lastChosenAmbience = lastAmbienceIdx != null && lastAmbienceIdx < SleepAmbience.values.length
+        ? SleepAmbience.values[lastAmbienceIdx]
+        : SleepAmbience.none;
+    final lastDurationIdx = prefs.getInt(_keyLastChosenDuration);
+    _lastChosenDuration = lastDurationIdx != null && lastDurationIdx < AmbienceDuration.values.length
+        ? AmbienceDuration.values[lastDurationIdx]
+        : AmbienceDuration.thirtyMin;
     stateNotifier.value = _active;
   }
 
@@ -205,6 +232,7 @@ class SleepService {
   /// Human-readable ambience name.
   static String ambienceName(SleepAmbience ambience) {
     switch (ambience) {
+      case SleepAmbience.none: return 'No Ambience';
       case SleepAmbience.rain: return 'Rain';
       case SleepAmbience.ocean: return 'Ocean';
       case SleepAmbience.forest: return 'Forest';
@@ -217,6 +245,7 @@ class SleepService {
   /// Icon for an ambience type.
   static IconData ambienceIcon(SleepAmbience ambience) {
     switch (ambience) {
+      case SleepAmbience.none: return Icons.volume_off_outlined;
       case SleepAmbience.rain: return Icons.water_drop_outlined;
       case SleepAmbience.ocean: return Icons.waves_outlined;
       case SleepAmbience.forest: return Icons.park_outlined;

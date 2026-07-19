@@ -12,7 +12,7 @@ class AmbienceSelection {
 /// Bottom sheet that lets the user pick an ambience sound and playback
 /// duration before starting the Sleep Mission.
 ///
-/// Returns an [AmbienceSelection] if confirmed, or null if dismissed.
+/// Returns an [AmbienceSelection] if confirmed or skipped, or null if dismissed.
 class SleepAmbiencePicker extends StatefulWidget {
   const SleepAmbiencePicker({super.key});
 
@@ -31,11 +31,38 @@ class SleepAmbiencePicker extends StatefulWidget {
 }
 
 class _SleepAmbiencePickerState extends State<SleepAmbiencePicker> {
-  SleepAmbience _selectedAmbience = SleepAmbience.rain;
-  AmbienceDuration _selectedDuration = AmbienceDuration.thirtyMin;
+  late SleepAmbience _selectedAmbience;
+  late AmbienceDuration _selectedDuration;
+
+  @override
+  void initState() {
+    super.initState();
+    // Preselect the user's last choice.
+    _selectedAmbience = SleepService.instance.lastChosenAmbience;
+    _selectedDuration = SleepService.instance.lastChosenDuration;
+  }
+
+  void _confirm() {
+    SleepService.instance.saveLastChoice(_selectedAmbience, _selectedDuration);
+    Navigator.pop(context, AmbienceSelection(
+      ambience: _selectedAmbience,
+      duration: _selectedDuration,
+    ));
+  }
+
+  void _skip() {
+    // Start immediately with no ambience.
+    SleepService.instance.saveLastChoice(SleepAmbience.none, _selectedDuration);
+    Navigator.pop(context, const AmbienceSelection(
+      ambience: SleepAmbience.none,
+      duration: AmbienceDuration.untilStopped,
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
+    final showDuration = _selectedAmbience != SleepAmbience.none;
+
     return Container(
       decoration: BoxDecoration(
         color: HunterTheme.cardColor,
@@ -63,18 +90,32 @@ class _SleepAmbiencePickerState extends State<SleepAmbiencePicker> {
           Row(children: [
             Icon(Icons.nights_stay_outlined, color: const Color(0xFF6C63FF), size: 22),
             const SizedBox(width: 10),
-            Text(
-              'Sleep Ambience',
-              style: TextStyle(
-                color: HunterTheme.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            Expanded(
+              child: Text(
+                'Sleep Ambience',
+                style: TextStyle(
+                  color: HunterTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            // Skip button
+            GestureDetector(
+              onTap: _skip,
+              child: Text(
+                'Skip',
+                style: TextStyle(
+                  color: HunterTheme.primary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ]),
           const SizedBox(height: 6),
           Text(
-            'Choose a soundscape and duration to help you drift off.',
+            'Choose a soundscape or skip to start immediately.',
             style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12, height: 1.3),
           ),
           const SizedBox(height: 20),
@@ -95,36 +136,33 @@ class _SleepAmbiencePickerState extends State<SleepAmbiencePicker> {
             runSpacing: 10,
             children: SleepAmbience.values.map((a) => _ambienceChip(a)).toList(),
           ),
-          const SizedBox(height: 22),
 
-          // ── Duration ──
-          Text(
-            'PLAYBACK DURATION',
-            style: TextStyle(
-              color: HunterTheme.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.5,
+          // ── Duration (hidden when No Ambience) ──
+          if (showDuration) ...[
+            const SizedBox(height: 22),
+            Text(
+              'PLAYBACK DURATION',
+              style: TextStyle(
+                color: HunterTheme.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.5,
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: AmbienceDuration.values.map((d) => _durationChip(d)).toList(),
-          ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: AmbienceDuration.values.map((d) => _durationChip(d)).toList(),
+            ),
+          ],
           const SizedBox(height: 24),
 
           // ── Confirm ──
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context, AmbienceSelection(
-                  ambience: _selectedAmbience,
-                  duration: _selectedDuration,
-                ));
-              },
+              onPressed: _confirm,
               icon: const Icon(Icons.bedtime, size: 20),
               label: const Text(
                 'BEGIN SLEEP',
@@ -179,7 +217,6 @@ class _SleepAmbiencePickerState extends State<SleepAmbiencePicker> {
 
   Widget _durationChip(AmbienceDuration duration) {
     final selected = _selectedDuration == duration;
-    final color = selected ? const Color(0xFF6C63FF) : HunterTheme.textSecondary;
 
     return GestureDetector(
       onTap: () => setState(() => _selectedDuration = duration),

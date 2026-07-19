@@ -168,7 +168,8 @@ class _SleepCardState extends State<SleepCard> {
               'Started at ${_formatTime(SleepService.instance.startTime!)}',
               style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12),
             ),
-            if (SleepService.instance.selectedAmbience != null) ...[
+            if (SleepService.instance.selectedAmbience != null &&
+                SleepService.instance.selectedAmbience != SleepAmbience.none) ...[
               const SizedBox(width: 14),
               Icon(
                 SleepService.ambienceIcon(SleepService.instance.selectedAmbience!),

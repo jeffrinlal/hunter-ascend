@@ -174,21 +174,22 @@ class _SleepStartScreenState extends State<SleepStartScreen>
                           ),
                         ),
                         const SizedBox(height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              SleepService.ambienceIcon(widget.ambience),
-                              color: Colors.white.withOpacity(0.4),
-                              size: 16,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '${SleepService.ambienceName(widget.ambience)} \u2022 ${SleepService.durationLabel(widget.duration)}',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.35),
-                                fontSize: 12,
+                        if (widget.ambience != SleepAmbience.none)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                SleepService.ambienceIcon(widget.ambience),
+                                color: Colors.white.withOpacity(0.4),
+                                size: 16,
                               ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${SleepService.ambienceName(widget.ambience)} \u2022 ${SleepService.durationLabel(widget.duration)}',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.35),
+                                  fontSize: 12,
+                                ),
                             ),
                           ],
                         ),

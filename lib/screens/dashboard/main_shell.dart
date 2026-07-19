@@ -12,6 +12,7 @@ import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/screens/profile/membership_screen.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
+import 'package:hunter_ascend/widgets/daily_motivation_dialog.dart';
 
 /// Persistent shell hosting the main app screens behind a bottom NavigationBar.
 /// Tabs: Home (Dashboard), Quests, Leaderboard, Duels, Profile.
@@ -82,6 +83,7 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
     // Check for membership expiration after the first frame renders.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkMembershipExpired();
+      _showDailyMotivation();
     });
   }
 
@@ -172,6 +174,16 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
         ),
       ),
     );
+  }
+
+  /// Shows the daily morning motivation dialog if the user hasn't
+  /// claimed today's reward yet.
+  void _showDailyMotivation() {
+    // Slight delay so the membership dialog (if any) appears first.
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      DailyMotivationDialog.showIfEligible(context);
+    });
   }
 
   late final List<Widget> _tabs = [

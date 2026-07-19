@@ -123,10 +123,25 @@ class MilestoneService {
   static const String _keyStepMilestonesDate = 'milestone_step_date';
   static const String _keyStepMilestonesCelebrated = 'milestone_step_celebrated';
 
+  /// The previous step count seen this session. `null` means this is the
+  /// first update after app startup — we record it without celebrating.
+  static int? _previousStepCount;
+
   /// Checks if any step milestones should be celebrated for [stepCount].
-  /// Celebrates only once per milestone per calendar day.
+  /// Celebrates only when the user CROSSES a threshold (previousSteps < milestone
+  /// AND currentSteps >= milestone). Does NOT trigger on app restore if already
+  /// above a milestone. Celebrates only once per milestone per calendar day.
   /// Does NOT award XP — the existing 10k step reward is unchanged.
   static Future<void> checkStepMilestones(BuildContext context, int stepCount) async {
+    final previous = _previousStepCount;
+    _previousStepCount = stepCount;
+
+    // First update after startup — record baseline, don't celebrate.
+    if (previous == null) return;
+
+    // No forward progress — nothing to check.
+    if (stepCount <= previous) return;
+
     final today = DateTime.now().toString().substring(0, 10);
     final prefs = await SharedPreferences.getInstance();
 
@@ -143,9 +158,9 @@ class MilestoneService {
           .toSet();
     }
 
-    // Find new milestones reached.
+    // Find new milestones crossed (previous < milestone <= current).
     for (final milestone in stepMilestones) {
-      if (stepCount >= milestone && !celebrated.contains(milestone)) {
+      if (previous < milestone && stepCount >= milestone && !celebrated.contains(milestone)) {
         celebrated.add(milestone);
         await prefs.setStringList(
           _keyStepMilestonesCelebrated,

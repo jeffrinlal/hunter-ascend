@@ -24,6 +24,7 @@ import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/models/weight_entry.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'package:hunter_ascend/data/repositories/weight_repository.dart';
+import 'package:hunter_ascend/services/milestone_service.dart';
 
 /// The signed-in hunter's own profile: stats, physique, history, and sharing.
 class ProfileScreen extends StatefulWidget {
@@ -1540,6 +1541,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                   if (mounted) {
                     Navigator.pop(context);
                     setState(() {});
+                    // Check for weight goal milestone.
+                    MilestoneService.checkWeightGoal(context, weight);
                   }
                 } catch (e) {
                   debugPrint("updateWeight: $e");

@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hunter_ascend/widgets/milestone_celebration_dialog.dart';
 
@@ -262,6 +263,74 @@ class MilestoneService {
       subtitle: _streakMilestones[streak]!,
       icon: streak >= 365 ? Icons.emoji_events_rounded : Icons.local_fire_department_rounded,
     );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Weight Goal Celebrations
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Weight loss milestones in kg. Celebrate each threshold once ever.
+  static const List<int> _weightLossMilestones = [5, 10, 15, 20, 25, 30];
+  static const String _keyWeightGoalCelebrated = 'milestone_weight_goal_celebrated';
+
+  /// Checks if recording [newWeight] achieves a weight-loss milestone
+  /// relative to the user's starting weight. Celebrates once per milestone.
+  static Future<void> checkWeightGoal(BuildContext context, double newWeight) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Get starting weight from HunterRepository cache (fast, synchronous).
+    // Import not needed — we read directly from SharedPreferences or use
+    // the HunterData cache if available.
+    final hunter = await _getStartingWeight();
+    if (hunter == null || hunter <= 0) return;
+
+    final lost = hunter - newWeight;
+    if (lost <= 0) return; // No weight lost relative to start.
+
+    final celebrated = (prefs.getStringList(_keyWeightGoalCelebrated) ?? [])
+        .map((s) => int.tryParse(s) ?? 0)
+        .toSet();
+
+    // Find the highest uncelebrated milestone reached.
+    int? newMilestone;
+    for (final milestone in _weightLossMilestones) {
+      if (lost >= milestone && !celebrated.contains(milestone)) {
+        newMilestone = milestone;
+      }
+    }
+
+    if (newMilestone == null) return;
+
+    // Record before showing.
+    celebrated.add(newMilestone);
+    await prefs.setStringList(
+      _keyWeightGoalCelebrated,
+      celebrated.map((m) => m.toString()).toList(),
+    );
+
+    if (!context.mounted) return;
+
+    show(
+      context,
+      type: MilestoneType.custom,
+      title: 'Goal Achieved!',
+      subtitle: 'You\'ve lost ${newMilestone}kg. Your discipline is paying off.',
+      icon: Icons.monitor_weight_outlined,
+    );
+  }
+
+  /// Reads the starting weight from the cached HunterData.
+  static Future<double?> _getStartingWeight() async {
+    try {
+      // Use Hive directly to avoid circular dependency with HunterRepository.
+      final box = Hive.box<dynamic>('hunter_box');
+      final cached = box.get('current');
+      if (cached == null) return null;
+      // HunterData has a startingWeight field at HiveField(28).
+      return (cached as dynamic).startingWeight as double?;
+    } catch (_) {
+      return null;
+    }
   }
 }
 

@@ -760,7 +760,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                           final bool goalReached = isFatLoss ? weight <= targetWeight! : weight >= targetWeight!;
                                           return Text(
                                             goalReached
-                                                ? 'Goal reached!'
+                                                ? '\ud83c\udfaf Goal Reached'
                                                 : '${remaining.toStringAsFixed(1)} kg to goal',
                                             style: TextStyle(
                                               color: goalReached ? HunterTheme.success : HunterTheme.textSecondary,

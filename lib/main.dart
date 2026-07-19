@@ -491,6 +491,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
     String? _ageError;
     String? _heightError;
     String? _weightError;
+    String? _targetWeightError;
 
     @override
     void initState() {
@@ -500,6 +501,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
         ageController.addListener(_validateAge);
         heightController.addListener(_validateHeight);
         weightController.addListener(_validateWeight);
+        targetWeightController.addListener(_validateTargetWeight);
 
         _fadeController = AnimationController(
             vsync: this,
@@ -614,6 +616,20 @@ class _AssessmentScreenState extends State<AssessmentScreen>
             }
         }
         if (error != _weightError) setState(() => _weightError = error);
+    }
+
+    void _validateTargetWeight() {
+        final text = targetWeightController.text.trim();
+        String? error;
+        if (text.isEmpty) {
+            error = 'Target weight is required';
+        } else {
+            final w = double.tryParse(text);
+            if (w == null || w < 20 || w > 300) {
+                error = 'Enter a valid weight (20\u2013300 kg)';
+            }
+        }
+        if (error != _targetWeightError) setState(() => _targetWeightError = error);
     }
 
     @override
@@ -934,6 +950,25 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                             icon: Icons.flag_outlined,
                                             keyboardType: TextInputType.number,
                                         ),
+                                        if (_targetWeightError != null)
+                                            Padding(
+                                                padding: const EdgeInsets.only(top: 6),
+                                                child: Row(
+                                                    children: [
+                                                        Icon(Icons.error_outline,
+                                                            color: HunterTheme.danger, size: 13),
+                                                        const SizedBox(width: 6),
+                                                        Text(
+                                                            _targetWeightError!,
+                                                            style: TextStyle(
+                                                                color: HunterTheme.danger,
+                                                                fontSize: 11,
+                                                                fontWeight: FontWeight.w600,
+                                                            ),
+                                                        ),
+                                                    ],
+                                                ),
+                                            ),
                                         Padding(
                                             padding: const EdgeInsets.only(top: 6),
                                             child: Text(
@@ -951,12 +986,14 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                 _validateAge();
                                                 _validateHeight();
                                                 _validateWeight();
+                                                _validateTargetWeight();
 
                                                 final nameEmpty = nameController.text.trim().isEmpty;
                                                 final hasErrors = nameEmpty ||
                                                     _ageError != null ||
                                                     _heightError != null ||
-                                                    _weightError != null;
+                                                    _weightError != null ||
+                                                    _targetWeightError != null;
 
                                                 if (hasErrors) {
                                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -1025,8 +1062,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                                 'height': double.parse(heightController.text),
                                                                 'weight': double.parse(weightController.text),
                                                                 'startingWeight': double.parse(weightController.text),
-                                                                if (targetWeightController.text.trim().isNotEmpty)
-                                                                  'targetWeight': double.parse(targetWeightController.text),
+                                                                'targetWeight': double.parse(targetWeightController.text),
                                                                 'onboardingComplete': true,
                                                             });
                                                         });

@@ -271,15 +271,15 @@ class MilestoneService {
 
   static const String _keyWeightGoalTargetCelebrated = 'milestone_weight_goal_target_celebrated';
 
-  /// Checks if recording [newWeight] achieves the hunter's target weight.
-  /// Celebrates once per target. If the user edits their target, the
-  /// celebration state is reset (handled by the Profile edit dialog).
+  /// Checks if recording [newWeight] crosses the hunter's target weight.
+  /// Celebrates once per target. Only triggers when the user CROSSES the
+  /// threshold (previous weight was on the other side of the target).
   ///
   /// Supports both fat loss (target < starting) and muscle gain (target > starting).
   static Future<void> checkWeightGoal(BuildContext context, double newWeight) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Read targetWeight and startingWeight from cached HunterData.
+    // Read targetWeight, startingWeight, and current (previous) weight from cache.
     final hunterData = _getCachedHunterData();
     if (hunterData == null) return;
 
@@ -289,13 +289,24 @@ class MilestoneService {
     final startingWeight = hunterData.startingWeight;
     if (startingWeight <= 0) return;
 
+    // The cached weight is the PREVIOUS weight (before this recording).
+    final previousWeight = hunterData.weight;
+    if (previousWeight <= 0) return;
+
     // Determine direction: fat loss or muscle gain.
     final isFatLoss = targetWeight < startingWeight;
-    final goalReached = isFatLoss
-        ? newWeight <= targetWeight
-        : newWeight >= targetWeight;
 
-    if (!goalReached) return;
+    // Check if the user just CROSSED the target.
+    final bool crossed;
+    if (isFatLoss) {
+      // Previous was above target, new is at or below.
+      crossed = previousWeight > targetWeight && newWeight <= targetWeight;
+    } else {
+      // Previous was below target, new is at or above.
+      crossed = previousWeight < targetWeight && newWeight >= targetWeight;
+    }
+
+    if (!crossed) return;
 
     // Check if this target has already been celebrated.
     final celebratedTarget = prefs.getDouble(_keyWeightGoalTargetCelebrated);

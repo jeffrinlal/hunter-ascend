@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/widgets/dashboard/steps_card.dart';
+import 'package:hunter_ascend/widgets/dashboard/pro_dashboard_layout.dart';
+import 'package:hunter_ascend/widgets/dashboard/max_dashboard_layout.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:hunter_ascend/services/milestone_service.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -1121,6 +1123,31 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   builder: (context, snap) {
                     final hunter = snap.data;
                     if (hunter == null) return buildDashboardSkeleton();
+
+                    // ── Tier-based layout selection ──
+                    final membership = MembershipService.instance;
+                    if (membership.isMax) {
+                      return MaxDashboardLayout(
+                        hunter: hunter,
+                        todaySteps: todaySteps,
+                        waterIntakeMl: waterIntakeMl,
+                        waterGoalMl: waterGoalMl,
+                        quickActions: _buildQuickActions(),
+                        waterCard: _buildWaterCard(),
+                      );
+                    }
+                    if (membership.isPro) {
+                      return ProDashboardLayout(
+                        hunter: hunter,
+                        todaySteps: todaySteps,
+                        waterIntakeMl: waterIntakeMl,
+                        waterGoalMl: waterGoalMl,
+                        quickActions: _buildQuickActions(),
+                        waterCard: _buildWaterCard(),
+                      );
+                    }
+
+                    // ── Basic (default) layout ──
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

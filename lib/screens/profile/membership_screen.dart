@@ -556,25 +556,38 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// Displays the hunter's current membership tier with expiry countdown.
+/// Displays the hunter's ACTUAL (owned) membership tier with expiry countdown.
+/// Uses [actualTier] so that Basic Mode override does not affect the
+/// ownership information shown here.
 class _CurrentPlanBanner extends StatelessWidget {
   const _CurrentPlanBanner({required this.membership});
   final MembershipService membership;
 
   Color _badgeColor() {
-    if (membership.isMax) return HunterTheme.purple;
-    if (membership.isPro) return HunterTheme.gold;
+    final tier = membership.actualTier;
+    if (tier == MembershipTier.max) return HunterTheme.purple;
+    if (tier == MembershipTier.pro) return HunterTheme.gold;
     return HunterTheme.textSecondary;
   }
 
   IconData _badgeIcon() {
-    if (membership.isMax) return Icons.auto_awesome_rounded;
-    if (membership.isPro) return Icons.workspace_premium_rounded;
+    final tier = membership.actualTier;
+    if (tier == MembershipTier.max) return Icons.auto_awesome_rounded;
+    if (tier == MembershipTier.pro) return Icons.workspace_premium_rounded;
     return Icons.shield_outlined;
   }
 
+  String _tierName() {
+    final tier = membership.actualTier;
+    switch (tier) {
+      case MembershipTier.max: return 'Max';
+      case MembershipTier.pro: return 'Pro';
+      case MembershipTier.basic: return 'Basic';
+    }
+  }
+
   String? _expiryCountdown() {
-    if (membership.isBasic) return null;
+    if (membership.actualTier == MembershipTier.basic) return null;
     final expiry = membership.membershipExpiry;
     if (expiry == null) return null;
     final now = DateTime.now();
@@ -592,10 +605,10 @@ class _CurrentPlanBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final badgeColor = _badgeColor();
-    // In the rewarded-ad model, "active" means: has premium tier AND expiry
-    // is in the future. subscriptionActive is a legacy field not used here.
+    final tier = membership.actualTier;
+    final bool hasPremium = tier != MembershipTier.basic;
     final expiry = membership.membershipExpiry;
-    final isActive = membership.hasPremium &&
+    final isActive = hasPremium &&
         expiry != null &&
         expiry.isAfter(DateTime.now());
     final countdown = _expiryCountdown();
@@ -626,7 +639,7 @@ class _CurrentPlanBanner extends StatelessWidget {
               Icon(_badgeIcon(), color: badgeColor, size: 15),
               const SizedBox(width: 6),
               Text(
-                '${membership.membershipName.toUpperCase()} ${isActive ? "ACTIVE" : ""}',
+                '${_tierName().toUpperCase()} ${isActive ? "ACTIVE" : ""}',
                 style: TextStyle(color: badgeColor, fontSize: 12,
                     fontWeight: FontWeight.w800, letterSpacing: 0.5),
               ),
@@ -636,7 +649,7 @@ class _CurrentPlanBanner extends StatelessWidget {
           if (isActive) Container(width: 8, height: 8,
               decoration: BoxDecoration(shape: BoxShape.circle, color: HunterTheme.success)),
         ]),
-        if (membership.hasPremium && countdown != null) ...[
+        if (hasPremium && countdown != null) ...[
           const SizedBox(height: 14),
           Row(children: [
             Icon(Icons.timer_outlined, color: HunterTheme.textTertiary, size: 14),
@@ -673,7 +686,7 @@ class _BasicModeToggle extends StatelessWidget {
     return GestureDetector(
       onTap: onToggle,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: color.withOpacity(0.08),
           borderRadius: BorderRadius.circular(12),
@@ -692,24 +705,46 @@ class _BasicModeToggle extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isBasicMode ? 'Switch Back to $actualTierName' : 'Use Basic Mode',
+                    isBasicMode
+                        ? 'Basic Mode Active'
+                        : 'Use Basic Mode',
                     style: TextStyle(
                       color: HunterTheme.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 3),
                   Text(
                     isBasicMode
-                        ? 'Restore your $actualTierName membership experience.'
+                        ? 'You\'re temporarily using the Basic experience.'
                         : 'Temporarily use the app as a Basic user.',
                     style: TextStyle(
                       color: HunterTheme.textTertiary,
-                      fontSize: 11,
+                      fontSize: 11.5,
+                      height: 1.3,
                     ),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isBasicMode ? HunterTheme.primary.withOpacity(0.12) : HunterTheme.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isBasicMode ? HunterTheme.primary.withOpacity(0.4) : HunterTheme.border,
+                ),
+              ),
+              child: Text(
+                isBasicMode ? 'Switch Back' : 'Enable',
+                style: TextStyle(
+                  color: isBasicMode ? HunterTheme.primary : HunterTheme.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],

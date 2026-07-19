@@ -1,7 +1,11 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/constants/app_constants.dart';
+import 'package:hunter_ascend/services/ads_service.dart';
 import 'package:hunter_ascend/services/daily_reward_service.dart';
+import 'package:hunter_ascend/services/membership_service.dart';
 
 /// Motivational quotes displayed in the daily morning dialog.
 const List<String> _quotes = [
@@ -56,11 +60,36 @@ class _DailyMotivationDialogState extends State<DailyMotivationDialog> {
   bool _isClaiming = false;
   bool _claimed = false;
   late final String _quote;
+  BannerAd? _bannerAd;
+  bool _isBannerReady = false;
 
   @override
   void initState() {
     super.initState();
     _quote = _quotes[Random().nextInt(_quotes.length)];
+    _loadBannerAd();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
+  }
+
+  void _loadBannerAd() {
+    if (!MembershipService.instance.showBannerAds) return;
+
+    _bannerAd = AdsService.createBannerAd(
+      adUnitId: AppConstants.dashboardBannerAdUnitId,
+      onAdLoaded: (ad) {
+        if (mounted) setState(() => _isBannerReady = true);
+      },
+      onAdFailedToLoad: (ad, error) {
+        ad.dispose();
+        _bannerAd = null;
+      },
+    );
+    _bannerAd!.load();
   }
 
   Future<void> _claim() async {
@@ -207,6 +236,18 @@ class _DailyMotivationDialogState extends State<DailyMotivationDialog> {
               ),
             ),
             const SizedBox(height: 24),
+
+            // ── Banner Ad (Basic users only) ──
+            if (_isBannerReady && _bannerAd != null) ...[
+              Center(
+                child: SizedBox(
+                  width: _bannerAd!.size.width.toDouble(),
+                  height: _bannerAd!.size.height.toDouble(),
+                  child: AdWidget(ad: _bannerAd!),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // ── Claim Button ──
             SizedBox(

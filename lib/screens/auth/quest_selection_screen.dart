@@ -394,11 +394,65 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                               if (_isGenerating) return;
                               _isGenerating = true;
                               try {
+
+                              // ── Goal-direction validation ──
+                              final uid = FirebaseAuth.instance.currentUser!.uid;
+                              final hunterDoc = await FirebaseFirestore.instance
+                                  .collection('hunters').doc(uid).get();
+                              final hunterData = hunterDoc.data() ?? {};
+                              final currentWeight = ((hunterData['weight'] ?? 0) as num).toDouble();
+                              final targetWeight = hunterData['targetWeight'] != null
+                                  ? (hunterData['targetWeight'] as num).toDouble()
+                                  : 0.0;
+
+                              if (targetWeight > 0 && mounted) {
+                                String? mismatchMessage;
+                                if (fatLoss && targetWeight >= currentWeight) {
+                                  mismatchMessage = 'Your target weight is higher than your current weight, which doesn\'t match a Fat Loss goal.\n\nWould you like to change your target weight or continue anyway?';
+                                } else if (muscleGain && targetWeight <= currentWeight) {
+                                  mismatchMessage = 'Your target weight is lower than your current weight, which doesn\'t match a Muscle Gain goal.\n\nWould you like to change your target weight or continue anyway?';
+                                }
+
+                                if (mismatchMessage != null) {
+                                  final shouldContinue = await showDialog<bool>(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (ctx) => AlertDialog(
+                                      backgroundColor: HunterTheme.cardColor,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      title: Text('Target Weight Mismatch', style: TextStyle(color: HunterTheme.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+                                      content: Text(mismatchMessage!, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 14, height: 1.5)),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(ctx, false),
+                                          child: Text('Change Target', style: TextStyle(color: HunterTheme.primary, fontWeight: FontWeight.w600)),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () => Navigator.pop(ctx, true),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: HunterTheme.primary,
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          ),
+                                          child: const Text('Continue', style: TextStyle(fontWeight: FontWeight.w600)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+
+                                  if (shouldContinue != true) {
+                                    _isGenerating = false;
+                                    if (mounted) Navigator.pop(context); // Go back to assessment screen
+                                    return;
+                                  }
+                                }
+                              }
+
+                              if (!mounted) return;
+
                               final prefs =
                               await SharedPreferences.getInstance();
                               await prefs.setBool('hasCompletedSetup', true);
-
-                              final uid = FirebaseAuth.instance.currentUser!.uid;
 
                               await FirebaseFirestore.instance
                                   .collection('hunters')

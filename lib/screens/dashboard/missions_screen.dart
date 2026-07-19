@@ -550,21 +550,13 @@ class _MissionsScreenState extends State<MissionsScreen> {
     await updateStreak(); await saveCompletedQuest(completedQuestName);
 
     if (!mounted) return;
-    showDialog(
-      context: context, barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: _card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.emoji_events, color: Colors.amber, size: 80),
-          const SizedBox(height: 20),
-          Text("MISSION COMPLETE", style: TextStyle(color: _blue, fontSize: 24, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          Text("+$questReward XP", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
-        ]),
-      ),
+    MilestoneService.show(
+      context,
+      type: MilestoneType.quest,
+      title: 'Quest Complete!',
+      subtitle: 'Excellent work, Hunter.',
+      xp: reward,
     );
-    Future.delayed(const Duration(seconds: 1), () { if (context.mounted) Navigator.pop(context); });
 
     } catch (e) {
       debugPrint("completeQuest: $e");
@@ -913,21 +905,13 @@ class _MissionsScreenState extends State<MissionsScreen> {
     }
 
     if (!mounted) return;
-    showDialog(
-      context: context, barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: _card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.emoji_events, color: Colors.amber, size: 80),
-          const SizedBox(height: 20),
-          Text("MISSION COMPLETE", style: TextStyle(color: _blue, fontSize: 24, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          Text("+$weeklyQuestReward XP", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
-        ]),
-      ),
+    MilestoneService.show(
+      context,
+      type: MilestoneType.quest,
+      title: 'Quest Complete!',
+      subtitle: 'Excellent work, Hunter.',
+      xp: reward,
     );
-    Future.delayed(const Duration(seconds: 1), () { if (context.mounted) Navigator.pop(context); });
 
     } catch (e) {
       debugPrint("completeWeeklyQuest: $e");

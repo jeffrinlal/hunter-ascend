@@ -86,7 +86,31 @@ class PublicHunterProfileScreen extends StatelessWidget {
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return Center(
-              child: CircularProgressIndicator(color: HunterTheme.primary),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 74,
+                    height: 74,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [HunterTheme.primary.withOpacity(0.16), HunterTheme.cardColor],
+                      ),
+                      border: Border.all(color: HunterTheme.primary.withOpacity(0.3)),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(22),
+                      child: CircularProgressIndicator(color: HunterTheme.primary, strokeWidth: 2.5),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text('Loading hunter...',
+                      style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                ],
+              ),
             );
           }
 
@@ -137,10 +161,22 @@ class PublicHunterProfileScreen extends StatelessWidget {
                             // Back button
                             Row(
                               children: [
-                                IconButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  icon: Icon(Icons.arrow_back_ios,
-                                      color: HunterTheme.textSecondary, size: 20),
+                                GestureDetector(
+                                  onTap: () => Navigator.pop(context),
+                                  child: Container(
+                                    width: 42,
+                                    height: 42,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: HunterTheme.cardColor,
+                                      border: Border.all(color: HunterTheme.border),
+                                      boxShadow: [
+                                        BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
+                                      ],
+                                    ),
+                                    child: Icon(Icons.arrow_back_ios_new_rounded,
+                                        color: HunterTheme.textSecondary, size: 15),
+                                  ),
                                 ),
                                 const Spacer(),
                                 // Rank pill top right
@@ -285,7 +321,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                                     Icons.bolt, 'LV.$level', HunterTheme.primary),
                                 const SizedBox(width: 10),
                                 _infoPill(Icons.local_fire_department,
-                                    '$streak DAY STREAK', Colors.orange),
+                                    '$streak DAY STREAK', HunterTheme.gold),
                                 const SizedBox(width: 10),
                                 _infoPill(Icons.star,
                                     '$xp XP', HunterTheme.success),
@@ -338,7 +374,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                       _infoRow(Icons.emoji_events, 'Total XP', '$xp XP',
                           HunterTheme.success),
                       _infoRow(Icons.local_fire_department, 'Streak',
-                          '$streak Days', Colors.orange),
+                          '$streak Days', HunterTheme.gold),
                       _infoRow(Icons.sports_kabaddi, 'Total Duels',
                           '$total', HunterTheme.primary),
 
@@ -350,12 +386,13 @@ class PublicHunterProfileScreen extends StatelessWidget {
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: HunterTheme.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                            elevation: 0,
+                            elevation: 6,
+                            shadowColor: HunterTheme.primary.withOpacity(0.4),
                           ),
                           onPressed: () {
                             Navigator.push(
@@ -367,11 +404,11 @@ class PublicHunterProfileScreen extends StatelessWidget {
                               ),
                             );
                           },
-                          icon: const Icon(Icons.compare_arrows, size: 20),
+                          icon: const Icon(Icons.compare_arrows_rounded, size: 20),
                           label: const Text(
                             'COMPARE HUNTERS',
                             style: TextStyle(
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w900,
                               letterSpacing: 1.5,
                               fontSize: 14,
                             ),
@@ -387,11 +424,11 @@ class PublicHunterProfileScreen extends StatelessWidget {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: HunterTheme.danger.withOpacity(0.12),
                             foregroundColor: HunterTheme.danger,
-                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(16),
                               side: BorderSide(
-                                  color: HunterTheme.danger, width: 1.5),
+                                  color: HunterTheme.danger.withOpacity(0.5), width: 1.5),
                             ),
                             elevation: 0,
                           ),
@@ -406,11 +443,11 @@ class PublicHunterProfileScreen extends StatelessWidget {
                               ),
                             );
                           },
-                          icon: const Icon(Icons.sports_kabaddi, size: 20),
+                          icon: const Icon(Icons.sports_kabaddi_rounded, size: 20),
                           label: const Text(
                             'CHALLENGE HUNTER',
                             style: TextStyle(
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w900,
                               letterSpacing: 1.5,
                               fontSize: 14,
                             ),
@@ -471,18 +508,32 @@ class PublicHunterProfileScreen extends StatelessWidget {
 
   Widget _duelStatCard(String value, String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.25), width: 1.2),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [color.withOpacity(0.14), HunterTheme.cardColor],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.28), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.10 * HunterTheme.glowStrength),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(children: [
-        Text(value,
-            style: TextStyle(
-                color: color,
-                fontSize: 22,
-                fontWeight: FontWeight.bold)),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(value,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900)),
+        ),
         const SizedBox(height: 4),
         Text(label,
             style: TextStyle(
@@ -497,31 +548,43 @@ class PublicHunterProfileScreen extends StatelessWidget {
   Widget _infoRow(IconData icon, String label, String value, Color color) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: HunterTheme.cardColor,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: HunterTheme.border, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(HunterTheme.isDark ? 0.14 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(children: [
         Container(
-          padding: const EdgeInsets.all(7),
+          padding: const EdgeInsets.all(9),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(9),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [color.withOpacity(0.18), color.withOpacity(0.06)],
+            ),
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(color: color.withOpacity(0.25)),
           ),
           child: Icon(icon, color: color, size: 16),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Text(label,
-              style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
+              style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
         ),
         Text(value,
             style: TextStyle(
                 color: HunterTheme.textPrimary,
                 fontSize: 14,
-                fontWeight: FontWeight.bold)),
+                fontWeight: FontWeight.w800)),
       ]),
     );
   }

@@ -72,10 +72,21 @@ class CompareHuntersScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: HunterTheme.background,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: HunterTheme.textSecondary, size: 20),
-          onPressed: () => Navigator.pop(context),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: HunterTheme.cardColor,
+                border: Border.all(color: HunterTheme.border),
+              ),
+              child: Icon(Icons.arrow_back_ios_new_rounded, color: HunterTheme.textSecondary, size: 15),
+            ),
+          ),
         ),
+        leadingWidth: 60,
         title: Row(
           children: [
             Container(
@@ -109,7 +120,31 @@ class CompareHuntersScreen extends StatelessWidget {
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return Center(
-              child: CircularProgressIndicator(color: HunterTheme.primary),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 74,
+                    height: 74,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [HunterTheme.primary.withOpacity(0.16), HunterTheme.cardColor],
+                      ),
+                      border: Border.all(color: HunterTheme.primary.withOpacity(0.3)),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(22),
+                      child: CircularProgressIndicator(color: HunterTheme.primary, strokeWidth: 2.5),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text('Analyzing hunters...',
+                      style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                ],
+              ),
             );
           }
 
@@ -160,61 +195,87 @@ class CompareHuntersScreen extends StatelessWidget {
               children: [
                 const SizedBox(height: 16),
 
-                // ── Hunter Headers ───────────────────────────────────
-                Row(
-                  children: [
-                    // Me
-                    Expanded(
-                      child: _hunterHeader(
-                        myData['hunterName'] ?? 'You',
-                        myLevel,
-                        myRankColor,
-                        myData['profilePicture'],
-                        _effectiveMembership(myData),
-                        isMe: true,
-                      ),
+                // ── Hunter Headers (battle-arena hero) ───────────────
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [HunterTheme.primary.withOpacity(0.09), HunterTheme.cardColor],
                     ),
-
-                    // VS badge
-                    Container(
-                      width: 44, height: 44,
-                      decoration: BoxDecoration(
-                        color: HunterTheme.cardColor,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: HunterTheme.border, width: 1.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: HunterTheme.primary.withOpacity(0.2),
-                            blurRadius: 12,
-                          ),
-                        ],
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: HunterTheme.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(HunterTheme.isDark ? 0.22 : 0.05),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
                       ),
-                      child: Center(
-                        child: Text(
-                          'VS',
-                          style: TextStyle(
-                            color: HunterTheme.primary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
+                    ],
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Me
+                      Expanded(
+                        child: _hunterHeader(
+                          myData['hunterName'] ?? 'You',
+                          myLevel,
+                          myRankColor,
+                          myData['profilePicture'],
+                          _effectiveMembership(myData),
+                          isMe: true,
+                        ),
+                      ),
+
+                      // VS badge
+                      Padding(
+                        padding: const EdgeInsets.only(top: 22),
+                        child: Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [HunterTheme.danger, HunterTheme.dangerAlt],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: HunterTheme.danger.withOpacity(0.4 * HunterTheme.glowStrength),
+                                blurRadius: 14,
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'VS',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
 
-                    // Them
-                    Expanded(
-                      child: _hunterHeader(
-                        theirData['hunterName'] ?? 'Hunter',
-                        theirLevel,
-                        theirRankColor,
-                        theirData['profilePicture'],
-                        _effectiveMembership(theirData),
-                        isMe: false,
+                      // Them
+                      Expanded(
+                        child: _hunterHeader(
+                          theirData['hunterName'] ?? 'Hunter',
+                          theirLevel,
+                          theirRankColor,
+                          theirData['profilePicture'],
+                          _effectiveMembership(theirData),
+                          isMe: false,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
 
                 const SizedBox(height: 24),
@@ -274,8 +335,8 @@ class CompareHuntersScreen extends StatelessWidget {
                   label: 'STREAK',
                   myVal: myStreak,
                   theirVal: theirStreak,
-                  myColor: Colors.orange,
-                  theirColor: Colors.orange,
+                  myColor: HunterTheme.gold,
+                  theirColor: HunterTheme.gold,
                   displayMy: '${myStreak}d',
                   displayTheir: '${theirStreak}d',
                 ),
@@ -287,24 +348,34 @@ class CompareHuntersScreen extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: verdictColor.withOpacity(0.07),
-                    borderRadius: BorderRadius.circular(16),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [verdictColor.withOpacity(0.14), HunterTheme.cardColor],
+                    ),
+                    borderRadius: BorderRadius.circular(18),
                     border: Border.all(
                         color: verdictColor.withOpacity(0.35), width: 1.5),
                     boxShadow: [
                       BoxShadow(
-                        color: verdictColor.withOpacity(0.08),
+                        color: verdictColor.withOpacity(0.12 * HunterTheme.glowStrength),
                         blurRadius: 20,
+                        offset: const Offset(0, 6),
                       ),
                     ],
                   ),
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(11),
                         decoration: BoxDecoration(
-                          color: verdictColor.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(12),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [verdictColor.withOpacity(0.2), verdictColor.withOpacity(0.08)],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: verdictColor.withOpacity(0.3)),
                         ),
                         child: Icon(verdictIcon, color: verdictColor, size: 26),
                       ),
@@ -451,11 +522,18 @@ class CompareHuntersScreen extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
         color: HunterTheme.cardColor,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: HunterTheme.border, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(HunterTheme.isDark ? 0.14 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -506,36 +584,40 @@ class CompareHuntersScreen extends StatelessWidget {
           const SizedBox(height: 8),
           // Progress bar
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(5),
             child: Row(
               children: [
                 Expanded(
                   flex: (myFraction * 100).round(),
                   child: Container(
-                    height: 5,
+                    height: 7,
                     decoration: BoxDecoration(
-                      color: myWins
-                          ? myColor
-                          : myColor.withOpacity(0.35),
+                      gradient: LinearGradient(
+                        colors: myWins
+                            ? [myColor, myColor.withOpacity(0.7)]
+                            : [myColor.withOpacity(0.35), myColor.withOpacity(0.22)],
+                      ),
                       borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(4),
-                        bottomLeft: Radius.circular(4),
+                        topLeft: Radius.circular(5),
+                        bottomLeft: Radius.circular(5),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 2),
+                const SizedBox(width: 3),
                 Expanded(
                   flex: 100 - (myFraction * 100).round(),
                   child: Container(
-                    height: 5,
+                    height: 7,
                     decoration: BoxDecoration(
-                      color: theirWins
-                          ? theirColor
-                          : theirColor.withOpacity(0.35),
+                      gradient: LinearGradient(
+                        colors: theirWins
+                            ? [theirColor.withOpacity(0.7), theirColor]
+                            : [theirColor.withOpacity(0.22), theirColor.withOpacity(0.35)],
+                      ),
                       borderRadius: const BorderRadius.only(
-                        topRight: Radius.circular(4),
-                        bottomRight: Radius.circular(4),
+                        topRight: Radius.circular(5),
+                        bottomRight: Radius.circular(5),
                       ),
                     ),
                   ),

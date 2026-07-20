@@ -342,8 +342,8 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   static Color get _blue => HunterTheme.primary; // brand accent
   static Color get _blueDim => HunterTheme.border; // track / secondary surface
   static Color get _border => HunterTheme.primary.withOpacity(0.2);
-  static const Color _green = Color(0xFF34C759); // carbs
-  static const Color _red = Color(0xFFFF5A5F); // fats / over-goal (coral)
+  static Color get _green => HunterTheme.success; // carbs (theme-aware)
+  static Color get _red => HunterTheme.danger; // fats / over-goal (theme-aware)
   static Color get _orange => HunterTheme.primary; // brand accent
   static Color get _textPrimary => HunterTheme.textPrimary;
   static Color get _textSecondary => HunterTheme.textSecondary;
@@ -644,14 +644,22 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                     }
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
                     decoration: BoxDecoration(
-                        color: _orange, borderRadius: BorderRadius.circular(12)),
-                    child: Center(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: HunterTheme.primaryGradient,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(color: _orange.withOpacity(0.35 * HunterTheme.glowStrength), blurRadius: 10, offset: const Offset(0, 4)),
+                        ]),
+                    child: const Center(
                         child: Text("LOG MEAL",
                             style: TextStyle(
-                                color: _textPrimary,
-                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                                fontWeight: FontWeight.w900,
                                 letterSpacing: 1))),
                   ),
                 ),
@@ -775,18 +783,25 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                         GestureDetector(
                           onTap: _isLoading ? null : _analyzeText,
                           child: Container(
-                            padding: const EdgeInsets.all(10),
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                                color: _orange,
-                                borderRadius: BorderRadius.circular(12)),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: HunterTheme.primaryGradient,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(color: _orange.withOpacity(0.3 * HunterTheme.glowStrength), blurRadius: 8, offset: const Offset(0, 3)),
+                                ]),
                             child: _isLoading
                                 ? const SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2))
-                                : const Icon(Icons.search,
-                                color: Colors.white, size: 20),
+                                    color: Colors.black, strokeWidth: 2))
+                                : const Icon(Icons.search_rounded,
+                                color: Colors.black, size: 22),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -795,14 +810,14 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                           onTap:
                           _isLoading ? null : () => _showPhotoOptions(),
                           child: Container(
-                            padding: const EdgeInsets.all(10),
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                                color: _orange.withOpacity(0.2),
+                                color: _orange.withOpacity(0.14),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                     color: _orange.withOpacity(0.4))),
-                            child: Icon(Icons.camera_alt,
-                                color: _orange, size: 20),
+                            child: Icon(Icons.camera_alt_rounded,
+                                color: _orange, size: 22),
                           ),
                         ),
                       ]),
@@ -873,28 +888,84 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
 
   // ── Header: greeting ──────────────────────────────────────────────────
   Widget _buildHeader(String hunterName) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            "Hello $hunterName!",
-            style: TextStyle(
-              color: _textPrimary,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_orange.withOpacity(0.14), _card],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(
+            color: _orange.withOpacity(0.10 * HunterTheme.glowStrength),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: HunterTheme.primaryGradient,
+              ),
+              boxShadow: [
+                BoxShadow(color: _orange.withOpacity(0.35 * HunterTheme.glowStrength), blurRadius: 12),
+              ],
+            ),
+            child: const Icon(Icons.restaurant_menu_rounded, color: Colors.black, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "Hello $hunterName!",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: _textPrimary, fontSize: 20, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  "Fuel your ascension",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: _textSecondary, fontSize: 12.5, fontWeight: FontWeight.w500),
+                ),
+              ],
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   BoxDecoration _cardDecoration() => BoxDecoration(
-    color: _card,
+    gradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [_orange.withOpacity(0.05), _card],
+    ),
     borderRadius: BorderRadius.circular(20),
     border: Border.all(color: _border, width: 1.5),
     boxShadow: [
-      BoxShadow(color: _orange.withOpacity(0.06), blurRadius: 14),
+      BoxShadow(
+        color: Colors.black.withOpacity(HunterTheme.isDark ? 0.20 : 0.04),
+        blurRadius: 16,
+        offset: const Offset(0, 6),
+      ),
     ],
   );
 
@@ -1010,20 +1081,28 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
       children: [
         Text(label,
             style: TextStyle(
-                color: color, fontSize: 12, fontWeight: FontWeight.bold)),
+                color: color, fontSize: 12, fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),
         ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: LinearProgressIndicator(
-            value: pct,
-            minHeight: 6,
-            backgroundColor: _blueDim,
-            valueColor: AlwaysStoppedAnimation<Color>(color),
+          borderRadius: BorderRadius.circular(8),
+          child: Stack(
+            children: [
+              Container(height: 7, color: _blueDim),
+              FractionallySizedBox(
+                widthFactor: pct,
+                child: Container(
+                  height: 7,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [color, color.withOpacity(0.6)]),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 6),
         Text("${value.toStringAsFixed(0)}g / ${goal}g",
-            style: TextStyle(color: _textSecondary, fontSize: 11)),
+            style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.w500)),
       ],
     );
   }
@@ -1031,22 +1110,27 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   Widget _buildMealTile(MealEntry meal, AsyncSnapshot<List<MealEntry>> snap) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
-        color: _bg,
-        borderRadius: BorderRadius.circular(12),
+        color: _card,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _border, width: 1),
       ),
       child: Row(children: [
         Container(
-          width: 40,
-          height: 40,
+          width: 42,
+          height: 42,
           decoration: BoxDecoration(
-            color: _orange.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [_orange.withOpacity(0.18), _orange.withOpacity(0.06)],
+            ),
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(color: _orange.withOpacity(0.25)),
           ),
           child: Icon(
-            Icons.restaurant,
+            Icons.restaurant_rounded,
             color: _orange,
             size: 20,
           ),
@@ -1114,9 +1198,20 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: _bg,
-        borderRadius: BorderRadius.circular(14),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_orange.withOpacity(0.05), _card],
+        ),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(HunterTheme.isDark ? 0.14 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

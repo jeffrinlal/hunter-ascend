@@ -59,6 +59,9 @@ class AppThemeData {
     required this.textTertiary,
     required this.textFaint,
     required this.border,
+    this.secondary,
+    this.glowStrength = 1.0,
+    this.heroGradient,
     this.unlockType = ThemeUnlockType.membership,
     this.unlockDuration,
   });
@@ -97,4 +100,29 @@ class AppThemeData {
   final Color textTertiary;
   final Color textFaint;
   final Color border;
+
+  // ── Premium identity tokens ─────────────────────────────────────────────
+  //
+  // These give each theme its own "feel" beyond flat accent swaps. They are
+  // consumed centrally via HunterTheme (primaryGradient / secondary /
+  // glowStrength / heroGradient) so screens opt in without hardcoding colors.
+
+  /// Secondary accent used to build premium gradients (primary → secondary).
+  /// When null, [primary] is reused so gradients degrade gracefully.
+  final Color? secondary;
+
+  /// Relative glow / shadow intensity for this theme (1.0 = default). Lower
+  /// for OLED / minimal themes, higher for neon / glass themes.
+  final double glowStrength;
+
+  /// Optional multi-stop gradient for immersive hero / premium surfaces.
+  /// When null, callers fall back to `[primary, secondary ?? primary]`.
+  final List<Color>? heroGradient;
+
+  /// The effective secondary accent (falls back to [primary]).
+  Color get effectiveSecondary => secondary ?? primary;
+
+  /// The effective hero gradient stops (falls back to primary→secondary).
+  List<Color> get effectiveHeroGradient =>
+      heroGradient ?? [primary, effectiveSecondary];
 }

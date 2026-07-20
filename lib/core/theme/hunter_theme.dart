@@ -79,6 +79,32 @@ class HunterTheme {
   static Color get textFaint     => isDark ? _dTextFaint     : _lTextFaint;
   static Color get border        => isDark ? _dBorder        : _lBorder;
 
+  // ── Premium identity tokens (per active theme) ────────────────────────
+  //
+  // Additive, backward-compatible getters. Screens can build gradients/glow
+  // from these instead of hardcoding colors, so every theme keeps its own
+  // identity. In light mode they degrade to the single orange accent.
+
+  /// Secondary accent used to build premium gradients (primary -> secondary).
+  static Color get secondary => isDark
+      ? (_activeDarkTheme?.effectiveSecondary ?? _dDefaultPrimary)
+      : _lSecondary;
+  static const _lSecondary = Color(0xFFFF8A50);
+
+  /// Two-stop premium gradient (primary -> secondary) for buttons, rings,
+  /// progress bars and accent chips.
+  static List<Color> get primaryGradient => [primary, secondary];
+
+  /// Multi-stop immersive gradient for heroes / premium surfaces.
+  static List<Color> get heroGradient =>
+      isDark ? (_activeDarkTheme?.effectiveHeroGradient ?? [primary, secondary]) : [primary, secondary];
+
+  /// Relative glow / shadow intensity for the active theme (1.0 = default).
+  /// Multiply blur/opacity by this so OLED themes stay clean and neon/glass
+  /// themes glow more.
+  static double get glowStrength =>
+      isDark ? (_activeDarkTheme?.glowStrength ?? 1.0) : 1.0;
+
   // ── Semantic accents (mode-independent) ───────────────────────────────
   static const success     = Color(0xFF44DD88);
   static const successAlt   = Color(0xFF2ECC71);

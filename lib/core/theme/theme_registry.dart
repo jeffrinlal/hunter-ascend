@@ -70,6 +70,8 @@ class ThemeRegistry {
     textTertiary: Color(0xFF8898BB),
     textFaint: Color(0xFF5A6478),
     border: Color(0xFF1E2D4A),
+    secondary: Color(0xFF4D8CFF),
+    glowStrength: 1.0,
   );
 
   /// Shadow Blue — Inspired by Linear and GitHub Dark.
@@ -89,6 +91,8 @@ class ThemeRegistry {
     textTertiary: Color(0xFF6B7280),
     textFaint: Color(0xFF4B5058),
     border: Color(0xFF282C34),
+    secondary: Color(0xFF8FB8DE),
+    glowStrength: 0.85,
   );
 
   /// Crimson Red — Inspired by dark IDEs with warm red accents.
@@ -107,6 +111,8 @@ class ThemeRegistry {
     textTertiary: Color(0xFF787070),
     textFaint: Color(0xFF524C4C),
     border: Color(0xFF2E2A2A),
+    secondary: Color(0xFFF0919A),
+    glowStrength: 0.95,
   );
 
   /// Emerald Green — Inspired by terminal aesthetics and Spotify's dark UI.
@@ -125,6 +131,8 @@ class ThemeRegistry {
     textTertiary: Color(0xFF6E7A74),
     textFaint: Color(0xFF4A5450),
     border: Color(0xFF272E2A),
+    secondary: Color(0xFF9BE0B5),
+    glowStrength: 0.9,
   );
 
   /// Sunset Orange — Inspired by Arc Browser's warm dark mode.
@@ -143,6 +151,8 @@ class ThemeRegistry {
     textTertiary: Color(0xFF7D756C),
     textFaint: Color(0xFF565048),
     border: Color(0xFF302B26),
+    secondary: Color(0xFFE8B37A),
+    glowStrength: 0.95,
   );
 
   /// Shadow Monarch — Inspired by Discord's dark theme with purple accents.
@@ -162,6 +172,8 @@ class ThemeRegistry {
     textTertiary: Color(0xFF736E82),
     textFaint: Color(0xFF4F4B5A),
     border: Color(0xFF2A2832),
+    secondary: Color(0xFFC0A6E6),
+    glowStrength: 1.05,
   );
 
   /// Royal Gold — Inspired by luxury apps and premium fintech dark modes.
@@ -181,6 +193,8 @@ class ThemeRegistry {
     textTertiary: Color(0xFF7E776A),
     textFaint: Color(0xFF565148),
     border: Color(0xFF302D28),
+    secondary: Color(0xFFEAC77A),
+    glowStrength: 1.1,
   );
 
   /// Obsidian Black — Inspired by OLED-optimized apps (Apple, Nothing).
@@ -200,6 +214,8 @@ class ThemeRegistry {
     textTertiary: Color(0xFF6E6E6E),
     textFaint: Color(0xFF454545),
     border: Color(0xFF262626),
+    secondary: Color(0xFFFFFFFF),
+    glowStrength: 0.5,
   );
 
   /// Neon Cyber — Inspired by cyberpunk aesthetics but restrained.
@@ -219,6 +235,8 @@ class ThemeRegistry {
     textTertiary: Color(0xFF657872),
     textFaint: Color(0xFF434E4A),
     border: Color(0xFF232A28),
+    secondary: Color(0xFF3FE6D0),
+    glowStrength: 1.3,
   );
 
   /// Crystal Glass — Glassmorphism-inspired special theme.
@@ -241,5 +259,7 @@ class ThemeRegistry {
     textTertiary: Color(0xFF708498),
     textFaint: Color(0xFF4A5E70),
     border: Color(0xFF2A3A4A),
+    secondary: Color(0xFFBFE3FF),
+    glowStrength: 1.2,
   );
 }

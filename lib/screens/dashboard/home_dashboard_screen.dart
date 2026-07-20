@@ -21,6 +21,7 @@ import 'package:hunter_ascend/services/notification_service.dart';
 import 'package:hunter_ascend/services/update_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/xp_service.dart';
+import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:hunter_ascend/screens/dashboard/dashboard_screen.dart';
 import 'package:hunter_ascend/widgets/glass/glass_background.dart';
@@ -93,33 +94,13 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   bool isPunishmentAdReady = false;
 
   // ── Helpers ──────────────────────────────────────────────
-  String get hunterRank {
-    if (level >= 30) return "S RANK";
-    if (level >= 20) return "A RANK";
-    if (level >= 15) return "B RANK";
-    if (level >= 10) return "C RANK";
-    if (level >= 5)  return "D RANK";
-    return "E RANK";
-  }
+  // Hunter Rank is resolved through the centralized RankService (single source
+  // of truth) — no rank thresholds are computed locally.
+  String get hunterRank => RankService.instance.shortTitleForLevel(level);
 
-  String get rankLetter {
-    if (level >= 30) return "S";
-    if (level >= 20) return "A";
-    if (level >= 15) return "B";
-    if (level >= 10) return "C";
-    if (level >= 5)  return "D";
-    return "E";
-  }
+  String get rankLetter => RankService.instance.letterForLevel(level);
 
-
-  Color get rankColor {
-    if (level >= 30) return HunterTheme.gold;
-    if (level >= 20) return HunterTheme.danger;
-    if (level >= 15) return HunterTheme.primary;
-    if (level >= 10) return HunterTheme.primary;
-    if (level >= 5)  return HunterTheme.success;
-    return HunterTheme.textSecondary;
-  }
+  Color get rankColor => RankService.instance.colorForLevel(level);
 
   String getStreakTitle(int streak) {
     if (streak >= 100) return "Shadow Monarch";

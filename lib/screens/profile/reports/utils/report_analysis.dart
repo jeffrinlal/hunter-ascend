@@ -15,7 +15,7 @@ import 'report_format.dart';
 ///                   `calorie_logs`, `runs`, or `weight_history` entry
 ///   • totalDuels  — `duelWins + duelLosses`            (lifetime duel count)
 ///   • level       — `hunters/{uid}.level`
-///   • rank        — derived from `hunters/{uid}.xp` via [rankForXp]
+///   • rank        — derived from `hunters/{uid}.level` via `RankService`
 class ReportAnalysis {
   ReportAnalysis._();
 

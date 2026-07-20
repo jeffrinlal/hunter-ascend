@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
+import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:hunter_ascend/widgets/dashboard/animated_xp_ring.dart';
 import 'package:hunter_ascend/widgets/dashboard/dashboard_stat_chip.dart';
 import 'package:hunter_ascend/widgets/dashboard/dashboard_stats_grid.dart';
@@ -66,14 +67,8 @@ class ProDashboardLayout extends StatelessWidget {
     this.onNotificationTap,
   });
 
-  String _rankTitle(int level) {
-    if (level >= 30) return 'S RANK';
-    if (level >= 20) return 'A RANK';
-    if (level >= 15) return 'B RANK';
-    if (level >= 10) return 'C RANK';
-    if (level >= 5) return 'D RANK';
-    return 'E RANK';
-  }
+  // Rank title resolved via the centralized RankService (single source of truth).
+  String _rankTitle(int level) => RankService.instance.shortTitleForLevel(level);
 
   @override
   Widget build(BuildContext context) {

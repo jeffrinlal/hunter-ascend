@@ -12,6 +12,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:math' as math;
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:hunter_ascend/widgets/dashboard/entrance_fade_slide.dart';
 
 // ── Leaderboard membership palette ─────────────────────────────────────────
@@ -100,23 +101,10 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     }
   }
 
-  String getRankTitle(int level) {
-    if (level >= 30) return 'S Rank';
-    if (level >= 20) return 'A Rank';
-    if (level >= 15) return 'B Rank';
-    if (level >= 10) return 'C Rank';
-    if (level >= 5)  return 'D Rank';
-    return 'E Rank';
-  }
+  // Hunter Rank title + color resolved via the centralized RankService.
+  String getRankTitle(int level) => RankService.instance.labelForLevel(level);
 
-  Color _rankColor(int level) {
-    if (level >= 30) return HunterTheme.danger;
-    if (level >= 20) return HunterTheme.primary;
-    if (level >= 15) return HunterTheme.purple;
-    if (level >= 10) return HunterTheme.info;
-    if (level >= 5)  return HunterTheme.successAlt;
-    return HunterTheme.primary;
-  }
+  Color _rankColor(int level) => RankService.instance.colorForLevel(level);
 
   // ── Membership resolution helpers ──────────────────────────────────────
   //

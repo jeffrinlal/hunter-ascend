@@ -7,6 +7,7 @@ import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/screens/leaderboard/compare_hunters_screen.dart';
 import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
 import 'package:hunter_ascend/widgets/premium_avatar.dart';
 
@@ -18,33 +19,6 @@ class PublicHunterProfileScreen extends StatelessWidget {
     super.key,
     required this.hunterUid,
   });
-
-  String _getRank(int level) {
-    if (level >= 30) return 'S';
-    if (level >= 20) return 'A';
-    if (level >= 15) return 'B';
-    if (level >= 10) return 'C';
-    if (level >= 5)  return 'D';
-    return 'E';
-  }
-
-  String _getRankTitle(int level) {
-    if (level >= 30) return 'S RANK HUNTER';
-    if (level >= 20) return 'A RANK HUNTER';
-    if (level >= 15) return 'B RANK HUNTER';
-    if (level >= 10) return 'C RANK HUNTER';
-    if (level >= 5)  return 'D RANK HUNTER';
-    return 'E RANK HUNTER';
-  }
-
-  Color _getRankColor(int level) {
-    if (level >= 30) return HunterTheme.gold;
-    if (level >= 20) return HunterTheme.danger;
-    if (level >= 15) return HunterTheme.primary;
-    if (level >= 10) return HunterTheme.primary;
-    if (level >= 5)  return HunterTheme.success;
-    return HunterTheme.textSecondary;
-  }
 
   /// Resolves the effective membership string for a hunter document.
   /// A premium tier with an expired expiry is treated as Basic.
@@ -121,9 +95,9 @@ class PublicHunterProfileScreen extends StatelessWidget {
           final losses   = (data['duelLosses'] ?? 0) as int;
           final name     = data['hunterName'] ?? 'Unknown Hunter';
           final streak   = (data['streak'] ?? 0) as int;
-          final rank     = _getRank(level);
-          final rankTitle= _getRankTitle(level);
-          final rankColor= _getRankColor(level);
+          final rank     = RankService.instance.letterForLevel(level);
+          final rankTitle= RankService.instance.longTitleForLevel(level);
+          final rankColor= RankService.instance.colorForLevel(level);
           final total    = wins + losses;
           final winRate  = total == 0 ? 0 : ((wins * 100) / total).round();
 

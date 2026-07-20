@@ -9,18 +9,11 @@ const List<String> _months = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
 ];
 
-/// Hunter rank derived from XP — mirrors the thresholds used on the profile
-/// header so the report never disagrees with the rest of the app.
-String rankForXp(int xp) {
-  if (xp < 1500) return 'E';
-  if (xp < 5000) return 'D';
-  if (xp < 12000) return 'C';
-  if (xp < 30000) return 'B';
-  if (xp < 80000) return 'A';
-  return 'S';
-}
-
 /// Ordinal index of a rank (E = 0 … S = 5). Used by the analysis scoring.
+///
+/// Note: Hunter Rank itself is now resolved centrally from the player's LEVEL
+/// via `RankService`. This pure helper only maps an already-computed rank
+/// letter to its ordinal, so it stays Flutter-free and testable.
 int rankIndex(String rank) =>
     const ['E', 'D', 'C', 'B', 'A', 'S'].indexOf(rank).clamp(0, 5);
 

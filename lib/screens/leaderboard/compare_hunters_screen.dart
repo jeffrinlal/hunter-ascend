@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
 import 'package:hunter_ascend/widgets/premium_avatar.dart';
 
@@ -17,23 +18,6 @@ class CompareHuntersScreen extends StatelessWidget {
     required this.hunterUid,
   });
 
-  String _getRank(int level) {
-    if (level >= 30) return 'S';
-    if (level >= 20) return 'A';
-    if (level >= 15) return 'B';
-    if (level >= 10) return 'C';
-    if (level >= 5)  return 'D';
-    return 'E';
-  }
-
-  Color _getRankColor(int level) {
-    if (level >= 30) return HunterTheme.gold;
-    if (level >= 20) return HunterTheme.danger;
-    if (level >= 15) return HunterTheme.primary;
-    if (level >= 10) return HunterTheme.primary;
-    if (level >= 5)  return HunterTheme.success;
-    return HunterTheme.textSecondary;
-  }
 
   /// Resolves effective membership from a hunter doc. A premium tier
   /// with an expired expiry is treated as Basic.
@@ -168,8 +152,8 @@ class CompareHuntersScreen extends StatelessWidget {
           final theirWinRate = theirWins + theirLosses == 0 ? 0
               : ((theirWins * 100) / (theirWins + theirLosses)).round();
 
-          final myRankColor    = _getRankColor(myLevel);
-          final theirRankColor = _getRankColor(theirLevel);
+          final myRankColor    = RankService.instance.colorForLevel(myLevel);
+          final theirRankColor = RankService.instance.colorForLevel(theirLevel);
 
           // Verdict
           String verdictText;
@@ -414,7 +398,7 @@ class CompareHuntersScreen extends StatelessWidget {
       String membership,
       {required bool isMe}
       ) {
-    final rank = _getRank(level);
+    final rank = RankService.instance.letterForLevel(level);
     return Column(
       children: [
         Stack(

@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/services/rank_service.dart';
 
 import 'models/report_data.dart';
 import 'services/report_service.dart';
@@ -197,7 +198,11 @@ class _ReportBodyState extends State<_ReportBody>
   int get _questsDone => (_d['questsDone'] ?? 0) as int;
   int get _totalDuels => _duelWins + _duelLosses;
   String get _hunterName => (_d['hunterName'] ?? 'Unknown Hunter').toString();
-  String get _rank => rankForXp(_xp);
+  // Hunter Rank is derived from LEVEL via the centralized RankService (the
+  // stored `xp` is only the in-level remainder). This keeps the report — and
+  // the shareable image, which is passed this same value — consistent with
+  // every other screen.
+  String get _rank => RankService.instance.letterForLevel(_level);
 
   double get _startingWeight {
     final w = _report;

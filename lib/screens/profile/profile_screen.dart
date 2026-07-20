@@ -19,6 +19,7 @@ import 'package:hunter_ascend/screens/profile/membership_screen.dart';
 import 'package:hunter_ascend/screens/profile/reports/reports_tab.dart';
 import 'package:hunter_ascend/screens/profile/achievements/achievements_tab.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/models/weight_entry.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
@@ -57,59 +58,11 @@ class _ProfileScreenState extends State<ProfileScreen>
     return _cachedProfilePicBytes;
   }
 
-  String _getRank(int xp) {
-    if (xp < 1500) return 'E';
-    if (xp < 5000) return 'D';
-    if (xp < 12000) return 'C';
-    if (xp < 30000) return 'B';
-    if (xp < 80000) return 'A';
-    return 'S';
-  }
-
-  String _getNextRank(String rank) {
-    const ranks = ['E', 'D', 'C', 'B', 'A', 'S'];
-    final idx = ranks.indexOf(rank);
-    return idx < ranks.length - 1 ? ranks[idx + 1] : 'MAX';
-  }
-
-  int _xpForRank(String rank) {
-    switch (rank) {
-      case 'E': return 1500;
-      case 'D': return 5000;
-      case 'C': return 12000;
-      case 'B': return 30000;
-      case 'A': return 80000;
-      default:  return 80000;
-    }
-  }
-
-  int _xpStartForRank(String rank) {
-    switch (rank) {
-      case 'E': return 0;
-      case 'D': return 1500;
-      case 'C': return 5000;
-      case 'B': return 12000;
-      case 'A': return 30000;
-      default:  return 80000;
-    }
-  }
-
   String _getHunterClass(double bmi) {
     if (bmi < 18.5) return 'AGILE HUNTER';
     if (bmi < 25)   return 'BALANCED HUNTER';
     if (bmi < 30)   return 'TANK HUNTER';
     return 'HEAVY TANK HUNTER';
-  }
-
-  Color _getRankColor(String rank) {
-    switch (rank) {
-      case 'S': return HunterTheme.danger;
-      case 'A': return HunterTheme.primary;
-      case 'B': return HunterTheme.purple;
-      case 'C': return HunterTheme.info;
-      case 'D': return HunterTheme.successAlt;
-      default:  return HunterTheme.primary;
-    }
   }
 
   // ── Streams from repositories ──────────────────────────────────────────
@@ -179,15 +132,16 @@ class _ProfileScreenState extends State<ProfileScreen>
           double bmi = 0;
           if (height > 0) bmi = weight / math.pow(height / 100, 2);
 
-          final rank        = _getRank(xp);
-          final nextRank    = _getNextRank(rank);
-          final rankColor   = _getRankColor(rank);
-          final xpStart     = _xpStartForRank(rank);
-          final xpEnd       = _xpForRank(rank);
-          final xpProgress  = rank == 'S'
-              ? 1.0
-              : (xp - xpStart) / math.max(1, xpEnd - xpStart);
-          final xpToNext    = rank == 'S' ? 0 : math.max(0, xpEnd - xp);
+          // Hunter Rank is resolved from LEVEL via the centralized RankService
+          // (the stored `xp` is only the in-level remainder). Progress and
+          // "XP to next rank" are derived from level + that remainder.
+          final rankData    = RankService.instance.rankForLevel(level);
+          final rank        = rankData.letter;
+          final isMaxRank   = RankService.instance.isMaxRank(level);
+          final nextRank    = RankService.instance.nextRank(level)?.letter ?? 'MAX';
+          final rankColor   = rankData.color;
+          final xpProgress  = RankService.instance.progressToNextRank(level, xp);
+          final xpToNext    = RankService.instance.xpToNextRank(level, xp);
 
           // Derived stats
           final str  = math.min(100, duelWins * 3 + level * 2);
@@ -565,7 +519,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   children: [
                                     Flexible(
                                       child: Text(
-                                        rank == 'S'
+                                        isMaxRank
                                             ? 'MAX RANK REACHED'
                                             : '$xpToNext XP to Rank $nextRank',
                                         maxLines: 1,

@@ -22,6 +22,7 @@ import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/models/custom_quest.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'package:hunter_ascend/data/repositories/quest_repository.dart';
+import 'package:hunter_ascend/widgets/dashboard/entrance_fade_slide.dart';
 
 
 /// Missions screen: daily quests, weekly missions, AI quest generation,
@@ -53,8 +54,6 @@ class _MissionsScreenState extends State<MissionsScreen> {
   static Color get _bg => HunterTheme.background;
   static Color get _card => HunterTheme.cardColor;
   static Color get _blue => HunterTheme.primary;
-  static Color get _blueDim => HunterTheme.border;
-  static Color get _border => HunterTheme.border;
 
   // ── State ────────────────────────────────────────────────
   int xp = 0;
@@ -1175,20 +1174,55 @@ class _MissionsScreenState extends State<MissionsScreen> {
       backgroundColor: _bg,
       body: SafeArea(
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 16),
-              SleepCard(
-                onStartTap: _onSleepStartTap,
-                onStopTap: _onSleepStopTap,
+              const SizedBox(height: 12),
+              EntranceFadeSlide(child: _MissionHero()),
+              const SizedBox(height: 20),
+              EntranceFadeSlide(
+                delay: const Duration(milliseconds: 60),
+                child: SleepCard(
+                  onStartTap: _onSleepStartTap,
+                  onStopTap: _onSleepStopTap,
+                ),
               ),
-              const SizedBox(height: 16),
-              if (questStarted) _buildActiveQuestCard(),
-              _buildQuestsSection(),
-              if (weeklyQuestStarted) _buildActiveWeeklyQuestCard(),
-              _buildWeeklyMissionsSection(),
+              const SizedBox(height: 20),
+              if (questStarted) ...[
+                _ActiveMissionCard(
+                  remaining: questRemaining,
+                  title: activeQuest,
+                  reward: questReward,
+                  onComplete: completeQuest,
+                  onCancel: _cancelActiveQuest,
+                  banner: bannerAd,
+                  bannerReady: isBannerReady,
+                ),
+                const SizedBox(height: 20),
+              ],
+              EntranceFadeSlide(
+                delay: const Duration(milliseconds: 100),
+                child: _buildQuestsSection(),
+              ),
+              if (weeklyQuestStarted) ...[
+                const SizedBox(height: 20),
+                _ActiveMissionCard(
+                  remaining: weeklyQuestRemaining,
+                  title: weeklyActiveTitle,
+                  reward: weeklyQuestReward,
+                  onComplete: completeWeeklyQuest,
+                  onCancel: _cancelActiveWeeklyQuest,
+                  banner: weeklyBannerAd,
+                  bannerReady: weeklyBannerReady,
+                ),
+              ],
+              const SizedBox(height: 24),
+              EntranceFadeSlide(
+                delay: const Duration(milliseconds: 140),
+                child: _buildWeeklyMissionsSection(),
+              ),
               const SizedBox(height: 30),
             ],
           ),
@@ -1197,95 +1231,166 @@ class _MissionsScreenState extends State<MissionsScreen> {
     );
   }
 
+  // ── Premium section header (matches dashboard section-header style) ──
+  Widget _premiumSectionHeader({
+    required IconData icon,
+    required Color accent,
+    required String title,
+    required String countText,
+    String? resetText,
+    List<Widget> actions = const [],
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: accent, size: 18),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: HunterTheme.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: accent.withOpacity(0.14),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: accent.withOpacity(0.4)),
+              ),
+              child: Text(
+                countText,
+                style: TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.w800),
+              ),
+            ),
+            const Spacer(),
+            ...actions,
+          ],
+        ),
+        if (resetText != null) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(Icons.hourglass_bottom_rounded, size: 12, color: HunterTheme.textTertiary),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  resetText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11.5, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
 
-  // ── Active Quest Card ────────────────────────────────────
-  Widget _buildActiveQuestCard() {
+  // Discipline-mode pill (unchanged behaviour: opens showDisciplineModeDialog).
+  Widget _modeButton() {
+    return StreamBuilder<HunterData?>(
+      stream: HunterRepository.instance.watch(),
+      initialData: HunterRepository.instance.getCached(),
+      builder: (context, snapshot) {
+        String mode = "MODE";
+        final hunter = snapshot.data;
+        if (hunter != null && hunter.disciplineMode != null) {
+          mode = hunter.disciplineMode!.toUpperCase();
+        }
+        return GestureDetector(
+          onTap: showDisciplineModeDialog,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: HunterTheme.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: HunterTheme.primary.withOpacity(0.35)),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.shield_rounded, size: 14, color: _blue),
+              const SizedBox(width: 5),
+              Text(mode, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w700)),
+            ]),
+          ),
+        );
+      },
+    );
+  }
+
+  // Add-custom-mission button (unchanged behaviour: opens _showAddQuestDialog).
+  Widget _addButton() {
+    return GestureDetector(
+      onTap: () => _showAddQuestDialog(),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [HunterTheme.primary, HunterTheme.primary.withOpacity(0.7)]),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [BoxShadow(color: HunterTheme.primary.withOpacity(0.35), blurRadius: 8)],
+        ),
+        child: const Icon(Icons.add_rounded, color: Colors.black, size: 20),
+      ),
+    );
+  }
+
+  // Premium empty-state card.
+  Widget _buildEmptyState({
+    required IconData icon,
+    required Color accent,
+    required String title,
+    required String subtitle,
+  }) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _blue, width: 1.5),
-        color: _card,
-        boxShadow: [BoxShadow(color: _blue.withOpacity(0.2), blurRadius: 16)],
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [accent.withOpacity(0.08), HunterTheme.cardColor],
+        ),
+        border: Border.all(color: accent.withOpacity(0.25)),
       ),
-      child: Column(children: [
-        Text("\u26a1 ACTIVE MISSION \u26a1", style: TextStyle(color: _blue, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2)),
-        const SizedBox(height: 8),
-        Text(
-          questRemaining == Duration.zero ? "Status: Ready to Complete" : "Status: In Progress",
-          style: TextStyle(color: questRemaining == Duration.zero ? HunterTheme.success : Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        Text(activeQuest, textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(color: Colors.green.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-          child: Text("Reward: +$questReward XP", style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          decoration: BoxDecoration(
-            color: _blueDim,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: questRemaining == Duration.zero ? HunterTheme.success.withOpacity(0.5) : _blue.withOpacity(0.4)),
-          ),
-          margin: const EdgeInsets.only(bottom: 16),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(questRemaining == Duration.zero ? Icons.check_circle_outline : Icons.timer_outlined, color: questRemaining == Duration.zero ? HunterTheme.success : _blue, size: 22),
-            const SizedBox(width: 10),
-            Text(
-              questRemaining == Duration.zero ? "TIME'S UP!" : formatMinutesSeconds(questRemaining),
-              style: TextStyle(color: questRemaining == Duration.zero ? HunterTheme.success : HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1),
+      child: Column(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: accent.withOpacity(0.14),
+              border: Border.all(color: accent.withOpacity(0.4), width: 1.4),
+              boxShadow: [BoxShadow(color: accent.withOpacity(0.2), blurRadius: 16)],
             ),
-          ]),
-        ),
-
-
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: questRemaining == Duration.zero ? _blue : _blueDim, padding: const EdgeInsets.symmetric(vertical: 14)),
-            onPressed: questRemaining != Duration.zero ? () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("\u26a0\ufe0f Timer not finished yet \u2014 mission cannot be completed.")),
-              );
-            } : () {
-              showDialog(context: context, builder: (_) {
-                final messages = [
-                  "\u2694\ufe0f Only you know whether this mission is complete.",
-                  "\ud83d\udd25 Shortcuts create weak Hunters.",
-                  "\ud83c\udfc6 Discipline separates Hunters from legends.",
-                  "\u26a1 Every completed mission should represent real effort.",
-                ];
-                messages.shuffle();
-                return AlertDialog(
-                  backgroundColor: HunterTheme.background,
-                  title: const Text("Hunter Verification", style: TextStyle(color: Colors.amber)),
-                  content: Text("Are you sure you completed this mission honestly?\n\nOnly you know the truth.\n\n${messages.first}", style: TextStyle(color: HunterTheme.textPrimary)),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text("CONTINUE MISSION")),
-                    ElevatedButton(onPressed: () { Navigator.pop(context); completeQuest(); }, child: const Text("COMPLETE")),
-                  ],
-                );
-              });
-            },
-            child: Text("COMPLETE MISSION", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, letterSpacing: 2)),
+            child: Icon(icon, color: accent, size: 30),
           ),
-        ),
-        const SizedBox(height: 10),
-        GestureDetector(
-          onTap: _cancelActiveQuest,
-          child: Text("Cancel mission", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12, decoration: TextDecoration.underline)),
-        ),
-        if (isBannerReady) ...[
-          const SizedBox(height: 12),
-          Center(child: SizedBox(width: bannerAd!.size.width.toDouble(), height: bannerAd!.size.height.toDouble(), child: AdWidget(ad: bannerAd!))),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: HunterTheme.textPrimary, fontSize: 17, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, height: 1.4),
+          ),
         ],
-      ]),
+      ),
     );
   }
 
@@ -1301,103 +1406,28 @@ class _MissionsScreenState extends State<MissionsScreen> {
         final completedCount = completedQuests.length;
 
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        "DAILY MISSIONS (AI)",
-                        style: TextStyle(
-                          color: HunterTheme.textPrimary,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _blueDim,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          "$completedCount/$totalQuests",
-                          style: TextStyle(color: _blue, fontSize: 13, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    margin: const EdgeInsets.only(top: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: HunterTheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '\u23f3 Resets in ${timeUntilReset.inHours}h ${timeUntilReset.inMinutes.remainder(60)}m',
-                      style: TextStyle(
-                        color: HunterTheme.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const Spacer(),
-
-
-              StreamBuilder<HunterData?>(
-                stream: HunterRepository.instance.watch(),
-                initialData: HunterRepository.instance.getCached(),
-                builder: (context, snapshot) {
-                  String mode = "MODE";
-                  final hunter = snapshot.data;
-                  if (hunter != null && hunter.disciplineMode != null) {
-                    mode = hunter.disciplineMode!.toUpperCase();
-                  }
-                  return GestureDetector(
-                    onTap: showDisciplineModeDialog,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.shield, size: 14, color: _blue),
-                        const SizedBox(width: 4),
-                        Text(mode, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 11)),
-                      ]),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => _showAddQuestDialog(),
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
-                  child: Icon(Icons.add, color: _blue, size: 20),
-                ),
-              ),
-            ]),
+            _premiumSectionHeader(
+              icon: Icons.auto_awesome_rounded,
+              accent: HunterTheme.primary,
+              title: 'DAILY MISSIONS (AI)',
+              countText: '$completedCount/$totalQuests',
+              resetText: 'Resets in ${timeUntilReset.inHours}h ${timeUntilReset.inMinutes.remainder(60)}m',
+              actions: [
+                _modeButton(),
+                const SizedBox(width: 8),
+                _addButton(),
+              ],
+            ),
             const SizedBox(height: 14),
 
             if (totalQuests == 0)
-              Container(
-                width: double.infinity, padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: _border)),
-                child: Column(children: [
-                  Icon(Icons.bolt, color: _blue, size: 40),
-                  SizedBox(height: 10),
-                  Text("No missions yet", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
-                  SizedBox(height: 6),
-                  Text("Tap + to create your first custom mission.", textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textSecondary)),
-                ]),
+              _buildEmptyState(
+                icon: Icons.auto_awesome_rounded,
+                accent: HunterTheme.primary,
+                title: 'No missions yet',
+                subtitle: 'Tap + to create your first custom mission.',
               ),
 
             // Generated quests
@@ -1416,7 +1446,7 @@ class _MissionsScreenState extends State<MissionsScreen> {
               return _buildQuestTile(
                 name: quest.name,
                 xp: quest.xp,
-                icon: Icons.edit_note,
+                icon: Icons.edit_note_rounded,
                 isCompleted: completedQuests.contains(quest.name),
                 isCustom: true,
                 onTap: () => startQuest(quest.name, quest.xp),
@@ -1443,6 +1473,10 @@ class _MissionsScreenState extends State<MissionsScreen> {
   }
 
 
+  // Premium mission tile. [xp] is retained for API compatibility but is not
+  // rendered as a number, because the actual awarded reward is decided by the
+  // time chosen when the mission starts (see _startQuestWithTimer /
+  // _startWeeklyQuestWithTimer) — the real reward is shown on the active card.
   Widget _buildQuestTile({
     required String name,
     required int xp,
@@ -1452,140 +1486,92 @@ class _MissionsScreenState extends State<MissionsScreen> {
     required VoidCallback onTap,
     VoidCallback? onDelete,
   }) {
+    final Color accent = isCompleted
+        ? HunterTheme.success
+        : (isCustom ? HunterTheme.gold : HunterTheme.primary);
+
     return GestureDetector(
       onTap: isCompleted ? null : onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: _card,
-          border: Border.all(color: isCompleted ? Colors.green.withOpacity(0.4) : (isCustom ? Colors.amber.withOpacity(0.4) : _border), width: 1.2),
+          borderRadius: BorderRadius.circular(18),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [accent.withOpacity(isCompleted ? 0.16 : 0.10), HunterTheme.cardColor],
+          ),
+          border: Border.all(color: accent.withOpacity(isCompleted ? 0.5 : 0.3), width: 1.2),
+          boxShadow: [BoxShadow(color: accent.withOpacity(0.10), blurRadius: 12, offset: const Offset(0, 4))],
         ),
         child: Row(children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              color: isCompleted ? Colors.green.withOpacity(0.1) : (isCustom ? Colors.amber.withOpacity(0.1) : _blueDim),
-              borderRadius: BorderRadius.circular(10),
+              shape: BoxShape.circle,
+              color: accent.withOpacity(0.15),
+              border: Border.all(color: accent.withOpacity(0.5), width: 1.2),
             ),
-            child: Icon(icon, color: isCompleted ? Colors.green : (isCustom ? Colors.amber : _blue), size: 20),
+            child: Icon(isCompleted ? Icons.check_rounded : icon, color: accent, size: 20),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
-            child: Text(
-              isCompleted ? "\u2713 $name" : name,
-              style: TextStyle(color: isCompleted ? HunterTheme.textTertiary : HunterTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w600,
-                  decoration: isCompleted ? TextDecoration.lineThrough : null),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isCompleted ? HunterTheme.textTertiary : HunterTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                    decoration: isCompleted ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  isCompleted
+                      ? 'Completed'
+                      : (isCustom ? 'Custom mission \u2022 Earn XP' : 'Timed mission \u2022 Earn XP'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isCompleted ? HunterTheme.success : HunterTheme.textTertiary,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
+          const SizedBox(width: 10),
           if (isCompleted)
-            const Text("DONE", style: TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold))
+            Icon(Icons.verified_rounded, color: HunterTheme.success, size: 24)
           else
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(color: Colors.green.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
-              child: Text("TAP TO START", style: TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [accent, accent.withOpacity(0.7)]),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [BoxShadow(color: accent.withOpacity(0.3), blurRadius: 8)],
+              ),
+              child: const Text('START', style: TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
             ),
-          if (onDelete != null)
+          if (onDelete != null) ...[
+            const SizedBox(width: 6),
             GestureDetector(
               onTap: onDelete,
-              child: const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.delete_outline, color: Colors.redAccent, size: 20)),
+              child: Icon(Icons.delete_outline_rounded, color: HunterTheme.danger, size: 20),
             ),
+          ],
         ]),
       ),
-    );
-  }
-
-
-  // ── Active Weekly Quest Card ─────────────────────────────
-  Widget _buildActiveWeeklyQuestCard() {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _blue, width: 1.5),
-        color: _card,
-        boxShadow: [BoxShadow(color: _blue.withOpacity(0.2), blurRadius: 16)],
-      ),
-      child: Column(children: [
-        Text("\u26a1 ACTIVE MISSION \u26a1", style: TextStyle(color: _blue, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2)),
-        const SizedBox(height: 8),
-        Text(
-          weeklyQuestRemaining == Duration.zero ? "Status: Ready to Complete" : "Status: In Progress",
-          style: TextStyle(color: weeklyQuestRemaining == Duration.zero ? HunterTheme.success : Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        Text(weeklyActiveTitle, textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(color: Colors.green.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-          child: Text("Reward: +$weeklyQuestReward XP", style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          decoration: BoxDecoration(
-            color: _blueDim,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: weeklyQuestRemaining == Duration.zero ? HunterTheme.success.withOpacity(0.5) : _blue.withOpacity(0.4)),
-          ),
-          margin: const EdgeInsets.only(bottom: 16),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(weeklyQuestRemaining == Duration.zero ? Icons.check_circle_outline : Icons.timer_outlined, color: weeklyQuestRemaining == Duration.zero ? HunterTheme.success : _blue, size: 22),
-            const SizedBox(width: 10),
-            Text(
-              weeklyQuestRemaining == Duration.zero ? "TIME'S UP!" : formatMinutesSeconds(weeklyQuestRemaining),
-              style: TextStyle(color: weeklyQuestRemaining == Duration.zero ? HunterTheme.success : HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1),
-            ),
-          ]),
-        ),
-
-
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: weeklyQuestRemaining == Duration.zero ? _blue : _blueDim, padding: const EdgeInsets.symmetric(vertical: 14)),
-            onPressed: weeklyQuestRemaining != Duration.zero ? () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("\u26a0\ufe0f Timer not finished yet \u2014 mission cannot be completed.")),
-              );
-            } : () {
-              showDialog(context: context, builder: (_) {
-                final messages = [
-                  "\u2694\ufe0f Only you know whether this mission is complete.",
-                  "\ud83d\udd25 Shortcuts create weak Hunters.",
-                  "\ud83c\udfc6 Discipline separates Hunters from legends.",
-                  "\u26a1 Every completed mission should represent real effort.",
-                ];
-                messages.shuffle();
-                return AlertDialog(
-                  backgroundColor: HunterTheme.background,
-                  title: const Text("Hunter Verification", style: TextStyle(color: Colors.amber)),
-                  content: Text("Are you sure you completed this mission honestly?\n\nOnly you know the truth.\n\n${messages.first}", style: TextStyle(color: HunterTheme.textPrimary)),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text("CONTINUE MISSION")),
-                    ElevatedButton(onPressed: () { Navigator.pop(context); completeWeeklyQuest(); }, child: const Text("COMPLETE")),
-                  ],
-                );
-              });
-            },
-            child: Text("COMPLETE MISSION", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, letterSpacing: 2)),
-          ),
-        ),
-        const SizedBox(height: 10),
-        GestureDetector(
-          onTap: _cancelActiveWeeklyQuest,
-          child: Text("Cancel mission", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12, decoration: TextDecoration.underline)),
-        ),
-        if (weeklyBannerReady) ...[
-          const SizedBox(height: 12),
-          Center(child: SizedBox(width: weeklyBannerAd!.size.width.toDouble(), height: weeklyBannerAd!.size.height.toDouble(), child: AdWidget(ad: weeklyBannerAd!))),
-        ],
-      ]),
     );
   }
 
@@ -1596,51 +1582,33 @@ class _MissionsScreenState extends State<MissionsScreen> {
     final reset = untilNextMonday();
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Text("WEEKLY MISSIONS (AI)", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(20)),
-                  child: Text("$completedCount/$total", style: TextStyle(color: _blue, fontSize: 13, fontWeight: FontWeight.bold)),
-                ),
-              ]),
-              const SizedBox(height: 4),
-              Container(
-                margin: const EdgeInsets.only(top: 6),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: HunterTheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                child: Text(
-                  '\u23f3 Resets in ${reset.inDays}d ${reset.inHours.remainder(24)}h ${reset.inMinutes.remainder(60)}m',
-                  style: TextStyle(color: HunterTheme.primary, fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-        ]),
+        _premiumSectionHeader(
+          icon: Icons.local_fire_department_rounded,
+          accent: HunterTheme.gold,
+          title: 'WEEKLY MISSIONS (AI)',
+          countText: '$completedCount/$total',
+          resetText: 'Resets in ${reset.inDays}d ${reset.inHours.remainder(24)}h ${reset.inMinutes.remainder(60)}m',
+        ),
         const SizedBox(height: 14),
         if (_weeklyLoading)
-          Padding(padding: const EdgeInsets.symmetric(vertical: 20), child: Center(child: CircularProgressIndicator(color: HunterTheme.primary)))
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 28),
+            child: Center(child: CircularProgressIndicator(color: HunterTheme.primary)),
+          )
         else if (weeklyMissions.isEmpty)
-          Container(
-            width: double.infinity, padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: _border)),
-            child: Column(children: [
-              Icon(Icons.local_fire_department, color: _blue, size: 40),
-              const SizedBox(height: 10),
-              Text("No weekly missions yet", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
-            ]),
+          _buildEmptyState(
+            icon: Icons.local_fire_department_rounded,
+            accent: HunterTheme.gold,
+            title: 'No weekly missions yet',
+            subtitle: 'New weekly missions are generated automatically.',
           )
         else
           ...weeklyMissions.map((m) => _buildQuestTile(
             name: (m['title'] ?? '').toString(),
             xp: ((m['xpReward'] ?? 0) as num).toInt(),
-            icon: Icons.local_fire_department,
+            icon: Icons.local_fire_department_rounded,
             isCompleted: m['completed'] == true,
             isCustom: false,
             onTap: () => startWeeklyQuest((m['title'] ?? '').toString()),
@@ -1678,6 +1646,317 @@ class _MissionsScreenState extends State<MissionsScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+
+/// Premium introductory hero for the Missions screen.
+///
+/// Presentation-only. Uses a single lightweight glow controller; the content
+/// is passed as [AnimatedBuilder.child] so only the decoration repaints per
+/// frame (the content subtree is not rebuilt).
+class _MissionHero extends StatefulWidget {
+  const _MissionHero();
+
+  @override
+  State<_MissionHero> createState() => _MissionHeroState();
+}
+
+class _MissionHeroState extends State<_MissionHero> with SingleTickerProviderStateMixin {
+  late final AnimationController _glow = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2600),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _glow.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = HunterTheme.primary;
+
+    final content = Row(
+      children: [
+        Container(
+          width: 54,
+          height: 54,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [accent, accent.withOpacity(0.7)],
+            ),
+          ),
+          child: const Icon(Icons.bolt_rounded, color: Colors.black, size: 30),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'MISSION BOARD',
+                style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 2),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                "Today's Missions",
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'Complete missions to earn XP and rise, Hunter.',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12.5, height: 1.3, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    return AnimatedBuilder(
+      animation: _glow,
+      child: content,
+      builder: (context, child) {
+        final g = _glow.value;
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [accent.withOpacity(0.22), accent.withOpacity(0.06), HunterTheme.cardColor],
+            ),
+            border: Border.all(color: accent.withOpacity(0.32 + g * 0.22), width: 1.4),
+            boxShadow: [BoxShadow(color: accent.withOpacity(0.10 + g * 0.14), blurRadius: 24, spreadRadius: 1)],
+          ),
+          child: child,
+        );
+      },
+    );
+  }
+}
+
+/// Premium active-mission card shared by the daily and weekly flows.
+///
+/// Presentation-only wrapper around the EXACT existing behaviour:
+/// - When the timer is not finished it shows the same "timer not finished"
+///   snackbar.
+/// - When ready it shows the same Hunter Verification dialog and, on confirm,
+///   invokes [onComplete] (completeQuest / completeWeeklyQuest).
+/// - [onCancel] runs the same cancel logic.
+/// The glow controller only repaints the decoration (content, including the
+/// AdWidget, is passed as [AnimatedBuilder.child] and is not rebuilt per frame).
+class _ActiveMissionCard extends StatefulWidget {
+  final Duration remaining;
+  final String title;
+  final int reward;
+  final VoidCallback onComplete;
+  final VoidCallback onCancel;
+  final BannerAd? banner;
+  final bool bannerReady;
+
+  const _ActiveMissionCard({
+    required this.remaining,
+    required this.title,
+    required this.reward,
+    required this.onComplete,
+    required this.onCancel,
+    required this.banner,
+    required this.bannerReady,
+  });
+
+  @override
+  State<_ActiveMissionCard> createState() => _ActiveMissionCardState();
+}
+
+class _ActiveMissionCardState extends State<_ActiveMissionCard> with SingleTickerProviderStateMixin {
+  late final AnimationController _glow = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1500),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _glow.dispose();
+    super.dispose();
+  }
+
+  void _onNotReady() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("\u26a0\ufe0f Timer not finished yet \u2014 mission cannot be completed.")),
+    );
+  }
+
+  void _onCompletePressed() {
+    showDialog(
+      context: context,
+      builder: (_) {
+        final messages = [
+          "\u2694\ufe0f Only you know whether this mission is complete.",
+          "\ud83d\udd25 Shortcuts create weak Hunters.",
+          "\ud83c\udfc6 Discipline separates Hunters from legends.",
+          "\u26a1 Every completed mission should represent real effort.",
+        ];
+        messages.shuffle();
+        return AlertDialog(
+          backgroundColor: HunterTheme.background,
+          title: const Text("Hunter Verification", style: TextStyle(color: Colors.amber)),
+          content: Text(
+            "Are you sure you completed this mission honestly?\n\nOnly you know the truth.\n\n${messages.first}",
+            style: TextStyle(color: HunterTheme.textPrimary),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text("CONTINUE MISSION")),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                widget.onComplete();
+              },
+              child: const Text("COMPLETE"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool ready = widget.remaining == Duration.zero;
+    final Color c = ready ? HunterTheme.success : HunterTheme.primary;
+
+    final content = Column(
+      children: [
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.bolt_rounded, color: c, size: 16),
+          const SizedBox(width: 6),
+          Text('ACTIVE MISSION', style: TextStyle(color: c, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 2)),
+          const SizedBox(width: 6),
+          Icon(Icons.bolt_rounded, color: c, size: 16),
+        ]),
+        const SizedBox(height: 10),
+        Text(
+          ready ? 'Ready to Complete' : 'In Progress',
+          style: TextStyle(color: ready ? HunterTheme.success : Colors.orangeAccent, fontSize: 12.5, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          widget.title,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: HunterTheme.textPrimary, fontSize: 19, fontWeight: FontWeight.w800, height: 1.2),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [HunterTheme.gold.withOpacity(0.28), HunterTheme.gold.withOpacity(0.12)]),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: HunterTheme.gold.withOpacity(0.5)),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.bolt_rounded, color: HunterTheme.gold, size: 16),
+            const SizedBox(width: 6),
+            Text('Reward  +${widget.reward} XP', style: TextStyle(color: HunterTheme.gold, fontSize: 14, fontWeight: FontWeight.w800)),
+          ]),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            color: c.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: c.withOpacity(0.4)),
+          ),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(ready ? Icons.check_circle_rounded : Icons.timer_rounded, color: c, size: 22),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                ready ? "TIME'S UP!" : formatMinutesSeconds(widget.remaining),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: ready ? HunterTheme.success : HunterTheme.textPrimary, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 1),
+              ),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: ready ? HunterTheme.success : HunterTheme.border,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            onPressed: ready ? _onCompletePressed : _onNotReady,
+            child: Text(
+              'COMPLETE MISSION',
+              style: TextStyle(
+                color: ready ? Colors.black : HunterTheme.textTertiary,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        GestureDetector(
+          onTap: widget.onCancel,
+          child: Text('Cancel mission', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12, decoration: TextDecoration.underline)),
+        ),
+        if (widget.bannerReady && widget.banner != null) ...[
+          const SizedBox(height: 14),
+          Center(
+            child: SizedBox(
+              width: widget.banner!.size.width.toDouble(),
+              height: widget.banner!.size.height.toDouble(),
+              child: AdWidget(ad: widget.banner!),
+            ),
+          ),
+        ],
+      ],
+    );
+
+    return AnimatedBuilder(
+      animation: _glow,
+      child: content,
+      builder: (context, child) {
+        final g = _glow.value;
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [c.withOpacity(0.14), HunterTheme.cardColor],
+            ),
+            border: Border.all(color: c.withOpacity(0.5 + g * 0.3), width: 1.6),
+            boxShadow: [BoxShadow(color: c.withOpacity(0.14 + g * 0.18), blurRadius: 24, spreadRadius: 1)],
+          ),
+          child: child,
+        );
+      },
     );
   }
 }

@@ -46,47 +46,110 @@ class SettingsScreen extends StatelessWidget {
       debugPrint('[Logout] 4/9 MembershipService.clearCache() — after');
 
       debugPrint('[Logout] 5a/9 HunterRepository.clearCache() — before');
-      await HunterRepository.instance.clearCache();
-      debugPrint('[Logout] 5a/9 HunterRepository.clearCache() — after');
+      try {
+        await HunterRepository.instance.clearCache();
+        debugPrint('[Logout] 5a/9 HunterRepository.clearCache() — SUCCESS');
+      } catch (e, st) {
+        debugPrint('[Logout] 5a/9 FAILED — HunterRepository.instance.clearCache()');
+        debugPrint('[Logout] 5a/9 exception: $e');
+        debugPrint('[Logout] 5a/9 stack: $st');
+        rethrow;
+      }
 
       debugPrint('[Logout] 5b/9 WeightRepository.clearCache() — before');
-      await WeightRepository.instance.clearCache();
-      debugPrint('[Logout] 5b/9 WeightRepository.clearCache() — after');
+      try {
+        await WeightRepository.instance.clearCache();
+        debugPrint('[Logout] 5b/9 WeightRepository.clearCache() — SUCCESS');
+      } catch (e, st) {
+        debugPrint('[Logout] 5b/9 FAILED — WeightRepository.instance.clearCache()');
+        debugPrint('[Logout] 5b/9 exception: $e');
+        debugPrint('[Logout] 5b/9 stack: $st');
+        rethrow;
+      }
 
       debugPrint('[Logout] 5c/9 QuestRepository.clearCache() — before');
-      await QuestRepository.instance.clearCache();
-      debugPrint('[Logout] 5c/9 QuestRepository.clearCache() — after');
+      try {
+        await QuestRepository.instance.clearCache();
+        debugPrint('[Logout] 5c/9 QuestRepository.clearCache() — SUCCESS');
+      } catch (e, st) {
+        debugPrint('[Logout] 5c/9 FAILED — QuestRepository.instance.clearCache()');
+        debugPrint('[Logout] 5c/9 exception: $e');
+        debugPrint('[Logout] 5c/9 stack: $st');
+        rethrow;
+      }
 
       debugPrint('[Logout] 5d/9 LeaderboardRepository.clearCache() — before');
-      await LeaderboardRepository.instance.clearCache();
-      debugPrint('[Logout] 5d/9 LeaderboardRepository.clearCache() — after');
+      try {
+        await LeaderboardRepository.instance.clearCache();
+        debugPrint('[Logout] 5d/9 LeaderboardRepository.clearCache() — SUCCESS');
+      } catch (e, st) {
+        debugPrint('[Logout] 5d/9 FAILED — LeaderboardRepository.instance.clearCache()');
+        debugPrint('[Logout] 5d/9 exception: $e');
+        debugPrint('[Logout] 5d/9 stack: $st');
+        rethrow;
+      }
 
       debugPrint('[Logout] 6/9 SleepService.cancelSleep() — before');
-      await SleepService.instance.cancelSleep();
-      debugPrint('[Logout] 6/9 SleepService.cancelSleep() — after');
+      try {
+        await SleepService.instance.cancelSleep();
+        debugPrint('[Logout] 6/9 SleepService.cancelSleep() — SUCCESS');
+      } catch (e, st) {
+        debugPrint('[Logout] 6/9 FAILED — SleepService.instance.cancelSleep()');
+        debugPrint('[Logout] 6/9 exception: $e');
+        debugPrint('[Logout] 6/9 stack: $st');
+        rethrow;
+      }
 
       if (user.isAnonymous) {
         debugPrint('[Logout] 7/9 Anonymous path — deleting hunters/${user.uid}');
         debugPrint('[Logout] 7/9 currentUser before delete: ${FirebaseAuth.instance.currentUser?.uid}');
-        await FirebaseFirestore.instance
-            .collection('hunters')
-            .doc(user.uid)
-            .delete();
-        debugPrint('[Logout] 7/9 hunters doc delete — SUCCESS');
+        try {
+          await FirebaseFirestore.instance
+              .collection('hunters')
+              .doc(user.uid)
+              .delete();
+          debugPrint('[Logout] 7/9 hunters/${user.uid} .delete() — SUCCESS');
+        } catch (e, st) {
+          debugPrint('[Logout] 7/9 FAILED — FirebaseFirestore.collection("hunters").doc("${user.uid}").delete()');
+          debugPrint('[Logout] 7/9 exception: $e');
+          debugPrint('[Logout] 7/9 stack: $st');
+          rethrow;
+        }
 
         debugPrint('[Logout] 8/9 user.delete() — before');
-        await user.delete();
-        debugPrint('[Logout] 8/9 user.delete() — after (also signs out)');
+        try {
+          await user.delete();
+          debugPrint('[Logout] 8/9 user.delete() — SUCCESS');
+        } catch (e, st) {
+          debugPrint('[Logout] 8/9 FAILED — FirebaseAuth user.delete() uid=${user.uid}');
+          debugPrint('[Logout] 8/9 exception: $e');
+          debugPrint('[Logout] 8/9 stack: $st');
+          rethrow;
+        }
       } else {
         debugPrint('[Logout] 7/9 Google path — signing out');
         debugPrint('[Logout] 7/9 currentUser before signOut: ${FirebaseAuth.instance.currentUser?.uid}');
-        await GoogleSignIn().signOut();
-        debugPrint('[Logout] 7/9 GoogleSignIn().signOut() — after');
+        try {
+          await GoogleSignIn().signOut();
+          debugPrint('[Logout] 7/9 GoogleSignIn().signOut() — SUCCESS');
+        } catch (e, st) {
+          debugPrint('[Logout] 7/9 FAILED — GoogleSignIn().signOut()');
+          debugPrint('[Logout] 7/9 exception: $e');
+          debugPrint('[Logout] 7/9 stack: $st');
+          rethrow;
+        }
 
         debugPrint('[Logout] 8/9 FirebaseAuth.signOut() — before');
         debugPrint('[Logout] 8/9 currentUser before FirebaseAuth.signOut: ${FirebaseAuth.instance.currentUser?.uid}');
-        await FirebaseAuth.instance.signOut();
-        debugPrint('[Logout] 8/9 FirebaseAuth.signOut() — after');
+        try {
+          await FirebaseAuth.instance.signOut();
+          debugPrint('[Logout] 8/9 FirebaseAuth.signOut() — SUCCESS');
+        } catch (e, st) {
+          debugPrint('[Logout] 8/9 FAILED — FirebaseAuth.instance.signOut()');
+          debugPrint('[Logout] 8/9 exception: $e');
+          debugPrint('[Logout] 8/9 stack: $st');
+          rethrow;
+        }
       }
 
       debugPrint('[Logout] 9/9 Navigate to LoginScreen');

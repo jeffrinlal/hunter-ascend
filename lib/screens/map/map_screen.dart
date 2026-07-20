@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -276,23 +277,39 @@ class _MapScreenState extends State<MapScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text("🏆 RUN COMPLETE!", style: TextStyle(color: Colors.amber, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [HunterTheme.gold.withOpacity(0.22), HunterTheme.gold.withOpacity(0.08)],
+                    ),
+                    border: Border.all(color: HunterTheme.gold.withOpacity(0.4)),
+                    boxShadow: [BoxShadow(color: HunterTheme.gold.withOpacity(0.25), blurRadius: 16)],
+                  ),
+                  child: Icon(Icons.emoji_events_rounded, color: HunterTheme.gold, size: 28),
+                ),
+                const SizedBox(height: 14),
+                Text("RUN COMPLETE!", style: TextStyle(color: HunterTheme.gold, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 2)),
                 const SizedBox(height: 24),
 
                 // Stats grid
                 Row(children: [
-                  _statBox("📍 DISTANCE", "${_distanceKm.toStringAsFixed(2)} km", _blue),
+                  _statBox("DISTANCE", "${_distanceKm.toStringAsFixed(2)} km", _blue),
                   const SizedBox(width: 10),
-                  _statBox("⏱️ TIME", _timerDisplay, Colors.orange),
+                  _statBox("TIME", _timerDisplay, HunterTheme.gold),
                 ]),
                 const SizedBox(height: 10),
                 Row(children: [
-                  _statBox("🔥 CALORIES", "${_caloriesBurned.toStringAsFixed(0)} kcal", Colors.redAccent),
+                  _statBox("CALORIES", "${_caloriesBurned.toStringAsFixed(0)} kcal", HunterTheme.danger),
                   const SizedBox(width: 10),
-                  _statBox("⚡ XP EARNED", "+$_xpEarned XP", HunterTheme.success),
+                  _statBox("XP EARNED", "+$_xpEarned XP", HunterTheme.success),
                 ]),
                 const SizedBox(height: 10),
-                _statBox("💨 AVG SPEED", "${_speedKmh.toStringAsFixed(1)} km/h", Colors.purpleAccent),
+                _statBox("AVG SPEED", "${_speedKmh.toStringAsFixed(1)} km/h", HunterTheme.purple),
 
                 const SizedBox(height: 24),
 
@@ -301,7 +318,9 @@ class _MapScreenState extends State<MapScreen> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _blue,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     onPressed: isSaving ? null : () async {
@@ -333,15 +352,15 @@ class _MapScreenState extends State<MapScreen> {
                       }
                     },
                     child: isSaving
-                        ? SizedBox(
+                        ? const SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: HunterTheme.textPrimary,
+                        color: Colors.black,
                       ),
                     )
-                        : Text("SAVE RUN ⚡", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 2)),
+                        : const Text("SAVE RUN", style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 2)),
                   ),
                 ),
 
@@ -433,8 +452,9 @@ class _MapScreenState extends State<MapScreen> {
   }) async {
     if (!mounted || route.length < 2) return;
 
-    // Fetch hunter name for the share card.
+    // Fetch hunter name + avatar for the share card (same doc, no extra query).
     String hunterName = 'Hunter';
+    String? profilePicture;
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
@@ -443,8 +463,15 @@ class _MapScreenState extends State<MapScreen> {
             .doc(user.uid)
             .get();
         hunterName = (doc.data()?['hunterName'] ?? 'Hunter').toString();
+        final pic = doc.data()?['profilePicture'];
+        if (pic is String && pic.isNotEmpty) profilePicture = pic;
       }
     } catch (_) {}
+
+    // Presentation-only date label for the share image.
+    final now = DateTime.now();
+    const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final dateLabel = '${_months[now.month - 1]} ${now.day}, ${now.year}';
 
     if (!mounted) return;
 
@@ -492,15 +519,17 @@ class _MapScreenState extends State<MapScreen> {
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: HunterTheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    foregroundColor: Colors.black,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Share', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 1.5)),
+                  icon: const Icon(Icons.ios_share_rounded, size: 18),
+                  label: const Text('Share', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: 1.5)),
                 ),
               ),
               const SizedBox(height: 10),
@@ -530,8 +559,11 @@ class _MapScreenState extends State<MapScreen> {
         _RunShareCard(
           route: route,
           hunterName: hunterName,
+          profilePicture: profilePicture,
+          dateLabel: dateLabel,
           distanceKm: distanceKm,
           timerDisplay: timerDisplay,
+          durationSeconds: durationSeconds,
           speedKmh: speedKmh,
           calories: calories,
           xpEarned: xpEarned,
@@ -580,16 +612,23 @@ class _MapScreenState extends State<MapScreen> {
   Widget _statBox(String label, String value, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(14),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [color.withOpacity(0.14), HunterTheme.cardColor],
+          ),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: color.withOpacity(0.3)),
         ),
         child: Column(children: [
-          Text(label, style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10, letterSpacing: 1)),
-          const SizedBox(height: 6),
-          Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(label, textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w900)),
+          ),
         ]),
       ),
     );
@@ -615,13 +654,21 @@ class _MapScreenState extends State<MapScreen> {
         ])),
         centerTitle: true,
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
+          preferredSize: const Size.fromHeight(56),
           child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(12), border: Border.all(color: _border)),
+            margin: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: _card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _border),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+              ],
+            ),
             child: Row(children: [
-              _tabBtn("🗺️ MAP", 0),
-              _tabBtn("📋 HISTORY", 1),
+              _tabBtn(Icons.map_rounded, "MAP", 0),
+              _tabBtn(Icons.timeline_rounded, "HISTORY", 1),
             ]),
           ),
         ),
@@ -630,18 +677,44 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _tabBtn(String label, int index) {
+  Widget _tabBtn(IconData icon, String label, int index) {
     final selected = _selectedTab == index;
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _selectedTab = index),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(vertical: 11),
           decoration: BoxDecoration(
-            color: selected ? _blue : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
+            gradient: selected
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: HunterTheme.primaryGradient,
+                  )
+                : null,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: selected
+                ? [BoxShadow(color: _blue.withOpacity(0.35 * HunterTheme.glowStrength), blurRadius: 10, offset: const Offset(0, 3))]
+                : null,
           ),
-          child: Text(label, textAlign: TextAlign.center, style: TextStyle(color: selected ? Colors.white : HunterTheme.textTertiary, fontWeight: FontWeight.bold, fontSize: 13)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: selected ? Colors.black : HunterTheme.textTertiary),
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? Colors.black : HunterTheme.textTertiary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -653,7 +726,33 @@ class _MapScreenState extends State<MapScreen> {
       // Map
       Expanded(
         child: _currentPosition == null
-            ? Center(child: CircularProgressIndicator(color: _blue))
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 74,
+                      height: 74,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [_blue.withOpacity(0.16), _card],
+                        ),
+                        border: Border.all(color: _blue.withOpacity(0.3)),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(22),
+                        child: CircularProgressIndicator(color: _blue, strokeWidth: 2.5),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text('Locating you...',
+                        style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              )
             : FlutterMap(
           mapController: _mapController,
           options: MapOptions(
@@ -699,7 +798,7 @@ class _MapScreenState extends State<MapScreen> {
                       border: Border.all(color: Colors.white, width: 3),
                       boxShadow: [BoxShadow(color: _blue.withOpacity(0.6), blurRadius: 10, spreadRadius: 2)],
                     ),
-                    child: Icon(Icons.navigation, color: HunterTheme.textPrimary, size: 20),
+                    child: const Icon(Icons.navigation_rounded, color: Colors.black, size: 20),
                   ),
                 ),
               ]),
@@ -707,95 +806,108 @@ class _MapScreenState extends State<MapScreen> {
         ),
       ),
 
-      // Stats bar
+      // Live stats bar
       if (_isTracking)
         Container(
-          padding: const EdgeInsets.all(16),
-          color: _card,
-          child: Column(children: [
-            Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-              _liveStatItem("⏱️", _timerDisplay, "TIME"),
-              _liveStatItem("📍", "${_distanceKm.toStringAsFixed(2)}", "KM"),
-              _liveStatItem("💨", "${_speedKmh.toStringAsFixed(1)}", "KM/H"),
-              _liveStatItem("🔥", "${_caloriesBurned.toStringAsFixed(0)}", "KCAL"),
-              _liveStatItem("⚡", "+$_xpEarned", "XP"),
-            ]),
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [_blue.withOpacity(0.06), _card],
+            ),
+            border: Border(top: BorderSide(color: _border)),
+          ),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+            _liveStatItem(Icons.timer_outlined, _timerDisplay, "TIME"),
+            _liveStatItem(Icons.route_rounded, _distanceKm.toStringAsFixed(2), "KM"),
+            _liveStatItem(Icons.speed_rounded, _speedKmh.toStringAsFixed(1), "KM/H"),
+            _liveStatItem(Icons.local_fire_department_rounded, _caloriesBurned.toStringAsFixed(0), "KCAL"),
+            _liveStatItem(Icons.bolt_rounded, "+$_xpEarned", "XP"),
           ]),
         ),
 
       // Controls
-      Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: _bg, border: Border(top: BorderSide(color: _border))),
-        child: _isTracking
-            ? Row(children: [
-          // Pause
-          Expanded(
-            child: GestureDetector(
-              onTap: _pauseTracking,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.orange.withOpacity(0.4)),
+      SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: _bg, border: Border(top: BorderSide(color: _border))),
+          child: _isTracking
+              ? Row(children: [
+            // Pause
+            Expanded(
+              child: GestureDetector(
+                onTap: _pauseTracking,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  decoration: BoxDecoration(
+                    color: HunterTheme.gold.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: HunterTheme.gold.withOpacity(0.4)),
+                  ),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(_isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded, color: HunterTheme.gold),
+                    const SizedBox(width: 6),
+                    Text(_isPaused ? "RESUME" : "PAUSE", style: TextStyle(color: HunterTheme.gold, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                  ]),
                 ),
-                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Icon(_isPaused ? Icons.play_arrow : Icons.pause, color: Colors.orange),
-                  const SizedBox(width: 6),
-                  Text(_isPaused ? "RESUME" : "PAUSE", style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
-                ]),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          // Stop
-          Expanded(
-            child: GestureDetector(
-              onTap: _stopTracking,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.redAccent.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.redAccent.withOpacity(0.4)),
+            const SizedBox(width: 12),
+            // Stop
+            Expanded(
+              child: GestureDetector(
+                onTap: _stopTracking,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  decoration: BoxDecoration(
+                    color: HunterTheme.danger.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: HunterTheme.danger.withOpacity(0.4)),
+                  ),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(Icons.stop_rounded, color: HunterTheme.danger),
+                    const SizedBox(width: 6),
+                    Text("STOP", style: TextStyle(color: HunterTheme.danger, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                  ]),
                 ),
-                child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Icon(Icons.stop, color: Colors.redAccent),
-                  SizedBox(width: 6),
-                  Text("STOP", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-                ]),
               ),
             ),
-          ),
-        ])
-            : GestureDetector(
-          onTap: _startTracking,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            decoration: BoxDecoration(
-              color: _blue,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: _blue.withOpacity(0.4), blurRadius: 20)],
+          ])
+              : GestureDetector(
+            onTap: _startTracking,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 17),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: HunterTheme.primaryGradient,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: _blue.withOpacity(0.4 * HunterTheme.glowStrength), blurRadius: 20, offset: const Offset(0, 6))],
+              ),
+              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.play_arrow_rounded, color: Colors.black, size: 24),
+                SizedBox(width: 8),
+                Text("START RUN", style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 2)),
+              ]),
             ),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.play_arrow, color: HunterTheme.textPrimary, size: 24),
-              SizedBox(width: 8),
-              Text("START RUN", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 2)),
-            ]),
           ),
         ),
       ),
     ]);
   }
 
-  Widget _liveStatItem(String emoji, String value, String label) {
+  Widget _liveStatItem(IconData icon, String value, String label) {
     return Column(children: [
-      Text(emoji, style: const TextStyle(fontSize: 16)),
-      const SizedBox(height: 4),
-      Text(value, style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
-      Text(label, style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10)),
+      Icon(icon, color: _blue, size: 18),
+      const SizedBox(height: 5),
+      Text(value, style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.w900, fontSize: 15)),
+      const SizedBox(height: 1),
+      Text(label, style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
     ]);
   }
 
@@ -829,19 +941,58 @@ class _MapScreenState extends State<MapScreen> {
           child: StreamBuilder<QuerySnapshot>(
             stream: _runsHistoryStream,
             builder: (context, snapshot) {
-              if (!snapshot.hasData) return Center(child: CircularProgressIndicator(color: _blue));
+              if (!snapshot.hasData) {
+                return Center(
+                  child: Container(
+                    width: 74,
+                    height: 74,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [_blue.withOpacity(0.16), _card],
+                      ),
+                      border: Border.all(color: _blue.withOpacity(0.3)),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(22),
+                      child: CircularProgressIndicator(color: _blue, strokeWidth: 2.5),
+                    ),
+                  ),
+                );
+              }
 
               final runs = snapshot.data!.docs;
 
               if (runs.isEmpty) {
                 return Center(
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(Icons.map_outlined, color: _blue, size: 60),
-                    const SizedBox(height: 16),
-                    Text("No runs yet!", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Text("Start your first run to see history", style: TextStyle(color: HunterTheme.textTertiary)),
-                  ]),
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Container(
+                        width: 92,
+                        height: 92,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [_blue.withOpacity(0.16), _card],
+                          ),
+                          border: Border.all(color: _blue.withOpacity(0.3), width: 1.4),
+                          boxShadow: [
+                            BoxShadow(color: _blue.withOpacity(0.14 * HunterTheme.glowStrength), blurRadius: 24),
+                          ],
+                        ),
+                        child: Icon(Icons.directions_run_rounded, color: _blue, size: 42),
+                      ),
+                      const SizedBox(height: 22),
+                      Text("No runs yet", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 19, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 8),
+                      Text("Start your first run to build your history", textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, height: 1.4)),
+                    ]),
+                  ),
                 );
               }
 
@@ -861,23 +1012,33 @@ class _MapScreenState extends State<MapScreen> {
                 children: [
                   // Total stats card
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(18),
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: _card,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [_blue.withOpacity(0.08), _card],
+                      ),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: _border),
-                      boxShadow: [BoxShadow(color: _blue.withOpacity(0.1), blurRadius: 16)],
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(HunterTheme.isDark ? 0.2 : 0.04), blurRadius: 16, offset: const Offset(0, 6)),
+                      ],
                     ),
                     child: Column(children: [
-                      Text("📊 ALL TIME STATS", style: TextStyle(color: _blue, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        Icon(Icons.insights_rounded, color: _blue, size: 16),
+                        const SizedBox(width: 8),
+                        Text("ALL-TIME STATS", style: TextStyle(color: _blue, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                      ]),
                       const SizedBox(height: 16),
                       Row(children: [
-                        _statBox("📍 TOTAL", "${totalKm.toStringAsFixed(1)} km", _blue),
+                        _statBox("TOTAL", "${totalKm.toStringAsFixed(1)} km", _blue),
                         const SizedBox(width: 8),
-                        _statBox("🔥 CALORIES", "${totalCal.toStringAsFixed(0)} kcal", Colors.redAccent),
+                        _statBox("CALORIES", "${totalCal.toStringAsFixed(0)} kcal", HunterTheme.danger),
                         const SizedBox(width: 8),
-                        _statBox("⚡ TOTAL XP", "+$totalXp XP", HunterTheme.success),
+                        _statBox("TOTAL XP", "+$totalXp XP", HunterTheme.success),
                       ]),
                     ]),
                   ),
@@ -898,31 +1059,55 @@ class _MapScreenState extends State<MapScreen> {
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: _card,
-                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [_blue.withOpacity(0.05), _card],
+                        ),
+                        borderRadius: BorderRadius.circular(18),
                         border: Border.all(color: _border),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(HunterTheme.isDark ? 0.15 : 0.03), blurRadius: 10, offset: const Offset(0, 4)),
+                        ],
                       ),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Row(children: [
-                          Icon(Icons.directions_run, color: _blue, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            "${date.day}/${date.month}/${date.year}",
-                            style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 15),
-                          ),
-                          const Spacer(),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(color: HunterTheme.success.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
-                            child: Text("+$xp XP", style: TextStyle(color: HunterTheme.success, fontWeight: FontWeight.bold, fontSize: 12)),
+                            padding: const EdgeInsets.all(9),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [_blue.withOpacity(0.18), _blue.withOpacity(0.06)],
+                              ),
+                              borderRadius: BorderRadius.circular(11),
+                              border: Border.all(color: _blue.withOpacity(0.25)),
+                            ),
+                            child: Icon(Icons.directions_run_rounded, color: _blue, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              "${date.day}/${date.month}/${date.year}",
+                              style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.w800, fontSize: 15),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: HunterTheme.success.withOpacity(0.14),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: HunterTheme.success.withOpacity(0.3)),
+                            ),
+                            child: Text("+$xp XP", style: TextStyle(color: HunterTheme.success, fontWeight: FontWeight.w800, fontSize: 12)),
                           ),
                         ]),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                          _runStat("📍", "$km km"),
-                          _runStat("⏱️", "$durMin:$durSec"),
-                          _runStat("💨", "$speed km/h"),
-                          _runStat("🔥", "$cal kcal"),
+                          _runStat(Icons.route_rounded, "$km km"),
+                          _runStat(Icons.timer_outlined, "$durMin:$durSec"),
+                          _runStat(Icons.speed_rounded, "$speed km/h"),
+                          _runStat(Icons.local_fire_department_rounded, "$cal kcal"),
                         ]),
                       ]),
                     );
@@ -939,11 +1124,11 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _runStat(String emoji, String value) {
+  Widget _runStat(IconData icon, String value) {
     return Column(children: [
-      Text(emoji, style: const TextStyle(fontSize: 16)),
-      const SizedBox(height: 4),
-      Text(value, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+      Icon(icon, color: _blue, size: 17),
+      const SizedBox(height: 5),
+      Text(value, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w700)),
     ]);
   }
 }
@@ -960,24 +1145,30 @@ class _RunShareCard extends StatelessWidget {
   const _RunShareCard({
     required this.route,
     required this.hunterName,
+    required this.dateLabel,
     required this.distanceKm,
     required this.timerDisplay,
+    required this.durationSeconds,
     required this.speedKmh,
     required this.calories,
     required this.xpEarned,
+    this.profilePicture,
   });
 
   final List<LatLng> route;
   final String hunterName;
+  final String? profilePicture;
+  final String dateLabel;
   final double distanceKm;
   final String timerDisplay;
+  final int durationSeconds;
   final double speedKmh;
   final double calories;
   final int xpEarned;
 
   /// Fixed card width (captured at 3x → ~1290px).
   static const double _cardWidth = 430;
-  static const double _cardHeight = 640;
+  static const double _cardHeight = 660;
 
   // Fixed dark palette for the share image (theme-independent).
   static const _bg = Color(0xFF0C1017);
@@ -985,9 +1176,19 @@ class _RunShareCard extends StatelessWidget {
   static const _accent = Color(0xFFFF7A3D);
   static const _accentBright = Color(0xFFFF9E5C);
   static const _gold = Color(0xFFFFD54A);
+  static const _green = Color(0xFF4ADE80);
   static const _textPrimary = Color(0xFFF5F6F8);
   static const _textSecondary = Color(0xFFC2C8D2);
   static const _textTertiary = Color(0xFF808895);
+
+  /// Display-only average pace (min/km) derived from distance + duration.
+  String get _paceLabel {
+    if (distanceKm <= 0 || durationSeconds <= 0) return '--';
+    final secPerKm = durationSeconds / distanceKm;
+    final m = secPerKm ~/ 60;
+    final s = (secPerKm % 60).round().clamp(0, 59);
+    return "$m'${s.toString().padLeft(2, '0')}\"";
+  }
 
   /// Computes a bounding box for the route with padding, then returns a
   /// center LatLng and a zoom level that fits the route within the given
@@ -1039,7 +1240,7 @@ class _RunShareCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mapHeight = _cardHeight * 0.65;
+    final mapHeight = _cardHeight * 0.60;
     final mapOptions = _fitRoute(_cardWidth, mapHeight);
 
     return Directionality(
@@ -1049,134 +1250,231 @@ class _RunShareCard extends StatelessWidget {
         child: Container(
           width: _cardWidth,
           height: _cardHeight,
-          color: _bg,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [_surface, _bg],
+            ),
+          ),
           child: Column(
             children: [
-              // ── Map section (top ~65%) ──
+              // ── Map hero (route preview + overlays) ──
               SizedBox(
                 width: _cardWidth,
                 height: mapHeight,
                 child: ClipRRect(
                   borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
+                    bottomLeft: Radius.circular(28),
+                    bottomRight: Radius.circular(28),
                   ),
-                  child: FlutterMap(
-                    options: mapOptions,
+                  child: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      TileLayer(
-                        urlTemplate:
-                            'https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.hunterascend.hunter_ascend',
-                      ),
-                      PolylineLayer(
-                        polylines: [
-                          Polyline(
-                            points: route,
-                            strokeWidth: 4,
-                            color: _accent,
+                      FlutterMap(
+                        options: mapOptions,
+                        children: [
+                          TileLayer(
+                            urlTemplate:
+                                'https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+                            userAgentPackageName: 'com.hunterascend.hunter_ascend',
                           ),
-                        ],
-                      ),
-                      // Start marker
-                      if (route.isNotEmpty)
-                        MarkerLayer(markers: [
-                          Marker(
-                            point: route.first,
-                            width: 14,
-                            height: 14,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF4ADE80),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
+                          PolylineLayer(
+                            polylines: [
+                              Polyline(
+                                points: route,
+                                strokeWidth: 5,
+                                color: _accent,
+                                borderStrokeWidth: 2,
+                                borderColor: Colors.white.withOpacity(0.85),
                               ),
-                            ),
+                            ],
                           ),
-                          if (route.length > 1)
-                            Marker(
-                              point: route.last,
-                              width: 14,
-                              height: 14,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: _accent,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 2),
+                          if (route.isNotEmpty)
+                            MarkerLayer(markers: [
+                              Marker(
+                                point: route.first,
+                                width: 16,
+                                height: 16,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: _green,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 2.5),
+                                  ),
                                 ),
                               ),
+                              if (route.length > 1)
+                                Marker(
+                                  point: route.last,
+                                  width: 16,
+                                  height: 16,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: _accent,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 2.5),
+                                    ),
+                                  ),
+                                ),
+                            ]),
+                        ],
+                      ),
+                      // Top scrim + hunter chip.
+                      Positioned(
+                        top: 0, left: 0, right: 0,
+                        child: Container(
+                          height: 90,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Colors.black.withOpacity(0.55), Colors.transparent],
                             ),
-                        ]),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 16, left: 18, right: 18,
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: _accent, width: 2),
+                              ),
+                              child: ClipOval(
+                                child: profilePicture != null
+                                    ? Image.memory(base64Decode(profilePicture!), fit: BoxFit.cover)
+                                    : Container(color: _surface, child: const Icon(Icons.person, color: _accentBright, size: 22)),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    hunterName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
+                                  ),
+                                  Text(
+                                    dateLabel,
+                                    style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 11, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.directions_run_rounded, color: Colors.white, size: 22),
+                          ],
+                        ),
+                      ),
+                      // Bottom scrim + big distance hero.
+                      Positioned(
+                        bottom: 0, left: 0, right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(20, 40, 20, 16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Colors.transparent, Colors.black.withOpacity(0.65)],
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                distanceKm.toStringAsFixed(2),
+                                style: const TextStyle(color: Colors.white, fontSize: 52, fontWeight: FontWeight.w900, height: 1.0),
+                              ),
+                              const SizedBox(width: 8),
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 8),
+                                child: Text('KM', style: TextStyle(color: _accentBright, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ),
 
-              // ── Stats section (bottom ~35%) ──
+              // ── Stats + branding ──
               Expanded(
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(22, 18, 22, 14),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 20, 22, 16),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Hunter name row
                       Row(
                         children: [
-                          Icon(Icons.directions_run_rounded,
-                              color: _accent, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              hunterName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: _textPrimary,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      // Stats grid
-                      Row(
-                        children: [
-                          _stat('DISTANCE', '${distanceKm.toStringAsFixed(2)} km', _accent),
-                          _stat('DURATION', timerDisplay, _accentBright),
-                          _stat('SPEED', '${speedKmh.toStringAsFixed(1)} km/h', _textPrimary),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          _stat('CALORIES', '${calories.toStringAsFixed(0)} kcal', _textPrimary),
-                          _stat('XP EARNED', '+$xpEarned', _gold),
-                          const Expanded(child: SizedBox()),
+                          _stat('DURATION', timerDisplay, _textPrimary),
+                          _statDivider(),
+                          _stat('PACE', '$_paceLabel/km', _accentBright),
+                          _statDivider(),
+                          _stat('CALORIES', calories.toStringAsFixed(0), _textPrimary),
+                          _statDivider(),
+                          _stat('XP', '+$xpEarned', _gold),
                         ],
                       ),
                       const Spacer(),
-                      // Footer
+                      Container(height: 1, color: Colors.white.withOpacity(0.08)),
+                      const SizedBox(height: 14),
+                      // Branding footer.
                       Row(
                         children: [
-                          Text(
-                            'HUNTER ASCEND',
-                            style: TextStyle(
-                              color: _accent,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 2,
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [_accent, _gold],
+                              ),
+                            ),
+                            child: const Icon(Icons.bolt_rounded, color: Colors.black, size: 20),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  'HUNTER ASCEND',
+                                  style: TextStyle(color: _textPrimary, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 1.5),
+                                ),
+                                Text(
+                                  'Level Up Your Real Life',
+                                  style: TextStyle(color: _accentBright.withOpacity(0.9), fontSize: 10.5, fontStyle: FontStyle.italic, fontWeight: FontWeight.w600),
+                                ),
+                              ],
                             ),
                           ),
-                          const Spacer(),
-                          Text(
-                            'Level Up Your Real Life',
-                            style: TextStyle(
-                              color: _textTertiary,
-                              fontSize: 10,
-                              fontStyle: FontStyle.italic,
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white.withOpacity(0.12)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.play_arrow_rounded, color: _green, size: 15),
+                                SizedBox(width: 5),
+                                Text('Get the app', style: TextStyle(color: _textSecondary, fontSize: 10.5, fontWeight: FontWeight.w700)),
+                              ],
                             ),
                           ),
                         ],
@@ -1192,28 +1490,24 @@ class _RunShareCard extends StatelessWidget {
     );
   }
 
+  Widget _statDivider() => Container(width: 1, height: 30, color: Colors.white.withOpacity(0.08));
+
   Widget _stat(String label, String value, Color valueColor) {
     return Expanded(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: _textTertiary,
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(color: valueColor, fontSize: 17, fontWeight: FontWeight.w900),
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(
-            value,
-            style: TextStyle(
-              color: valueColor,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-            ),
+            label,
+            style: const TextStyle(color: _textTertiary, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 1),
           ),
         ],
       ),

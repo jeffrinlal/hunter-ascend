@@ -13,6 +13,7 @@ import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/milestone_service.dart';
 import 'package:hunter_ascend/services/xp_service.dart';
+import 'package:hunter_ascend/services/rank_celebration_service.dart';
 import 'package:hunter_ascend/services/achievements_service.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/widgets/achievement_unlocked_dialog.dart';
@@ -254,6 +255,15 @@ class _DuelScreenState extends State<DuelScreen> {
         if (result.leveledUp && mounted) {
           MilestoneService.celebrateLevelUps(
               context, result.level - 1, result.level);
+          // Presentation-only Rank-Up / Reward-Unlock celebrations, queued
+          // right after the level-up dialog(s). Reads RankService/
+          // RankRewardService — never modifies progression or grants.
+          RankCelebrationService.instance.celebrateIfRankUp(
+            context,
+            uid: uid,
+            oldLevel: result.level - 1,
+            newLevel: result.level,
+          );
         }
       } else {
         // Loser: safely deduct 20 XP from the current progress.

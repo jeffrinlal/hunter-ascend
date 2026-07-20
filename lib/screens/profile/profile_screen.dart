@@ -17,6 +17,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:hunter_ascend/screens/profile/membership_screen.dart';
 import 'package:hunter_ascend/screens/profile/reports/reports_tab.dart';
+import 'package:hunter_ascend/screens/profile/achievements/achievements_tab.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/models/weight_entry.dart';
@@ -784,7 +785,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       tabs: const [
                         Tab(text: 'REPORTS'),
                         Tab(text: 'PHYSIQUE'),
-                        Tab(text: 'HISTORY'),
+                        Tab(text: 'ACHIEVEMENTS'),
                       ],
                     ),
                   ),
@@ -999,12 +1000,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                               ),
                             ),
                           ),
+
+                          // ── Weight history (moved here from old History tab) ──
+                          const SizedBox(height: 24),
+                          _buildWeightHistoryContent(),
                         ],
                       ),
                     ),
 
-                    // ── HISTORY — weight history inline, no separate page ──
-                    _buildWeightHistoryTab(user),
+                    // ── ACHIEVEMENTS ──────────────────────────────────
+                    AchievementsTab(hunter: hunter),
                   ],
                 ),
           );
@@ -1013,35 +1018,37 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // ── Inline Weight History Tab ──────────────────────────────────────
-  Widget _buildWeightHistoryTab(User? user) {
+  // ── Inline Weight History (embedded inside the Physique tab) ────────
+  Widget _buildWeightHistoryContent() {
     return StreamBuilder<List<WeightEntry>>(
       stream: WeightRepository.instance.watch(),
       initialData: WeightRepository.instance.getCached(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return _centeredScrollSafe(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(snapshot.error.toString(),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red)),
-            ),
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Text(snapshot.error.toString(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red)),
           );
         }
 
         final entries = snapshot.data;
         if (entries == null) {
-          return _centeredScrollSafe(
-            child: CircularProgressIndicator(color: HunterTheme.primary),
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 32),
+            child: Center(child: CircularProgressIndicator()),
           );
         }
 
         if (entries.isEmpty) {
-          return _centeredScrollSafe(
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                _weightHistoryHeader(),
+                const SizedBox(height: 20),
                 Container(
                   width: 84,
                   height: 84,
@@ -1098,10 +1105,10 @@ class _ProfileScreenState extends State<ProfileScreen>
           message = "Every Hunter starts somewhere.";
         }
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
+        return Column(
             children: [
+              _weightHistoryHeader(),
+              const SizedBox(height: 14),
               // Summary card
               Container(
                 width: double.infinity,
@@ -1129,7 +1136,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           : "\ud83d\udcc8 Total Gained: ${weightLost.abs().toStringAsFixed(1)} kg",
                       style: TextStyle(
                         color: weightLost >= 0
-                            ? Colors.greenAccent
+                            ? HunterTheme.success
                             : HunterTheme.dangerAlt,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -1137,8 +1144,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                     ),
                     const SizedBox(height: 10),
                     Text(title,
-                        style: const TextStyle(
-                            color: Colors.amber,
+                        style: TextStyle(
+                            color: HunterTheme.gold,
                             fontSize: 16,
                             fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
@@ -1202,32 +1209,31 @@ class _ProfileScreenState extends State<ProfileScreen>
                 );
               }),
             ],
-          ),
         );
       },
+    );
+  }
+
+  // ── Section header for the inline weight history block ──────────────
+  Widget _weightHistoryHeader() {
+    return Row(
+      children: [
+        Icon(Icons.history_rounded, color: HunterTheme.gold, size: 18),
+        const SizedBox(width: 8),
+        Text(
+          'WEIGHT HISTORY',
+          style: TextStyle(
+            color: HunterTheme.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ],
     );
   }
 
   // ── Helper widgets ─────────────────────────────────────────────────
-
-  /// Wraps a small, centered widget so it can never cause a RenderFlex
-  /// overflow inside the bounded [TabBarView]/[SliverFillRemaining] area.
-  ///
-  /// On tall viewports the child stays vertically centered; on short viewports
-  /// (small devices, split-screen) the content scrolls instead of overflowing.
-  Widget _centeredScrollSafe({required Widget child}) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: Center(child: child),
-          ),
-        );
-      },
-    );
-  }
 
   Widget _statPill(String value, String label, IconData icon, Color accent) {
     return Column(

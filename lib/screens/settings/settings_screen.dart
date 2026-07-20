@@ -395,80 +395,95 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _themedBuild(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
     return Scaffold(
       backgroundColor: HunterTheme.background,
       body: Stack(
         children: [
-          CustomPaint(
-            size: Size(size.width, size.height),
-            painter: _GridPainter(),
+          // Subtle premium backdrop wash (top-anchored primary glow).
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    HunterTheme.primary.withOpacity(0.10),
+                    HunterTheme.background,
+                  ],
+                  stops: const [0.0, 0.42],
+                ),
+              ),
+            ),
           ),
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
+                // Premium header
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 4,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: HunterTheme.primary,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: HunterTheme.primary
-                                      .withOpacity(0.8),
-                                  blurRadius: 6,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '[ SYSTEM ]',
-                            style: TextStyle(
-                              color: HunterTheme.primary.withOpacity(0.7),
-                              fontSize: 11,
-                              letterSpacing: 3,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'SETTINGS',
-                        style: TextStyle(
-                          color: HunterTheme.textPrimary,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 3,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        width: 60,
-                        height: 1,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              HunterTheme.primary,
-                              Colors.transparent,
+                      GestureDetector(
+                        onTap: () => Navigator.maybePop(context),
+                        child: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: HunterTheme.cardColor,
+                            border: Border.all(color: HunterTheme.border),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
                             ],
                           ),
+                          child: Icon(Icons.arrow_back_ios_new_rounded, color: HunterTheme.textSecondary, size: 15),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [HunterTheme.primary, HunterTheme.primary.withOpacity(0.7)],
+                          ),
                           boxShadow: [
-                            BoxShadow(
-                              color: HunterTheme.primary.withOpacity(0.4),
-                              blurRadius: 4,
+                            BoxShadow(color: HunterTheme.primary.withOpacity(0.35), blurRadius: 14),
+                          ],
+                        ),
+                        child: const Icon(Icons.settings_rounded, color: Colors.black, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'SETTINGS',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: HunterTheme.textPrimary,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Customize your hunter experience',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: HunterTheme.textSecondary,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ],
                         ),
@@ -477,12 +492,12 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
 
                 // Settings items
                 Expanded(
                   child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
                     children: [
                       _sectionLabel('APPEARANCE'),
                       const SizedBox(height: 10),
@@ -649,27 +664,34 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _sectionLabel(String label) {
-    return Row(
-      children: [
-        Container(
-          width: 3,
-          height: 12,
-          decoration: BoxDecoration(
-            color: HunterTheme.primary,
-            borderRadius: BorderRadius.circular(2),
+    return Padding(
+      padding: const EdgeInsets.only(left: 2),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 14,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [HunterTheme.primary, HunterTheme.primary.withOpacity(0.5)],
+              ),
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: TextStyle(
-            color: HunterTheme.textPrimary.withOpacity(0.35),
-            fontSize: 10,
-            letterSpacing: 2.5,
-            fontWeight: FontWeight.w600,
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: TextStyle(
+              color: HunterTheme.textTertiary,
+              fontSize: 11,
+              letterSpacing: 2,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -700,8 +722,7 @@ class _SettingsTileState extends State<_SettingsTile> {
 
   @override
   Widget build(BuildContext context) {
-    final accent =
-    widget.isDanger ? Colors.redAccent : HunterTheme.primary;
+    final accent = widget.isDanger ? HunterTheme.danger : HunterTheme.primary;
 
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
@@ -712,31 +733,35 @@ class _SettingsTileState extends State<_SettingsTile> {
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedScale(
         scale: _pressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 100),
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOut,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
           decoration: BoxDecoration(
             color: HunterTheme.cardColor,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: accent.withOpacity(0.15),
-              width: 1,
+              color: widget.isDanger ? accent.withOpacity(0.28) : HunterTheme.border,
             ),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3)),
+            ],
           ),
           child: Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
-                  color: accent.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: accent.withOpacity(0.25),
-                    width: 1,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [accent.withOpacity(0.18), accent.withOpacity(0.06)],
                   ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: accent.withOpacity(0.25)),
                 ),
-                child: Icon(widget.icon, color: accent, size: 18),
+                child: Icon(widget.icon, color: accent, size: 20),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -746,29 +771,28 @@ class _SettingsTileState extends State<_SettingsTile> {
                     Text(
                       widget.title,
                       style: TextStyle(
-                        color: widget.isDanger
-                            ? Colors.redAccent
-                            : HunterTheme.textPrimary.withOpacity(0.9),
-                        fontSize: 14,
+                        color: widget.isDanger ? accent : HunterTheme.textPrimary,
+                        fontSize: 14.5,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
+                        letterSpacing: 0.2,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
                       widget.subtitle,
                       style: TextStyle(
-                        color: HunterTheme.textPrimary.withOpacity(0.3),
-                        fontSize: 11,
+                        color: HunterTheme.textSecondary,
+                        fontSize: 11.5,
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               Icon(
-                Icons.chevron_right,
-                color: accent.withOpacity(0.4),
-                size: 18,
+                Icons.chevron_right_rounded,
+                color: accent.withOpacity(0.5),
+                size: 20,
               ),
             ],
           ),
@@ -798,71 +822,120 @@ class _DarkModeTile extends StatelessWidget {
       valueListenable: themeNotifier,
       builder: (context, mode, _) {
         final isDark = mode == ThemeMode.dark;
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: HunterTheme.cardColor,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: accent.withOpacity(0.15),
-              width: 1,
+        return GestureDetector(
+          onTap: () => _setDark(!isDark),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: HunterTheme.cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: HunterTheme.border),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3)),
+              ],
             ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: accent.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: accent.withOpacity(0.25),
-                    width: 1,
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [accent.withOpacity(0.18), accent.withOpacity(0.06)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: accent.withOpacity(0.25)),
+                  ),
+                  child: Icon(
+                    isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                    color: accent,
+                    size: 20,
                   ),
                 ),
-                child: Icon(
-                  isDark ? Icons.dark_mode : Icons.light_mode,
-                  color: accent,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Dark Mode',
-                      style: TextStyle(
-                        color: HunterTheme.textPrimary.withOpacity(0.9),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Dark Mode',
+                        style: TextStyle(
+                          color: HunterTheme.textPrimary,
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      isDark
-                          ? 'Dark theme enabled'
-                          : 'Light theme (white + orange)',
-                      style: TextStyle(
-                        color: HunterTheme.textPrimary.withOpacity(0.3),
-                        fontSize: 11,
+                      const SizedBox(height: 3),
+                      Text(
+                        isDark
+                            ? 'Dark theme enabled'
+                            : 'Light theme (white + orange)',
+                        style: TextStyle(
+                          color: HunterTheme.textSecondary,
+                          fontSize: 11.5,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Switch(
-                value: isDark,
-                onChanged: _setDark,
-                activeColor: accent,
-              ),
-            ],
+                const SizedBox(width: 8),
+                _PremiumToggle(value: isDark, onChanged: _setDark),
+              ],
+            ),
           ),
         );
       },
+    );
+  }
+}
+
+/// A modern, premium animated toggle switch. Purely presentational — the
+/// callback wiring is identical to the previous [Switch].
+class _PremiumToggle extends StatelessWidget {
+  const _PremiumToggle({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = HunterTheme.primary;
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        width: 52,
+        height: 30,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          gradient: value
+              ? LinearGradient(colors: [accent, accent.withOpacity(0.75)])
+              : null,
+          color: value ? null : HunterTheme.textTertiary.withOpacity(0.30),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: value
+              ? [BoxShadow(color: accent.withOpacity(0.4), blurRadius: 10)]
+              : null,
+        ),
+        child: AnimatedAlign(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 1))],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -895,20 +968,20 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Container(
-                      width: 38,
-                      height: 38,
+                      width: 42,
+                      height: 42,
                       decoration: BoxDecoration(
+                        shape: BoxShape.circle,
                         color: HunterTheme.cardColor,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: HunterTheme.primary.withOpacity(0.2),
-                          width: 1,
-                        ),
+                        border: Border.all(color: HunterTheme.border),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
+                        ],
                       ),
                       child: Icon(
-                        Icons.arrow_back_ios_new,
-                        color: HunterTheme.primary,
-                        size: 14,
+                        Icons.arrow_back_ios_new_rounded,
+                        color: HunterTheme.textSecondary,
+                        size: 15,
                       ),
                     ),
                   ),
@@ -934,11 +1007,11 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: HunterTheme.cardColor,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: HunterTheme.primary.withOpacity(0.15),
-                      width: 1,
-                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: HunterTheme.border),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
+                    ],
                   ),
                   child: Text(
                     '''Privacy Policy for Hunter Ascend: Fitness Duels
@@ -1001,24 +1074,3 @@ djdeveloper1202@gmail.com''',
   }
 }
 
-// ── Grid background ───────────────────────────────────────────────────────────
-
-class _GridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = HunterTheme.primary.withOpacity(0.03)
-      ..strokeWidth = 0.5;
-
-    const spacing = 40.0;
-    for (double x = 0; x <= size.width; x += spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y <= size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

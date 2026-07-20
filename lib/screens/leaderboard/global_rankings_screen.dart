@@ -10,6 +10,7 @@ import 'package:hunter_ascend/data/repositories/leaderboard_repository.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:math' as math;
 import 'package:hunter_ascend/widgets/membership_badge.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 
@@ -17,155 +18,10 @@ import '../../widgets/premium_avatar.dart';
 import '../../widgets/premium_card_decorator.dart';
 import 'package:hunter_ascend/widgets/dashboard/entrance_fade_slide.dart';
 
-// ── Top 3 Crown Painter ────────────────────────────────────────────────────
-
-/// Draws the decorative badge behind a top-3 leaderboard position.
-class TopRankPainter extends CustomPainter {
-  final int position; // 1, 2, 3
-  final Color color;
-
-  TopRankPainter(this.position, this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeJoin = StrokeJoin.round
-      ..strokeCap = StrokeCap.round;
-
-    final fillPaint = Paint()
-      ..color = color.withOpacity(0.12)
-      ..style = PaintingStyle.fill;
-
-    if (position == 1) {
-      // ── Imperial Crown ──
-      final crown = Path();
-      crown.moveTo(w * 0.05, h * 0.75);
-      crown.lineTo(w * 0.05, h * 0.35);
-      crown.lineTo(w * 0.28, h * 0.55);
-      crown.lineTo(w * 0.5, h * 0.1);
-      crown.lineTo(w * 0.72, h * 0.55);
-      crown.lineTo(w * 0.95, h * 0.35);
-      crown.lineTo(w * 0.95, h * 0.75);
-      crown.close();
-      canvas.drawPath(crown, fillPaint);
-      canvas.drawPath(crown, paint);
-
-      // Jewels on crown tips
-      canvas.drawCircle(Offset(w * 0.5, h * 0.1), 3.5,
-          Paint()..color = color..style = PaintingStyle.fill);
-      canvas.drawCircle(Offset(w * 0.05, h * 0.35), 2.5,
-          Paint()..color = color..style = PaintingStyle.fill);
-      canvas.drawCircle(Offset(w * 0.95, h * 0.35), 2.5,
-          Paint()..color = color..style = PaintingStyle.fill);
-
-      // Base gems row
-      for (int i = 0; i < 3; i++) {
-        canvas.drawCircle(
-          Offset(w * (0.25 + i * 0.25), h * 0.62),
-          2.0,
-          Paint()..color = color.withOpacity(0.8)..style = PaintingStyle.fill,
-        );
-      }
-
-      // Number
-      _drawText(canvas, '1', w / 2, h * 0.88, color, 13, FontWeight.bold);
-
-    } else if (position == 2) {
-      // ── War Blade / Sword ──
-      final blade = Path();
-      blade.moveTo(w * 0.5, h * 0.05);
-      blade.lineTo(w * 0.62, h * 0.6);
-      blade.lineTo(w * 0.5, h * 0.7);
-      blade.lineTo(w * 0.38, h * 0.6);
-      blade.close();
-      canvas.drawPath(blade, fillPaint);
-      canvas.drawPath(blade, paint);
-
-      // Guard / crossguard
-      canvas.drawLine(Offset(w * 0.15, h * 0.62), Offset(w * 0.85, h * 0.62), paint);
-
-      // Handle
-      canvas.drawLine(Offset(w * 0.5, h * 0.7), Offset(w * 0.5, h * 0.92), paint);
-      // Pommel
-      canvas.drawCircle(Offset(w * 0.5, h * 0.93), 4,
-          Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 1.8);
-
-      _drawText(canvas, '2', w * 0.5, h * 0.88, color, 10, FontWeight.bold);
-
-    } else {
-      // ── Shield ──
-      final shield = Path();
-      shield.moveTo(w * 0.5, h * 0.06);
-      shield.lineTo(w * 0.92, h * 0.22);
-      shield.lineTo(w * 0.92, h * 0.55);
-      shield.quadraticBezierTo(w * 0.92, h * 0.82, w * 0.5, h * 0.96);
-      shield.quadraticBezierTo(w * 0.08, h * 0.82, w * 0.08, h * 0.55);
-      shield.lineTo(w * 0.08, h * 0.22);
-      shield.close();
-      canvas.drawPath(shield, fillPaint);
-      canvas.drawPath(shield, paint);
-
-      // Shield inner bevel
-      final inner = Path();
-      inner.moveTo(w * 0.5, h * 0.15);
-      inner.lineTo(w * 0.82, h * 0.28);
-      inner.lineTo(w * 0.82, h * 0.55);
-      inner.quadraticBezierTo(w * 0.82, h * 0.75, w * 0.5, h * 0.87);
-      inner.quadraticBezierTo(w * 0.18, h * 0.75, w * 0.18, h * 0.55);
-      inner.lineTo(w * 0.18, h * 0.28);
-      inner.close();
-      canvas.drawPath(inner,
-          Paint()..color = color.withOpacity(0.25)..style = PaintingStyle.stroke..strokeWidth = 1);
-
-      _drawText(canvas, '3', w / 2, h * 0.55, color, 18, FontWeight.bold);
-    }
-  }
-
-  void _drawText(Canvas canvas, String text, double x, double y,
-      Color color, double fontSize, FontWeight weight) {
-    final tp = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(color: color, fontSize: fontSize, fontWeight: weight),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, Offset(x - tp.width / 2, y - tp.height / 2));
-  }
-
-  @override
-  bool shouldRepaint(TopRankPainter old) =>
-      old.position != position || old.color != color;
-}
-
-// ── Top Rank Badge Widget ──────────────────────────────────────────────────
-
-/// Top-3 rank badge widget (wraps [TopRankPainter]).
-class TopRankBadge extends StatelessWidget {
-  final int position;
-  final Color color;
-  final double size;
-
-  const TopRankBadge({
-    super.key,
-    required this.position,
-    required this.color,
-    this.size = 36,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size(size, size),
-      painter: TopRankPainter(position, color),
-    );
-  }
-}
+// The Top-3 presentation lives in the `_EliteTopThree` widget at the bottom
+// of this file (elite hunter cards with glowing hexagon emblems, rotating
+// energy auras, metallic tier frames, and floating rank symbols). The old
+// podium/crown painter was intentionally removed.
 
 // ── Global Rankings Screen ─────────────────────────────────────────────────
 
@@ -313,89 +169,6 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
       case LeaderboardTab.daily: return '${entry.dailyXp} DXP';
       case LeaderboardTab.overall: return '${entry.xp} XP';
     }
-  }
-
-  // ── Podium item (top 3) using LeaderboardEntry ──────────────────────────
-  Widget _buildPodiumItem(
-      BuildContext context, List<LeaderboardEntry> entries, int index, String? currentUid) {
-    if (index >= entries.length) return const Expanded(child: SizedBox());
-
-    final entry = entries[index];
-    final isMe = entry.uid == currentUid;
-    final level = entry.level;
-    final rc = _rankColor(level);
-    final posColor = _positionColor(index);
-    final isFirst = index == 0;
-    final membership = _entryMembership(entry);
-    final double avatarSize = isFirst ? 76 : 60;
-    final double pedestalHeight = index == 0 ? 78 : (index == 1 ? 58 : 44);
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          if (entry.uid == currentUid) return;
-          Navigator.push(context, MaterialPageRoute(builder: (_) => PublicHunterProfileScreen(hunterUid: entry.uid)));
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TopRankBadge(position: index + 1, color: posColor, size: isFirst ? 42 : 32),
-              const SizedBox(height: 8),
-              // Avatar with a medal-colored glow ring (stronger for #1).
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: posColor.withOpacity(isFirst ? 0.55 : 0.35),
-                      blurRadius: isFirst ? 22 : 12,
-                      spreadRadius: isFirst ? 2 : 1,
-                    ),
-                  ],
-                ),
-                child: PremiumAvatar(
-                  membership: membership,
-                  radius: avatarSize / 2,
-                  image: entry.profilePicture != null && entry.profilePicture!.isNotEmpty ? MemoryImage(_decodedAvatar(entry.profilePicture!)) : null,
-                  child: Icon(Icons.person, color: rc, size: isFirst ? 38 : 30),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(entry.hunterName, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: TextStyle(color: isMe ? HunterTheme.primary : HunterTheme.textPrimary, fontSize: isFirst ? 15 : 13, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 4),
-              MembershipBadge(membership: membership, fontSize: 7),
-              const SizedBox(height: 3),
-              Text('${getRankTitle(level)} \u00b7 Lv.$level', maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 10)),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: HunterTheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: HunterTheme.primary.withOpacity(0.3))),
-                child: Text(_xpLabel(entry), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: HunterTheme.primary, fontWeight: FontWeight.bold, fontSize: 11)),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                height: pedestalHeight,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [posColor.withOpacity(0.9), posColor.withOpacity(0.4)]),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                  boxShadow: [BoxShadow(color: posColor.withOpacity(0.3), blurRadius: 14, spreadRadius: 1)],
-                ),
-                child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(color: Colors.white, fontSize: isFirst ? 28 : 20, fontWeight: FontWeight.w900, shadows: const [Shadow(color: Colors.black26, blurRadius: 4)]),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -628,18 +401,37 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     );
   }
 
-  // Top-3 podium row (center = #1). Order preserved: 2nd, 1st, 3rd.
+  // Top-3 elite hunters. Builds presentation-only view models from the
+  // ranked entries (ranking order preserved) and hands them to the
+  // [_EliteTopThree] centerpiece. All navigation/membership/rank logic is
+  // resolved here with the existing helpers.
   Widget _buildPodium(BuildContext context, List<LeaderboardEntry> entries, String? currentUid) {
+    final tops = <_TopHunter>[];
+    for (int i = 0; i < entries.length && i < 3; i++) {
+      final entry = entries[i];
+      final img = (entry.profilePicture != null && entry.profilePicture!.isNotEmpty)
+          ? MemoryImage(_decodedAvatar(entry.profilePicture!))
+          : null;
+      tops.add(_TopHunter(
+        position: i + 1,
+        name: entry.hunterName,
+        membership: _entryMembership(entry),
+        rankTitle: getRankTitle(entry.level),
+        xpLabel: _xpLabel(entry),
+        level: entry.level,
+        isMe: entry.uid == currentUid,
+        image: img,
+        rankColor: _rankColor(entry.level),
+        tierColor: _positionColor(i),
+        tierLabel: i == 0 ? 'LEGENDARY' : (i == 1 ? 'ELITE' : 'MASTER'),
+        onTap: entry.uid == currentUid
+            ? null
+            : () => Navigator.push(context, MaterialPageRoute(builder: (_) => PublicHunterProfileScreen(hunterUid: entry.uid))),
+      ));
+    }
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          _buildPodiumItem(context, entries, 1, currentUid),
-          _buildPodiumItem(context, entries, 0, currentUid),
-          _buildPodiumItem(context, entries, 2, currentUid),
-        ],
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+      child: _EliteTopThree(hunters: tops),
     );
   }
 
@@ -976,4 +768,331 @@ class _LeaderboardHeroState extends State<_LeaderboardHero> with SingleTickerPro
       },
     );
   }
+}
+
+
+
+// ── Elite Top 3 ────────────────────────────────────────────────────────────
+
+/// Presentation-only view model for one of the top-3 hunters. All values are
+/// pre-resolved by the screen using the existing ranking/membership helpers.
+class _TopHunter {
+  final int position; // 1, 2, 3
+  final String name;
+  final String membership;
+  final String rankTitle;
+  final String xpLabel;
+  final int level;
+  final bool isMe;
+  final ImageProvider? image;
+  final Color rankColor;
+  final Color tierColor;
+  final String tierLabel;
+  final VoidCallback? onTap;
+
+  const _TopHunter({
+    required this.position,
+    required this.name,
+    required this.membership,
+    required this.rankTitle,
+    required this.xpLabel,
+    required this.level,
+    required this.isMe,
+    required this.image,
+    required this.rankColor,
+    required this.tierColor,
+    required this.tierLabel,
+    required this.onTap,
+  });
+}
+
+/// The Top-3 centerpiece: a featured #1 "Legendary" card plus a row of #2
+/// "Elite" and #3 "Master" cards. Each card is a metallic tier frame with a
+/// glowing hexagon hunter emblem, a rotating energy aura, and a floating rank
+/// symbol. A single [AnimationController] drives every aura, and each aura
+/// repaints in isolation (small CustomPaint) so the rest of the cards stay
+/// static and scrolling stays smooth.
+class _EliteTopThree extends StatefulWidget {
+  final List<_TopHunter> hunters;
+  const _EliteTopThree({required this.hunters});
+
+  @override
+  State<_EliteTopThree> createState() => _EliteTopThreeState();
+}
+
+class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProviderStateMixin {
+  late final AnimationController _aura = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 8),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _aura.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hunters = widget.hunters;
+    if (hunters.isEmpty) return const SizedBox.shrink();
+    return Column(
+      children: [
+        _featuredCard(hunters[0]),
+        if (hunters.length > 1) ...[
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _compactCard(hunters[1])),
+              const SizedBox(width: 12),
+              Expanded(child: hunters.length > 2 ? _compactCard(hunters[2]) : const SizedBox.shrink()),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ── #1 featured "Legendary" card ──
+  Widget _featuredCard(_TopHunter h) {
+    return GestureDetector(
+      onTap: h.onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: _frameDecoration(h.tierColor, 22, featured: true),
+        child: Row(
+          children: [
+            _auraStack(h, 108, 36),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _tierPill(h.tierLabel, h.tierColor),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          h.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: h.isMe ? HunterTheme.primary : HunterTheme.textPrimary, fontSize: 19, fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      MembershipBadge(membership: h.membership, fontSize: 8),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text('${h.rankTitle}  \u00b7  Lv.${h.level}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12)),
+                  const SizedBox(height: 10),
+                  _xpChip(h),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── #2 / #3 compact cards ──
+  Widget _compactCard(_TopHunter h) {
+    return GestureDetector(
+      onTap: h.onTap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+        decoration: _frameDecoration(h.tierColor, 20, featured: false),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _auraStack(h, 84, 27),
+            const SizedBox(height: 10),
+            Text(
+              h.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: h.isMe ? HunterTheme.primary : HunterTheme.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            _tierPill(h.tierLabel, h.tierColor),
+            const SizedBox(height: 8),
+            _xpChip(h),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Avatar centerpiece: glowing hexagon emblem + rotating energy aura +
+  // floating rank symbol. Only the aura repaints per frame.
+  Widget _auraStack(_TopHunter h, double size, double avatarRadius) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: RepaintBoundary(
+              child: AnimatedBuilder(
+                animation: _aura,
+                builder: (context, _) => CustomPaint(
+                  painter: _EliteAuraPainter(rotation: _aura.value * 2 * math.pi, color: h.tierColor),
+                ),
+              ),
+            ),
+          ),
+          PremiumAvatar(
+            membership: h.membership,
+            radius: avatarRadius,
+            image: h.image,
+            child: Icon(Icons.person, color: h.rankColor, size: avatarRadius * 1.35),
+          ),
+          Positioned(top: 0, child: _rankSymbol(h.position, h.tierColor)),
+        ],
+      ),
+    );
+  }
+
+  // Floating metallic rank symbol (#1 / #2 / #3).
+  Widget _rankSymbol(int position, Color tierColor) {
+    final light = Color.lerp(tierColor, Colors.white, 0.45)!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [light, tierColor]),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: Colors.white.withOpacity(0.55), width: 1),
+        boxShadow: [BoxShadow(color: tierColor.withOpacity(0.55), blurRadius: 8, spreadRadius: 0.5)],
+      ),
+      child: Text('#$position', style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.w900)),
+    );
+  }
+
+  // Metallic tier label pill (LEGENDARY / ELITE / MASTER).
+  Widget _tierPill(String label, Color tierColor) {
+    final light = Color.lerp(tierColor, Colors.white, 0.4)!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [light, tierColor]),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [BoxShadow(color: tierColor.withOpacity(0.4), blurRadius: 8)],
+      ),
+      child: Text(label, style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+    );
+  }
+
+  Widget _xpChip(_TopHunter h) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: h.tierColor.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: h.tierColor.withOpacity(0.4)),
+      ),
+      child: Text(h.xpLabel, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 12, fontWeight: FontWeight.w800)),
+    );
+  }
+
+  // Brushed-metal tier frame (diagonal tier-tinted sheen + glow).
+  BoxDecoration _frameDecoration(Color tierColor, double radius, {required bool featured}) {
+    return BoxDecoration(
+      borderRadius: BorderRadius.circular(radius),
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [tierColor.withOpacity(0.22), HunterTheme.cardColor, tierColor.withOpacity(0.10)],
+        stops: const [0.0, 0.55, 1.0],
+      ),
+      border: Border.all(color: tierColor.withOpacity(0.55), width: 1.5),
+      boxShadow: [
+        BoxShadow(color: tierColor.withOpacity(featured ? 0.30 : 0.22), blurRadius: featured ? 22 : 16, spreadRadius: 1),
+      ],
+    );
+  }
+}
+
+/// Layered aura painted behind a top-3 avatar: a glowing hexagon hunter
+/// emblem (dual counter-rotating rings), a soft blurred glow ring, and a
+/// bright rotating energy sweep arc.
+class _EliteAuraPainter extends CustomPainter {
+  final double rotation;
+  final Color color;
+
+  _EliteAuraPainter({required this.rotation, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    // Outer hexagon emblem (slow rotation).
+    canvas.drawPath(
+      _hexagon(center, radius * 0.94, rotation * 0.35),
+      Paint()
+        ..color = color.withOpacity(0.30)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4
+        ..strokeJoin = StrokeJoin.round,
+    );
+    // Inner hexagon (counter-rotating, fainter).
+    canvas.drawPath(
+      _hexagon(center, radius * 0.72, -rotation * 0.25),
+      Paint()
+        ..color = color.withOpacity(0.16)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0
+        ..strokeJoin = StrokeJoin.round,
+    );
+
+    // Soft blurred glow ring (layered depth).
+    canvas.drawCircle(
+      center,
+      radius * 0.84,
+      Paint()
+        ..color = color.withOpacity(0.22)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
+
+    // Rotating energy sweep arc.
+    final rect = Rect.fromCircle(center: center, radius: radius * 0.84);
+    final sweepPaint = Paint()
+      ..shader = SweepGradient(
+        colors: [color.withOpacity(0.0), color.withOpacity(0.9), color.withOpacity(0.0)],
+        stops: const [0.0, 0.5, 1.0],
+        transform: GradientRotation(rotation),
+      ).createShader(rect)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(rect, rotation, math.pi * 0.55, false, sweepPaint);
+  }
+
+  Path _hexagon(Offset c, double r, double rot) {
+    final path = Path();
+    for (int i = 0; i < 6; i++) {
+      final a = rot - math.pi / 2 + i * math.pi / 3;
+      final p = Offset(c.dx + r * math.cos(a), c.dy + r * math.sin(a));
+      if (i == 0) {
+        path.moveTo(p.dx, p.dy);
+      } else {
+        path.lineTo(p.dx, p.dy);
+      }
+    }
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldRepaint(_EliteAuraPainter old) => old.rotation != rotation || old.color != color;
 }

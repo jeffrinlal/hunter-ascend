@@ -417,17 +417,17 @@ class _DuelScreenState extends State<DuelScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.08),
+                color: HunterTheme.gold.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                border: Border.all(color: HunterTheme.gold.withValues(alpha: 0.3)),
               ),
               child: Row(children: [
-                const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 18),
+                Icon(Icons.warning_amber_rounded, color: HunterTheme.gold, size: 18),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
                     "You must wait for the timer to finish before you can complete this mission.",
-                    style: TextStyle(color: Colors.orange, fontSize: 11, height: 1.4),
+                    style: TextStyle(color: HunterTheme.gold, fontSize: 11, height: 1.4),
                   ),
                 ),
               ]),
@@ -512,16 +512,20 @@ class _DuelScreenState extends State<DuelScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _blue, width: 1.5),
-        color: _card,
-        boxShadow: [BoxShadow(color: _blue.withValues(alpha: 0.2), blurRadius: 16)],
+        border: Border.all(color: _blue.withValues(alpha: 0.5), width: 1.5),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_blue.withValues(alpha: 0.10), _card],
+        ),
+        boxShadow: [BoxShadow(color: _blue.withValues(alpha: 0.2 * HunterTheme.glowStrength), blurRadius: 18, offset: const Offset(0, 6))],
       ),
       child: Column(children: [
-        Text("⚡ ACTIVE MISSION ⚡", style: TextStyle(color: _blue, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2)),
+        Text("⚡ ACTIVE MISSION ⚡", style: TextStyle(color: _blue, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 2)),
         const SizedBox(height: 8),
         Text(
           ready ? "Status: Ready to Complete" : "Status: In Progress",
-          style: TextStyle(color: ready ? HunterTheme.success : Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold),
+          style: TextStyle(color: ready ? HunterTheme.success : HunterTheme.gold, fontSize: 13, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         Text(activeQuestName ?? "", textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
@@ -554,12 +558,15 @@ class _DuelScreenState extends State<DuelScreen> {
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: ready ? _blue : _blueDim,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              foregroundColor: ready ? Colors.black : HunterTheme.textTertiary,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
             onPressed: () => _completeActiveQuest(duel),
             child: Text(
               "COMPLETE MISSION",
-              style: TextStyle(color: ready ? Colors.white : HunterTheme.textTertiary, fontWeight: FontWeight.bold, letterSpacing: 2),
+              style: TextStyle(color: ready ? Colors.black : HunterTheme.textTertiary, fontWeight: FontWeight.w900, letterSpacing: 2),
             ),
           ),
         ),
@@ -597,14 +604,22 @@ class _DuelScreenState extends State<DuelScreen> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: HunterTheme.success.withValues(alpha: 0.4), width: 1.5),
-        color: _card,
-        boxShadow: [BoxShadow(color: HunterTheme.success.withValues(alpha: 0.08), blurRadius: 16)],
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [HunterTheme.success.withValues(alpha: 0.10), _card],
+        ),
+        boxShadow: [BoxShadow(color: HunterTheme.success.withValues(alpha: 0.10 * HunterTheme.glowStrength), blurRadius: 18, offset: const Offset(0, 6))],
       ),
       child: Column(children: [
         Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: HunterTheme.success.withValues(alpha: 0.1),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [HunterTheme.success.withValues(alpha: 0.2), HunterTheme.success.withValues(alpha: 0.06)],
+            ),
             shape: BoxShape.circle,
             border: Border.all(color: HunterTheme.success.withValues(alpha: 0.4)),
           ),
@@ -656,10 +671,21 @@ class _DuelScreenState extends State<DuelScreen> {
       appBar: AppBar(
         backgroundColor: _bg,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: HunterTheme.textSecondary, size: 20),
-          onPressed: () => Navigator.pop(context),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: HunterTheme.cardColor,
+                border: Border.all(color: _border),
+              ),
+              child: Icon(Icons.arrow_back_ios_new_rounded, color: HunterTheme.textSecondary, size: 15),
+            ),
+          ),
         ),
+        leadingWidth: 60,
         title: RichText(
           text: TextSpan(children: [
             TextSpan(text: "HUNTER ", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1)),
@@ -727,7 +753,7 @@ class _DuelScreenState extends State<DuelScreen> {
             // Determine result visuals.
             final Color resultColor = draw
                 ? HunterTheme.gold
-                : (won ? Colors.amber : HunterTheme.danger);
+                : (won ? HunterTheme.goldBright : HunterTheme.danger);
             final IconData resultIcon = draw
                 ? Icons.balance
                 : (won ? Icons.emoji_events : Icons.close);
@@ -738,56 +764,80 @@ class _DuelScreenState extends State<DuelScreen> {
                 ? 'Equally matched. Challenge again to decide.'
                 : (won ? 'You have proven your worth, Hunter.' : 'Train harder. Rise again.');
 
-            return Container(
-              color: _bg,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: resultColor.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: resultColor.withValues(alpha: 0.5),
-                          width: 2,
-                        ),
-                      ),
-                      child: Icon(
-                        resultIcon,
-                        color: resultColor,
-                        size: 72,
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    Text(
-                      resultTitle,
-                      style: TextStyle(
-                        color: resultColor,
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 4,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      resultMessage,
-                      style: TextStyle(color: HunterTheme.textTertiary, fontSize: 14),
-                    ),
-                    const SizedBox(height: 32),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                        decoration: BoxDecoration(color: _blue, borderRadius: BorderRadius.circular(14)),
-                        child: Text(
-                          "RETURN TO BASE",
-                          style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, letterSpacing: 1.5),
-                        ),
-                      ),
-                    ),
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    resultColor.withValues(alpha: 0.20),
+                    resultColor.withValues(alpha: 0.05),
+                    _bg,
                   ],
+                  stops: const [0.0, 0.35, 0.75],
+                ),
+              ),
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Layered glowing result medallion.
+                      Container(
+                        padding: const EdgeInsets.all(30),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [resultColor.withValues(alpha: 0.22), resultColor.withValues(alpha: 0.04)],
+                          ),
+                          border: Border.all(color: resultColor.withValues(alpha: 0.55), width: 2),
+                          boxShadow: [
+                            BoxShadow(color: resultColor.withValues(alpha: 0.35 * HunterTheme.glowStrength), blurRadius: 40, spreadRadius: 4),
+                          ],
+                        ),
+                        child: Icon(resultIcon, color: resultColor, size: 76),
+                      ),
+                      const SizedBox(height: 30),
+                      Text(
+                        resultTitle,
+                        style: TextStyle(
+                          color: resultColor,
+                          fontSize: 38,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        resultMessage,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: HunterTheme.textSecondary, fontSize: 14, height: 1.5),
+                      ),
+                      const SizedBox(height: 36),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 34, vertical: 16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: HunterTheme.primaryGradient,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(color: _blue.withValues(alpha: 0.4 * HunterTheme.glowStrength), blurRadius: 16, offset: const Offset(0, 6)),
+                            ],
+                          ),
+                          child: const Text(
+                            "RETURN TO BASE",
+                            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 14),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -881,45 +931,58 @@ class _DuelScreenState extends State<DuelScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: _card,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [HunterTheme.gold.withValues(alpha: 0.10), _card],
+                    ),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _border, width: 1.5),
+                    border: Border.all(color: HunterTheme.gold.withValues(alpha: 0.28), width: 1.4),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: HunterTheme.isDark ? 0.18 : 0.04), blurRadius: 14, offset: const Offset(0, 5)),
+                    ],
                   ),
                   child: Column(children: [
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text("CURRENT DAY", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11, letterSpacing: 1)),
+                        Text("CURRENT DAY", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11, letterSpacing: 1, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 4),
-                        Text("DAY $currentDay", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 28, fontWeight: FontWeight.bold)),
+                        Text("DAY $currentDay", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 28, fontWeight: FontWeight.w900)),
                       ]),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
-                          color: Colors.orange.withValues(alpha: 0.1),
+                          color: HunterTheme.gold.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                          border: Border.all(color: HunterTheme.gold.withValues(alpha: 0.4)),
                         ),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.timer_outlined, color: Colors.orange, size: 16),
+                          Icon(Icons.timer_outlined, color: HunterTheme.gold, size: 16),
                           const SizedBox(width: 6),
-                          Text("$daysRemaining DAYS LEFT", style: const TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                          Text("$daysRemaining DAYS LEFT", style: TextStyle(color: HunterTheme.gold, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1)),
                         ]),
                       ),
                     ]),
                     const SizedBox(height: 14),
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: LinearProgressIndicator(
-                        value: currentDay / duel['durationDays'],
-                        minHeight: 6,
-                        backgroundColor: _blueDim,
-                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.orange),
-                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Stack(children: [
+                        Container(height: 8, color: _blueDim),
+                        FractionallySizedBox(
+                          widthFactor: (currentDay / duel['durationDays']).clamp(0.0, 1.0).toDouble(),
+                          child: Container(
+                            height: 8,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(colors: [HunterTheme.gold, HunterTheme.goldBright]),
+                            ),
+                          ),
+                        ),
+                      ]),
                     ),
                     const SizedBox(height: 6),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: Text("$currentDay / ${duel['durationDays']} days", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11)),
+                      child: Text("$currentDay / ${duel['durationDays']} days", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11, fontWeight: FontWeight.w500)),
                     ),
                   ]),
                 ),
@@ -931,81 +994,111 @@ class _DuelScreenState extends State<DuelScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: _card,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [_blue.withValues(alpha: 0.07), _card],
+                    ),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _blue.withValues(alpha: 0.3), width: 1.5),
-                    boxShadow: [BoxShadow(color: _blue.withValues(alpha: 0.08), blurRadius: 20)],
+                    border: Border.all(color: _blue.withValues(alpha: 0.28), width: 1.4),
+                    boxShadow: [BoxShadow(color: _blue.withValues(alpha: 0.10 * HunterTheme.glowStrength), blurRadius: 20, offset: const Offset(0, 6))],
                   ),
                   child: Column(children: [
-                    Text("⚔  ACTIVE RIVALRY", style: TextStyle(color: _blue, fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(Icons.sports_kabaddi_rounded, color: _blue, size: 18),
+                      const SizedBox(width: 8),
+                      Text("ACTIVE RIVALRY", style: TextStyle(color: _blue, fontSize: 15, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                    ]),
                     const SizedBox(height: 20),
+                    // ── You ──
                     Row(children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(8)),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 160),
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: _blue.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: _blue.withValues(alpha: 0.3)),
+                          ),
                           child: Text(
                             "$myName (You)",
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
-                            style: TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.w800),
                           ),
                         ),
                       ),
-                      const Spacer(),
-                      Text("$myScore XP", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 10),
+                      Text("$myScore XP", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 17, fontWeight: FontWeight.w900)),
                     ]),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 9),
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: LinearProgressIndicator(
-                        value: myRatio.toDouble(), minHeight: 10,
-                        backgroundColor: _blueDim,
-                        valueColor: AlwaysStoppedAnimation<Color>(_blue),
-                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Stack(children: [
+                        Container(height: 10, color: _blueDim),
+                        FractionallySizedBox(
+                          widthFactor: myRatio.toDouble().clamp(0.0, 1.0),
+                          child: Container(
+                            height: 10,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(colors: HunterTheme.primaryGradient),
+                            ),
+                          ),
+                        ),
+                      ]),
                     ),
                     const SizedBox(height: 18),
                     Row(children: [
                       Expanded(child: Container(height: 1, color: _border)),
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 12),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                         decoration: BoxDecoration(
-                          color: HunterTheme.danger.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.3)),
+                          color: HunterTheme.danger.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.35)),
                         ),
-                        child: Text("VS", style: TextStyle(color: HunterTheme.danger, fontSize: 11, fontWeight: FontWeight.bold)),
+                        child: Text("VS", style: TextStyle(color: HunterTheme.danger, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1)),
                       ),
                       Expanded(child: Container(height: 1, color: _border)),
                     ]),
                     const SizedBox(height: 18),
+                    // ── Opponent ──
                     Row(children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(color: HunterTheme.danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 160),
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: HunterTheme.danger.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.3)),
+                          ),
                           child: Text(
                             "$oppName (Opponent)",
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
-                            style: TextStyle(color: HunterTheme.danger, fontSize: 12, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: HunterTheme.danger, fontSize: 12, fontWeight: FontWeight.w800),
                           ),
                         ),
                       ),
-                      const Spacer(),
-                      Text("$oppScore XP", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 10),
+                      Text("$oppScore XP", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 17, fontWeight: FontWeight.w900)),
                     ]),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 9),
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: LinearProgressIndicator(
-                        value: oppRatio.toDouble(), minHeight: 10,
-                        backgroundColor: HunterTheme.danger.withValues(alpha: 0.1),
-                        valueColor: AlwaysStoppedAnimation<Color>(HunterTheme.danger),
-                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Stack(children: [
+                        Container(height: 10, color: HunterTheme.danger.withValues(alpha: 0.12)),
+                        FractionallySizedBox(
+                          widthFactor: oppRatio.toDouble().clamp(0.0, 1.0),
+                          child: Container(
+                            height: 10,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(colors: [HunterTheme.danger, HunterTheme.dangerAlt]),
+                            ),
+                          ),
+                        ),
+                      ]),
                     ),
                   ]),
                 ),

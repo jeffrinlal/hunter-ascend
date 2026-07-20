@@ -76,10 +76,21 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
       appBar: AppBar(
         backgroundColor: _bg,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: HunterTheme.textSecondary, size: 20),
-          onPressed: () => Navigator.pop(context),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: HunterTheme.cardColor,
+                border: Border.all(color: _border),
+              ),
+              child: Icon(Icons.arrow_back_ios_new_rounded, color: HunterTheme.textSecondary, size: 15),
+            ),
+          ),
         ),
+        leadingWidth: 60,
         title: RichText(
           text: TextSpan(children: [
             TextSpan(
@@ -109,29 +120,41 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
           // ── Empty state ──
           if (snapshot.data!.docs.isEmpty) {
             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: _blueDim,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: _border, width: 1.5),
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 92,
+                      height: 92,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [_blue.withOpacity(0.16), _card],
+                        ),
+                        border: Border.all(color: _blue.withOpacity(0.3), width: 1.4),
+                        boxShadow: [
+                          BoxShadow(color: _blue.withOpacity(0.14 * HunterTheme.glowStrength), blurRadius: 24),
+                        ],
+                      ),
+                      child: Icon(Icons.shield_outlined, color: _blue, size: 42),
                     ),
-                    child: Icon(Icons.sports_kabaddi, color: _blue, size: 40),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    "NO PENDING CHALLENGES",
-                    style: TextStyle(color: HunterTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 2),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "You have no incoming duel requests",
-                    style: TextStyle(color: HunterTheme.textTertiary, fontSize: 13),
-                  ),
-                ],
+                    const SizedBox(height: 22),
+                    Text(
+                      "NO PENDING CHALLENGES",
+                      style: TextStyle(color: HunterTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: 2),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "You have no incoming duel requests",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, height: 1.4),
+                    ),
+                  ],
+                ),
               ),
             );
           }
@@ -155,23 +178,37 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: _card,
-                          borderRadius: BorderRadius.circular(20),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              HunterTheme.danger.withValues(alpha: 0.16),
+                              _card,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(24),
                           border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.4), width: 1.5),
                           boxShadow: [
-                            BoxShadow(color: HunterTheme.danger.withValues(alpha: 0.1), blurRadius: 24),
+                            BoxShadow(color: HunterTheme.danger.withValues(alpha: 0.16), blurRadius: 26, offset: const Offset(0, 8)),
                           ],
                         ),
                         child: Column(
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(16),
+                              padding: const EdgeInsets.all(18),
                               decoration: BoxDecoration(
-                                color: HunterTheme.danger.withValues(alpha: 0.1),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [HunterTheme.danger.withValues(alpha: 0.22), HunterTheme.danger.withValues(alpha: 0.08)],
+                                ),
                                 shape: BoxShape.circle,
-                                border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.4), width: 1.5),
+                                border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.45), width: 1.5),
+                                boxShadow: [
+                                  BoxShadow(color: HunterTheme.danger.withValues(alpha: 0.25), blurRadius: 18),
+                                ],
                               ),
-                              child: Icon(Icons.sports_kabaddi, color: HunterTheme.danger, size: 44),
+                              child: Icon(Icons.sports_kabaddi_rounded, color: HunterTheme.danger, size: 44),
                             ),
                             const SizedBox(height: 16),
                             Text(
@@ -214,17 +251,34 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
 
                       // ── Shared missions header ──
                       Row(children: [
+                        Container(
+                          width: 4,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: HunterTheme.primaryGradient,
+                            ),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
                         Text(
                           "Shared Missions",
-                          style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(width: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: _blueDim, borderRadius: BorderRadius.circular(20)),
+                          decoration: BoxDecoration(
+                            color: _blue.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: _blue.withOpacity(0.3)),
+                          ),
                           child: Text(
                             "${quests.length}",
-                            style: TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.w800),
                           ),
                         ),
                       ]),
@@ -236,20 +290,28 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                         final quest = quests[index];
                         return Container(
                           margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                           decoration: BoxDecoration(
                             color: _card,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: _border, width: 1.2),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(HunterTheme.isDark ? 0.15 : 0.03), blurRadius: 8, offset: const Offset(0, 3)),
+                            ],
                           ),
                           child: Row(children: [
                             Container(
-                              padding: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.all(9),
                               decoration: BoxDecoration(
-                                color: HunterTheme.danger.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(10),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [HunterTheme.danger.withValues(alpha: 0.16), HunterTheme.danger.withValues(alpha: 0.06)],
+                                ),
+                                borderRadius: BorderRadius.circular(11),
+                                border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.25)),
                               ),
-                              child: Icon(Icons.gps_fixed, color: HunterTheme.danger, size: 18),
+                              child: Icon(Icons.gps_fixed_rounded, color: HunterTheme.danger, size: 18),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -258,15 +320,17 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                                 style: TextStyle(color: HunterTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
                               ),
                             ),
+                            const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                               decoration: BoxDecoration(
-                                color: _blueDim,
+                                color: HunterTheme.success.withOpacity(0.12),
                                 borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: HunterTheme.success.withOpacity(0.3)),
                               ),
                               child: Text(
                                 "+${quest['xp'] ?? '?'} XP",
-                                style: TextStyle(color: _blue, fontSize: 11, fontWeight: FontWeight.bold),
+                                style: TextStyle(color: HunterTheme.success, fontSize: 11, fontWeight: FontWeight.w800),
                               ),
                             ),
                           ]),
@@ -310,22 +374,27 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                             }
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 15),
                             decoration: BoxDecoration(
                               color: HunterTheme.danger.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(16),
                               border: Border.all(color: HunterTheme.danger.withValues(alpha: 0.4), width: 1.2),
                             ),
-                            child: Center(
-                              child: Text(
-                                "DECLINE",
-                                style: TextStyle(
-                                  color: HunterTheme.danger,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.5,
-                                  fontSize: 14,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.close_rounded, color: HunterTheme.danger, size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "DECLINE",
+                                  style: TextStyle(
+                                    color: HunterTheme.danger,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.5,
+                                    fontSize: 14,
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
                         ),
@@ -383,24 +452,33 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                             }
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 15),
                             decoration: BoxDecoration(
-                              color: _blue,
-                              borderRadius: BorderRadius.circular(14),
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: HunterTheme.primaryGradient,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
                               boxShadow: [
-                                BoxShadow(color: _blue.withValues(alpha: 0.3), blurRadius: 12),
+                                BoxShadow(color: _blue.withValues(alpha: 0.4 * HunterTheme.glowStrength), blurRadius: 14, offset: const Offset(0, 5)),
                               ],
                             ),
-                            child: Center(
-                              child: Text(
-                                "ACCEPT",
-                                style: TextStyle(
-                                  color: HunterTheme.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.5,
-                                  fontSize: 14,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.check_rounded, color: Colors.black, size: 19),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  "ACCEPT",
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.5,
+                                    fontSize: 14,
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
                         ),

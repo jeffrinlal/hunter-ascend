@@ -884,7 +884,7 @@ Return ONLY a JSON array, no markdown, no explanation:
             : null,
         title: Row(
           children: [
-            Icon(Icons.close, color: HunterTheme.dangerAlt, size: 20),
+            Icon(Icons.sports_kabaddi_rounded, color: HunterTheme.dangerAlt, size: 20),
             SizedBox(width: 8),
             Text(
               'Create Duel',
@@ -920,7 +920,7 @@ Return ONLY a JSON array, no markdown, no explanation:
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 24),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(24),
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -936,32 +936,42 @@ Return ONLY a JSON array, no markdown, no explanation:
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: HunterTheme.dangerAlt.withOpacity(0.15),
-                    blurRadius: 20,
-                    spreadRadius: 2,
+                    color: HunterTheme.dangerAlt.withOpacity(0.18),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
               child: Column(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: HunterTheme.dangerAlt.withOpacity(0.12),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          HunterTheme.dangerAlt.withOpacity(0.22),
+                          HunterTheme.dangerAlt.withOpacity(0.08),
+                        ],
+                      ),
                       border: Border.all(
-                          color: HunterTheme.dangerAlt.withOpacity(0.4)),
+                          color: HunterTheme.dangerAlt.withOpacity(0.45), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(color: HunterTheme.dangerAlt.withOpacity(0.25), blurRadius: 18),
+                      ],
                     ),
-                    child: Icon(Icons.sports_kabaddi,
-                        color: HunterTheme.dangerAlt, size: 40),
+                    child: Icon(Icons.sports_kabaddi_rounded,
+                        color: HunterTheme.dangerAlt, size: 42),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   Text(
                     'DUEL ARENA',
                     style: TextStyle(
                       color: HunterTheme.textPrimary,
                       fontSize: 22,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w900,
                       letterSpacing: 4,
                     ),
                   ),
@@ -970,7 +980,7 @@ Return ONLY a JSON array, no markdown, no explanation:
                     'Create a rivalry and challenge another Hunter',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: HunterTheme.textPrimary.withOpacity(0.55),
+                      color: HunterTheme.textSecondary,
                       fontSize: 13,
                     ),
                   ),
@@ -1015,8 +1025,8 @@ Return ONLY a JSON array, no markdown, no explanation:
                             child: Row(
                               children: [
                                 const Icon(
-                                  Icons.group_add,
-                                  color: Colors.white,
+                                  Icons.group_add_rounded,
+                                  color: Colors.black,
                                   size: 28,
                                 ),
 
@@ -1029,16 +1039,16 @@ Return ONLY a JSON array, no markdown, no explanation:
                                       Text(
                                         "Invite Friends",
                                         style: TextStyle(
-                                          color: Colors.white,
+                                          color: Colors.black,
                                           fontSize: 17,
-                                          fontWeight: FontWeight.bold,
+                                          fontWeight: FontWeight.w900,
                                         ),
                                       ),
                                       SizedBox(height: 4),
                                       Text(
                                         "Tap here to challenge them to a duel",
                                         style: TextStyle(
-                                          color: Colors.white70,
+                                          color: Colors.black54,
                                           fontSize: 13,
                                         ),
                                       ),
@@ -1047,8 +1057,8 @@ Return ONLY a JSON array, no markdown, no explanation:
                                 ),
 
                                 const Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: Colors.white,
+                                  Icons.arrow_forward_ios_rounded,
+                                  color: Colors.black,
                                   size: 18,
                                 ),
                               ],
@@ -1255,17 +1265,25 @@ Return ONLY a JSON array, no markdown, no explanation:
                         GestureDetector(
                           onTap: addQuest,
                           child: Container(
-                            width: 48,
+                            width: 52,
                             height: 52,
                             decoration: BoxDecoration(
-                              color: HunterTheme.primary.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: HunterTheme.primary
-                                      .withOpacity(0.4)),
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: HunterTheme.primaryGradient,
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: HunterTheme.primary.withOpacity(0.35 * HunterTheme.glowStrength),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                            child: Icon(Icons.add,
-                                color: HunterTheme.primary),
+                            child: const Icon(Icons.add_rounded,
+                                color: Colors.black, size: 26),
                           ),
                         ),
                       ],
@@ -1327,7 +1345,7 @@ Return ONLY a JSON array, no markdown, no explanation:
                           child: Row(
                             children: [
                               const Icon(Icons.smart_toy_rounded,
-                                  color: Colors.white, size: 26),
+                                  color: Colors.black, size: 26),
                               const SizedBox(width: 14),
                               Expanded(
                                 child: Column(
@@ -1337,16 +1355,16 @@ Return ONLY a JSON array, no markdown, no explanation:
                                     Text(
                                       '🤖 Generate AI Duel Quests',
                                       style: TextStyle(
-                                        color: Colors.white,
+                                        color: Colors.black,
                                         fontSize: 15,
-                                        fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.w900,
                                       ),
                                     ),
                                     const SizedBox(height: 3),
                                     Text(
                                       'Generate balanced quests based on both hunters.',
                                       style: TextStyle(
-                                        color: Colors.white70,
+                                        color: Colors.black.withOpacity(0.6),
                                         fontSize: 12,
                                       ),
                                     ),
@@ -1358,11 +1376,11 @@ Return ONLY a JSON array, no markdown, no explanation:
                                   width: 18,
                                   height: 18,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white),
+                                      strokeWidth: 2, color: Colors.black),
                                 )
                               else
-                                const Icon(Icons.arrow_forward_ios,
-                                    color: Colors.white, size: 16),
+                                const Icon(Icons.arrow_forward_ios_rounded,
+                                    color: Colors.black, size: 16),
                             ],
                           ),
                         ),
@@ -1411,22 +1429,39 @@ Return ONLY a JSON array, no markdown, no explanation:
                     if (duelQuests.isEmpty)
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: HunterTheme.cardColor,
-                          borderRadius: BorderRadius.circular(12),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              HunterTheme.dangerAlt.withOpacity(0.06),
+                              HunterTheme.cardColor,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                              color: HunterTheme.textPrimary.withOpacity(0.06)),
+                              color: HunterTheme.dangerAlt.withOpacity(0.18)),
                         ),
                         child: Column(
                           children: [
-                            Icon(Icons.add_task,
-                                color: HunterTheme.textFaint, size: 36),
-                            const SizedBox(height: 8),
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: HunterTheme.dangerAlt.withOpacity(0.10),
+                                border: Border.all(color: HunterTheme.dangerAlt.withOpacity(0.25)),
+                              ),
+                              child: Icon(Icons.add_task_rounded,
+                                  color: HunterTheme.dangerAlt, size: 30),
+                            ),
+                            const SizedBox(height: 12),
                             Text(
                               'Add at least 4 missions to challenge',
+                              textAlign: TextAlign.center,
                               style: TextStyle(
-                                  color: HunterTheme.textTertiary, fontSize: 13),
+                                  color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
                             ),
                           ],
                         ),
@@ -1438,24 +1473,35 @@ Return ONLY a JSON array, no markdown, no explanation:
                       return Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
+                            horizontal: 14, vertical: 13),
                         decoration: BoxDecoration(
-                          color: HunterTheme.cardColor,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: HunterTheme.dangerAlt.withOpacity(0.3),
+                          gradient: LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              HunterTheme.dangerAlt.withOpacity(0.07),
+                              HunterTheme.cardColor,
+                            ],
                           ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: HunterTheme.dangerAlt.withOpacity(0.28),
+                          ),
+                          boxShadow: [
+                            BoxShadow(color: Colors.black.withOpacity(HunterTheme.isDark ? 0.15 : 0.03), blurRadius: 8, offset: const Offset(0, 3)),
+                          ],
                         ),
                         child: Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(6),
+                              padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color:
                                 HunterTheme.dangerAlt.withOpacity(0.12),
                                 shape: BoxShape.circle,
+                                border: Border.all(color: HunterTheme.dangerAlt.withOpacity(0.25)),
                               ),
-                              child: Icon(Icons.gps_fixed,
+                              child: Icon(Icons.gps_fixed_rounded,
                                   color: HunterTheme.dangerAlt, size: 16),
                             ),
                             const SizedBox(width: 12),
@@ -1560,12 +1606,12 @@ Return ONLY a JSON array, no markdown, no explanation:
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.close, size: 18),
+                      const Icon(Icons.sports_kabaddi_rounded, size: 20),
                       const SizedBox(width: 8),
                       const Text(
                         'CHALLENGE HUNTER',
                         style: TextStyle(
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w900,
                           fontSize: 15,
                           letterSpacing: 2,
                         ),
@@ -1584,14 +1630,32 @@ Return ONLY a JSON array, no markdown, no explanation:
   // ── Helpers ───────────────────────────────────────────────────────
 
   Widget _sectionLabel(String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        color: HunterTheme.textSecondary,
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 2,
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 4,
+          height: 13,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: HunterTheme.primaryGradient,
+            ),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 9),
+        Text(
+          text,
+          style: TextStyle(
+            color: HunterTheme.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 2,
+          ),
+        ),
+      ],
     );
   }
 
@@ -1653,8 +1717,8 @@ Return ONLY a JSON array, no markdown, no explanation:
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : HunterTheme.textPrimary,
-            fontWeight: FontWeight.w600,
+            color: selected ? Colors.black : HunterTheme.textPrimary,
+            fontWeight: FontWeight.w700,
             fontSize: 13,
           ),
         ),
@@ -1669,14 +1733,15 @@ Return ONLY a JSON array, no markdown, no explanation:
           ? ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: HunterTheme.primary,
-          foregroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10)),
         ),
         onPressed: onTap,
         child: Text(label,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+            style: const TextStyle(fontWeight: FontWeight.w800)),
       )
           : OutlinedButton(
         style: OutlinedButton.styleFrom(

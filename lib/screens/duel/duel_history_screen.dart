@@ -24,10 +24,21 @@ class DuelHistoryScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: HunterTheme.background,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: HunterTheme.textSecondary, size: 20),
-          onPressed: () => Navigator.pop(context),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: HunterTheme.cardColor,
+                border: Border.all(color: HunterTheme.border),
+              ),
+              child: Icon(Icons.arrow_back_ios_new_rounded, color: HunterTheme.textSecondary, size: 15),
+            ),
+          ),
         ),
+        leadingWidth: 60,
         title: RichText(
           text: TextSpan(children: [
             TextSpan(
@@ -113,34 +124,49 @@ class DuelHistoryScreen extends StatelessWidget {
 
           if (myDuels.isEmpty) {
             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: HunterTheme.border,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: HunterTheme.border, width: 1.5),
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 92,
+                      height: 92,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            HunterTheme.primary.withOpacity(0.16),
+                            HunterTheme.cardColor,
+                          ],
+                        ),
+                        border: Border.all(color: HunterTheme.primary.withOpacity(0.3), width: 1.4),
+                        boxShadow: [
+                          BoxShadow(color: HunterTheme.primary.withOpacity(0.14 * HunterTheme.glowStrength), blurRadius: 24),
+                        ],
+                      ),
+                      child: Icon(Icons.sports_kabaddi_rounded, color: HunterTheme.primary, size: 42),
                     ),
-                    child: Icon(Icons.sports_kabaddi, color: HunterTheme.primary, size: 40),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    "NO DUEL HISTORY",
-                    style: TextStyle(
-                      color: HunterTheme.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
+                    const SizedBox(height: 22),
+                    Text(
+                      "NO DUEL HISTORY",
+                      style: TextStyle(
+                        color: HunterTheme.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 2,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Challenge a hunter to begin",
-                    style: TextStyle(color: HunterTheme.textTertiary, fontSize: 13),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      "Challenge a hunter to begin your rivalry",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, height: 1.4),
+                    ),
+                  ],
+                ),
               ),
             );
           }
@@ -165,17 +191,34 @@ class DuelHistoryScreen extends StatelessWidget {
 
                 // ── Section label ──
                 Row(children: [
+                  Container(
+                    width: 4,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: HunterTheme.primaryGradient,
+                      ),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   Text(
                     "Recent Duels",
-                    style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(width: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: HunterTheme.border, borderRadius: BorderRadius.circular(20)),
+                    decoration: BoxDecoration(
+                      color: HunterTheme.primary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: HunterTheme.primary.withOpacity(0.3)),
+                    ),
                     child: Text(
                       "${myDuels.length}",
-                      style: TextStyle(color: HunterTheme.primary, fontSize: 12, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: HunterTheme.primary, fontSize: 12, fontWeight: FontWeight.w800),
                     ),
                   ),
                 ]),
@@ -224,73 +267,114 @@ class DuelHistoryScreen extends StatelessWidget {
                   }
 
                   return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(14),
+                    margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
-                      color: HunterTheme.cardColor,
-                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [accentColor.withOpacity(0.10), HunterTheme.cardColor],
+                      ),
+                      borderRadius: BorderRadius.circular(18),
                       border: Border.all(
                         color: accentColor.withOpacity(
-                          duel['status'] == 'completed' ? 0.35 : 0.15,
+                          duel['status'] == 'completed' ? 0.35 : 0.18,
                         ),
                         width: 1.2,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(HunterTheme.isDark ? 0.18 : 0.04),
+                          blurRadius: 12,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
                     ),
-                    child: Row(children: [
-                      // Icon circle
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(12)),
-                        child: Icon(iconData, color: accentColor, size: 22),
-                      ),
-                      const SizedBox(width: 14),
-                      // Info
-                      Expanded(
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(
-                            label,
-                            style: TextStyle(
-                              color: accentColor,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                          if (opponentName.isNotEmpty) ...[
-                            const SizedBox(height: 3),
-                            Text(
-                              "vs $opponentName",
-                              style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12),
-                            ),
-                          ],
-                        ]),
-                      ),
-                      // Date + badge
-                      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                        if (dateStr.isNotEmpty)
-                          Text(
-                            dateStr,
-                            style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11),
-                          ),
-                        const SizedBox(height: 6),
+                    child: IntrinsicHeight(
+                      child: Row(children: [
+                        // Timeline accent rail
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          width: 4,
                           decoration: BoxDecoration(
-                            color: accentColor.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            duel['status'] == 'completed' ? "COMPLETED" : "CANCELLED",
-                            style: TextStyle(
-                              color: accentColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [accentColor, accentColor.withOpacity(0.35)],
+                            ),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(18),
+                              bottomLeft: Radius.circular(18),
                             ),
                           ),
                         ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Row(children: [
+                              // Outcome medallion
+                              Container(
+                                padding: const EdgeInsets.all(11),
+                                decoration: BoxDecoration(
+                                  color: iconBg,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: accentColor.withOpacity(0.25)),
+                                ),
+                                child: Icon(iconData, color: accentColor, size: 22),
+                              ),
+                              const SizedBox(width: 14),
+                              // Info
+                              Expanded(
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text(
+                                    label,
+                                    style: TextStyle(
+                                      color: accentColor,
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                  if (opponentName.isNotEmpty) ...[
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      "vs $opponentName",
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12.5, fontWeight: FontWeight.w500),
+                                    ),
+                                  ],
+                                ]),
+                              ),
+                              // Date + badge
+                              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                                if (dateStr.isNotEmpty)
+                                  Text(
+                                    dateStr,
+                                    style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11, fontWeight: FontWeight.w500),
+                                  ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: accentColor.withOpacity(0.14),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: accentColor.withOpacity(0.3)),
+                                  ),
+                                  child: Text(
+                                    duel['status'] == 'completed' ? "COMPLETED" : "CANCELLED",
+                                    style: TextStyle(
+                                      color: accentColor,
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ]),
+                            ]),
+                          ),
+                        ),
                       ]),
-                    ]),
+                    ),
                   );
                 }),
 
@@ -306,21 +390,43 @@ class DuelHistoryScreen extends StatelessWidget {
   Widget _buildStatCard(String label, String value, Color color, IconData icon) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
         decoration: BoxDecoration(
-          color: HunterTheme.cardColor,
-          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [color.withOpacity(0.12), HunterTheme.cardColor],
+          ),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(color: color.withOpacity(0.3), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.10 * HunterTheme.glowStrength),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         child: Column(children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.bold),
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withOpacity(0.14),
+              border: Border.all(color: color.withOpacity(0.3)),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 10),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.w900),
+            ),
           ),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10, letterSpacing: 1)),
+          Text(label, style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.w600)),
         ]),
       ),
     );

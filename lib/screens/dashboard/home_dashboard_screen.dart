@@ -7,6 +7,7 @@ import 'package:hunter_ascend/widgets/dashboard/pro_dashboard_layout.dart';
 import 'package:hunter_ascend/widgets/dashboard/max_dashboard_layout.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:hunter_ascend/services/milestone_service.dart';
+import 'package:hunter_ascend/services/achievements_service.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -74,6 +75,19 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   bool _stepRewardGrantedToday = false;
   int _stepOffset = 0;
   String _stepOffsetDate = '';
+
+  // Last `todaySteps` value already folded into `totalStepsAllTime` this
+  // session — used to accumulate only the NEW steps since the previous
+  // pedometer event (backs the `walk_million` achievement) without ever
+  // double-counting today's count on every single event.
+  int _lastAccumulatedTodaySteps = 0;
+
+  // In-memory running estimate of `totalStepsAllTime`, seeded from the
+  // server value in `_loadStepState` and kept in sync locally as new steps
+  // are folded in — used purely to detect crossing a 100k boundary so the
+  // achievement celebration can be shown promptly without re-reading the
+  // hunter doc on every single pedometer tick.
+  int _totalStepsAllTimeCache = 0;
 
   bool _isRecoveringStreak = false;
   String? _cachedProfilePicData;
@@ -252,7 +266,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }
 
 
-  /// Grants the streak recovery reward.
+  /// Grants the streak recovery reward (discipline restore).
   Future<void> _grantStreakRecovery() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -264,6 +278,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       'streak': previousStreak, 'previousStreak': 0, 'lastRecoveryDate': Timestamp.now(),
     });
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("\ud83d\udd25 Streak Restored ($previousStreak Days)")));
+    // Immediately re-evaluate/celebrate — backs special_never_give_up and
+    // hidden_comeback, both of which depend on previousStreak/streak.
+    if (mounted) {
+      await AchievementsService.instance.checkAndCelebrateForCurrentUser(context);
+    }
   }
 
   // ── Steps ────────────────────────────────────────────────
@@ -284,6 +303,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
           _stepOffset = event.steps;
           _stepOffsetDate = today;
           _stepRewardGrantedToday = false;
+          _lastAccumulatedTodaySteps = 0;
           await FirebaseFirestore.instance
               .collection('hunters')
               .doc(user.uid)
@@ -294,6 +314,25 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         }
 
         final todayCount = (event.steps - _stepOffset).clamp(0, 999999);
+
+        // Fold only the NEW steps since the last pedometer event into the
+        // lifetime all-time total (backs the `walk_million` achievement).
+        // Uses an in-memory watermark (_lastAccumulatedTodaySteps) to avoid
+        // double-counting on every tick. On app restart mid-day this resets
+        // to 0, which means the first batch of today's steps may be counted
+        // again — acceptable imprecision for a million-step achievement.
+        final newSteps = todayCount - _lastAccumulatedTodaySteps;
+        if (newSteps > 0) {
+          _lastAccumulatedTodaySteps = todayCount;
+          try {
+            await FirebaseFirestore.instance
+                .collection('hunters')
+                .doc(user.uid)
+                .update({'totalStepsAllTime': FieldValue.increment(newSteps)});
+          } catch (e) {
+            debugPrint('totalStepsAllTime increment: $e');
+          }
+        }
 
         if (todayCount >= 10000 && !_stepRewardGrantedToday) {
           _stepRewardGrantedToday = true;
@@ -314,6 +353,21 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         setState(() => todaySteps = todayCount);
         // Check for step milestone celebrations.
         MilestoneService.checkStepMilestones(context, todayCount);
+        // Re-evaluate achievements only when a new 100k all-time-step
+        // milestone boundary is actually crossed — NOT on every single
+        // pedometer tick, which would otherwise trigger a Firestore read +
+        // achievement scan many times per minute while walking. The
+        // background HunterRepository listener (bound in main.dart) will
+        // still eventually pick up `walk_million` even if this particular
+        // boundary check is missed for any reason — this is purely for
+        // showing the celebration promptly.
+        if (newSteps > 0) {
+          final newTotal = _totalStepsAllTimeCache + newSteps;
+          if (_totalStepsAllTimeCache ~/ 100000 != newTotal ~/ 100000) {
+            unawaited(AchievementsService.instance.checkAndCelebrateForCurrentUser(context));
+          }
+          _totalStepsAllTimeCache = newTotal;
+        }
       },
       onError: (error) => debugPrint("\u274c Step counter error: $error"),
       cancelOnError: false,
@@ -333,6 +387,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     _stepOffset = data['stepOffset'] ?? 0;
     _stepOffsetDate = data['stepOffsetDate'] ?? '';
     _stepRewardGrantedToday = data['lastStepRewardDate'] == today;
+    _lastAccumulatedTodaySteps = 0; // In-memory only; resets each app start.
+    _totalStepsAllTimeCache = ((data['totalStepsAllTime'] ?? 0) as num).toInt();
   }
 
   // ── Streak ───────────────────────────────────────────────
@@ -1609,9 +1665,53 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     });
   }
 
+  /// Increments the lifetime water-log counter (backs `hydration_100`) and,
+  /// exactly once per calendar day the goal is first reached, extends the
+  /// consecutive-day goal-hit streak (backs `hydration_streak`) — mirroring
+  /// the same day-guard pattern used for nutrition tracking. Runs after the
+  /// water amount itself has already been saved; any failure here is
+  /// logged but never affects the water log that already succeeded.
+  Future<void> _updateHydrationAchievementTracking() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final today = DateTime.now().toString().substring(0, 10);
+    final ref = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
+    try {
+      await FirebaseFirestore.instance.runTransaction((txn) async {
+        final snap = await txn.get(ref);
+        final data = snap.data() ?? {};
+        final lastHitDate = data['lastWaterGoalHitDate']?.toString();
+        final curStreak = ((data['waterGoalStreak'] ?? 0) as num).toInt();
+        final curLogCount = ((data['waterLogCount'] ?? 0) as num).toInt();
+
+        final updates = <String, dynamic>{'waterLogCount': curLogCount + 1};
+
+        final goalHitNow = waterGoalMl > 0 && waterIntakeMl >= waterGoalMl;
+        if (goalHitNow && lastHitDate != today) {
+          // A goal hit on a fresh day extends the streak; any gap (checked
+          // via lastWaterGoalHitDate not being yesterday) restarts it at 1
+          // rather than silently continuing an already-broken streak.
+          final yesterday = DateTime.now().subtract(const Duration(days: 1)).toString().substring(0, 10);
+          final isConsecutive = lastHitDate == yesterday;
+          updates['waterGoalStreak'] = isConsecutive ? curStreak + 1 : 1;
+          updates['lastWaterGoalHitDate'] = today;
+        }
+
+        txn.update(ref, updates);
+      });
+    } catch (e) {
+      debugPrint('updateHydrationAchievementTracking: $e');
+      return;
+    }
+    if (mounted) {
+      await AchievementsService.instance.checkAndCelebrateForCurrentUser(context);
+    }
+  }
+
   void _addWater() {
     setState(() => waterIntakeMl += selectedCupSize);
     _saveWaterIntake();
+    unawaited(_updateHydrationAchievementTracking());
   }
 
   void _removeWater() {

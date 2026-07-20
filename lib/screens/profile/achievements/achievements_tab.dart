@@ -3,12 +3,15 @@ import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/data/models/achievement.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/services/achievements_service.dart';
-import 'package:hunter_ascend/widgets/achievement_unlocked_dialog.dart';
 
 /// Premium RPG-style Achievements screen (hosted as a Profile tab).
 ///
-/// Presentation + read-only derivation only: unlock state comes from the
-/// hunter's existing stats via [AchievementsService] (no Firestore changes).
+/// Unlock state and XP are driven by [AchievementsService] against Firestore
+/// (see that service's doc comment) — this screen never claims anything or
+/// awards XP itself; it only calls [AchievementsService.evaluate] to get an
+/// up-to-date status list for display and to surface any celebration dialogs
+/// queued by evaluation (including ones claimed by the BACKGROUND listener
+/// while this tab wasn't even open — evaluation isn't gated on this screen).
 class AchievementsTab extends StatefulWidget {
   final HunterData hunter;
   const AchievementsTab({super.key, required this.hunter});
@@ -19,7 +22,7 @@ class AchievementsTab extends StatefulWidget {
 
 class _AchievementsTabState extends State<AchievementsTab> {
   bool _ready = false;
-  bool _dialogScheduled = false;
+  List<AchievementStatus> _statuses = [];
   AchievementCategory? _category; // null = All
   String _query = '';
   final TextEditingController _searchController = TextEditingController();
@@ -27,9 +30,19 @@ class _AchievementsTabState extends State<AchievementsTab> {
   @override
   void initState() {
     super.initState();
-    AchievementsService.instance.ensureLoaded().then((_) {
-      if (mounted) setState(() => _ready = true);
-    });
+    _loadAndEvaluate(widget.hunter);
+  }
+
+  @override
+  void didUpdateWidget(AchievementsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Re-evaluate whenever the hunter data this tab was built with changes
+    // (e.g. the underlying HunterRepository stream emitted a new snapshot
+    // while this tab was visible) — never on every rebuild for the SAME
+    // data, so this doesn't spam Firestore reads/writes.
+    if (oldWidget.hunter != widget.hunter) {
+      _loadAndEvaluate(widget.hunter);
+    }
   }
 
   @override
@@ -38,34 +51,16 @@ class _AchievementsTabState extends State<AchievementsTab> {
     super.dispose();
   }
 
-  /// If new achievements were unlocked during evaluation, show the premium
-  /// "Achievement Unlocked" celebration dialog for each (one after another).
-  void _scheduleUnlockDialogs() {
-    if (_dialogScheduled) return;
-    if (AchievementsService.instance.pendingUnlocks.isEmpty) return;
-    _dialogScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final pending = AchievementsService.instance.takePendingUnlocks();
-      for (final achievement in pending) {
-        if (!mounted) break;
-        await AchievementUnlockedDialog.show(
-          context,
-          achievement: achievement,
-          onView: () => _viewAchievement(achievement),
-        );
-      }
-      _dialogScheduled = false;
-    });
-  }
-
-  /// Focuses a single achievement in the list (used by "View Achievement").
-  void _viewAchievement(Achievement achievement) {
+  Future<void> _loadAndEvaluate(HunterData hunter) async {
+    await AchievementsService.instance.ensureLoaded();
+    final statuses = await AchievementsService.instance.evaluate(hunter);
     if (!mounted) return;
-    _searchController.text = achievement.name;
     setState(() {
-      _category = null;
-      _query = achievement.name;
+      _statuses = statuses;
+      _ready = true;
     });
+    // Celebrate anything newly unlocked by this (or a background) pass.
+    AchievementsService.instance.showPendingUnlockDialogs(context);
   }
 
   @override
@@ -92,10 +87,7 @@ class _AchievementsTabState extends State<AchievementsTab> {
       );
     }
 
-    final all = AchievementsService.instance.evaluate(widget.hunter);
-
-    // Celebrate any achievements unlocked since the last evaluation.
-    _scheduleUnlockDialogs();
+    final all = _statuses;
 
     // Apply category + search filters.
     final q = _query.trim().toLowerCase();

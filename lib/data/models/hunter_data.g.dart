@@ -82,13 +82,40 @@ class HunterDataAdapter extends TypeAdapter<HunterData> {
       dailyXp: fields[50] as int? ?? 0,
       weeklyResetEpoch: fields[51] as int? ?? 0,
       dailyResetEpoch: fields[52] as int? ?? 0,
+      // Achievement tracking: social
+      hasSharedApp: fields[54] as bool? ?? false,
+      hasSharedProfile: fields[55] as bool? ?? false,
+      hasSharedReport: fields[56] as bool? ?? false,
+      hasSharedActivity: fields[57] as bool? ?? false,
+      hasComparedHunter: fields[58] as bool? ?? false,
+      // Achievement tracking: walking / explorer
+      totalStepsAllTime: fields[59] as int? ?? 0,
+      totalRunsCompleted: fields[60] as int? ?? 0,
+      totalRunDistanceKm: (fields[61] as num?)?.toDouble() ?? 0,
+      longestRunKm: (fields[62] as num?)?.toDouble() ?? 0,
+      // Achievement tracking: nutrition
+      mealsLoggedCount: fields[63] as int? ?? 0,
+      proteinGoalHitDays: fields[64] as int? ?? 0,
+      balancedMacroDays: fields[65] as int? ?? 0,
+      // Achievement tracking: hydration
+      waterLogCount: fields[66] as int? ?? 0,
+      waterGoalStreak: fields[67] as int? ?? 0,
+      lastWaterGoalHitDate: fields[68] as String?,
+      // Achievement tracking: hidden/secret time-of-day actions
+      hitMidnightAction: fields[69] as bool? ?? false,
+      hitEarlyBirdAction: fields[70] as bool? ?? false,
+      hitNightOwlAction: fields[71] as bool? ?? false,
+      // Achievement tracking: nutrition (date guards)
+      lastProteinGoalHitDate: fields[72] as String?,
+      lastBalancedMacroDate: fields[73] as String?,
+      stepsAccumulatedToday: fields[74] as int? ?? 0,
     );
   }
 
   @override
   void write(BinaryWriter writer, HunterData obj) {
     writer
-      ..writeByte(54) // total number of fields
+      ..writeByte(75) // total number of fields
       // Core identity
       ..writeByte(0)..write(obj.hunterName)
       ..writeByte(1)..write(obj.xp)
@@ -153,7 +180,34 @@ class HunterDataAdapter extends TypeAdapter<HunterData> {
       ..writeByte(49)..write(obj.weeklyXp)
       ..writeByte(50)..write(obj.dailyXp)
       ..writeByte(51)..write(obj.weeklyResetEpoch)
-      ..writeByte(52)..write(obj.dailyResetEpoch);
+      ..writeByte(52)..write(obj.dailyResetEpoch)
+      // Achievement tracking: social
+      ..writeByte(54)..write(obj.hasSharedApp)
+      ..writeByte(55)..write(obj.hasSharedProfile)
+      ..writeByte(56)..write(obj.hasSharedReport)
+      ..writeByte(57)..write(obj.hasSharedActivity)
+      ..writeByte(58)..write(obj.hasComparedHunter)
+      // Achievement tracking: walking / explorer
+      ..writeByte(59)..write(obj.totalStepsAllTime)
+      ..writeByte(60)..write(obj.totalRunsCompleted)
+      ..writeByte(61)..write(obj.totalRunDistanceKm)
+      ..writeByte(62)..write(obj.longestRunKm)
+      // Achievement tracking: nutrition
+      ..writeByte(63)..write(obj.mealsLoggedCount)
+      ..writeByte(64)..write(obj.proteinGoalHitDays)
+      ..writeByte(65)..write(obj.balancedMacroDays)
+      // Achievement tracking: hydration
+      ..writeByte(66)..write(obj.waterLogCount)
+      ..writeByte(67)..write(obj.waterGoalStreak)
+      ..writeByte(68)..write(obj.lastWaterGoalHitDate)
+      // Achievement tracking: hidden/secret time-of-day actions
+      ..writeByte(69)..write(obj.hitMidnightAction)
+      ..writeByte(70)..write(obj.hitEarlyBirdAction)
+      ..writeByte(71)..write(obj.hitNightOwlAction)
+      // Achievement tracking: nutrition (date guards)
+      ..writeByte(72)..write(obj.lastProteinGoalHitDate)
+      ..writeByte(73)..write(obj.lastBalancedMacroDate)
+      ..writeByte(74)..write(obj.stepsAccumulatedToday);
   }
 
   @override

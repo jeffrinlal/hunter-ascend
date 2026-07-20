@@ -86,6 +86,32 @@ class HunterData {
     this.dailyXp = 0,
     this.weeklyResetEpoch = 0,
     this.dailyResetEpoch = 0,
+    // ── Achievement tracking: social ──
+    this.hasSharedApp = false,
+    this.hasSharedProfile = false,
+    this.hasSharedReport = false,
+    this.hasSharedActivity = false,
+    this.hasComparedHunter = false,
+    // ── Achievement tracking: walking / explorer ──
+    this.totalStepsAllTime = 0,
+    this.stepsAccumulatedToday = 0,
+    this.totalRunsCompleted = 0,
+    this.totalRunDistanceKm = 0,
+    this.longestRunKm = 0,
+    // ── Achievement tracking: nutrition ──
+    this.mealsLoggedCount = 0,
+    this.proteinGoalHitDays = 0,
+    this.balancedMacroDays = 0,
+    this.lastProteinGoalHitDate,
+    this.lastBalancedMacroDate,
+    // ── Achievement tracking: hydration ──
+    this.waterLogCount = 0,
+    this.waterGoalStreak = 0,
+    this.lastWaterGoalHitDate,
+    // ── Achievement tracking: hidden/secret time-of-day actions ──
+    this.hitMidnightAction = false,
+    this.hitEarlyBirdAction = false,
+    this.hitNightOwlAction = false,
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -198,6 +224,38 @@ class HunterData {
   @HiveField(52) final int dailyResetEpoch;
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // ACHIEVEMENT TRACKING (added to make every achievement trigger real data,
+  // no cumulative predicate here is a placeholder — every field below is
+  // written by a real user action; see the corresponding trigger sites).
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  @HiveField(54) final bool hasSharedApp;
+  @HiveField(55) final bool hasSharedProfile;
+  @HiveField(56) final bool hasSharedReport;
+  @HiveField(57) final bool hasSharedActivity;
+  @HiveField(58) final bool hasComparedHunter;
+
+  @HiveField(59) final int totalStepsAllTime;
+  @HiveField(74) final int stepsAccumulatedToday;
+  @HiveField(60) final int totalRunsCompleted;
+  @HiveField(61) final double totalRunDistanceKm;
+  @HiveField(62) final double longestRunKm;
+
+  @HiveField(63) final int mealsLoggedCount;
+  @HiveField(64) final int proteinGoalHitDays;
+  @HiveField(65) final int balancedMacroDays;
+  @HiveField(72) final String? lastProteinGoalHitDate;
+  @HiveField(73) final String? lastBalancedMacroDate;
+
+  @HiveField(66) final int waterLogCount;
+  @HiveField(67) final int waterGoalStreak;
+  @HiveField(68) final String? lastWaterGoalHitDate;
+
+  @HiveField(69) final bool hitMidnightAction;
+  @HiveField(70) final bool hitEarlyBirdAction;
+  @HiveField(71) final bool hitNightOwlAction;
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // FACTORY: Firestore → Domain
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -268,6 +326,32 @@ class HunterData {
       dailyXp: (data['dailyXp'] ?? 0) as int,
       weeklyResetEpoch: (data['weeklyResetEpoch'] ?? 0) as int,
       dailyResetEpoch: (data['dailyResetEpoch'] ?? 0) as int,
+      // Achievement tracking: social
+      hasSharedApp: data['hasSharedApp'] == true,
+      hasSharedProfile: data['hasSharedProfile'] == true,
+      hasSharedReport: data['hasSharedReport'] == true,
+      hasSharedActivity: data['hasSharedActivity'] == true,
+      hasComparedHunter: data['hasComparedHunter'] == true,
+      // Achievement tracking: walking / explorer
+      totalStepsAllTime: ((data['totalStepsAllTime'] ?? 0) as num).toInt(),
+      stepsAccumulatedToday: ((data['stepsAccumulatedToday'] ?? 0) as num).toInt(),
+      totalRunsCompleted: ((data['totalRunsCompleted'] ?? 0) as num).toInt(),
+      totalRunDistanceKm: ((data['totalRunDistanceKm'] ?? 0) as num).toDouble(),
+      longestRunKm: ((data['longestRunKm'] ?? 0) as num).toDouble(),
+      // Achievement tracking: nutrition
+      mealsLoggedCount: ((data['mealsLoggedCount'] ?? 0) as num).toInt(),
+      proteinGoalHitDays: ((data['proteinGoalHitDays'] ?? 0) as num).toInt(),
+      balancedMacroDays: ((data['balancedMacroDays'] ?? 0) as num).toInt(),
+      lastProteinGoalHitDate: data['lastProteinGoalHitDate']?.toString(),
+      lastBalancedMacroDate: data['lastBalancedMacroDate']?.toString(),
+      // Achievement tracking: hydration
+      waterLogCount: ((data['waterLogCount'] ?? 0) as num).toInt(),
+      waterGoalStreak: ((data['waterGoalStreak'] ?? 0) as num).toInt(),
+      lastWaterGoalHitDate: data['lastWaterGoalHitDate']?.toString(),
+      // Achievement tracking: hidden/secret time-of-day actions
+      hitMidnightAction: data['hitMidnightAction'] == true,
+      hitEarlyBirdAction: data['hitEarlyBirdAction'] == true,
+      hitNightOwlAction: data['hitNightOwlAction'] == true,
     );
   }
 
@@ -323,6 +407,27 @@ class HunterData {
       'dailyXp': dailyXp,
       'weeklyResetEpoch': weeklyResetEpoch,
       'dailyResetEpoch': dailyResetEpoch,
+      'hasSharedApp': hasSharedApp,
+      'hasSharedProfile': hasSharedProfile,
+      'hasSharedReport': hasSharedReport,
+      'hasSharedActivity': hasSharedActivity,
+      'hasComparedHunter': hasComparedHunter,
+      'totalStepsAllTime': totalStepsAllTime,
+      'stepsAccumulatedToday': stepsAccumulatedToday,
+      'totalRunsCompleted': totalRunsCompleted,
+      'totalRunDistanceKm': totalRunDistanceKm,
+      'longestRunKm': longestRunKm,
+      'mealsLoggedCount': mealsLoggedCount,
+      'proteinGoalHitDays': proteinGoalHitDays,
+      'balancedMacroDays': balancedMacroDays,
+      if (lastProteinGoalHitDate != null) 'lastProteinGoalHitDate': lastProteinGoalHitDate,
+      if (lastBalancedMacroDate != null) 'lastBalancedMacroDate': lastBalancedMacroDate,
+      'waterLogCount': waterLogCount,
+      'waterGoalStreak': waterGoalStreak,
+      if (lastWaterGoalHitDate != null) 'lastWaterGoalHitDate': lastWaterGoalHitDate,
+      'hitMidnightAction': hitMidnightAction,
+      'hitEarlyBirdAction': hitEarlyBirdAction,
+      'hitNightOwlAction': hitNightOwlAction,
     };
   }
 
@@ -385,6 +490,27 @@ class HunterData {
     int? dailyXp,
     int? weeklyResetEpoch,
     int? dailyResetEpoch,
+    bool? hasSharedApp,
+    bool? hasSharedProfile,
+    bool? hasSharedReport,
+    bool? hasSharedActivity,
+    bool? hasComparedHunter,
+    int? totalStepsAllTime,
+    int? stepsAccumulatedToday,
+    int? totalRunsCompleted,
+    double? totalRunDistanceKm,
+    double? longestRunKm,
+    int? mealsLoggedCount,
+    int? proteinGoalHitDays,
+    int? balancedMacroDays,
+    String? lastProteinGoalHitDate,
+    String? lastBalancedMacroDate,
+    int? waterLogCount,
+    int? waterGoalStreak,
+    String? lastWaterGoalHitDate,
+    bool? hitMidnightAction,
+    bool? hitEarlyBirdAction,
+    bool? hitNightOwlAction,
   }) {
     return HunterData(
       hunterName: hunterName ?? this.hunterName,
@@ -441,6 +567,27 @@ class HunterData {
       dailyXp: dailyXp ?? this.dailyXp,
       weeklyResetEpoch: weeklyResetEpoch ?? this.weeklyResetEpoch,
       dailyResetEpoch: dailyResetEpoch ?? this.dailyResetEpoch,
+      hasSharedApp: hasSharedApp ?? this.hasSharedApp,
+      hasSharedProfile: hasSharedProfile ?? this.hasSharedProfile,
+      hasSharedReport: hasSharedReport ?? this.hasSharedReport,
+      hasSharedActivity: hasSharedActivity ?? this.hasSharedActivity,
+      hasComparedHunter: hasComparedHunter ?? this.hasComparedHunter,
+      totalStepsAllTime: totalStepsAllTime ?? this.totalStepsAllTime,
+      stepsAccumulatedToday: stepsAccumulatedToday ?? this.stepsAccumulatedToday,
+      totalRunsCompleted: totalRunsCompleted ?? this.totalRunsCompleted,
+      totalRunDistanceKm: totalRunDistanceKm ?? this.totalRunDistanceKm,
+      longestRunKm: longestRunKm ?? this.longestRunKm,
+      mealsLoggedCount: mealsLoggedCount ?? this.mealsLoggedCount,
+      proteinGoalHitDays: proteinGoalHitDays ?? this.proteinGoalHitDays,
+      balancedMacroDays: balancedMacroDays ?? this.balancedMacroDays,
+      lastProteinGoalHitDate: lastProteinGoalHitDate ?? this.lastProteinGoalHitDate,
+      lastBalancedMacroDate: lastBalancedMacroDate ?? this.lastBalancedMacroDate,
+      waterLogCount: waterLogCount ?? this.waterLogCount,
+      waterGoalStreak: waterGoalStreak ?? this.waterGoalStreak,
+      lastWaterGoalHitDate: lastWaterGoalHitDate ?? this.lastWaterGoalHitDate,
+      hitMidnightAction: hitMidnightAction ?? this.hitMidnightAction,
+      hitEarlyBirdAction: hitEarlyBirdAction ?? this.hitEarlyBirdAction,
+      hitNightOwlAction: hitNightOwlAction ?? this.hitNightOwlAction,
     );
   }
 

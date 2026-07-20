@@ -15,6 +15,7 @@ import 'package:hunter_ascend/data/repositories/leaderboard_repository.dart';
 import 'package:hunter_ascend/services/sleep_service.dart';
 import 'package:hunter_ascend/services/rank_reward_service.dart';
 import 'package:hunter_ascend/services/equipped_rewards_service.dart';
+import 'package:hunter_ascend/services/achievements_service.dart';
 
 /// App settings: theme toggle, account, and links.
 class SettingsScreen extends StatelessWidget {
@@ -35,6 +36,7 @@ class SettingsScreen extends StatelessWidget {
       await SleepService.instance.cancelSleep();
       RankRewardService.instance.clearCache();
       EquippedRewardsService.instance.clearCache();
+      AchievementsService.instance.clearCache();
 
       if (user.isAnonymous) {
         // Delete Firestore data first (while auth token is still valid),
@@ -314,6 +316,7 @@ class SettingsScreen extends StatelessWidget {
       await SleepService.instance.cancelSleep();
       RankRewardService.instance.clearCache();
       EquippedRewardsService.instance.clearCache();
+      AchievementsService.instance.clearCache();
 
       // Re-authenticate with Google before deletion (required by Firebase
       // for destructive operations if the sign-in is not recent).

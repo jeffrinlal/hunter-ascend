@@ -87,6 +87,43 @@ service cloud.firestore {
       }
 
       // ════════════════════════════════════════════════════════════════════
+      // UNLOCKED ACHIEVEMENTS SUBCOLLECTION
+      // (hunters/{hunterId}/unlockedAchievements/{achievementId})
+      // ════════════════════════════════════════════════════════════════════
+      //
+      // Permanent record that an achievement's condition was met, plus a
+      // one-time XP-award flag — the same permanence pattern as
+      // `rankRewards`, but with one extra allowed transition to support a
+      // safe two-step claim (unlock, then award XP):
+      //
+      // - create: the owner may claim an achievement ONLY ONCE (the doc ID
+      //   is the achievement ID, so a second attempt is an `update`, denied
+      //   below except for the one narrow xpAwarded transition). Structurally
+      //   duplicate-proof across devices/sessions, exactly like `rankRewards`.
+      // - update: allowed ONLY to flip `xpAwarded` from false to true, and
+      //   ONLY that single field — this lets the client recover from a crash
+      //   or network failure between "claim recorded" and "XP granted"
+      //   without ever allowing the flag to be unset again or any other
+      //   field to change after creation.
+      // - delete: allowed ONLY while `xpAwarded` is still false — this is a
+      //   compensating rollback for the rare case where the XP transaction
+      //   itself fails after the claim was written, mirroring the existing
+      //   duel-XP flag rollback pattern (`duel_screen.dart`). Once XP has
+      //   been awarded, the record becomes fully permanent (no delete).
+      match /unlockedAchievements/{achievementId} {
+        allow read: if request.auth != null && request.auth.uid == hunterId;
+        allow create: if request.auth != null && request.auth.uid == hunterId;
+        allow update: if request.auth != null
+                      && request.auth.uid == hunterId
+                      && resource.data.xpAwarded == false
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['xpAwarded'])
+                      && request.resource.data.xpAwarded == true;
+        allow delete: if request.auth != null
+                      && request.auth.uid == hunterId
+                      && resource.data.xpAwarded == false;
+      }
+
+      // ════════════════════════════════════════════════════════════════════
       // EQUIPPED REWARDS SUBCOLLECTION (hunters/{hunterId}/equippedRewards/current)
       // ════════════════════════════════════════════════════════════════════
       //

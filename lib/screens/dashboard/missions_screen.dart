@@ -9,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hunter_ascend/services/ai_quest_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
+import 'package:hunter_ascend/services/achievements_service.dart';
 import 'package:hunter_ascend/widgets/dashboard/sleep_card.dart';
 import 'package:hunter_ascend/widgets/dashboard/sleep_ambience_picker.dart';
 import 'package:hunter_ascend/widgets/dashboard/sleep_summary_dialog.dart';
@@ -575,6 +576,11 @@ class _MissionsScreenState extends State<MissionsScreen> {
       xp: reward,
     );
 
+    // Immediately re-evaluate/celebrate any achievement this quest
+    // completion just satisfied — quest-count ladder (q_1..q_1000), plus any
+    // XP/level/streak-driven ones this same completion also crossed.
+    await AchievementsService.instance.checkAndCelebrateForCurrentUser(context);
+
     } catch (e) {
       debugPrint("completeQuest: $e");
     } finally {
@@ -941,6 +947,10 @@ class _MissionsScreenState extends State<MissionsScreen> {
       subtitle: 'Excellent work, Hunter.',
       xp: reward,
     );
+
+    // Immediately re-evaluate/celebrate any achievement this weekly mission
+    // completion just satisfied (quest-count ladder, XP/level, etc.).
+    await AchievementsService.instance.checkAndCelebrateForCurrentUser(context);
 
     } catch (e) {
       debugPrint("completeWeeklyQuest: $e");

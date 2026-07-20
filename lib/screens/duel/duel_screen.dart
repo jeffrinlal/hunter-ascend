@@ -15,8 +15,6 @@ import 'package:hunter_ascend/services/milestone_service.dart';
 import 'package:hunter_ascend/services/xp_service.dart';
 import 'package:hunter_ascend/services/rank_celebration_service.dart';
 import 'package:hunter_ascend/services/achievements_service.dart';
-import 'package:hunter_ascend/data/models/hunter_data.dart';
-import 'package:hunter_ascend/widgets/achievement_unlocked_dialog.dart';
 
 /// Live 1v1 duel screen: shows progress, countdown, and result for [duelId].
 class DuelScreen extends StatefulWidget {
@@ -305,38 +303,22 @@ class _DuelScreenState extends State<DuelScreen> {
 
   /// Re-runs the shared achievement evaluation for the local hunter and shows
   /// the standard celebration dialog for anything newly unlocked. This reuses
-  /// [AchievementsService] and [AchievementUnlockedDialog] exactly as the
-  /// Achievements screen does — no achievement logic is duplicated here. The
-  /// service only queues achievements that cross their threshold for the first
-  /// time (and never on the initial baseline pass), so this is safe to call on
-  /// every duel completion without producing spurious or repeated unlocks.
+  /// [AchievementsService] exactly as every other trigger site does — no
+  /// achievement logic, claiming, or XP-awarding is duplicated here.
+  /// [AchievementsService.evaluate] is itself idempotent/duplicate-safe (see
+  /// its class doc), so this is safe to call on every duel completion
+  /// without producing spurious or repeated unlocks/XP.
   Future<void> _evaluateAchievementsNow() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    if (!mounted) return;
     try {
-      // Read the freshly-updated hunter document so evaluation sees the new
-      // xp / level and the duelWins / duelLosses written on completion.
-      final snap = await FirebaseFirestore.instance
-          .collection('hunters')
-          .doc(uid)
-          .get();
-      if (!snap.exists) return;
-
-      final hunter = HunterData.fromFirestore(snap.data()!);
-      await AchievementsService.instance.ensureLoaded();
-      AchievementsService.instance.evaluate(hunter);
-
-      // Funnel each unlock through the shared MilestoneService queue so the
-      // achievement dialogs never overlap with each other or with the level-up
-      // celebration — they play sequentially after any level-up dialog.
-      final unlocked = AchievementsService.instance.takePendingUnlocks();
-      for (final achievement in unlocked) {
-        if (!mounted) break;
-        MilestoneService.enqueue(
-          context,
-          (ctx) => AchievementUnlockedDialog.show(ctx, achievement: achievement),
-        );
-      }
+      // checkAndCelebrateForCurrentUser re-fetches the freshly-updated
+      // hunter document itself, so evaluation sees the new xp / level and
+      // the duelWins / duelLosses written on completion, then funnels any
+      // newly-unlocked achievement through the shared MilestoneService
+      // queue (via AchievementsService.showPendingUnlockDialogs) — so
+      // achievement dialogs never overlap with the level-up celebration;
+      // they play sequentially after it.
+      await AchievementsService.instance.checkAndCelebrateForCurrentUser(context);
     } catch (e) {
       debugPrint('evaluateAchievementsNow: $e');
     }

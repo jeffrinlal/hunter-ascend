@@ -122,6 +122,19 @@ class _RewardsTabState extends State<RewardsTab> {
       );
     }
 
+    // Live refresh: RankRewardService/EquippedRewardsService now notify on
+    // every ownership/equip change (including grants that happen in the
+    // BACKGROUND while this tab is open, via RankRewardService's own
+    // HunterRepository listener). Wrapping the list in this builder means a
+    // newly-crossed rank tier repaints "Owned" state immediately, with no
+    // need to leave and re-open this tab.
+    return ListenableBuilder(
+      listenable: Listenable.merge([RankRewardService.instance, EquippedRewardsService.instance]),
+      builder: (context, _) => _buildContent(),
+    );
+  }
+
+  Widget _buildContent() {
     final level = widget.hunter.level;
     final tier = RankService.instance.tierForLevel(level);
 

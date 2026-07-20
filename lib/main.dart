@@ -15,6 +15,7 @@ import 'package:hunter_ascend/services/notification_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/rank_reward_service.dart';
+import 'package:hunter_ascend/services/achievements_service.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/data/hive_init.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
@@ -103,6 +104,16 @@ void main() async {
         // their first data refresh after this update (no migration needed).
         // Placed after HiveInit since it taps HunterRepository's cache.
         RankRewardService.instance.start();
+
+        // Starts automatic, event-driven achievement evaluation. Same
+        // pattern as RankRewardService.start() above: taps the existing
+        // HunterRepository stream (no new Firestore listener) so every
+        // hunter-data write — from ANY screen — re-evaluates achievements
+        // immediately, without requiring the user to open the Achievements
+        // screen. Claims/XP are written to their own dedicated subcollection
+        // (hunters/{uid}/unlockedAchievements); no progression field is
+        // touched directly by this call.
+        AchievementsService.instance.start();
     } catch (e) {
         debugPrint("startup: $e");
     }

@@ -9,6 +9,15 @@ import 'package:hunter_ascend/data/rank_rewards_catalog.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
 
+// NOTE ON LIVE UI REFRESH: this service now extends [ChangeNotifier] and
+// calls [notifyListeners] every time ownership actually changes (a new
+// reward is granted) or a fresh load completes. This lets the Rewards tab
+// wrap itself in a [ListenableBuilder]/[AnimatedBuilder] and repaint the
+// instant a background grant happens — e.g. via the same
+// `HunterRepository.watch()` stream this service already listens to —
+// without requiring the user to leave and re-open the Rewards tab. No
+// granting logic, Firestore schema, or ownership rule changes.
+
 /// Grants and tracks permanent Hunter Rank rewards.
 ///
 /// ## What this service does NOT do
@@ -42,7 +51,7 @@ import 'package:hunter_ascend/services/rank_service.dart';
 /// - Existing players automatically receive every reward they already
 ///   qualify for on their very next data refresh — no admin script, no
 ///   Firestore migration.
-class RankRewardService {
+class RankRewardService extends ChangeNotifier {
   RankRewardService._();
   static final RankRewardService instance = RankRewardService._();
 
@@ -109,6 +118,7 @@ class RankRewardService {
     _loaded = false;
     _loadedForUid = null;
     _lastSyncedLevel = -1;
+    notifyListeners();
     // _loadingFuture is intentionally left as-is: an in-flight load for the
     // PREVIOUS user may still resolve after this call. `_ensureLoadedForUid`
     // re-checks `_loadedForUid == uid` after awaiting it, so a stale
@@ -234,6 +244,7 @@ class RankRewardService {
     _loadedForUid = uid;
     _loaded = true;
     _lastSyncedLevel = -1; // force one sync pass for this freshly-loaded user
+    notifyListeners();
   }
 
   /// Permanently grants [reward] to [uid]. Uses the reward's stable [id] as
@@ -260,6 +271,9 @@ class RankRewardService {
       // a full reload; a later _loadFor() will overwrite this with the exact
       // server timestamp once read back.
       _grantedAt[reward.id] = DateTime.now();
+      // A genuinely NEW reward was just granted — tell any listening UI
+      // (e.g. the Rewards tab, if currently open) to repaint immediately.
+      notifyListeners();
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
         // The rules rejected this as an "update" — meaning the reward was

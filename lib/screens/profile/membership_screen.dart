@@ -4,6 +4,7 @@ import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/membership_reward_service.dart';
 import 'package:hunter_ascend/services/rewarded_ad_manager.dart';
+import 'package:hunter_ascend/services/achievements_service.dart';
 
 /// State of the rewarded ad button.
 enum _AdButtonState {
@@ -165,6 +166,9 @@ class _MembershipScreenState extends State<MembershipScreen>
           '${result.membershipType == "pro" ? "Pro" : "Max"} '
           'membership extended by +1 day!',
         );
+        // Immediately re-evaluate/celebrate — backs member_pro/member_max/
+        // member_support, which read membershipType/subscriptionActive.
+        await AchievementsService.instance.checkAndCelebrateForCurrentUser(context);
       } else {
         setState(() => _isClaiming = false);
       }

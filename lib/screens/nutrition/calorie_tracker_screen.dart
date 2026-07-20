@@ -15,6 +15,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
+import 'package:hunter_ascend/services/achievements_service.dart';
 
 // ── Data model ────────────────────────────────────────────────────────────
 
@@ -470,6 +471,78 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
       });
     } catch (e) {
       debugPrint("saveMeal: $e");
+      return;
+    }
+
+    // Update cumulative/daily nutrition achievement tracking (backs
+    // nutri_first/100, nutri_protein, nutri_balanced) and immediately
+    // re-evaluate/celebrate. Kept as a best-effort follow-up: a failure here
+    // never affects the meal that was already saved above.
+    try {
+      await _updateNutritionAchievementTracking(user.uid, today);
+    } catch (e) {
+      debugPrint('saveMeal achievement tracking: $e');
+    }
+  }
+
+  /// Increments the lifetime meals-logged counter and, once per calendar
+  /// day, checks whether today's cumulative protein/macros hit the derived
+  /// goals — mirroring the SAME 30/40/30 split already used for display in
+  /// [_buildCalorieRingCard] (protein/carbs/fat goal computation), so the
+  /// achievement condition matches what the user actually sees on screen.
+  Future<void> _updateNutritionAchievementTracking(String uid, String today) async {
+    final hunterRef = FirebaseFirestore.instance.collection('hunters').doc(uid);
+
+    // Sum today's logged meals fresh from Firestore (not from any in-memory
+    // list) so this is correct even if the day's meals were logged across
+    // multiple sessions/devices.
+    final todaySnap = await FirebaseFirestore.instance
+        .collection('calorie_logs')
+        .where('uid', isEqualTo: uid)
+        .where('date', isEqualTo: today)
+        .get();
+    double totalProtein = 0, totalCarbs = 0, totalFat = 0;
+    int totalCalories = 0;
+    for (final doc in todaySnap.docs) {
+      final m = MealEntry.fromMap(doc.data());
+      totalProtein += m.protein;
+      totalCarbs += m.carbs;
+      totalFat += m.fat;
+      totalCalories += m.calories;
+    }
+
+    final hunterSnap = await hunterRef.get();
+    final hunterData = hunterSnap.data() ?? {};
+    final calorieGoal = calorieGoalFromData(hunterData);
+    final proteinGoal = (calorieGoal * 0.30 / 4).round();
+    final carbsGoal = (calorieGoal * 0.40 / 4).round();
+    final fatGoal = (calorieGoal * 0.30 / 9).round();
+
+    final lastProteinDate = hunterData['lastProteinGoalHitDate']?.toString();
+    final lastBalancedDate = hunterData['lastBalancedMacroDate']?.toString();
+
+    final hitProteinGoalToday = proteinGoal > 0 && totalProtein >= proteinGoal;
+    final hitBalancedToday = totalCalories > 0 &&
+        totalProtein >= proteinGoal * 0.9 &&
+        totalCarbs >= carbsGoal * 0.9 &&
+        totalFat >= fatGoal * 0.9;
+
+    final updates = <String, dynamic>{
+      'mealsLoggedCount': FieldValue.increment(1),
+    };
+    if (hitProteinGoalToday && lastProteinDate != today) {
+      updates['proteinGoalHitDays'] = FieldValue.increment(1);
+      updates['lastProteinGoalHitDate'] = today;
+    }
+    if (hitBalancedToday && lastBalancedDate != today) {
+      updates['balancedMacroDays'] = FieldValue.increment(1);
+      updates['lastBalancedMacroDate'] = today;
+    }
+
+    await hunterRef.update(updates);
+
+    if (mounted) {
+      await AchievementsService.instance.checkAndCelebrateForCurrentUser(context);
     }
   }
 

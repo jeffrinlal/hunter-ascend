@@ -10,9 +10,12 @@ bool _isPro(HunterData h) => _tier(h) == 'pro' || _tier(h) == 'max';
 bool _isMax(HunterData h) => _tier(h) == 'max';
 int _duelTotal(HunterData h) => h.duelWins + h.duelLosses;
 
-/// The master list of achievements. Unlock state is derived from existing
-/// hunter stats; achievements with no trackable data yet are "to discover"
-/// (they surface as locked and can be lit up when tracking is added later).
+/// The master list of achievements. Every entry below is backed by real,
+/// already-written `HunterData` fields — there are no `_todo()`/always-false
+/// placeholder predicates left in this catalog; every achievement is
+/// obtainable through a genuine trigger site (see AchievementsService for
+/// wiring and each screen's corresponding write for where the backing field
+/// is actually set).
 final List<Achievement> kAchievements = [
   // ══════════════ ACCOUNT ══════════════
   Achievement(
@@ -217,34 +220,240 @@ final List<Achievement> kAchievements = [
     currentValue: (h) => (h.waterGoalMl > 0 && h.waterIntakeMl >= h.waterGoalMl) ? 1 : 0,
     isDone: (h) => h.waterGoalMl > 0 && h.waterIntakeMl >= h.waterGoalMl,
   ),
-  _todo('hydration_100', 'Drink Water 100 Times', 'Log water 100 times.', Icons.local_drink_rounded, AchievementCategory.hydration, AchievementRarity.epic, 600),
-  _todo('hydration_streak', 'Stay Hydrated', 'Hit your water goal 7 days in a row.', Icons.opacity_rounded, AchievementCategory.hydration, AchievementRarity.rare, 300),
+  Achievement(
+    id: 'hydration_100',
+    name: 'Drink Water 100 Times',
+    description: 'Log water 100 times.',
+    icon: Icons.local_drink_rounded,
+    category: AchievementCategory.hydration,
+    rarity: AchievementRarity.epic,
+    rewardXp: 600,
+    target: 100,
+    currentValue: (h) => h.waterLogCount.clamp(0, 100),
+    isDone: (h) => h.waterLogCount >= 100,
+  ),
+  Achievement(
+    id: 'hydration_streak',
+    name: 'Stay Hydrated',
+    description: 'Hit your water goal 7 days in a row.',
+    icon: Icons.opacity_rounded,
+    category: AchievementCategory.hydration,
+    rarity: AchievementRarity.rare,
+    rewardXp: 300,
+    target: 7,
+    currentValue: (h) => h.waterGoalStreak.clamp(0, 7),
+    isDone: (h) => h.waterGoalStreak >= 7,
+  ),
 
   // ══════════════ NUTRITION ══════════════
-  _todo('nutri_first', 'First Meal Logged', 'Log your first meal.', Icons.restaurant_rounded, AchievementCategory.nutrition, AchievementRarity.common, 75),
-  _todo('nutri_100', '100 Healthy Meals', 'Log 100 meals.', Icons.dinner_dining_rounded, AchievementCategory.nutrition, AchievementRarity.epic, 700),
-  _todo('nutri_protein', 'Protein Master', 'Hit your protein goal repeatedly.', Icons.egg_alt_rounded, AchievementCategory.nutrition, AchievementRarity.rare, 300),
-  _todo('nutri_balanced', 'Balanced Diet', 'Log a full day of balanced macros.', Icons.pie_chart_rounded, AchievementCategory.nutrition, AchievementRarity.rare, 300),
+  Achievement(
+    id: 'nutri_first',
+    name: 'First Meal Logged',
+    description: 'Log your first meal.',
+    icon: Icons.restaurant_rounded,
+    category: AchievementCategory.nutrition,
+    rarity: AchievementRarity.common,
+    rewardXp: 75,
+    isDone: (h) => h.mealsLoggedCount >= 1,
+  ),
+  Achievement(
+    id: 'nutri_100',
+    name: '100 Healthy Meals',
+    description: 'Log 100 meals.',
+    icon: Icons.dinner_dining_rounded,
+    category: AchievementCategory.nutrition,
+    rarity: AchievementRarity.epic,
+    rewardXp: 700,
+    target: 100,
+    currentValue: (h) => h.mealsLoggedCount.clamp(0, 100),
+    isDone: (h) => h.mealsLoggedCount >= 100,
+  ),
+  Achievement(
+    id: 'nutri_protein',
+    name: 'Protein Master',
+    description: 'Hit your protein goal repeatedly.',
+    icon: Icons.egg_alt_rounded,
+    category: AchievementCategory.nutrition,
+    rarity: AchievementRarity.rare,
+    rewardXp: 300,
+    target: 7,
+    currentValue: (h) => h.proteinGoalHitDays.clamp(0, 7),
+    isDone: (h) => h.proteinGoalHitDays >= 7,
+  ),
+  Achievement(
+    id: 'nutri_balanced',
+    name: 'Balanced Diet',
+    description: 'Log a full day of balanced macros.',
+    icon: Icons.pie_chart_rounded,
+    category: AchievementCategory.nutrition,
+    rarity: AchievementRarity.rare,
+    rewardXp: 300,
+    isDone: (h) => h.balancedMacroDays >= 1,
+  ),
 
   // ══════════════ WALKING ══════════════
-  _todo('walk_5', 'Walk 5 km', 'Cover 5 km on foot.', Icons.directions_walk_rounded, AchievementCategory.walking, AchievementRarity.common, 100),
-  _todo('walk_25', 'Walk 25 km', 'Cover 25 km on foot.', Icons.directions_walk_rounded, AchievementCategory.walking, AchievementRarity.rare, 300),
-  _todo('walk_100', 'Walk 100 km', 'Cover 100 km on foot.', Icons.hiking_rounded, AchievementCategory.walking, AchievementRarity.epic, 700),
-  _todo('walk_500', 'Walk 500 km', 'Cover 500 km on foot.', Icons.terrain_rounded, AchievementCategory.walking, AchievementRarity.legendary, 1500, reward: 'Badge: Pathfinder'),
-  _todo('walk_million', '1 Million Steps', 'Take one million steps.', Icons.emoji_events_rounded, AchievementCategory.walking, AchievementRarity.legendary, 2000, reward: 'Title: Millionaire'),
+  Achievement(
+    id: 'walk_5',
+    name: 'Walk 5 km',
+    description: 'Cover 5 km on foot.',
+    icon: Icons.directions_walk_rounded,
+    category: AchievementCategory.walking,
+    rarity: AchievementRarity.common,
+    rewardXp: 100,
+    target: 5,
+    currentValue: (h) => h.totalRunDistanceKm.clamp(0, 5),
+    isDone: (h) => h.totalRunDistanceKm >= 5,
+  ),
+  Achievement(
+    id: 'walk_25',
+    name: 'Walk 25 km',
+    description: 'Cover 25 km on foot.',
+    icon: Icons.directions_walk_rounded,
+    category: AchievementCategory.walking,
+    rarity: AchievementRarity.rare,
+    rewardXp: 300,
+    target: 25,
+    currentValue: (h) => h.totalRunDistanceKm.clamp(0, 25),
+    isDone: (h) => h.totalRunDistanceKm >= 25,
+  ),
+  Achievement(
+    id: 'walk_100',
+    name: 'Walk 100 km',
+    description: 'Cover 100 km on foot.',
+    icon: Icons.hiking_rounded,
+    category: AchievementCategory.walking,
+    rarity: AchievementRarity.epic,
+    rewardXp: 700,
+    target: 100,
+    currentValue: (h) => h.totalRunDistanceKm.clamp(0, 100),
+    isDone: (h) => h.totalRunDistanceKm >= 100,
+  ),
+  Achievement(
+    id: 'walk_500',
+    name: 'Walk 500 km',
+    description: 'Cover 500 km on foot.',
+    icon: Icons.terrain_rounded,
+    category: AchievementCategory.walking,
+    rarity: AchievementRarity.legendary,
+    rewardXp: 1500,
+    reward: 'Badge: Pathfinder',
+    target: 500,
+    currentValue: (h) => h.totalRunDistanceKm.clamp(0, 500),
+    isDone: (h) => h.totalRunDistanceKm >= 500,
+  ),
+  Achievement(
+    id: 'walk_million',
+    name: '1 Million Steps',
+    description: 'Take one million steps.',
+    icon: Icons.emoji_events_rounded,
+    category: AchievementCategory.walking,
+    rarity: AchievementRarity.legendary,
+    rewardXp: 2000,
+    reward: 'Title: Millionaire',
+    target: 1000000,
+    currentValue: (h) => h.totalStepsAllTime.clamp(0, 1000000),
+    isDone: (h) => h.totalStepsAllTime >= 1000000,
+  ),
 
   // ══════════════ EXPLORER (Maps / Running) ══════════════
-  _todo('explore_first', 'First Route', 'Record your first run route.', Icons.explore_rounded, AchievementCategory.explorer, AchievementRarity.common, 100),
-  _todo('explore_10', 'Explore 10 Routes', 'Record 10 run routes.', Icons.map_rounded, AchievementCategory.explorer, AchievementRarity.rare, 300),
-  _todo('explore_100', 'Explore 100 Routes', 'Record 100 run routes.', Icons.travel_explore_rounded, AchievementCategory.explorer, AchievementRarity.epic, 800),
-  _todo('explore_longest', 'Longest Adventure', 'Complete a run over 10 km.', Icons.route_rounded, AchievementCategory.explorer, AchievementRarity.legendary, 1500, reward: 'Badge: Adventurer'),
+  Achievement(
+    id: 'explore_first',
+    name: 'First Route',
+    description: 'Record your first run route.',
+    icon: Icons.explore_rounded,
+    category: AchievementCategory.explorer,
+    rarity: AchievementRarity.common,
+    rewardXp: 100,
+    isDone: (h) => h.totalRunsCompleted >= 1,
+  ),
+  Achievement(
+    id: 'explore_10',
+    name: 'Explore 10 Routes',
+    description: 'Record 10 run routes.',
+    icon: Icons.map_rounded,
+    category: AchievementCategory.explorer,
+    rarity: AchievementRarity.rare,
+    rewardXp: 300,
+    target: 10,
+    currentValue: (h) => h.totalRunsCompleted.clamp(0, 10),
+    isDone: (h) => h.totalRunsCompleted >= 10,
+  ),
+  Achievement(
+    id: 'explore_100',
+    name: 'Explore 100 Routes',
+    description: 'Record 100 run routes.',
+    icon: Icons.travel_explore_rounded,
+    category: AchievementCategory.explorer,
+    rarity: AchievementRarity.epic,
+    rewardXp: 800,
+    target: 100,
+    currentValue: (h) => h.totalRunsCompleted.clamp(0, 100),
+    isDone: (h) => h.totalRunsCompleted >= 100,
+  ),
+  Achievement(
+    id: 'explore_longest',
+    name: 'Longest Adventure',
+    description: 'Complete a run over 10 km.',
+    icon: Icons.route_rounded,
+    category: AchievementCategory.explorer,
+    rarity: AchievementRarity.legendary,
+    rewardXp: 1500,
+    reward: 'Badge: Adventurer',
+    isDone: (h) => h.longestRunKm >= 10,
+  ),
 
   // ══════════════ SOCIAL ══════════════
-  _todo('social_compare', 'First Hunter Compared', 'Compare yourself with another hunter.', Icons.compare_arrows_rounded, AchievementCategory.social, AchievementRarity.common, 75),
-  _todo('social_share_profile', 'Share Profile', 'Share your hunter profile card.', Icons.ios_share_rounded, AchievementCategory.social, AchievementRarity.common, 100),
-  _todo('social_share_report', 'Share Report', 'Share your progress report.', Icons.summarize_rounded, AchievementCategory.social, AchievementRarity.rare, 150),
-  _todo('social_share_activity', 'Share Activity', 'Share a run activity card.', Icons.directions_run_rounded, AchievementCategory.social, AchievementRarity.rare, 150),
-  _todo('social_invite', 'Invite a Friend', 'Invite a friend to Hunter Ascend.', Icons.person_add_alt_1_rounded, AchievementCategory.social, AchievementRarity.epic, 400, reward: 'Badge: Recruiter'),
+  Achievement(
+    id: 'social_compare',
+    name: 'First Hunter Compared',
+    description: 'Compare yourself with another hunter.',
+    icon: Icons.compare_arrows_rounded,
+    category: AchievementCategory.social,
+    rarity: AchievementRarity.common,
+    rewardXp: 75,
+    isDone: (h) => h.hasComparedHunter,
+  ),
+  Achievement(
+    id: 'social_share_profile',
+    name: 'Share Profile',
+    description: 'Share your hunter profile card.',
+    icon: Icons.ios_share_rounded,
+    category: AchievementCategory.social,
+    rarity: AchievementRarity.common,
+    rewardXp: 100,
+    isDone: (h) => h.hasSharedProfile,
+  ),
+  Achievement(
+    id: 'social_share_report',
+    name: 'Share Report',
+    description: 'Share your progress report.',
+    icon: Icons.summarize_rounded,
+    category: AchievementCategory.social,
+    rarity: AchievementRarity.rare,
+    rewardXp: 150,
+    isDone: (h) => h.hasSharedReport,
+  ),
+  Achievement(
+    id: 'social_share_activity',
+    name: 'Share Activity',
+    description: 'Share a run activity card.',
+    icon: Icons.directions_run_rounded,
+    category: AchievementCategory.social,
+    rarity: AchievementRarity.rare,
+    rewardXp: 150,
+    isDone: (h) => h.hasSharedActivity,
+  ),
+  Achievement(
+    id: 'social_invite',
+    name: 'Invite a Friend',
+    description: 'Invite a friend to Hunter Ascend.',
+    icon: Icons.person_add_alt_1_rounded,
+    category: AchievementCategory.social,
+    rarity: AchievementRarity.epic,
+    rewardXp: 400,
+    reward: 'Badge: Recruiter',
+    isDone: (h) => h.hasSharedApp,
+  ),
 
   // ══════════════ MEMBERSHIP ══════════════
   Achievement(
@@ -317,6 +526,12 @@ final List<Achievement> kAchievements = [
   ),
 
   // ══════════════ HIDDEN (secret — surprise the player) ══════════════
+  // hitMidnightAction/hitEarlyBirdAction/hitNightOwlAction are set by
+  // AchievementTimeTracker (see below) the moment the hunter performs any
+  // XP-earning/tracked action (quest complete, water log, weight log, step
+  // milestone, run save, duel) within the relevant local-time window — see
+  // each real trigger call site for where AchievementTimeTracker.recordNow()
+  // is invoked.
   Achievement(
     id: 'hidden_midnight',
     name: 'Midnight Hunter',
@@ -326,7 +541,7 @@ final List<Achievement> kAchievements = [
     rarity: AchievementRarity.epic,
     rewardXp: 500,
     hidden: true,
-    isDone: (h) => false,
+    isDone: (h) => h.hitMidnightAction,
   ),
   Achievement(
     id: 'hidden_early_bird',
@@ -337,7 +552,7 @@ final List<Achievement> kAchievements = [
     rarity: AchievementRarity.epic,
     rewardXp: 500,
     hidden: true,
-    isDone: (h) => false,
+    isDone: (h) => h.hitEarlyBirdAction,
   ),
   Achievement(
     id: 'hidden_night_owl',
@@ -348,7 +563,7 @@ final List<Achievement> kAchievements = [
     rarity: AchievementRarity.rare,
     rewardXp: 300,
     hidden: true,
-    isDone: (h) => false,
+    isDone: (h) => h.hitNightOwlAction,
   ),
   Achievement(
     id: 'hidden_comeback',
@@ -360,7 +575,9 @@ final List<Achievement> kAchievements = [
     rewardXp: 1500,
     hidden: true,
     reward: 'Title: Phoenix',
-    isDone: (h) => false,
+    // A genuine comeback: previously lost the streak entirely (>=7 days
+    // built up before breaking to 0) and has since rebuilt to a full week.
+    isDone: (h) => h.previousStreak >= 7 && h.streak >= 7,
   ),
   Achievement(
     id: 'hidden_completionist',
@@ -372,7 +589,10 @@ final List<Achievement> kAchievements = [
     rewardXp: 2500,
     hidden: true,
     reward: 'Border: Completionist',
-    isDone: (h) => false,
+    // Every other non-hidden achievement in the catalog is unlocked.
+    isDone: (h) => kAchievements
+        .where((a) => a.category != AchievementCategory.hidden)
+        .every((a) => a.isDone(h)),
   ),
   Achievement(
     id: 'hidden_secret_rank',
@@ -383,9 +603,17 @@ final List<Achievement> kAchievements = [
     rarity: AchievementRarity.legendary,
     rewardXp: 2000,
     hidden: true,
-    isDone: (h) => false,
+    // Reaching the final rank tier (Ascend Legend, level 600+).
+    isDone: (h) => h.level >= 600,
   ),
 ];
+
+/// O(1) id -> [Achievement] lookup, built once from [kAchievements]. Used by
+/// [AchievementsService] to resolve pending-XP-award recovery without a
+/// linear scan.
+final Map<String, Achievement> kAchievementsById = {
+  for (final a in kAchievements) a.id: a,
+};
 
 // ── Factory helpers to reduce boilerplate for common ladders ────────────────
 
@@ -457,20 +685,6 @@ Achievement _duelWins(String id, String name, int wins, AchievementRarity rarity
       target: wins,
       currentValue: (h) => h.duelWins.clamp(0, wins),
       isDone: (h) => h.duelWins >= wins,
-    );
-
-/// Achievement whose tracking data doesn't exist yet — appears locked
-/// ("to discover") without a stuck progress bar.
-Achievement _todo(String id, String name, String desc, IconData icon, AchievementCategory cat, AchievementRarity rarity, int xp, {String? reward}) => Achievement(
-      id: id,
-      name: name,
-      description: desc,
-      icon: icon,
-      category: cat,
-      rarity: rarity,
-      rewardXp: xp,
-      reward: reward,
-      isDone: (h) => false,
     );
 
 String _fmt(int n) {

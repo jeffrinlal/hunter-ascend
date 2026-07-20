@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/services/achievements_service.dart';
 
 /// Form to create/send a duel challenge to another hunter.
 class CreateDuelScreen extends StatefulWidget {
@@ -341,6 +342,23 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
           "https://play.google.com/store/apps/details?id=com.hunterascend.hunter_ascend",
       subject: "Join me on Hunter Ascend!",
     );
+
+    // Record that the hunter has invited/shared the app (backs the
+    // "Invite a Friend" achievement) and immediately re-evaluate/celebrate.
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('hunters')
+            .doc(user.uid)
+            .update({'hasSharedApp': true});
+      } catch (e) {
+        debugPrint('inviteFriends hasSharedApp write: $e');
+      }
+      if (mounted) {
+        await AchievementsService.instance.checkAndCelebrateForCurrentUser(context);
+      }
+    }
   }
 
   // ── AI Duel Quest generation ────────────────────────────────────────

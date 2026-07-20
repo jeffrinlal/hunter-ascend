@@ -17,6 +17,7 @@ import 'package:hunter_ascend/services/ads_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/xp_service.dart';
+import 'package:hunter_ascend/services/achievements_service.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -545,6 +546,28 @@ class _MapScreenState extends State<MapScreen> {
       // Award XP via centralized service (handles daily/weekly XP tracking).
       await XpService.instance.awardXp(amount: _xpEarned);
 
+      // Update cumulative run stats (backs the walking/explorer
+      // achievements: walk_5/25/100/500, explore_first/10/100/longest).
+      // longestRunKm needs a max(), not a plain increment, so this is done
+      // via a transaction rather than FieldValue.increment.
+      final hunterRef = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
+      try {
+        await FirebaseFirestore.instance.runTransaction((txn) async {
+          final snap = await txn.get(hunterRef);
+          final data = snap.data() ?? {};
+          final curTotalRuns = ((data['totalRunsCompleted'] ?? 0) as num).toInt();
+          final curTotalKm = ((data['totalRunDistanceKm'] ?? 0) as num).toDouble();
+          final curLongest = ((data['longestRunKm'] ?? 0) as num).toDouble();
+          txn.update(hunterRef, {
+            'totalRunsCompleted': curTotalRuns + 1,
+            'totalRunDistanceKm': curTotalKm + _distanceKm,
+            'longestRunKm': _distanceKm > curLongest ? _distanceKm : curLongest,
+          });
+        });
+      } catch (e) {
+        debugPrint('saveRun cumulative stats: $e');
+      }
+
       if (mounted) {
         setState(() {
           _routePoints.clear();
@@ -552,6 +575,9 @@ class _MapScreenState extends State<MapScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("✅ Run saved! +$_xpEarned XP earned!")),
         );
+        // Immediately re-evaluate/celebrate any achievement this run just
+        // satisfied — walk_*/explore_* plus any XP/level-driven ones.
+        await AchievementsService.instance.checkAndCelebrateForCurrentUser(context);
       }
       return true;
     } catch (e) {
@@ -726,6 +752,23 @@ class _MapScreenState extends State<MapScreen> {
             'Track your runs on Hunter Ascend — Level Up Your Real Life\n'
             'https://play.google.com/store/apps/details?id=com.hunterascend.hunter_ascend',
       );
+
+      // Record that the hunter has shared a run/activity card (backs the
+      // "Share Activity" achievement) and immediately re-evaluate/celebrate.
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('hunters')
+              .doc(user.uid)
+              .update({'hasSharedActivity': true});
+        } catch (e) {
+          debugPrint('shareRun hasSharedActivity write: $e');
+        }
+        if (mounted) {
+          await AchievementsService.instance.checkAndCelebrateForCurrentUser(context);
+        }
+      }
     } catch (e) {
       debugPrint('shareRun: $e');
       if (mounted) {

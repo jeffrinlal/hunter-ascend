@@ -5,6 +5,7 @@ import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hunter_ascend/screens/settings/settings_screen.dart';
+import 'package:hunter_ascend/services/achievements_service.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -1410,6 +1411,23 @@ class _ProfileScreenState extends State<ProfileScreen>
             "📲 Download Hunter Ascend FREE:\n"
             "https://play.google.com/store/apps/details?id=com.hunterascend.hunter_ascend",
       );
+
+      // Record that the hunter has shared their profile card (backs the
+      // "Share Profile" achievement) and immediately re-evaluate/celebrate.
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('hunters')
+              .doc(user.uid)
+              .update({'hasSharedProfile': true});
+        } catch (e) {
+          debugPrint('shareStatsCard hasSharedProfile write: $e');
+        }
+        if (mounted) {
+          await AchievementsService.instance.checkAndCelebrateForCurrentUser(context);
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1703,6 +1721,13 @@ class _ProfileScreenState extends State<ProfileScreen>
           const SnackBar(content: Text('✅ Profile picture updated!')),
         );
       }
+
+      // Immediately re-evaluate achievements against the just-written data
+      // and celebrate anything newly unlocked, so this doesn't depend on the
+      // user separately opening the Achievements screen.
+      if (mounted) {
+        await AchievementsService.instance.checkAndCelebrateForCurrentUser(context);
+      }
     } catch (e) {
       debugPrint("uploadProfilePicture: $e");
     }
@@ -1915,6 +1940,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                     setState(() {});
                     // Check for weight goal milestone.
                     MilestoneService.checkWeightGoal(context, weight);
+                    // Immediately re-evaluate/celebrate any achievement this
+                    // weight update just satisfied (body_first_update,
+                    // body_lose_5/10, body_gain_muscle, body_bmi_improved).
+                    await AchievementsService.instance.checkAndCelebrateForCurrentUser(context);
                   }
                 } catch (e) {
                   debugPrint("updateWeight: $e");

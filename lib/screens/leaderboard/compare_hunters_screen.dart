@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
+import 'package:hunter_ascend/services/achievements_service.dart';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
 import 'package:hunter_ascend/widgets/premium_avatar.dart';
 
@@ -40,8 +43,36 @@ class CompareHuntersScreen extends StatelessWidget {
     return null;
   }
 
+  // Session-level guard so opening this screen doesn't fire the
+  // "hasComparedHunter" write (and achievement re-evaluation) more than once
+  // per app session even if the widget rebuilds (e.g. due to the theme
+  // ListenableBuilder above) — the underlying Firestore write is itself
+  // idempotent (re-writing `true` is harmless), this purely avoids redundant
+  // writes/evaluations on every theme-driven rebuild.
+  static final Set<String> _recordedForUid = {};
+
+  Future<void> _recordComparisonOnce(BuildContext context) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || _recordedForUid.contains(uid)) return;
+    _recordedForUid.add(uid);
+    try {
+      await FirebaseFirestore.instance.collection('hunters').doc(uid).update({'hasComparedHunter': true});
+    } catch (e) {
+      debugPrint('CompareHuntersScreen hasComparedHunter write: $e');
+      _recordedForUid.remove(uid); // allow a retry on the next open
+      return;
+    }
+    if (context.mounted) {
+      await AchievementsService.instance.checkAndCelebrateForCurrentUser(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Fire-and-forget: recording "compared a hunter" and celebrating any
+    // newly-unlocked achievement must never block or affect this screen's
+    // own rendering.
+    unawaited(_recordComparisonOnce(context));
     return ListenableBuilder(
       listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
       builder: (context, _) => _themedBuild(context),

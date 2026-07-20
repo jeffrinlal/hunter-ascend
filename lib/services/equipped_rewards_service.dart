@@ -5,6 +5,13 @@ import 'package:hunter_ascend/data/models/rank_reward.dart';
 import 'package:hunter_ascend/data/rank_rewards_catalog.dart';
 import 'package:hunter_ascend/services/rank_reward_service.dart';
 
+// NOTE ON LIVE UI REFRESH: this service now extends [ChangeNotifier] and
+// notifies listeners on every equip/unequip and on load/clear, mirroring
+// [RankRewardService]'s notifier so both halves of the Rewards tab's data
+// (ownership + equipped state) can drive the same live UI refresh via a
+// single [ListenableBuilder]/[Listenable.merge]. No behavior, persistence,
+// or ownership-gating change.
+
 /// Tracks the player's CURRENTLY EQUIPPED cosmetic per [RankRewardType].
 ///
 /// ## Ownership vs. equipped — why these are two separate services
@@ -30,7 +37,7 @@ import 'package:hunter_ascend/services/rank_reward_service.dart';
 /// requested reward is actually unlocked before writing — it never mutates
 /// ownership state, and [RankRewardService]'s granting logic is completely
 /// unaware this service exists.
-class EquippedRewardsService {
+class EquippedRewardsService extends ChangeNotifier {
   EquippedRewardsService._();
   static final EquippedRewardsService instance = EquippedRewardsService._();
 
@@ -101,6 +108,7 @@ class EquippedRewardsService {
 
     _loadedForUid = uid;
     _loaded = true;
+    notifyListeners();
   }
 
   /// Clears in-memory equip state. Call on logout / account switch so the
@@ -110,6 +118,7 @@ class EquippedRewardsService {
     _equipped.clear();
     _loaded = false;
     _loadedForUid = null;
+    notifyListeners();
     // Do NOT null out _loadingFuture here: an in-flight load for the
     // PREVIOUS user may still resolve after logout. Its `_loadFor` will
     // still write `_loadedForUid`/`_loaded`, but the next
@@ -171,6 +180,7 @@ class EquippedRewardsService {
       }, SetOptions(merge: true)); // merge: preserves every OTHER type's equipped selection
 
       _equipped[reward.type.name] = reward.id;
+      notifyListeners();
       return true;
     } catch (e) {
       debugPrint('EquippedRewardsService.equip ${reward.id}: $e');
@@ -197,6 +207,7 @@ class EquippedRewardsService {
       }, SetOptions(merge: true));
 
       _equipped.remove(type.name);
+      notifyListeners();
       return true;
     } catch (e) {
       debugPrint('EquippedRewardsService.unequip ${type.name}: $e');

@@ -75,10 +75,17 @@ class ReportPalette {
   static Color get textTertiary => HunterTheme.textTertiary;
 
   // ══ Glass fills (warm/neutral, never blue) ══
-  static Color get glassHi =>
-      _dark ? darkGlassHi : const Color(0xF2FFFFFF); // ~0.95 white
-  static Color get glassLo =>
-      _dark ? darkGlassLo : const Color(0xCCFFF3EC); // ~0.8 warm white
+  //
+  // Card fills. The in-app cards no longer use a real-time BackdropFilter
+  // (removed for scroll performance), so these fills are more opaque and
+  // card-based — cards stay perfectly legible over the ambient glow while
+  // keeping a soft, premium frosted gradient. Fully theme-aware.
+  static Color get glassHi => _dark
+      ? HunterTheme.cardColor.withOpacity(0.90)
+      : Colors.white.withOpacity(0.96);
+  static Color get glassLo => _dark
+      ? HunterTheme.cardColor.withOpacity(0.78)
+      : const Color(0xFFFFF3EC).withOpacity(0.92);
 
   /// Subtle inner fill (stat cells, toggle track).
   static Color get fillSubtle =>

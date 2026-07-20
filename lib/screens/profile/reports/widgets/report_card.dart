@@ -1,7 +1,5 @@
 // ignore_for_file: deprecated_member_use
 
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../utils/report_format.dart';
@@ -26,23 +24,27 @@ class AmbientGlow extends StatelessWidget {
     final o1 = dark ? 0.16 : 0.06;
     final o2 = dark ? 0.12 : 0.05;
     final o3 = dark ? 0.10 : 0.045;
+    // Static decorative layer — repaint-isolated so it is cached and never
+    // repainted while the report list scrolls over it.
     return Positioned.fill(
-      child: IgnorePointer(
-        child: Stack(
-          children: [
-            Positioned(
-                top: -60,
-                left: -40,
-                child: _orb(220, ReportPalette.accent.withOpacity(o1))),
-            Positioned(
-                top: 280,
-                right: -70,
-                child: _orb(240, ReportPalette.gold.withOpacity(o2))),
-            Positioned(
-                bottom: -40,
-                left: 20,
-                child: _orb(200, ReportPalette.accent.withOpacity(o3))),
-          ],
+      child: RepaintBoundary(
+        child: IgnorePointer(
+          child: Stack(
+            children: [
+              Positioned(
+                  top: -60,
+                  left: -40,
+                  child: _orb(220, ReportPalette.accent.withOpacity(o1))),
+              Positioned(
+                  top: 280,
+                  right: -70,
+                  child: _orb(240, ReportPalette.gold.withOpacity(o2))),
+              Positioned(
+                  bottom: -40,
+                  left: 20,
+                  child: _orb(200, ReportPalette.accent.withOpacity(o3))),
+            ],
+          ),
         ),
       ),
     );
@@ -68,28 +70,29 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: ReportPalette.cardShadow,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: Container(
-            padding: padding ?? const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [ReportPalette.glassHi, ReportPalette.glassLo],
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: ReportPalette.cardBorder),
+    // PERFORMANCE: previously each card wrapped its content in a real-time
+    // BackdropFilter blur. With ~8 cards stacked in a scrolling list, those
+    // stacked backdrop blurs were the main source of scroll jank. The frosted
+    // look is now achieved with an opaque themed gradient fill (no per-frame
+    // blur), and the whole card is repaint-isolated so scrolling stays smooth.
+    return RepaintBoundary(
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: ReportPalette.cardShadow,
+        ),
+        child: Container(
+          padding: padding ?? const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [ReportPalette.glassHi, ReportPalette.glassLo],
             ),
-            child: child,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: ReportPalette.cardBorder),
           ),
+          child: child,
         ),
       ),
     );

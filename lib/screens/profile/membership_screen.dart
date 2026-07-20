@@ -522,36 +522,73 @@ class _MembershipScreenState extends State<MembershipScreen>
 class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        ShaderMask(
-          shaderCallback: (bounds) => LinearGradient(
-            colors: [HunterTheme.primary, HunterTheme.gold],
-          ).createShader(bounds),
-          child: const Text(
-            'HUNTER MEMBERSHIP',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.2,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            HunterTheme.primary.withOpacity(0.16),
+            HunterTheme.gold.withOpacity(0.10),
+            HunterTheme.cardColor,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: HunterTheme.gold.withOpacity(0.35)),
+        boxShadow: [
+          BoxShadow(color: HunterTheme.gold.withOpacity(0.12), blurRadius: 24, offset: const Offset(0, 8)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [HunterTheme.primary, HunterTheme.gold],
+              ),
+              boxShadow: [
+                BoxShadow(color: HunterTheme.gold.withOpacity(0.45), blurRadius: 20, spreadRadius: 1),
+              ],
+            ),
+            child: const Icon(Icons.workspace_premium_rounded, color: Colors.black, size: 32),
+          ),
+          const SizedBox(height: 16),
+          ShaderMask(
+            shaderCallback: (bounds) => LinearGradient(
+              colors: [HunterTheme.primary, HunterTheme.gold],
+            ).createShader(bounds),
+            child: const Text(
+              'HUNTER MEMBERSHIP',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 23,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'Watch ads to unlock premium features and cosmetics.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: HunterTheme.textSecondary,
-            fontSize: 13.5,
-            fontWeight: FontWeight.w500,
-            height: 1.4,
+          const SizedBox(height: 10),
+          Text(
+            'Unlock premium features and cosmetics by watching rewarded ads.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: HunterTheme.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              height: 1.45,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -616,8 +653,12 @@ class _CurrentPlanBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: HunterTheme.cardColor,
-        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [badgeColor.withOpacity(0.12), HunterTheme.cardColor],
+        ),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: badgeColor.withOpacity(0.6), width: 1.5),
         boxShadow: [
           BoxShadow(
@@ -825,10 +866,17 @@ class _AdPlanCardState extends State<_AdPlanCard> {
             curve: Curves.easeOut,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: HunterTheme.cardColor,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  accent.withOpacity(widget.isCurrent ? 0.14 : 0.07),
+                  HunterTheme.cardColor,
+                ],
+              ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: widget.isCurrent ? accent.withOpacity(0.9) : HunterTheme.border,
+                color: widget.isCurrent ? accent.withOpacity(0.9) : accent.withOpacity(0.28),
                 width: widget.isCurrent ? 1.6 : 1,
               ),
               boxShadow: [
@@ -850,12 +898,17 @@ class _AdPlanCardState extends State<_AdPlanCard> {
               children: [
                 Row(children: [
                   Container(
-                    width: 48, height: 48,
+                    width: 52, height: 52,
                     decoration: BoxDecoration(
-                      color: accent.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(14),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [accent.withOpacity(0.22), accent.withOpacity(0.08)],
+                      ),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: accent.withOpacity(0.35)),
                     ),
-                    child: Icon(widget.icon, color: accent, size: 26),
+                    child: Icon(widget.icon, color: accent, size: 27),
                   ),
 
 
@@ -890,13 +943,22 @@ class _AdPlanCardState extends State<_AdPlanCard> {
                 ]),
                 const SizedBox(height: 18),
                 ...widget.features.map((feature) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.only(bottom: 11),
                   child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Icon(Icons.check_circle_rounded, color: accent, size: 17),
-                    const SizedBox(width: 10),
+                    Container(
+                      width: 20, height: 20,
+                      margin: const EdgeInsets.only(top: 1),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: accent.withOpacity(0.15),
+                        border: Border.all(color: accent.withOpacity(0.35)),
+                      ),
+                      child: Icon(Icons.check_rounded, color: accent, size: 13),
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(child: Text(feature, style: TextStyle(
-                      color: HunterTheme.textSecondary, fontSize: 13.5,
-                      fontWeight: FontWeight.w500, height: 1.3))),
+                      color: HunterTheme.textPrimary.withOpacity(0.85), fontSize: 13.5,
+                      fontWeight: FontWeight.w500, height: 1.35))),
                   ]),
                 )),
                 if (widget.progressText != null) ...[

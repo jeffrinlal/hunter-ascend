@@ -15,6 +15,7 @@ import 'package:hunter_ascend/services/membership_service.dart';
 
 import '../../widgets/premium_avatar.dart';
 import '../../widgets/premium_card_decorator.dart';
+import 'package:hunter_ascend/widgets/dashboard/entrance_fade_slide.dart';
 
 // ── Top 3 Crown Painter ────────────────────────────────────────────────────
 
@@ -341,30 +342,54 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
             mainAxisAlignment: MainAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
-              TopRankBadge(position: index + 1, color: posColor, size: isFirst ? 40 : 32),
+              TopRankBadge(position: index + 1, color: posColor, size: isFirst ? 42 : 32),
               const SizedBox(height: 8),
-              PremiumAvatar(membership: membership, radius: avatarSize / 2,
-                image: entry.profilePicture != null && entry.profilePicture!.isNotEmpty ? MemoryImage(_decodedAvatar(entry.profilePicture!)) : null,
-                child: Icon(Icons.person, color: rc, size: isFirst ? 38 : 30)),
+              // Avatar with a medal-colored glow ring (stronger for #1).
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: posColor.withOpacity(isFirst ? 0.55 : 0.35),
+                      blurRadius: isFirst ? 22 : 12,
+                      spreadRadius: isFirst ? 2 : 1,
+                    ),
+                  ],
+                ),
+                child: PremiumAvatar(
+                  membership: membership,
+                  radius: avatarSize / 2,
+                  image: entry.profilePicture != null && entry.profilePicture!.isNotEmpty ? MemoryImage(_decodedAvatar(entry.profilePicture!)) : null,
+                  child: Icon(Icons.person, color: rc, size: isFirst ? 38 : 30),
+                ),
+              ),
               const SizedBox(height: 8),
-              Column(children: [
-                Text(entry.hunterName, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: TextStyle(color: isMe ? HunterTheme.primary : HunterTheme.textPrimary, fontSize: isFirst ? 15 : 13, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 4),
-                MembershipBadge(membership: membership, fontSize: 7),
-              ]),
-              const SizedBox(height: 2),
-              Text('${getRankTitle(level)} · Lv.$level', maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 10)),
+              Text(entry.hunterName, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: TextStyle(color: isMe ? HunterTheme.primary : HunterTheme.textPrimary, fontSize: isFirst ? 15 : 13, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 4),
+              MembershipBadge(membership: membership, fontSize: 7),
+              const SizedBox(height: 3),
+              Text('${getRankTitle(level)} \u00b7 Lv.$level', maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 10)),
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: HunterTheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: HunterTheme.primary.withOpacity(0.3))),
-                child: Text(_xpLabel(entry), style: TextStyle(color: HunterTheme.primary, fontWeight: FontWeight.bold, fontSize: 11)),
+                child: Text(_xpLabel(entry), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: HunterTheme.primary, fontWeight: FontWeight.bold, fontSize: 11)),
               ),
               const SizedBox(height: 10),
               Container(
-                height: pedestalHeight, width: double.infinity,
-                decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [posColor.withOpacity(0.85), posColor.withOpacity(0.45)]), borderRadius: const BorderRadius.vertical(top: Radius.circular(10)), boxShadow: [BoxShadow(color: posColor.withOpacity(0.25), blurRadius: 12, spreadRadius: 1)]),
-                child: Center(child: Text('${index + 1}', style: TextStyle(color: HunterTheme.textPrimary, fontSize: isFirst ? 26 : 20, fontWeight: FontWeight.w900))),
+                height: pedestalHeight,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [posColor.withOpacity(0.9), posColor.withOpacity(0.4)]),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  boxShadow: [BoxShadow(color: posColor.withOpacity(0.3), blurRadius: 14, spreadRadius: 1)],
+                ),
+                child: Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(color: Colors.white, fontSize: isFirst ? 28 : 20, fontWeight: FontWeight.w900, shadows: const [Shadow(color: Colors.black26, blurRadius: 4)]),
+                  ),
+                ),
               ),
             ],
           ),
@@ -381,117 +406,131 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     );
   }
 
-  Widget _rankHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 8, 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: _searchMode
-                ? TextField(
-              controller: _searchController,
-              autofocus: true,
-              onChanged: (value) {
-                setState(() {
-                  _searchText = value.trim();
-                });
-              },
-              style: TextStyle(color: HunterTheme.textPrimary),
-              decoration: InputDecoration(
-                hintText: 'Enter Hunter ID...',
-                hintStyle: TextStyle(color: HunterTheme.textSecondary),
-                border: InputBorder.none,
-              ),
-            )
-                : Row(
-              children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: HunterTheme.primary.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: HunterTheme.primary.withOpacity(0.4),
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.military_tech,
-                    color: HunterTheme.primary,
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'GLOBAL RANKINGS',
-                  style: TextStyle(
-                    color: HunterTheme.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: Icon(
-              _searchMode ? Icons.close : Icons.search,
-              color: HunterTheme.textSecondary,
-            ),
-            onPressed: () {
-              setState(() {
-                if (_searchMode) {
-                  _searchMode = false;
-                  _searchText = '';
-                  _searchController.clear();
-                } else {
-                  _searchMode = true;
-                }
-              });
-            },
-          ),
+  // Premium search field (behaviour unchanged: filters by name on change).
+  Widget _buildSearchField() {
+    return TextField(
+      controller: _searchController,
+      autofocus: true,
+      onChanged: (value) {
+        setState(() {
+          _searchText = value.trim();
+        });
+      },
+      style: TextStyle(color: HunterTheme.textPrimary, fontSize: 14),
+      decoration: InputDecoration(
+        hintText: 'Search hunters by name...',
+        hintStyle: TextStyle(color: HunterTheme.textTertiary, fontSize: 14),
+        prefixIcon: Icon(Icons.search_rounded, color: HunterTheme.textSecondary, size: 20),
+        isDense: true,
+        filled: true,
+        fillColor: HunterTheme.background.withOpacity(0.35),
+        contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      ),
+    );
+  }
+
+  // Premium segmented tab bar (TabController wiring unchanged).
+  Widget _buildTabBar() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: HunterTheme.cardColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: HunterTheme.border),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        labelColor: HunterTheme.primary,
+        unselectedLabelColor: HunterTheme.textTertiary,
+        indicatorSize: TabBarIndicatorSize.tab,
+        indicator: BoxDecoration(
+          color: HunterTheme.primary.withOpacity(0.14),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: HunterTheme.primary.withOpacity(0.3)),
+        ),
+        dividerHeight: 0,
+        splashBorderRadius: BorderRadius.circular(10),
+        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+        unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+        tabs: const [
+          Tab(text: '\u{1F3C6} Overall'),
+          Tab(text: '\u{1F4C5} Weekly'),
+          Tab(text: '\u26A1 Daily'),
         ],
+      ),
+    );
+  }
+
+  // Premium empty / no-results state.
+  Widget _buildEmptyState({required IconData icon, required String title, required String subtitle}) {
+    final accent = HunterTheme.primary;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: accent.withOpacity(0.12),
+                border: Border.all(color: accent.withOpacity(0.35), width: 1.4),
+                boxShadow: [BoxShadow(color: accent.withOpacity(0.18), blurRadius: 18)],
+              ),
+              child: Icon(icon, color: accent, size: 34),
+            ),
+            const SizedBox(height: 18),
+            Text(title, textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            Text(subtitle, textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, height: 1.4)),
+          ],
+        ),
       ),
     );
   }
 
   Widget _themedBuild(BuildContext context) {
     final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    // Same ranking computation as the body — used to surface the player's
+    // current rank in the hero.
+    int myRank = 0;
+    for (int i = 0; i < _entries.length; i++) {
+      if (_entries[i].uid == currentUid) { myRank = i + 1; break; }
+    }
+    final limit = _activeTab == LeaderboardTab.overall ? 30 : 20;
 
     return Scaffold(
       backgroundColor: HunterTheme.background,
       body: SafeArea(
         child: Column(
           children: [
-            _rankHeader(),
-            // ── Tab Bar ──
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: HunterTheme.cardColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: HunterTheme.border),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                labelColor: HunterTheme.primary,
-                unselectedLabelColor: HunterTheme.textTertiary,
-                indicatorSize: TabBarIndicatorSize.tab,
-                indicator: BoxDecoration(
-                  color: HunterTheme.primary.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                dividerHeight: 0,
-                labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1),
-                tabs: const [
-                  Tab(text: '\u{1F3C6} Overall'),
-                  Tab(text: '\u{1F4C5} Weekly'),
-                  Tab(text: '\u26A1 Daily'),
-                ],
+            const SizedBox(height: 8),
+            EntranceFadeSlide(
+              child: _LeaderboardHero(
+                myRank: myRank,
+                limit: limit,
+                searchMode: _searchMode,
+                onToggleSearch: () {
+                  setState(() {
+                    if (_searchMode) {
+                      _searchMode = false;
+                      _searchText = '';
+                      _searchController.clear();
+                    } else {
+                      _searchMode = true;
+                    }
+                  });
+                },
+                searchField: _searchMode ? _buildSearchField() : null,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 14),
+            _buildTabBar(),
+            const SizedBox(height: 10),
             // ── Content ──
             Expanded(
               child: _loading && _entries.isEmpty
@@ -528,7 +567,28 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
         slivers: [
           SliverFillRemaining(
             hasScrollBody: false,
-            child: Center(child: Text('No hunters found', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 14))),
+            child: _buildEmptyState(
+              icon: Icons.search_off_rounded,
+              title: 'No hunters found',
+              subtitle: 'Try searching for a different name.',
+            ),
+          ),
+        ],
+      );
+    }
+
+    // No rankings available at all
+    if (!isSearching && entries.isEmpty) {
+      return CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _buildEmptyState(
+              icon: Icons.emoji_events_rounded,
+              title: 'No rankings yet',
+              subtitle: 'Be the first to claim the throne — complete missions to earn XP.',
+            ),
           ),
         ],
       );
@@ -538,42 +598,163 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         // Your Position (hidden during search)
-        if (!isSearching) SliverToBoxAdapter(child: _buildYourPosition(currentUid, myRank, limit)),
+        if (!isSearching)
+          SliverToBoxAdapter(child: EntranceFadeSlide(child: _buildYourPosition(currentUid, myRank, limit))),
         // Podium (hidden during search — filtered results don't have ranked positions)
-        if (!isSearching && entries.isNotEmpty) SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 4), child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [_buildPodiumItem(context, entries, 1, currentUid), _buildPodiumItem(context, entries, 0, currentUid), _buildPodiumItem(context, entries, 2, currentUid)]))),
+        if (!isSearching && entries.isNotEmpty)
+          SliverToBoxAdapter(
+            child: EntranceFadeSlide(
+              delay: const Duration(milliseconds: 80),
+              child: _buildPodium(context, entries, currentUid),
+            ),
+          ),
         // Divider
-        if (!isSearching) SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), child: Row(children: [Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08))), Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text('LEADERBOARD', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold))), Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08)))]))),
+        if (!isSearching) SliverToBoxAdapter(child: _buildListDivider()),
         // List items — during search: show all filtered results; normal: show #4+
-        SliverPadding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 16), sliver: SliverList(delegate: SliverChildBuilderDelegate((context, listIndex) {
-          final index = isSearching ? listIndex : listIndex + 3;
-          if (index >= entries.length) return null;
-          final entry = entries[index];
-          final isMe = entry.uid == currentUid;
-          final level = entry.level;
-          final rc = _rankColor(level);
-          final membership = _entryMembership(entry);
-          final isPremium = _isPremium(membership);
-          final nameColor = isPremium ? Colors.white : (isMe ? HunterTheme.primary : HunterTheme.textPrimary);
-          final subColor = isPremium ? Colors.white70 : rc.withOpacity(0.7);
-          return GestureDetector(onTap: () { if (entry.uid == currentUid) return; Navigator.push(context, MaterialPageRoute(builder: (_) => PublicHunterProfileScreen(hunterUid: entry.uid))); },
-            child: Padding(padding: const EdgeInsets.only(bottom: 8), child: PremiumCardDecorator(membership: membership, animated: false, child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-              decoration: BoxDecoration(color: isPremium ? Colors.transparent : (isMe ? HunterTheme.surface : HunterTheme.cardColor), borderRadius: BorderRadius.circular(14), border: isPremium ? null : Border.all(color: isMe ? HunterTheme.primary.withOpacity(0.4) : HunterTheme.textPrimary.withOpacity(0.06), width: 1), boxShadow: isPremium ? null : [BoxShadow(color: HunterTheme.primary.withOpacity(0.04), blurRadius: 10)]),
-              child: Row(children: [
-                SizedBox(width: 40, child: Center(child: Container(width: 28, height: 28, decoration: BoxDecoration(shape: BoxShape.circle, color: isPremium ? Colors.white.withOpacity(0.15) : (isMe ? HunterTheme.primary.withOpacity(0.12) : HunterTheme.textPrimary.withOpacity(0.04)), border: Border.all(color: isPremium ? Colors.white.withOpacity(0.4) : (isMe ? HunterTheme.primary.withOpacity(0.4) : HunterTheme.textPrimary.withOpacity(0.08)))), child: Center(child: Text('${index + 1}', style: TextStyle(color: isPremium ? Colors.white : (isMe ? HunterTheme.primary : HunterTheme.textSecondary), fontSize: index < 9 ? 13 : 11, fontWeight: FontWeight.bold)))))),
-                const SizedBox(width: 10),
-                PremiumAvatar(membership: membership, radius: 19, image: entry.profilePicture != null && entry.profilePicture!.isNotEmpty ? MemoryImage(_decodedAvatar(entry.profilePicture!)) : null, child: Icon(Icons.person, color: rc, size: 20)),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [Flexible(child: Text(entry.hunterName, overflow: TextOverflow.ellipsis, style: TextStyle(color: nameColor, fontSize: 14, fontWeight: FontWeight.w600))), const SizedBox(width: 6), MembershipBadge(membership: membership, fontSize: 8), if (isMe) ...[const SizedBox(width: 6), Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: isPremium ? Colors.white.withOpacity(0.18) : HunterTheme.primary.withOpacity(0.12), borderRadius: BorderRadius.circular(6), border: Border.all(color: isPremium ? Colors.white.withOpacity(0.5) : HunterTheme.primary.withOpacity(0.3))), child: Text('YOU', style: TextStyle(color: isPremium ? Colors.white : HunterTheme.primary, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1)))]]),
-                  const SizedBox(height: 3), Text('${getRankTitle(level)}  ·  Lv.$level', style: TextStyle(color: subColor, fontSize: 11, letterSpacing: 0.3)),
-                ])),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), decoration: BoxDecoration(color: isPremium ? Colors.white.withOpacity(0.15) : HunterTheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: isPremium ? Colors.white.withOpacity(0.45) : HunterTheme.primary.withOpacity(0.3))), child: Text(_xpLabel(entry), style: TextStyle(color: isPremium ? Colors.white : HunterTheme.primary, fontWeight: FontWeight.bold, fontSize: 12))),
-              ]),
-            ))),
-          );
-        }, childCount: isSearching ? entries.length : (entries.length > 3 ? entries.length - 3 : 0)))),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, listIndex) {
+                final index = isSearching ? listIndex : listIndex + 3;
+                if (index >= entries.length) return null;
+                return _buildListItem(context, entries[index], index, currentUid);
+              },
+              childCount: isSearching ? entries.length : (entries.length > 3 ? entries.length - 3 : 0),
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  // Top-3 podium row (center = #1). Order preserved: 2nd, 1st, 3rd.
+  Widget _buildPodium(BuildContext context, List<LeaderboardEntry> entries, String? currentUid) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          _buildPodiumItem(context, entries, 1, currentUid),
+          _buildPodiumItem(context, entries, 0, currentUid),
+          _buildPodiumItem(context, entries, 2, currentUid),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildListDivider() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+      child: Row(children: [
+        Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08))),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text('LEADERBOARD', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold)),
+        ),
+        Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08))),
+      ]),
+    );
+  }
+
+  Widget _youPill(bool isPremium) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: isPremium ? Colors.white.withOpacity(0.18) : HunterTheme.primary.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: isPremium ? Colors.white.withOpacity(0.5) : HunterTheme.primary.withOpacity(0.4)),
+      ),
+      child: Text('YOU', style: TextStyle(color: isPremium ? Colors.white : HunterTheme.primary, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1)),
+    );
+  }
+
+  Widget _xpChip(LeaderboardEntry entry, bool isPremium) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isPremium ? Colors.white.withOpacity(0.15) : HunterTheme.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: isPremium ? Colors.white.withOpacity(0.45) : HunterTheme.primary.withOpacity(0.3)),
+      ),
+      child: Text(_xpLabel(entry), style: TextStyle(color: isPremium ? Colors.white : HunterTheme.primary, fontWeight: FontWeight.w800, fontSize: 12)),
+    );
+  }
+
+  // Premium ranking-list card (#4+). All ranking/membership/navigation logic
+  // preserved; only the visual presentation changed.
+  Widget _buildListItem(BuildContext context, LeaderboardEntry entry, int index, String? currentUid) {
+    final isMe = entry.uid == currentUid;
+    final level = entry.level;
+    final rc = _rankColor(level);
+    final membership = _entryMembership(entry);
+    final isPremium = _isPremium(membership);
+    final nameColor = isPremium ? Colors.white : (isMe ? HunterTheme.primary : HunterTheme.textPrimary);
+    final subColor = isPremium ? Colors.white70 : HunterTheme.textSecondary;
+
+    return GestureDetector(
+      onTap: () {
+        if (entry.uid == currentUid) return;
+        Navigator.push(context, MaterialPageRoute(builder: (_) => PublicHunterProfileScreen(hunterUid: entry.uid)));
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: PremiumCardDecorator(
+          membership: membership,
+          animated: false,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: isPremium ? Colors.transparent : (isMe ? HunterTheme.primary.withOpacity(0.08) : HunterTheme.cardColor),
+              borderRadius: BorderRadius.circular(16),
+              border: isPremium ? null : Border.all(color: isMe ? HunterTheme.primary.withOpacity(0.5) : HunterTheme.border, width: isMe ? 1.5 : 1),
+              boxShadow: isPremium ? null : [BoxShadow(color: (isMe ? HunterTheme.primary : Colors.black).withOpacity(isMe ? 0.10 : 0.04), blurRadius: 10, offset: const Offset(0, 3))],
+            ),
+            child: Row(children: [
+              SizedBox(
+                width: 32,
+                child: Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(
+                      color: isPremium ? Colors.white : (isMe ? HunterTheme.primary : HunterTheme.textTertiary),
+                      fontSize: index < 9 ? 15 : 13,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              PremiumAvatar(
+                membership: membership,
+                radius: 20,
+                image: entry.profilePicture != null && entry.profilePicture!.isNotEmpty ? MemoryImage(_decodedAvatar(entry.profilePicture!)) : null,
+                child: Icon(Icons.person, color: rc, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(children: [
+                      Flexible(child: Text(entry.hunterName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: nameColor, fontSize: 14.5, fontWeight: FontWeight.w700))),
+                      const SizedBox(width: 6),
+                      MembershipBadge(membership: membership, fontSize: 8),
+                      if (isMe) ...[const SizedBox(width: 6), _youPill(isPremium)],
+                    ]),
+                    const SizedBox(height: 3),
+                    Text('${getRankTitle(level)}  \u00b7  Lv.$level', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: subColor, fontSize: 11.5, letterSpacing: 0.3, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              _xpChip(entry, isPremium),
+            ]),
+          ),
+        ),
+      ),
     );
   }
 
@@ -585,18 +766,214 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     final labelColor = myPremium ? Colors.white : HunterTheme.primary;
     final nameColor = myPremium ? Colors.white : HunterTheme.textPrimary;
     final subColor = myPremium ? Colors.white70 : HunterTheme.textSecondary;
-    return Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 12), child: PremiumCardDecorator(membership: myMembership, borderRadius: BorderRadius.circular(16), child: Container(
-      padding: const EdgeInsets.all(16), decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: myPremium ? Colors.transparent : HunterTheme.cardColor, border: myPremium ? null : Border.all(color: HunterTheme.primary.withOpacity(0.35), width: 1.5), boxShadow: myPremium ? null : [BoxShadow(color: HunterTheme.primary.withOpacity(0.1), blurRadius: 20, spreadRadius: 2)]),
-      child: Column(children: [
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 4, height: 4, decoration: BoxDecoration(color: labelColor, shape: BoxShape.circle)), const SizedBox(width: 8), Text('YOUR POSITION', style: TextStyle(color: labelColor, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 2.5)), const SizedBox(width: 8), Container(width: 4, height: 4, decoration: BoxDecoration(color: labelColor, shape: BoxShape.circle))]),
+    final rankText = myRank > 0 ? '#$myRank' : '$limit+';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: PremiumCardDecorator(
+        membership: myMembership,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: myPremium ? null : LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [HunterTheme.primary.withOpacity(0.14), HunterTheme.cardColor]),
+            color: myPremium ? Colors.transparent : null,
+            border: myPremium ? null : Border.all(color: HunterTheme.primary.withOpacity(0.4), width: 1.5),
+            boxShadow: myPremium ? null : [BoxShadow(color: HunterTheme.primary.withOpacity(0.12), blurRadius: 20, spreadRadius: 1)],
+          ),
+          child: Row(children: [
+            // Prominent rank badge.
+            Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('RANK', style: TextStyle(color: labelColor.withOpacity(0.85), fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
+              const SizedBox(height: 1),
+              Text(rankText, style: TextStyle(color: labelColor, fontSize: 22, fontWeight: FontWeight.w900)),
+            ]),
+            const SizedBox(width: 16),
+            PremiumAvatar(
+              membership: myMembership,
+              radius: 24,
+              image: hunter.profilePicture != null && hunter.profilePicture!.isNotEmpty ? MemoryImage(_decodedAvatar(hunter.profilePicture!)) : null,
+              child: Icon(Icons.person, color: _rankColor(hunter.level), size: 28),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('YOUR POSITION', style: TextStyle(color: labelColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                  const SizedBox(height: 4),
+                  Text(hunter.hunterName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: nameColor, fontSize: 17, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text('${getRankTitle(hunter.level)}  \u00b7  Lv.${hunter.level}  \u00b7  ${hunter.xp} XP', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: subColor, fontSize: 12)),
+                ],
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+
+
+/// Immersive leaderboard hero.
+///
+/// Presentation-only. Shows the title, a trophy medallion, the player's
+/// current rank (or the search field when searching), and a subtle pulsing
+/// glow. The glow uses a single controller and the [AnimatedBuilder.child]
+/// pattern so only the decoration repaints per frame (content — including the
+/// search field — is not rebuilt by the animation).
+class _LeaderboardHero extends StatefulWidget {
+  final int myRank;
+  final int limit;
+  final bool searchMode;
+  final VoidCallback onToggleSearch;
+  final Widget? searchField;
+
+  const _LeaderboardHero({
+    required this.myRank,
+    required this.limit,
+    required this.searchMode,
+    required this.onToggleSearch,
+    this.searchField,
+  });
+
+  @override
+  State<_LeaderboardHero> createState() => _LeaderboardHeroState();
+}
+
+class _LeaderboardHeroState extends State<_LeaderboardHero> with SingleTickerProviderStateMixin {
+  late final AnimationController _glow = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2600),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _glow.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = HunterTheme.primary;
+    final rankText = widget.myRank > 0 ? '#${widget.myRank}' : '${widget.limit}+';
+
+    final topRow = Row(
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [accent, accent.withOpacity(0.7)]),
+          ),
+          child: const Icon(Icons.emoji_events_rounded, color: Colors.black, size: 26),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('GLOBAL RANKINGS', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 2)),
+              const SizedBox(height: 3),
+              Text('Climb the ranks, Hunter.', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 19, fontWeight: FontWeight.w900)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: widget.onToggleSearch,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: HunterTheme.background.withOpacity(0.35),
+              border: Border.all(color: accent.withOpacity(0.3)),
+            ),
+            child: Icon(widget.searchMode ? Icons.close_rounded : Icons.search_rounded, color: HunterTheme.textSecondary, size: 20),
+          ),
+        ),
+      ],
+    );
+
+    final Widget lowerSection = widget.searchField != null
+        ? widget.searchField!
+        : Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: accent.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: accent.withOpacity(0.2)),
+            ),
+            child: Row(children: [
+              Icon(Icons.leaderboard_rounded, color: accent, size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('YOUR RANK', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
+                    const SizedBox(height: 1),
+                    Text(
+                      widget.myRank > 0 ? 'Keep climbing' : 'Enter the rankings',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [HunterTheme.gold, HunterTheme.goldBright]),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [BoxShadow(color: HunterTheme.gold.withOpacity(0.35), blurRadius: 8)],
+                ),
+                child: Text(rankText, style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w900)),
+              ),
+            ]),
+          );
+
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        topRow,
         const SizedBox(height: 14),
-        Row(children: [
-          PremiumAvatar(membership: myMembership, radius: 24, image: hunter.profilePicture != null && hunter.profilePicture!.isNotEmpty ? MemoryImage(_decodedAvatar(hunter.profilePicture!)) : null, child: Icon(Icons.person, color: _rankColor(hunter.level), size: 28)),
-          const SizedBox(width: 14),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(hunter.hunterName, style: TextStyle(color: nameColor, fontSize: 17, fontWeight: FontWeight.w700)), const SizedBox(height: 3), Text('${getRankTitle(hunter.level)}  ·  Level ${hunter.level}', style: TextStyle(color: subColor, fontSize: 12))])),
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [Text('${hunter.xp} XP', style: TextStyle(color: labelColor, fontWeight: FontWeight.bold, fontSize: 14)), const SizedBox(height: 6), Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: myPremium ? Colors.white.withOpacity(0.15) : HunterTheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: myPremium ? Colors.white.withOpacity(0.5) : HunterTheme.primary.withOpacity(0.35))), child: Text(myRank > 0 ? '# $myRank' : '$limit+', style: TextStyle(color: labelColor, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)))]),
-        ]),
-      ]),
-    )));
+        lowerSection,
+      ],
+    );
+
+    return AnimatedBuilder(
+      animation: _glow,
+      child: content,
+      builder: (context, child) {
+        final g = _glow.value;
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [accent.withOpacity(0.20), accent.withOpacity(0.05), HunterTheme.cardColor],
+            ),
+            border: Border.all(color: accent.withOpacity(0.30 + g * 0.20), width: 1.4),
+            boxShadow: [BoxShadow(color: accent.withOpacity(0.10 + g * 0.12), blurRadius: 22, spreadRadius: 1)],
+          ),
+          child: child,
+        );
+      },
+    );
   }
 }

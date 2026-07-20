@@ -431,10 +431,10 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                                           onPressed: () => Navigator.pop(ctx, true),
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: HunterTheme.primary,
-                                            foregroundColor: Colors.white,
+                                            foregroundColor: Colors.black,
                                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                           ),
-                                          child: const Text('Continue', style: TextStyle(fontWeight: FontWeight.w600)),
+                                          child: const Text('Continue', style: TextStyle(fontWeight: FontWeight.w700)),
                                         ),
                                       ],
                                     ),
@@ -484,35 +484,40 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen>
                               }
                             },
                             child: Container(
-                              height: 50,
+                              height: 54,
                               decoration: BoxDecoration(
-                                color: HunterTheme.primary,
-                                borderRadius: BorderRadius.circular(6),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: HunterTheme.primaryGradient,
+                                ),
+                                borderRadius: BorderRadius.circular(14),
                                 boxShadow: [
                                   BoxShadow(
                                     color: HunterTheme.primary
-                                        .withOpacity(0.4),
+                                        .withOpacity(0.4 * HunterTheme.glowStrength),
                                     blurRadius: 20,
                                     spreadRadius: 1,
+                                    offset: const Offset(0, 6),
                                   ),
                                 ],
                               ),
-                              child: Row(
+                              child: const Row(
                                 mainAxisAlignment:
                                 MainAxisAlignment.center,
                                 children: [
                                   Icon(
                                     Icons.bolt,
-                                    color: HunterTheme.background,
-                                    size: 16,
+                                    color: Colors.black,
+                                    size: 18,
                                   ),
-                                  SizedBox(width: 6),
+                                  SizedBox(width: 8),
                                   Text(
                                     'GENERATE MY MISSIONS',
                                     style: TextStyle(
-                                      color: HunterTheme.background,
+                                      color: Colors.black,
                                       fontSize: 12,
-                                      fontWeight: FontWeight.w800,
+                                      fontWeight: FontWeight.w900,
                                       letterSpacing: 1.5,
                                     ),
                                   ),
@@ -615,10 +620,15 @@ class _PathCardState extends State<_PathCard>
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: widget.selected
-                ? HunterTheme.primary.withOpacity(0.08)
-                : HunterTheme.cardColor,
-            borderRadius: BorderRadius.circular(10),
+            gradient: widget.selected
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [HunterTheme.primary.withOpacity(0.14), HunterTheme.cardColor],
+                  )
+                : null,
+            color: widget.selected ? null : HunterTheme.cardColor,
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: widget.selected
                   ? HunterTheme.primary
@@ -628,9 +638,10 @@ class _PathCardState extends State<_PathCard>
             boxShadow: widget.selected
                 ? [
               BoxShadow(
-                color: HunterTheme.primary.withOpacity(0.15),
+                color: HunterTheme.primary.withOpacity(0.18 * HunterTheme.glowStrength),
                 blurRadius: 16,
                 spreadRadius: 1,
+                offset: const Offset(0, 4),
               ),
             ]
                 : null,
@@ -643,10 +654,15 @@ class _PathCardState extends State<_PathCard>
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: widget.selected
-                      ? HunterTheme.primary.withOpacity(0.15)
-                      : HunterTheme.textPrimary.withOpacity(0.04),
-                  borderRadius: BorderRadius.circular(8),
+                  gradient: widget.selected
+                      ? LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [HunterTheme.primary.withOpacity(0.22), HunterTheme.primary.withOpacity(0.08)],
+                        )
+                      : null,
+                  color: widget.selected ? null : HunterTheme.textPrimary.withOpacity(0.04),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: widget.selected
                         ? HunterTheme.primary.withOpacity(0.5)
@@ -723,9 +739,9 @@ class _PathCardState extends State<_PathCard>
                       : null,
                 ),
                 child: widget.selected
-                    ? Icon(
+                    ? const Icon(
                   Icons.check,
-                  color: HunterTheme.background,
+                  color: Colors.black,
                   size: 14,
                 )
                     : null,

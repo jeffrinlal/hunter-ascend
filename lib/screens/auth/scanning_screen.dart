@@ -299,14 +299,25 @@ class _ScanningScreenState extends State<ScanningScreen>
 
                       // Progress bar container
                       Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: HunterTheme.cardColor,
-                          borderRadius: BorderRadius.circular(10),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [HunterTheme.primary.withOpacity(0.07), HunterTheme.cardColor],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: HunterTheme.primary.withOpacity(0.25),
                             width: 1,
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: HunterTheme.primary.withOpacity(0.08 * HunterTheme.glowStrength),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,18 +350,31 @@ class _ScanningScreenState extends State<ScanningScreen>
 
                             const SizedBox(height: 10),
 
-                            // Custom segmented progress bar
+                            // Premium gradient progress bar with glow
                             ClipRRect(
-                              borderRadius: BorderRadius.circular(3),
-                              child: LinearProgressIndicator(
-                                value: progress,
-                                minHeight: 8,
-                                backgroundColor:
-                                HunterTheme.textPrimary.withOpacity(0.07),
-                                valueColor:
-                                AlwaysStoppedAnimation<Color>(
-                                  HunterTheme.primary,
-                                ),
+                              borderRadius: BorderRadius.circular(6),
+                              child: Stack(
+                                children: [
+                                  Container(
+                                    height: 9,
+                                    color: HunterTheme.textPrimary.withOpacity(0.07),
+                                  ),
+                                  FractionallySizedBox(
+                                    widthFactor: progress.clamp(0.0, 1.0),
+                                    child: Container(
+                                      height: 9,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(colors: HunterTheme.primaryGradient),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: HunterTheme.primary.withOpacity(0.5 * HunterTheme.glowStrength),
+                                            blurRadius: 8,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
 

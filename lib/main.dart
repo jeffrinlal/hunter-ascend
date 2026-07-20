@@ -746,12 +746,23 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                             width: double.infinity,
                                             padding: const EdgeInsets.all(20),
                                             decoration: BoxDecoration(
-                                                color: HunterTheme.cardColor,
-                                                borderRadius: BorderRadius.circular(10),
+                                                gradient: LinearGradient(
+                                                    begin: Alignment.topLeft,
+                                                    end: Alignment.bottomRight,
+                                                    colors: [HunterTheme.primary.withOpacity(0.06), HunterTheme.cardColor],
+                                                ),
+                                                borderRadius: BorderRadius.circular(16),
                                                 border: Border.all(
                                                     color: HunterTheme.primary.withOpacity(0.25),
                                                     width: 1,
                                                 ),
+                                                boxShadow: [
+                                                    BoxShadow(
+                                                        color: HunterTheme.primary.withOpacity(0.08 * HunterTheme.glowStrength),
+                                                        blurRadius: 18,
+                                                        offset: const Offset(0, 6),
+                                                    ),
+                                                ],
                                             ),
                                             child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1000,14 +1011,14 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                         SnackBar(
                                                             backgroundColor: HunterTheme.cardColor,
                                                             shape: RoundedRectangleBorder(
-                                                                side: const BorderSide(
-                                                                    color: Colors.redAccent, width: 1),
+                                                                side: BorderSide(
+                                                                    color: HunterTheme.danger, width: 1),
                                                                 borderRadius: BorderRadius.circular(6),
                                                             ),
-                                                            content: const Text(
+                                                            content: Text(
                                                                 '[ ERROR ] Please fix the highlighted fields.',
                                                                 style: TextStyle(
-                                                                    color: Colors.redAccent,
+                                                                    color: HunterTheme.danger,
                                                                     letterSpacing: 0.5,
                                                                     fontWeight: FontWeight.w600,
                                                                 ),
@@ -1098,29 +1109,34 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                             },
                                             child: Container(
                                                 width: double.infinity,
-                                                height: 54,
+                                                height: 56,
                                                 decoration: BoxDecoration(
-                                                    color: HunterTheme.primary,
-                                                    borderRadius: BorderRadius.circular(6),
+                                                    gradient: LinearGradient(
+                                                        begin: Alignment.topLeft,
+                                                        end: Alignment.bottomRight,
+                                                        colors: HunterTheme.primaryGradient,
+                                                    ),
+                                                    borderRadius: BorderRadius.circular(14),
                                                     boxShadow: [
                                                         BoxShadow(
-                                                            color: HunterTheme.primary.withOpacity(0.4),
+                                                            color: HunterTheme.primary.withOpacity(0.4 * HunterTheme.glowStrength),
                                                             blurRadius: 22,
                                                             spreadRadius: 2,
+                                                            offset: const Offset(0, 6),
                                                         ),
                                                     ],
                                                 ),
-                                                child: Row(
+                                                child: const Row(
                                                     mainAxisAlignment: MainAxisAlignment.center,
                                                     children: [
                                                         Icon(Icons.radar,
-                                                            color: HunterTheme.background, size: 18),
+                                                            color: Colors.black, size: 18),
                                                         SizedBox(width: 10),
                                                         Text(
                                                             'INITIATE SCAN',
                                                             style: TextStyle(
-                                                                color: HunterTheme.background,
-                                                                fontWeight: FontWeight.w800,
+                                                                color: Colors.black,
+                                                                fontWeight: FontWeight.w900,
                                                                 fontSize: 14,
                                                                 letterSpacing: 2,
                                                             ),
@@ -1161,10 +1177,14 @@ class _AssessmentScreenState extends State<AssessmentScreen>
         return Row(
             children: [
                 Container(
-                    width: 3,
-                    height: 12,
+                    width: 4,
+                    height: 14,
                     decoration: BoxDecoration(
-                        color: HunterTheme.primary,
+                        gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: HunterTheme.primaryGradient,
+                        ),
                         borderRadius: BorderRadius.circular(2),
                         boxShadow: [
                             BoxShadow(

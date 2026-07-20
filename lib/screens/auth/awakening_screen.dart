@@ -85,8 +85,23 @@ class _AwakeningScreenState extends State<AwakeningScreen>
             ),
           ),
 
-          // Light overlay
-          Container(color: HunterTheme.background.withOpacity(0.86)),
+          // Cinematic gradient overlay (depth + text legibility)
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    HunterTheme.background.withOpacity(0.78),
+                    HunterTheme.background.withOpacity(0.90),
+                    HunterTheme.background.withOpacity(0.97),
+                  ],
+                  stops: const [0.0, 0.5, 1.0],
+                ),
+              ),
+            ),
+          ),
 
           // Subtle grid
           CustomPaint(
@@ -272,16 +287,20 @@ class _AwakeningScreenState extends State<AwakeningScreen>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 32, vertical: 14),
                       decoration: BoxDecoration(
-                        color: HunterTheme.surface,
-                        borderRadius: BorderRadius.circular(6),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [HunterTheme.primary.withOpacity(0.16), HunterTheme.surface],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: HunterTheme.primary,
                           width: 1.5,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: HunterTheme.primary.withOpacity(0.25),
-                            blurRadius: 18,
+                            color: HunterTheme.primary.withOpacity(0.28 * HunterTheme.glowStrength),
+                            blurRadius: 20,
                             spreadRadius: 1,
                           ),
                         ],
@@ -315,16 +334,20 @@ class _AwakeningScreenState extends State<AwakeningScreen>
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: HunterTheme.cardColor,
-                        borderRadius: BorderRadius.circular(10),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [HunterTheme.primary.withOpacity(0.07), HunterTheme.cardColor],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: HunterTheme.primary.withOpacity(0.35),
                           width: 1,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: HunterTheme.primary.withOpacity(0.08),
-                            blurRadius: 16,
+                            color: HunterTheme.primary.withOpacity(0.10 * HunterTheme.glowStrength),
+                            blurRadius: 18,
                             spreadRadius: 1,
                           ),
                         ],
@@ -406,32 +429,37 @@ class _AwakeningScreenState extends State<AwakeningScreen>
                       },
                       child: Container(
                         width: double.infinity,
-                        height: 54,
+                        height: 56,
                         decoration: BoxDecoration(
-                          color: HunterTheme.primary,
-                          borderRadius: BorderRadius.circular(6),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: HunterTheme.primaryGradient,
+                          ),
+                          borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: HunterTheme.primary.withOpacity(0.4),
+                              color: HunterTheme.primary.withOpacity(0.4 * HunterTheme.glowStrength),
                               blurRadius: 22,
                               spreadRadius: 2,
+                              offset: const Offset(0, 6),
                             ),
                           ],
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
                               Icons.flash_on,
-                              color: HunterTheme.textPrimary,
+                              color: Colors.black,
                               size: 18,
                             ),
                             SizedBox(width: 8),
                             Text(
                               'ACCEPT SYSTEM',
                               style: TextStyle(
-                                color: HunterTheme.textPrimary,
-                                fontWeight: FontWeight.w800,
+                                color: Colors.black,
+                                fontWeight: FontWeight.w900,
                                 fontSize: 14,
                                 letterSpacing: 2,
                               ),

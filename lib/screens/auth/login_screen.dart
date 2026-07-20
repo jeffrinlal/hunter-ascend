@@ -243,19 +243,24 @@ class _LoginScreenState extends State<LoginScreen>
                         return Transform.scale(
                           scale: _pulseAnimation.value,
                           child: Container(
-                            width: 110,
-                            height: 110,
+                            width: 116,
+                            height: 116,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: HunterTheme.surface,
+                              gradient: RadialGradient(
+                                colors: [
+                                  HunterTheme.primary.withOpacity(0.16),
+                                  HunterTheme.surface,
+                                ],
+                              ),
                               border: Border.all(
                                 color: HunterTheme.primary.withOpacity(0.6),
                                 width: 1.5,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: HunterTheme.primary.withOpacity(0.3),
-                                  blurRadius: 30,
+                                  color: HunterTheme.primary.withOpacity(0.35 * HunterTheme.glowStrength),
+                                  blurRadius: 36,
                                   spreadRadius: 4,
                                 ),
                               ],
@@ -355,9 +360,9 @@ class _LoginScreenState extends State<LoginScreen>
                     _HunterButton(
                       onTap: _isLoading ? () {} : () => signInGuest(context),
                       label: 'ENTER AS GUEST',
-                      icon: Icon(
+                      icon: const Icon(
                         Icons.bolt,
-                        color: HunterTheme.textPrimary,
+                        color: Colors.black,
                         size: 18,
                       ),
                       isPrimary: true,
@@ -428,33 +433,39 @@ class _HunterButtonState extends State<_HunterButton> {
           opacity: widget.isDisabled ? 0.5 : 1.0,
           child: Container(
             width: double.infinity,
-            height: 54,
+            height: 56,
             decoration: BoxDecoration(
-              color: widget.isPrimary
-                  ? HunterTheme.primary
-                  : Colors.white,
-              borderRadius: BorderRadius.circular(6),
+              gradient: widget.isPrimary
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: HunterTheme.primaryGradient,
+                    )
+                  : null,
+              color: widget.isPrimary ? null : HunterTheme.cardColor,
+              borderRadius: BorderRadius.circular(14),
               border: widget.isPrimary
                   ? null
                   : Border.all(
-                color: HunterTheme.primary,
-                width: 1.5,
-              ),
+                      color: HunterTheme.primary.withOpacity(0.5),
+                      width: 1.5,
+                    ),
               boxShadow: widget.isPrimary
                   ? [
-                BoxShadow(
-                  color: HunterTheme.primary.withOpacity(0.35),
-                  blurRadius: 20,
-                  spreadRadius: 1,
-                ),
-              ]
+                      BoxShadow(
+                        color: HunterTheme.primary.withOpacity(0.4 * HunterTheme.glowStrength),
+                        blurRadius: 22,
+                        spreadRadius: 1,
+                        offset: const Offset(0, 6),
+                      ),
+                    ]
                   : [
-                BoxShadow(
-                  color: HunterTheme.primary.withOpacity(0.12),
-                  blurRadius: 12,
-                  spreadRadius: 0,
-                ),
-              ],
+                      BoxShadow(
+                        color: HunterTheme.primary.withOpacity(0.12),
+                        blurRadius: 12,
+                        spreadRadius: 0,
+                      ),
+                    ],
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -465,10 +476,10 @@ class _HunterButtonState extends State<_HunterButton> {
                   widget.label,
                   style: TextStyle(
                     color: widget.isPrimary
-                        ? Colors.white
+                        ? Colors.black
                         : HunterTheme.textPrimary,
                     fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                     letterSpacing: 1.5,
                   ),
                 ),

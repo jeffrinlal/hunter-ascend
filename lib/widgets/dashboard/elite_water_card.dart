@@ -190,7 +190,7 @@ class _EliteWaterCardState extends State<EliteWaterCard> with SingleTickerProvid
           ),
           boxShadow: [BoxShadow(color: _accent.withOpacity(0.5), blurRadius: 10)],
         ),
-        child: const Icon(icon, color: Colors.black, size: 18),
+        child: Icon(icon, color: Colors.black, size: 18),
       ),
     );
   }

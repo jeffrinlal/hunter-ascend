@@ -13,6 +13,8 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/data/models/hunter_data.dart';
+import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 
 // ── Data model ────────────────────────────────────────────────────────────
 
@@ -369,7 +371,12 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
 
   // Cached streams so collapsing/expanding sections (setState) doesn't
   // re-subscribe and flicker. Same queries — created once.
-  late final Stream<DocumentSnapshot> _hunterStream;
+  //
+  // _hunterStream reuses the app-wide HunterRepository listener (already
+  // live for the whole session) instead of opening a second, uncached
+  // .snapshots() listener on the same `hunters/{uid}` document — this
+  // screen no longer duplicates that Firestore read.
+  late final Stream<HunterData?> _hunterStream;
   late final Stream<List<MealEntry>> _mealsStream;
 
   // Auto-categorize a meal purely from the time it was logged.
@@ -410,9 +417,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   void initState() {
     super.initState();
     loadBannerAd();
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    _hunterStream =
-        FirebaseFirestore.instance.collection('hunters').doc(uid).snapshots();
+    _hunterStream = HunterRepository.instance.watch();
     _mealsStream = _todayMealsStream();
   }
 
@@ -696,11 +701,11 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return const SizedBox();
 
-    return StreamBuilder<DocumentSnapshot>(
+    return StreamBuilder<HunterData?>(
       stream: _hunterStream,
+      initialData: HunterRepository.instance.getCached(),
       builder: (context, hunterSnap) {
-        final hunterData =
-            hunterSnap.data?.data() as Map<String, dynamic>? ?? {};
+        final hunterData = hunterSnap.data?.toFirestore() ?? {};
         final calorieGoal = calorieGoalFromData(hunterData);
 
         return StreamBuilder<List<MealEntry>>(

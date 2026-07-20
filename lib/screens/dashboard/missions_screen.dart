@@ -188,7 +188,10 @@ class _MissionsScreenState extends State<MissionsScreen> {
 
     // We hold the lock. Call the AI.
     try {
-      final hunter = doc.data()!;
+      // Reuses `data` (already safely defaulted to {} above from the same
+      // `doc`) instead of re-asserting `doc.data()!`, which could throw if
+      // the document didn't exist at read time.
+      final hunter = data;
 
       List<String> goals = [];
       if (hunter['fatLoss'] == true) goals.add('Fat Loss');

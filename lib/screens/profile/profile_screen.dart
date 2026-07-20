@@ -871,7 +871,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                                           children: [
                                             Text('Target', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11, fontWeight: FontWeight.w600)),
                                             GestureDetector(
-                                              onTap: () => _showSetTargetWeightDialog(),
+                                              onTap: () => _showSetTargetWeightDialog(
+                                                currentWeight: weight,
+                                                fatLoss: hunter.fatLoss,
+                                                muscleGain: hunter.muscleGain,
+                                              ),
                                               child: Text('Edit', style: TextStyle(color: HunterTheme.primary, fontSize: 11, fontWeight: FontWeight.w600)),
                                             ),
                                           ],
@@ -902,8 +906,20 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   ),
                                 ] else ...[
                                   const SizedBox(height: 14),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text('Target', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11, fontWeight: FontWeight.w600)),
+                                      Text('Not Set', style: TextStyle(color: HunterTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
                                   GestureDetector(
-                                    onTap: () => _showSetTargetWeightDialog(),
+                                    onTap: () => _showSetTargetWeightDialog(
+                                      currentWeight: weight,
+                                      fatLoss: hunter.fatLoss,
+                                      muscleGain: hunter.muscleGain,
+                                    ),
                                     child: Container(
                                       width: double.infinity,
                                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1692,83 +1708,137 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  void _showSetTargetWeightDialog() {
+  // ── Set/Edit Target Weight ──────────────────────────────────────────
+  //
+  // [currentWeight] and the goal flags are passed in from the caller (rather
+  // than re-read here) so this dialog can validate the target weight
+  // direction against the hunter's selected goal, mirroring the same
+  // fatLoss/muscleGain direction check already used during Path Selection
+  // (see quest_selection_screen.dart's goal-mismatch dialog). "Maintain"
+  // (neither fatLoss nor muscleGain selected) falls back to the app's
+  // original validation rule (a valid positive weight).
+  //
+  // Only `targetWeight` is ever written to Firestore here — XP, level,
+  // streak, quests, achievements, membership, and reports are untouched.
+  void _showSetTargetWeightDialog({
+    required double currentWeight,
+    required bool fatLoss,
+    required bool muscleGain,
+  }) {
     final controller = TextEditingController();
+    String? errorText;
 
     showDialog(
       context: context,
       builder: (_) {
-        return AlertDialog(
-          backgroundColor: HunterTheme.cardColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Set Target Weight', style: TextStyle(color: HunterTheme.textPrimary)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Enter your goal weight in kg.',
-                style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12),
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              backgroundColor: HunterTheme.cardColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text('Set Target Weight', style: TextStyle(color: HunterTheme.textPrimary)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Enter your goal weight in kg.',
+                    style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.number,
+                    autofocus: true,
+                    style: TextStyle(color: HunterTheme.textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Target weight (kg)',
+                      hintStyle: TextStyle(color: HunterTheme.textTertiary),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: HunterTheme.primary, width: 1),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: HunterTheme.primary, width: 2),
+                      ),
+                    ),
+                    onChanged: (_) {
+                      if (errorText != null) setDialogState(() => errorText = null);
+                    },
+                  ),
+                  if (errorText != null) ...[
+                    const SizedBox(height: 8),
+                    Text(errorText!, style: TextStyle(color: HunterTheme.danger, fontSize: 12)),
+                  ],
+                ],
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                keyboardType: TextInputType.number,
-                style: TextStyle(color: HunterTheme.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Target weight (kg)',
-                  hintStyle: TextStyle(color: HunterTheme.textTertiary),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: HunterTheme.primary, width: 1),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: HunterTheme.primary, width: 2),
-                  ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text('CANCEL', style: TextStyle(color: HunterTheme.textTertiary)),
                 ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('CANCEL', style: TextStyle(color: HunterTheme.textTertiary)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: HunterTheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                final target = double.tryParse(controller.text);
-                if (target == null || target <= 20) return;
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: HunterTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () async {
+                    final target = double.tryParse(controller.text);
+                    if (target == null || target <= 20) {
+                      setDialogState(() =>
+                          errorText = 'Enter a valid target weight (above 20 kg).');
+                      return;
+                    }
 
-                final user = FirebaseAuth.instance.currentUser;
-                if (user == null) return;
+                    // Goal-direction validation.
+                    // Fat Loss takes priority if multiple paths are selected,
+                    // matching the precedence already used in
+                    // quest_selection_screen.dart's goal-mismatch check.
+                    if (fatLoss && target >= currentWeight) {
+                      setDialogState(() => errorText =
+                          'For Fat Loss, target weight must be less than your current weight (${currentWeight.toStringAsFixed(1)} kg).');
+                      return;
+                    }
+                    if (muscleGain && target <= currentWeight) {
+                      setDialogState(() => errorText =
+                          'For Muscle Gain, target weight must be greater than your current weight (${currentWeight.toStringAsFixed(1)} kg).');
+                      return;
+                    }
+                    // Maintain (neither goal selected): no extra directional
+                    // check — the app's existing rule (valid positive weight,
+                    // already enforced above) is all that applies.
 
-                try {
-                  await FirebaseFirestore.instance
-                      .collection('hunters')
-                      .doc(user.uid)
-                      .update({'targetWeight': target});
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user == null) return;
 
-                  // Reset weight goal celebration for the new target.
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.remove('milestone_weight_goal_target_celebrated');
+                    try {
+                      // Only the target weight field is updated — no XP,
+                      // level, streak, quest, achievement, membership, or
+                      // report data is touched by this write.
+                      await FirebaseFirestore.instance
+                          .collection('hunters')
+                          .doc(user.uid)
+                          .update({'targetWeight': target});
 
-                  if (mounted) {
-                    Navigator.pop(context);
-                    setState(() {});
-                  }
-                } catch (e) {
-                  debugPrint("setTargetWeight: $e");
-                }
-              },
-              child: const Text('SAVE', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
+                      // Reset weight goal celebration for the new target.
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.remove('milestone_weight_goal_target_celebrated');
+
+                      if (mounted) {
+                        Navigator.pop(dialogContext);
+                        setState(() {});
+                      }
+                    } catch (e) {
+                      debugPrint("setTargetWeight: $e");
+                    }
+                  },
+                  child: const Text('SAVE', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
         );
       },
     );

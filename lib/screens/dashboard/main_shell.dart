@@ -43,6 +43,15 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   int _index = 0;
   bool _isOpeningDuels = false;
 
+  // Notifies child tabs (currently just the Leaderboard) of the active
+  // bottom-nav index so they can react to becoming visible — e.g. to run a
+  // one-time-per-visit background refresh — without IndexedStack forcing a
+  // full widget rebuild of every tab. Value always mirrors [_index] — seeded
+  // from [_index] itself (rather than a hardcoded 0) so this stays correct
+  // even if [_index]'s initial value is ever driven by restored navigation
+  // state instead of always starting at 0.
+  late final ValueNotifier<int> _activeTabIndex = ValueNotifier<int>(_index);
+
   // ── Page transition animation ──────────────────────────────────────────
   // Animates the incoming tab with a quick fade + slide. IndexedStack
   // switches the visible child immediately (it cannot show two children
@@ -91,7 +100,24 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   @override
   void dispose() {
     _transitionController.dispose();
+    _activeTabIndex.dispose();
     super.dispose();
+  }
+
+  // ── Single source of truth for active-tab changes ─────────────────────
+  //
+  // Every navigation path that changes which tab is showing MUST go through
+  // this method instead of assigning `_index` directly. It keeps `_index`
+  // (drives IndexedStack + bottom-nav highlight) and `_activeTabIndex`
+  // (drives the Leaderboard's "became visible" refresh signal) permanently
+  // in lockstep, so they can never drift out of sync again — the bug that
+  // previously required patching each call site individually.
+  void _setActiveTab(int index) {
+    if (index == _index) return; // Already active — nothing to do.
+    _transitionController.value = 0;
+    setState(() => _index = index);
+    _transitionController.forward();
+    _activeTabIndex.value = index;
   }
 
   /// Shows a one-time dialog if the user's membership has expired since
@@ -159,7 +185,7 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
       selfImprovement: widget.selfImprovement,
       bioQuests: widget.bioQuests,
     ),
-    const GlobalRankingsScreen(),
+    GlobalRankingsScreen(activeIndex: _activeTabIndex, tabIndex: 2),
     const CreateDuelScreen(), // Duels tab (same pattern as other tabs)
     const ProfileScreen(),
   ];
@@ -229,11 +255,7 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
         return;
       }
       // No active duel or pending request — switch to the Duels tab.
-      if (_index != 3) {
-        _transitionController.value = 0;
-        setState(() => _index = 3);
-        _transitionController.forward();
-      }
+      _setActiveTab(3);
     } catch (e) {
       debugPrint("openDuels: $e");
     } finally {
@@ -273,11 +295,7 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
       _openDuels();
       return;
     }
-    if (i != _index) {
-      _transitionController.value = 0;
-      setState(() => _index = i);
-      _transitionController.forward();
-    }
+    _setActiveTab(i);
   }
 
   // ── Premium floating bottom navigation (presentation only) ────────────────

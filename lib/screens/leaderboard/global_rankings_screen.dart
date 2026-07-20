@@ -34,8 +34,17 @@ const Color _kMaxViolet = Color(0xFFC084FC);
 // ── Global Rankings Screen ─────────────────────────────────────────────────
 
 /// Global leaderboard ranked by level then XP, with search.
+///
+/// [activeIndex] and [tabIndex] are optional so this screen can still be
+/// constructed standalone (e.g. in tests). When both are supplied, the
+/// screen listens for [activeIndex] changing to [tabIndex] — i.e. the user
+/// switching to the Leaderboard bottom-nav tab — and triggers exactly one
+/// background refresh per visit (see [_GlobalRankingsScreenState._onActiveIndexChanged]).
 class GlobalRankingsScreen extends StatefulWidget {
-  const GlobalRankingsScreen({super.key});
+  final ValueListenable<int>? activeIndex;
+  final int? tabIndex;
+
+  const GlobalRankingsScreen({super.key, this.activeIndex, this.tabIndex});
 
   @override
   State<GlobalRankingsScreen> createState() =>
@@ -65,18 +74,68 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
   Uint8List _decodedAvatar(String base64Data) =>
       _avatarCache[base64Data] ??= base64Decode(base64Data);
 
+  // Guards against refreshing more than once for the same "visit" (i.e. the
+  // same continuous period during which this tab is the active bottom-nav
+  // tab). Reset to false whenever the user navigates away, so the next time
+  // they return a fresh background refresh runs again.
+  bool _refreshedThisVisit = false;
+
   @override
   void initState() {
     super.initState();
     _tabController.addListener(_onTabChanged);
     _loadLeaderboard();
+    widget.activeIndex?.addListener(_onActiveIndexChanged);
+    // Handle the case where the Leaderboard is already the active tab when
+    // this State is first created (e.g. it's the initial tab).
+    _onActiveIndexChanged();
   }
 
   @override
   void dispose() {
+    widget.activeIndex?.removeListener(_onActiveIndexChanged);
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  // Fires whenever the bottom-nav's active tab index changes. Triggers a
+  // single background refresh the moment the Leaderboard tab becomes
+  // active, and re-arms the guard once the user navigates away so the next
+  // visit refreshes again. This does NOT run on every widget rebuild —
+  // IndexedStack keeps this State alive and it only reacts to genuine
+  // index changes via the ValueListenable.
+  void _onActiveIndexChanged() {
+    final activeIndex = widget.activeIndex;
+    final tabIndex = widget.tabIndex;
+    if (activeIndex == null || tabIndex == null) return;
+    final isVisible = activeIndex.value == tabIndex;
+    if (isVisible) {
+      if (!_refreshedThisVisit) {
+        _refreshedThisVisit = true;
+        _refreshInBackground();
+      }
+    } else {
+      // Left the tab — re-arm so the next visit refreshes again.
+      _refreshedThisVisit = false;
+    }
+  }
+
+  // Background refresh used for the "auto-refresh on visit" behavior.
+  // Cached data (already shown via [_loadLeaderboard]/[getCached]) stays on
+  // screen the whole time; this simply fetches fresh data and swaps it in
+  // once available. No loading indicator is shown, and
+  // [LeaderboardRepository.fetch] already falls back to cached data on
+  // network failure, so failures are silently absorbed here.
+  Future<void> _refreshInBackground() async {
+    try {
+      final fresh = await LeaderboardRepository.instance.fetch(_activeTab);
+      if (mounted) setState(() => _entries = fresh);
+    } catch (e) {
+      // LeaderboardRepository.fetch already catches internally and falls
+      // back to cached data; this is a defensive no-op guard only.
+      debugPrint('[Leaderboard] background refresh failed: $e');
+    }
   }
 
   void _onTabChanged() {

@@ -27,16 +27,23 @@ class SettingsScreen extends StatelessWidget {
 
       if (user == null) return;
 
-      // Clear cached membership so the next signed-in user starts fresh.
+      // Cancel services that listen to HunterRepository's stream FIRST,
+      // before stopping the repository itself — this prevents a race where
+      // the repository's final stream emission triggers an evaluate()/
+      // syncForLevel() call whose Firestore write arrives at the server
+      // after signOut() has already invalidated the auth token (causing
+      // PERMISSION_DENIED on hunters/{uid}).
+      AchievementsService.instance.clearCache();
+      RankRewardService.instance.clearCache();
+      EquippedRewardsService.instance.clearCache();
+
+      // Now safe to tear down the repository (no active consumers remain).
       MembershipService.instance.clearCache();
       await HunterRepository.instance.clearCache();
       await WeightRepository.instance.clearCache();
       await QuestRepository.instance.clearCache();
       await LeaderboardRepository.instance.clearCache();
       await SleepService.instance.cancelSleep();
-      RankRewardService.instance.clearCache();
-      EquippedRewardsService.instance.clearCache();
-      AchievementsService.instance.clearCache();
 
       if (user.isAnonymous) {
         // Delete Firestore data first (while auth token is still valid),
@@ -308,15 +315,18 @@ class SettingsScreen extends StatelessWidget {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
+      // Cancel services that listen to HunterRepository's stream FIRST
+      // (same race-prevention as _handleLogout — see comment there).
+      AchievementsService.instance.clearCache();
+      RankRewardService.instance.clearCache();
+      EquippedRewardsService.instance.clearCache();
+
       MembershipService.instance.clearCache();
       await HunterRepository.instance.clearCache();
       await WeightRepository.instance.clearCache();
       await QuestRepository.instance.clearCache();
       await LeaderboardRepository.instance.clearCache();
       await SleepService.instance.cancelSleep();
-      RankRewardService.instance.clearCache();
-      EquippedRewardsService.instance.clearCache();
-      AchievementsService.instance.clearCache();
 
       // Re-authenticate with Google before deletion (required by Firebase
       // for destructive operations if the sign-in is not recent).

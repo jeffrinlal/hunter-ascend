@@ -187,6 +187,10 @@ class AchievementsService {
         for (final a in kAchievements) {
           if (_ownedIds.contains(a.id)) continue;
           if (!a.isDone(h)) continue;
+          // Re-check auth before each write attempt — if the user signed out
+          // while a previous claim was in-flight, bail immediately instead of
+          // issuing a write that will be rejected with PERMISSION_DENIED.
+          if (FirebaseAuth.instance.currentUser == null) break;
           await _claimAndAward(uid, a);
         }
       } finally {

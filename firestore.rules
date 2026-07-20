@@ -116,6 +116,30 @@ service cloud.firestore {
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // HUNTER NAMES COLLECTION (hunterNames/{nameKey})
+    // ══════════════════════════════════════════════════════════════════════
+    //
+    // Case-insensitive uniqueness reservation for hunter names. Doc ID is
+    // the lowercased name itself, so only one create can ever succeed for a
+    // given name — this is what makes name uniqueness race-free.
+    //
+    // - read: any authenticated user, so the assessment flow can determine
+    //   whether a name is available/owned BEFORE attempting to claim it
+    //   (including re-checking their OWN prior reservation after being
+    //   bounced back from Path Selection to correct other assessment data —
+    //   see AssessmentScreen's uid-ownership check).
+    // - create: only as your own reservation (uid must match the caller).
+    // - update/delete: never allowed — once claimed, a name reservation is
+    //   permanent (mirrors the rankRewards permanence pattern above).
+    match /hunterNames/{nameKey} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // SUBSCRIPTIONS COLLECTION (legacy — locked)
     // ══════════════════════════════════════════════════════════════════════
     match /subscriptions/{docId} {

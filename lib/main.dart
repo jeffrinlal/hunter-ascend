@@ -572,8 +572,17 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                     .doc(nameKey)
                     .get();
                 if (!mounted) return;
+                // A reservation may already exist because the CURRENT user
+                // reserved this exact name earlier in this same assessment
+                // session (e.g. after being bounced back from Path Selection
+                // to correct their target weight). It's only genuinely taken
+                // if a different uid owns the reservation.
+                final existingUid = doc.data()?['uid'];
+                final currentUid = FirebaseAuth.instance.currentUser?.uid;
+                final isOwnReservation =
+                    doc.exists && existingUid == currentUid && currentUid != null;
                 setState(() {
-                    _nameAvailable = !doc.exists;
+                    _nameAvailable = !doc.exists || isOwnReservation;
                     _nameChecking = false;
                 });
             } catch (_) {
@@ -1071,13 +1080,26 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                                                         await FirebaseFirestore.instance.runTransaction((txn) async {
                                                             final nameSnap = await txn.get(nameRef);
                                                             if (nameSnap.exists) {
-                                                                nameTaken = true;
-                                                                return;
+                                                                // The reservation doc may already exist because THIS
+                                                                // same hunter reserved it earlier in this very
+                                                                // assessment session (e.g. they were bounced back
+                                                                // from Path Selection after an invalid target weight
+                                                                // and are now re-submitting with corrected data).
+                                                                // Only treat it as genuinely taken if a DIFFERENT
+                                                                // uid owns the reservation — re-running the name
+                                                                // uniqueness check should never fail against your
+                                                                // own prior reservation.
+                                                                final existingUid = nameSnap.data()?['uid'];
+                                                                if (existingUid != user.uid) {
+                                                                    nameTaken = true;
+                                                                    return;
+                                                                }
+                                                            } else {
+                                                                txn.set(nameRef, {
+                                                                    'uid': user.uid,
+                                                                    'hunterName': hunterName,
+                                                                });
                                                             }
-                                                            txn.set(nameRef, {
-                                                                'uid': user.uid,
-                                                                'hunterName': hunterName,
-                                                            });
                                                             txn.update(hunterRef, {
                                                                 'hunterName': hunterName,
                                                                 'age': int.parse(ageController.text),

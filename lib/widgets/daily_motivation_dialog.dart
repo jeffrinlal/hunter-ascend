@@ -258,11 +258,11 @@ class _DailyMotivationDialogState extends State<DailyMotivationDialog> {
                   backgroundColor: _claimed
                       ? HunterTheme.success
                       : HunterTheme.primary,
-                  foregroundColor: Colors.white,
+                  foregroundColor: Colors.black,
                   disabledBackgroundColor: _claimed
                       ? HunterTheme.success
                       : HunterTheme.primary.withOpacity(0.6),
-                  disabledForegroundColor: Colors.white,
+                  disabledForegroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -274,7 +274,7 @@ class _DailyMotivationDialogState extends State<DailyMotivationDialog> {
                     ? const SizedBox(
                         width: 20, height: 20,
                         child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white,
+                          strokeWidth: 2, color: Colors.black,
                         ),
                       )
                     : Row(

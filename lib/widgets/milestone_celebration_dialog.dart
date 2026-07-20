@@ -54,7 +54,7 @@ class _MilestoneCelebrationDialogState extends State<MilestoneCelebrationDialog>
       case MilestoneType.rank:
         return HunterTheme.purple;
       case MilestoneType.sleep:
-        return const Color(0xFF6C63FF);
+        return HunterTheme.purple;
       case MilestoneType.custom:
         return HunterTheme.primary;
     }

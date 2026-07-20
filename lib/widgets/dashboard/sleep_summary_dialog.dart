@@ -80,13 +80,13 @@ class _SleepSummaryDialogState extends State<SleepSummaryDialog> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: hasXp
-                ? const Color(0xFF6C63FF).withOpacity(0.4)
+                ? HunterTheme.purple.withOpacity(0.4)
                 : HunterTheme.border,
           ),
           boxShadow: [
             if (hasXp)
               BoxShadow(
-                color: const Color(0xFF6C63FF).withOpacity(0.15),
+                color: HunterTheme.purple.withOpacity(0.15),
                 blurRadius: 24,
                 spreadRadius: 2,
               ),
@@ -100,13 +100,19 @@ class _SleepSummaryDialogState extends State<SleepSummaryDialog> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: hasXp
-                    ? const Color(0xFF6C63FF).withOpacity(0.12)
-                    : HunterTheme.surface,
+                gradient: hasXp
+                    ? LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [HunterTheme.purple.withOpacity(0.22), HunterTheme.purple.withOpacity(0.08)],
+                      )
+                    : null,
+                color: hasXp ? null : HunterTheme.surface,
+                border: hasXp ? Border.all(color: HunterTheme.purple.withOpacity(0.4)) : null,
               ),
               child: Icon(
                 hasXp ? Icons.nights_stay : Icons.bedtime_outlined,
-                color: hasXp ? const Color(0xFF6C63FF) : HunterTheme.textTertiary,
+                color: hasXp ? HunterTheme.purple : HunterTheme.textTertiary,
                 size: 36,
               ),
             ),
@@ -182,10 +188,11 @@ class _SleepSummaryDialogState extends State<SleepSummaryDialog> {
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: hasXp ? const Color(0xFF6C63FF) : HunterTheme.surface,
+                  backgroundColor: hasXp ? HunterTheme.purple : HunterTheme.surface,
                   foregroundColor: hasXp ? Colors.white : HunterTheme.textPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 child: const Text(
                   'CONTINUE',

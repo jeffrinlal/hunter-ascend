@@ -212,7 +212,7 @@ class ReportShareCard extends StatelessWidget {
         border: Border.all(color: _accent.withOpacity(0.6)),
       ),
       child: Text(
-        '$rank RANK  •  ${membership.toUpperCase()}',
+        '$rank  •  ${membership.toUpperCase()}',
         style: const TextStyle(
           color: _accentBright,
           fontSize: 12.5,

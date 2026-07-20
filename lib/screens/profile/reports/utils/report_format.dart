@@ -9,13 +9,17 @@ const List<String> _months = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
 ];
 
-/// Ordinal index of a rank (E = 0 … S = 5). Used by the analysis scoring.
+/// Ordinal index of a rank code (E = 0 … Ascend Legend = 11). Used by the
+/// analysis scoring.
 ///
-/// Note: Hunter Rank itself is now resolved centrally from the player's LEVEL
-/// via `RankService`. This pure helper only maps an already-computed rank
-/// letter to its ordinal, so it stays Flutter-free and testable.
-int rankIndex(String rank) =>
-    const ['E', 'D', 'C', 'B', 'A', 'S'].indexOf(rank).clamp(0, 5);
+/// Note: Hunter Rank itself is resolved centrally from the player's LEVEL via
+/// `RankService`. This pure helper only maps an already-computed rank code to
+/// its ordinal, so it stays Flutter-free and testable. The code order MUST
+/// mirror `RankService.ranks`.
+int rankIndex(String rank) => const [
+      'E', 'D', 'C', 'B', 'A', 'S', // letter ranks
+      'NH', 'MO', 'SM', 'AH', 'CH', 'AL', // named ranks
+    ].indexOf(rank).clamp(0, 11);
 
 /// Formats an integer with thousands separators (no `intl` dependency).
 String fmtInt(num v) {

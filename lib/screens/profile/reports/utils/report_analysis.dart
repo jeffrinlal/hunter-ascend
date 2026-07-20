@@ -82,7 +82,7 @@ class ReportAnalysis {
   /// A single weighted score is computed from five capped inputs, then mapped
   /// to a rating. Each input is capped so no single dimension dominates:
   ///
-  ///   score = rankIndex(rank) * 10   // rank E..S → 0..50
+  ///   score = rankIndex(rank) * 10   // rank E..Ascend Legend → 0..110
   ///         + clamp(level,      0, 50)
   ///         + clamp(streak,     0, 30)
   ///         + clamp(activeDays, 0, 30)

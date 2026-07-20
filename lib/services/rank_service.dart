@@ -13,11 +13,13 @@ import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 /// in ONE place, and every screen benefits automatically.
 @immutable
 class HunterRank {
-  /// Single-character rank code: `E`, `D`, `C`, `B`, `A`, `S`.
+  /// Compact rank code shown in badges/crests: `E`,`D`,`C`,`B`,`A`,`S` for the
+  /// letter ranks, and a short 2-char code (`NH`,`MO`,`SM`,`AH`,`CH`,`AL`) for
+  /// the named ranks. Unique across all ranks.
   final String letter;
 
-  /// Ordinal position of the rank, `E = 0` … `S = 5`. Useful for scoring and
-  /// comparisons without hard-coding the letter order elsewhere.
+  /// Ordinal position of the rank, `E = 0` … `Ascend Legend = 11`. Useful for
+  /// scoring and comparisons without hard-coding the order elsewhere.
   final int tier;
 
   /// Inclusive minimum level required to hold this rank (`level >= minLevel`).
@@ -34,10 +36,11 @@ class HunterRank {
 
   // ── Future-phase cosmetic metadata ──────────────────────────────────────
   /// Premium cosmetic title for this rank — an ALTERNATE visual presentation of
-  /// the exact same canonical rank (e.g. the Max dashboard renders "SHADOW
-  /// MONARCH" for rank S). This is display-only: it never affects how a rank is
-  /// calculated. Screens that don't opt into the premium presentation simply
-  /// use [letter]/[shortTitle]/[longTitle] instead.
+  /// the exact same canonical rank (e.g. the Max dashboard renders "SUPREME
+  /// HUNTER" for rank S). "Shadow Monarch" is reserved for the real Level-200
+  /// rank, so each milestone stays unique. This is display-only: it never
+  /// affects how a rank is calculated. Screens that don't opt into the premium
+  /// presentation simply use [letter]/[shortTitle]/[longTitle] instead.
   final String displayTitle;
 
   // These are intentionally optional so new phases can attach rewards/cosmetics
@@ -60,21 +63,22 @@ class HunterRank {
 
   /// Theme-aware accent color for this rank. Implemented as a getter (not a
   /// stored value) so it follows the active light/dark theme at read time.
+  /// Keyed on [tier] so it covers the full expanded ladder.
   Color get color {
-    switch (letter) {
-      case 'S':
-        return HunterTheme.gold;
-      case 'A':
-        return HunterTheme.danger;
-      case 'B':
-        return HunterTheme.purple;
-      case 'C':
-        return HunterTheme.info;
-      case 'D':
-        return HunterTheme.success;
-      case 'E':
-      default:
-        return HunterTheme.textSecondary;
+    switch (tier) {
+      case 0:  return HunterTheme.textSecondary; // E
+      case 1:  return HunterTheme.success;       // D
+      case 2:  return HunterTheme.info;          // C
+      case 3:  return HunterTheme.purple;        // B
+      case 4:  return HunterTheme.danger;        // A
+      case 5:  return HunterTheme.gold;          // S
+      case 6:  return HunterTheme.primary;       // National Hunter
+      case 7:  return HunterTheme.purpleLight;   // Monarch
+      case 8:  return HunterTheme.purple;        // Shadow Monarch
+      case 9:  return HunterTheme.goldBright;    // Ascendant Hunter
+      case 10: return HunterTheme.silver;        // Celestial Hunter
+      case 11: return HunterTheme.gold;          // Ascend Legend
+      default: return HunterTheme.textSecondary;
     }
   }
 }
@@ -99,20 +103,29 @@ class RankService {
 
   /// The rank ladder, ordered ascending by [minLevel]. Single source of truth.
   ///
-  /// Thresholds preserve the app's existing level-based bands:
-  /// E: 1–4 · D: 5–9 · C: 10–14 · B: 15–19 · A: 20–29 · S: 30+.
+  /// Expanded level bands (Phase 2) so progression continues far beyond S Rank:
+  ///   E: 1–9 · D: 10–19 · C: 20–34 · B: 35–49 · A: 50–69 · S: 70–99 ·
+  ///   National Hunter: 100–149 · Monarch: 150–199 · Shadow Monarch: 200–299 ·
+  ///   Ascendant Hunter: 300–399 · Celestial Hunter: 400–599 · Ascend Legend: 600+.
   ///
-  /// [displayTitle] is a premium, cosmetic-only alias for each canonical rank
-  /// (used by the Max dashboard). It escalates to "SHADOW MONARCH" at rank S.
-  /// New tiers (e.g. National Level, Monarch) can be appended here in a future
-  /// phase without touching any screen.
+  /// [letter] is a compact code shown in badges/crests (single letter for E–S,
+  /// a short 2-char code for the named ranks). [displayTitle] is a premium,
+  /// cosmetic-only alias used by the Max dashboard. Everything else on every
+  /// screen is derived from this list, so adding future tiers means appending
+  /// one row here — no screen changes required.
   static const List<HunterRank> ranks = [
-    HunterRank(letter: 'E', tier: 0, minLevel: 1, label: 'E Rank', shortTitle: 'E RANK', longTitle: 'E RANK HUNTER', displayTitle: 'AWAKENED'),
-    HunterRank(letter: 'D', tier: 1, minLevel: 5, label: 'D Rank', shortTitle: 'D RANK', longTitle: 'D RANK HUNTER', displayTitle: 'RISING HUNTER'),
-    HunterRank(letter: 'C', tier: 2, minLevel: 10, label: 'C Rank', shortTitle: 'C RANK', longTitle: 'C RANK HUNTER', displayTitle: 'ELITE HUNTER'),
-    HunterRank(letter: 'B', tier: 3, minLevel: 15, label: 'B Rank', shortTitle: 'B RANK', longTitle: 'B RANK HUNTER', displayTitle: 'MASTER HUNTER'),
-    HunterRank(letter: 'A', tier: 4, minLevel: 20, label: 'A Rank', shortTitle: 'A RANK', longTitle: 'A RANK HUNTER', displayTitle: 'SOVEREIGN'),
-    HunterRank(letter: 'S', tier: 5, minLevel: 30, label: 'S Rank', shortTitle: 'S RANK', longTitle: 'S RANK HUNTER', displayTitle: 'SHADOW MONARCH'),
+    HunterRank(letter: 'E',  tier: 0,  minLevel: 1,   label: 'E Rank',           shortTitle: 'E RANK',           longTitle: 'E RANK HUNTER',     displayTitle: 'AWAKENED'),
+    HunterRank(letter: 'D',  tier: 1,  minLevel: 10,  label: 'D Rank',           shortTitle: 'D RANK',           longTitle: 'D RANK HUNTER',     displayTitle: 'RISING HUNTER'),
+    HunterRank(letter: 'C',  tier: 2,  minLevel: 20,  label: 'C Rank',           shortTitle: 'C RANK',           longTitle: 'C RANK HUNTER',     displayTitle: 'ELITE HUNTER'),
+    HunterRank(letter: 'B',  tier: 3,  minLevel: 35,  label: 'B Rank',           shortTitle: 'B RANK',           longTitle: 'B RANK HUNTER',     displayTitle: 'MASTER HUNTER'),
+    HunterRank(letter: 'A',  tier: 4,  minLevel: 50,  label: 'A Rank',           shortTitle: 'A RANK',           longTitle: 'A RANK HUNTER',     displayTitle: 'SOVEREIGN'),
+    HunterRank(letter: 'S',  tier: 5,  minLevel: 70,  label: 'S Rank',           shortTitle: 'S RANK',           longTitle: 'S RANK HUNTER',     displayTitle: 'SUPREME HUNTER'),
+    HunterRank(letter: 'NH', tier: 6,  minLevel: 100, label: 'National Hunter',  shortTitle: 'NATIONAL HUNTER',  longTitle: 'NATIONAL HUNTER',   displayTitle: 'NATIONAL HUNTER'),
+    HunterRank(letter: 'MO', tier: 7,  minLevel: 150, label: 'Monarch',          shortTitle: 'MONARCH',          longTitle: 'MONARCH',           displayTitle: 'MONARCH'),
+    HunterRank(letter: 'SM', tier: 8,  minLevel: 200, label: 'Shadow Monarch',   shortTitle: 'SHADOW MONARCH',   longTitle: 'SHADOW MONARCH',    displayTitle: 'SHADOW MONARCH'),
+    HunterRank(letter: 'AH', tier: 9,  minLevel: 300, label: 'Ascendant Hunter', shortTitle: 'ASCENDANT HUNTER', longTitle: 'ASCENDANT HUNTER',  displayTitle: 'ASCENDANT HUNTER'),
+    HunterRank(letter: 'CH', tier: 10, minLevel: 400, label: 'Celestial Hunter', shortTitle: 'CELESTIAL HUNTER', longTitle: 'CELESTIAL HUNTER',  displayTitle: 'CELESTIAL HUNTER'),
+    HunterRank(letter: 'AL', tier: 11, minLevel: 600, label: 'Ascend Legend',    shortTitle: 'ASCEND LEGEND',    longTitle: 'ASCEND LEGEND',     displayTitle: 'ASCEND LEGEND'),
   ];
 
   /// Resolves the [HunterRank] for a given [level] (the ONLY input to rank).
@@ -150,11 +163,11 @@ class RankService {
   /// Theme-aware accent color for a level's rank.
   Color colorForLevel(int level) => rankForLevel(level).color;
 
-  /// Ordinal tier for a level's rank (`E = 0` … `S = 5`).
+  /// Ordinal tier for a level's rank (`E = 0` … `Ascend Legend = 11`).
   int tierForLevel(int level) => rankForLevel(level).tier;
 
-  /// Ordinal index of a rank [letter] (`E = 0` … `S = 5`), clamped to range.
-  /// Replaces the old free-standing `rankIndex` helper.
+  /// Ordinal index of a rank [letter] code (`E = 0` … `Ascend Legend = 11`),
+  /// clamped to range. Replaces the old free-standing `rankIndex` helper.
   int indexOfLetter(String letter) {
     final i = ranks.indexWhere((r) => r.letter == letter);
     return i < 0 ? 0 : i;

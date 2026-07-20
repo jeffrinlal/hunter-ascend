@@ -135,13 +135,13 @@ class _ProfileScreenState extends State<ProfileScreen>
           // Hunter Rank is resolved from LEVEL via the centralized RankService
           // (the stored `xp` is only the in-level remainder). Progress and
           // "XP to next rank" are derived from level + that remainder.
-          final rankData    = RankService.instance.rankForLevel(level);
-          final rank        = rankData.letter;
-          final isMaxRank   = RankService.instance.isMaxRank(level);
-          final nextRank    = RankService.instance.nextRank(level)?.letter ?? 'MAX';
-          final rankColor   = rankData.color;
-          final xpProgress  = RankService.instance.progressToNextRank(level, xp);
-          final xpToNext    = RankService.instance.xpToNextRank(level, xp);
+          final rankData     = RankService.instance.rankForLevel(level);
+          final rankTitle    = rankData.longTitle; // e.g. "S RANK HUNTER" / "NATIONAL HUNTER"
+          final isMaxRank    = RankService.instance.isMaxRank(level);
+          final nextRankName = RankService.instance.nextRank(level)?.label ?? 'MAX';
+          final rankColor    = rankData.color;
+          final xpProgress   = RankService.instance.progressToNextRank(level, xp);
+          final xpToNext     = RankService.instance.xpToNextRank(level, xp);
 
           // Derived stats
           final str  = math.min(100, duelWins * 3 + level * 2);
@@ -203,7 +203,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   onTap: () => _shareStatsCard(
                                     context: context,
                                     hunterName: hunterName,
-                                    rank: rank,
+                                    rank: rankTitle,
                                     level: level,
                                     xp: xp,
                                     xpProgress: xpProgress,
@@ -497,7 +497,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   Icon(Icons.shield_moon_rounded, color: rankColor, size: 15),
                                   const SizedBox(width: 7),
                                   Text(
-                                    '$rank RANK HUNTER',
+                                    rankTitle,
                                     style: TextStyle(
                                       color: rankColor,
                                       fontSize: 13,
@@ -521,7 +521,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                       child: Text(
                                         isMaxRank
                                             ? 'MAX RANK REACHED'
-                                            : '$xpToNext XP to Rank $nextRank',
+                                            : '$xpToNext XP to $nextRankName',
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
@@ -1382,7 +1382,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: "🔥 I'm a $rank Rank Hunter on Hunter Ascend!\n"
+        text: "🔥 I'm a $rank on Hunter Ascend!\n"
             "⚡ Level $level | $streak Day Streak\n"
             "💪 Ascend Beyond Limits!\n\n"
             "📲 Download Hunter Ascend FREE:\n"
@@ -1534,7 +1534,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                             border: Border.all(color: accent.withOpacity(0.5)),
                           ),
                           child: Text(
-                            '$rank RANK HUNTER',
+                            rank,
                             style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1),
                           ),
                         ),

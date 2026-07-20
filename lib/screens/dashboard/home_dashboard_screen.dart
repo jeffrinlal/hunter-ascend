@@ -96,7 +96,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   // ── Helpers ──────────────────────────────────────────────
   // Hunter Rank is resolved through the centralized RankService (single source
   // of truth) — no rank thresholds are computed locally.
-  String get hunterRank => RankService.instance.shortTitleForLevel(level);
+  String get hunterRank => RankService.instance.longTitleForLevel(level);
 
   String get rankLetter => RankService.instance.letterForLevel(level);
 
@@ -1387,7 +1387,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       border: Border.all(color: rankColor.withOpacity(0.4)),
                     ),
                     child: Text(
-                      "$hunterRank HUNTER",
+                      hunterRank,
                       style: TextStyle(color: rankColor, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1),
                     ),
                   ),

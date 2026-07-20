@@ -50,8 +50,17 @@ class DailyOverviewTimeline extends StatelessWidget {
                   padding: EdgeInsets.only(bottom: isLast ? 0 : 18, top: 4),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(stat.label, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                      Flexible(
+                        child: Text(
+                          stat.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
                       Text(stat.value, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w800)),
                     ],
                   ),

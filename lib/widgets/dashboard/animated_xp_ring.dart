@@ -11,6 +11,14 @@ class AnimatedXpRing extends StatelessWidget {
   final int level;
   final double size;
   final bool showGlow;
+
+  /// Whether to render the center label (LV / level / xp).
+  ///
+  /// Set to `false` when the ring is used purely as a decorative progress
+  /// arc around an avatar — otherwise the label renders *behind* the avatar
+  /// (hidden, and peeking out at the edges). The Pro and Max heroes show the
+  /// level/XP as separate text below the avatar, so they pass `false`.
+  final bool showLabel;
   final Color? accentColor;
 
   const AnimatedXpRing({
@@ -19,6 +27,7 @@ class AnimatedXpRing extends StatelessWidget {
     required this.level,
     this.size = 120,
     this.showGlow = false,
+    this.showLabel = true,
     this.accentColor,
   });
 
@@ -78,36 +87,37 @@ class AnimatedXpRing extends StatelessWidget {
             ),
           ),
 
-          // Center content
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'LV',
-                style: TextStyle(
-                  color: HunterTheme.textTertiary,
-                  fontSize: size * 0.1,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1,
+          // Center content (omitted when an avatar is overlaid on the ring).
+          if (showLabel)
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'LV',
+                  style: TextStyle(
+                    color: HunterTheme.textTertiary,
+                    fontSize: size * 0.1,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1,
+                  ),
                 ),
-              ),
-              Text(
-                '$level',
-                style: TextStyle(
-                  color: HunterTheme.textPrimary,
-                  fontSize: size * 0.28,
-                  fontWeight: FontWeight.w900,
+                Text(
+                  '$level',
+                  style: TextStyle(
+                    color: HunterTheme.textPrimary,
+                    fontSize: size * 0.28,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
-              Text(
-                '$xp/500',
-                style: TextStyle(
-                  color: HunterTheme.textTertiary,
-                  fontSize: size * 0.09,
+                Text(
+                  '$xp/500',
+                  style: TextStyle(
+                    color: HunterTheme.textTertiary,
+                    fontSize: size * 0.09,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
     );

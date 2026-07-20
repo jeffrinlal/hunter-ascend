@@ -10,16 +10,32 @@ import 'package:hunter_ascend/widgets/dashboard/premium_mission_card.dart';
 import 'package:hunter_ascend/widgets/dashboard/premium_quick_actions.dart';
 import 'package:hunter_ascend/widgets/dashboard/premium_water_card.dart';
 
+// ── Hero layout constants ─────────────────────────────────────────────────
+// Kept in one place so the floating avatar/ring, the hero's reserved bottom
+// space, and the gap the parent leaves below the hero always stay in sync.
+const double _kProRingSize = 128;
+const double _kProAvatarSize = 84;
+
+/// How far the ring dips *below* the hero's bottom edge.
+const double _kProAvatarOverhang = 46;
+
+/// Portion of the ring that sits *inside* the hero. The hero reserves this
+/// much bottom padding so its text can never render under the ring/avatar.
+const double _kProRingInsideHero = _kProRingSize - _kProAvatarOverhang;
+
+/// Vertical breathing room between the hero text and the ring, and between
+/// the overhanging ring and the first section below the hero.
+const double _kProHeroGap = 12;
+
 /// Premium Dashboard layout for Pro members.
 ///
-/// Structurally distinct from the Basic dashboard: a large curved hero
-/// (~38% of screen height) with a hunter avatar floating inside a large
-/// animated XP ring that overlaps the hero's bottom edge, a horizontally
-/// scrollable quick-actions row, floating stat chips, and redesigned
-/// mission/water cards. All values (xp, level, steps, water, streak) are
-/// passed in from the parent screen, which owns every Firestore
-/// read/write and business-logic calculation — this widget only decides
-/// how those values are laid out and styled.
+/// Structurally distinct from the Basic dashboard: a large curved hero with a
+/// hunter avatar floating inside a large animated XP ring that overlaps the
+/// hero's rounded bottom edge, a horizontally scrollable quick-actions row,
+/// floating stat chips, and redesigned mission/water cards. All values (xp,
+/// level, steps, water, streak) are passed in from the parent screen, which
+/// owns every Firestore read/write and business-logic calculation — this
+/// widget only decides how those values are laid out and styled.
 class ProDashboardLayout extends StatelessWidget {
   final HunterData hunter;
   final int todaySteps;
@@ -74,7 +90,8 @@ class ProDashboardLayout extends StatelessWidget {
             onNotificationTap: onNotificationTap,
           ),
         ),
-        const SizedBox(height: 52), // Reserves space for the floating avatar/ring overlap.
+        // Clears the ring that overhangs the hero's bottom edge.
+        const SizedBox(height: _kProAvatarOverhang + _kProHeroGap),
 
         EntranceFadeSlide(
           delay: const Duration(milliseconds: 90),
@@ -126,9 +143,13 @@ class ProDashboardLayout extends StatelessWidget {
   }
 }
 
-/// Large curved premium hero (~38% of screen height) with the hunter's
-/// avatar floating inside a large animated XP ring that overlaps the
-/// hero's rounded bottom edge.
+/// Curved premium hero with the hunter's avatar floating inside a large
+/// animated XP ring that overlaps the hero's rounded bottom edge.
+///
+/// The hero is content-driven (no fixed height) so it can never overflow at
+/// any text scale. Its bottom padding reserves [_kProRingInsideHero] so the
+/// rank/level/name text always sits *above* the ring — text and avatar never
+/// overlap.
 class _PremiumHero extends StatelessWidget {
   final HunterData hunter;
   final Color accent;
@@ -147,7 +168,6 @@ class _PremiumHero extends StatelessWidget {
     final avatarBytes = hunter.profilePicture != null && hunter.profilePicture!.isNotEmpty
         ? base64Decode(hunter.profilePicture!)
         : null;
-    final heroHeight = (MediaQuery.of(context).size.height * 0.36).clamp(220.0, 340.0);
     final hasNotif = (hunter.notificationTime ?? '').isNotEmpty;
 
     return Stack(
@@ -156,8 +176,12 @@ class _PremiumHero extends StatelessWidget {
       children: [
         Container(
           width: double.infinity,
-          height: heroHeight,
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 40),
+          padding: EdgeInsets.only(
+            top: 18,
+            left: 22,
+            right: 22,
+            bottom: _kProRingInsideHero + _kProHeroGap,
+          ),
           decoration: BoxDecoration(
             borderRadius: const BorderRadius.only(
               bottomLeft: Radius.circular(48),
@@ -176,6 +200,7 @@ class _PremiumHero extends StatelessWidget {
             ],
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -203,21 +228,31 @@ class _PremiumHero extends StatelessWidget {
                   ),
                 ],
               ),
-              const Spacer(),
+              const SizedBox(height: 28),
               Row(
                 children: [
-                  Icon(Icons.military_tech_rounded, color: Colors.white, size: 20),
+                  const Icon(Icons.military_tech_rounded, color: Colors.white, size: 20),
                   const SizedBox(width: 6),
-                  Text(
-                    rankTitle,
-                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1.5),
+                  Flexible(
+                    child: Text(
+                      rankTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1.5),
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 4),
-              Text(
-                'LEVEL ${hunter.level}',
-                style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w900),
+              // FittedBox guards against overflow from very high levels or
+              // large system text scales.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'LEVEL ${hunter.level}',
+                  style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w900),
+                ),
               ),
               Text(
                 hunter.hunterName,
@@ -229,24 +264,30 @@ class _PremiumHero extends StatelessWidget {
           ),
         ),
         Positioned(
-          bottom: -46,
+          bottom: -_kProAvatarOverhang,
           child: SizedBox(
-            width: 128,
-            height: 128,
+            width: _kProRingSize,
+            height: _kProRingSize,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                AnimatedXpRing(xp: hunter.xp, level: hunter.level, size: 128, accentColor: accent),
+                AnimatedXpRing(
+                  xp: hunter.xp,
+                  level: hunter.level,
+                  size: _kProRingSize,
+                  showLabel: false,
+                  accentColor: accent,
+                ),
                 Container(
-                  width: 84,
-                  height: 84,
+                  width: _kProAvatarSize,
+                  height: _kProAvatarSize,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: HunterTheme.cardColor,
                     border: Border.all(color: accent, width: 2.5),
                   ),
                   child: avatarBytes != null
-                      ? ClipOval(child: Image.memory(avatarBytes, fit: BoxFit.cover, width: 84, height: 84))
+                      ? ClipOval(child: Image.memory(avatarBytes, fit: BoxFit.cover, width: _kProAvatarSize, height: _kProAvatarSize))
                       : Center(child: Icon(Icons.person, color: accent, size: 40)),
                 ),
               ],

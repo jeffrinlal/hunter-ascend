@@ -94,22 +94,13 @@ class _MaxDashboardLayoutState extends State<MaxDashboardLayout>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Full-width immersive hero (edge-to-edge, negative horizontal margin
-        // to counter the parent's SingleChildScrollView padding). ──
-        LayoutBuilder(
-          builder: (context, constraints) => Transform.translate(
-            offset: const Offset(-16, 0),
-            child: SizedBox(
-              width: constraints.maxWidth + 32,
-              child: _EliteHeroBanner(
-                hunter: hunter,
-                accent: accent,
-                rankTitle: _rankTitle(hunter.level),
-                particleController: _particleController,
-                onNotificationTap: widget.onNotificationTap,
-              ),
-            ),
-          ),
+        // ── Immersive hero banner (fully rounded, symmetric margins). ──
+        _EliteHeroBanner(
+          hunter: hunter,
+          accent: accent,
+          rankTitle: _rankTitle(hunter.level),
+          particleController: _particleController,
+          onNotificationTap: widget.onNotificationTap,
         ),
         const SizedBox(height: 22),
 
@@ -214,8 +205,10 @@ class _EliteHeroBanner extends StatelessWidget {
 
     return Container(
       width: double.infinity,
+      clipBehavior: Clip.antiAlias,
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -225,6 +218,10 @@ class _EliteHeroBanner extends StatelessWidget {
             HunterTheme.cardColor,
           ],
         ),
+        border: Border.all(color: accent.withOpacity(0.4), width: 1.2),
+        boxShadow: [
+          BoxShadow(color: accent.withOpacity(0.22), blurRadius: 24, spreadRadius: 1),
+        ],
       ),
       child: Stack(
         children: [
@@ -269,7 +266,7 @@ class _EliteHeroBanner extends StatelessWidget {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    AnimatedXpRing(xp: hunter.xp, level: hunter.level, size: 168, showGlow: true, accentColor: accent),
+                    AnimatedXpRing(xp: hunter.xp, level: hunter.level, size: 168, showGlow: true, showLabel: false, accentColor: accent),
                     Container(
                       width: 96,
                       height: 96,
@@ -288,7 +285,9 @@ class _EliteHeroBanner extends StatelessWidget {
               const SizedBox(height: 14),
               Text(
                 hunter.hunterName,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 6),

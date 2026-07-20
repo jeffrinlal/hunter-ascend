@@ -41,7 +41,13 @@ class EliteQuickActions extends StatelessWidget {
         child: Column(children: [
           Icon(icon, color: accent, size: 24),
           const SizedBox(height: 8),
-          Text(label, style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 1.5)),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 1.5),
+          ),
         ]),
       ),
     );

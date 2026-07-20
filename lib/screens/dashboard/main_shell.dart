@@ -292,8 +292,6 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   }
 
   Widget _themedBuild(BuildContext context) {
-    final inactive = HunterTheme.textSecondary;
-
     return Scaffold(
       backgroundColor: HunterTheme.background,
       body: FadeTransition(
@@ -303,100 +301,176 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
           child: IndexedStack(index: _index, children: _tabs),
         ),
       ),
-      bottomNavigationBar: Container(
+      bottomNavigationBar: _buildBottomNav(context),
+    );
+  }
+
+  // ── Navigation tap handling ───────────────────────────────────────────────
+  //
+  // Navigation logic is UNCHANGED — this is the exact behaviour previously in
+  // NavigationBar.onDestinationSelected, moved into a named method so the new
+  // presentation layer can call it.
+  void _onNavTap(int i) {
+    if (i == 3) {
+      _openDuels();
+      return;
+    }
+    if (i != _index) {
+      _transitionController.value = 0;
+      setState(() => _index = i);
+      _transitionController.forward();
+    }
+  }
+
+  // ── Premium floating bottom navigation (presentation only) ────────────────
+  //
+  // A rounded, floating bar that matches the app's premium design language:
+  // theme-aware surface + border, soft elevation + accent glow, and an animated
+  // gradient "pill" behind the active tab's icon. Fully theme-aware (reads
+  // HunterTheme tokens incl. primaryGradient / glowStrength) and responsive
+  // (equal Expanded cells, SafeArea-aware so it clears the home indicator and
+  // landscape notches).
+  Widget _buildBottomNav(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
-          color: HunterTheme.cardColor,
-          border: Border(
-            top: BorderSide(
-              color: HunterTheme.primary.withOpacity(0.2),
-              width: 1,
-            ),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              HunterTheme.primary.withOpacity(0.05),
+              HunterTheme.cardColor,
+            ],
           ),
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: HunterTheme.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(HunterTheme.isDark ? 0.38 : 0.10),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+            BoxShadow(
+              color: HunterTheme.primary.withOpacity(0.10 * HunterTheme.glowStrength),
+              blurRadius: 22,
+              spreadRadius: -4,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
-        child: NavigationBarTheme(
-          data: NavigationBarThemeData(
-            backgroundColor: HunterTheme.cardColor,
-            indicatorColor: HunterTheme.primary.withOpacity(0.14),
-            labelTextStyle: WidgetStateProperty.resolveWith(
-                  (states) => TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: states.contains(WidgetState.selected)
-                    ? HunterTheme.primary
-                    : inactive,
-              ),
-            ),
-            iconTheme: WidgetStateProperty.resolveWith(
-                  (states) => IconThemeData(
-                color: states.contains(WidgetState.selected)
-                    ? HunterTheme.primary
-                    : inactive,
-              ),
-            ),
-          ),
-          child: NavigationBar(
-            selectedIndex: _index,
-            height: 66,
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            onDestinationSelected: (i) {
-              if (i == 3) {
-                _openDuels();
-                return;
-              }
-              if (i != _index) {
-                _transitionController.value = 0;
-                setState(() => _index = i);
-                _transitionController.forward();
-              }
-            },
-            destinations: [
-              const NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home_filled),
-                label: 'Home',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.checklist_outlined),
-                selectedIcon: Icon(Icons.checklist),
-                label: 'Missions',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.leaderboard_outlined),
-                selectedIcon: Icon(Icons.leaderboard),
-                label: 'Leaderboard',
-              ),
-              NavigationDestination(
-                icon: StreamBuilder<QuerySnapshot>(
-                  stream: _duelRequestBadgeStream,
-                  builder: (context, snap) {
-                    final hasPending = snap.hasData && snap.data!.docs.isNotEmpty;
-                    return Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        const Icon(Icons.sports_kabaddi),
-                        if (hasPending)
-                          Positioned(
-                            right: -4,
-                            top: -4,
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
+        child: Row(
+          children: [
+            _navItem(index: 0, icon: Icons.home_outlined, selectedIcon: Icons.home_rounded, label: 'Home'),
+            _navItem(index: 1, icon: Icons.checklist_outlined, selectedIcon: Icons.checklist_rounded, label: 'Missions'),
+            _navItem(index: 2, icon: Icons.leaderboard_outlined, selectedIcon: Icons.leaderboard_rounded, label: 'Leaderboard'),
+            _navItem(index: 3, icon: Icons.sports_kabaddi_rounded, selectedIcon: Icons.sports_kabaddi_rounded, label: 'Duels', showDuelBadge: true),
+            _navItem(index: 4, icon: Icons.person_outline_rounded, selectedIcon: Icons.person_rounded, label: 'Profile'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem({
+    required int index,
+    required IconData icon,
+    required IconData selectedIcon,
+    required String label,
+    bool showDuelBadge = false,
+  }) {
+    final selected = _index == index;
+    final accent = HunterTheme.primary;
+    final iconColor = selected ? Colors.black : HunterTheme.textSecondary;
+
+    // Icon (with the unchanged duel-request badge overlay for the Duels tab).
+    Widget iconGlyph = Icon(selected ? selectedIcon : icon, size: 23, color: iconColor);
+    if (showDuelBadge) {
+      iconGlyph = StreamBuilder<QuerySnapshot>(
+        stream: _duelRequestBadgeStream,
+        builder: (context, snap) {
+          final hasPending = snap.hasData && snap.data!.docs.isNotEmpty;
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(selected ? selectedIcon : icon, size: 23, color: iconColor),
+              if (hasPending)
+                Positioned(
+                  right: -3,
+                  top: -3,
+                  child: Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: HunterTheme.danger,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: selected ? accent : HunterTheme.cardColor,
+                        width: 1.4,
+                      ),
+                    ),
+                  ),
                 ),
-                label: 'Duels',
+            ],
+          );
+        },
+      );
+    }
+
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _onNavTap(index),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Floating active pill behind the icon (animates on selection).
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                padding: EdgeInsets.symmetric(horizontal: selected ? 20 : 12, vertical: 7),
+                decoration: BoxDecoration(
+                  gradient: selected
+                      ? LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: HunterTheme.primaryGradient,
+                        )
+                      : null,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: selected
+                      ? [
+                          BoxShadow(
+                            color: accent.withOpacity(0.38 * HunterTheme.glowStrength),
+                            blurRadius: 14,
+                            spreadRadius: 0.5,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: iconGlyph,
               ),
-              const NavigationDestination(
-                icon: Icon(Icons.person_outline),
-                selectedIcon: Icon(Icons.person),
-                label: 'Profile',
+              const SizedBox(height: 5),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOut,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  color: selected ? accent : HunterTheme.textTertiary,
+                  letterSpacing: 0.2,
+                ),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ),

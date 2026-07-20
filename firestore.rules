@@ -62,6 +62,57 @@ service cloud.firestore {
 
       // ── Delete: never allowed from client ──
       allow delete: if false;
+
+      // ════════════════════════════════════════════════════════════════════
+      // RANK REWARDS SUBCOLLECTION (hunters/{hunterId}/rankRewards/{rewardId})
+      // ════════════════════════════════════════════════════════════════════
+      //
+      // Permanent, one-time-only reward grants for reaching a Hunter Rank.
+      // Stored separately from XP/level so progression fields are never
+      // overloaded with reward data.
+      //
+      // - create: the owner may grant themselves a reward ONLY ONCE — since
+      //   `create` only succeeds while the document does not yet exist, this
+      //   makes duplicate grants structurally impossible (a second attempt
+      //   for the same rewardId is evaluated as an `update`, which is denied
+      //   below), even across multiple devices/sessions racing each other.
+      // - update: never allowed — a granted reward can never be silently
+      //   revoked or altered.
+      // - delete: never allowed — rewards are permanent.
+      match /rankRewards/{rewardId} {
+        allow read: if request.auth != null && request.auth.uid == hunterId;
+        allow create: if request.auth != null && request.auth.uid == hunterId;
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // EQUIPPED REWARDS SUBCOLLECTION (hunters/{hunterId}/equippedRewards/current)
+      // ════════════════════════════════════════════════════════════════════
+      //
+      // The player's CURRENTLY SELECTED cosmetic per reward type (title,
+      // badge, border, aura, dashboard theme, report style, profile effect).
+      // This is deliberately a SEPARATE subcollection from `rankRewards`:
+      //
+      // - `rankRewards` = permanent ownership ledger. create-only, never
+      //   updated or deleted — a historical record of what was unlocked.
+      // - `equippedRewards` = mutable "currently active" selection. The owner
+      //   may freely update it any number of times as they switch cosmetics.
+      //
+      // Equipping/unequipping NEVER writes to `rankRewards`, so ownership
+      // records are never touched by a cosmetic switch. Ownership validation
+      // for what may be equipped is enforced client-side by
+      // EquippedRewardsService (checked against RankRewardService before any
+      // write); Firestore rules here only guard document ownership.
+      //
+      // - delete: not required by the app (unequip is modeled as writing
+      //   `null`/removing a single field), so left disabled for safety.
+      match /equippedRewards/{docId} {
+        allow read: if request.auth != null && request.auth.uid == hunterId;
+        allow create: if request.auth != null && request.auth.uid == hunterId;
+        allow update: if request.auth != null && request.auth.uid == hunterId;
+        allow delete: if false;
+      }
     }
 
     // ══════════════════════════════════════════════════════════════════════

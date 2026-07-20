@@ -14,6 +14,7 @@ import 'package:hunter_ascend/screens/auth/login_screen.dart';
 import 'package:hunter_ascend/services/notification_service.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/services/rank_reward_service.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/data/hive_init.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
@@ -92,6 +93,16 @@ void main() async {
 
         // Initialize Hive local cache.
         await HiveInit.initialize();
+
+        // Starts automatic, permanent Hunter Rank reward granting. Purely
+        // additive: reads the level RankService already resolves (via the
+        // hunter data HunterRepository already streams) and writes only to
+        // the separate hunters/{uid}/rankRewards subcollection — no
+        // XP/level/progression fields are touched. Existing players
+        // automatically receive every reward they already qualify for on
+        // their first data refresh after this update (no migration needed).
+        // Placed after HiveInit since it taps HunterRepository's cache.
+        RankRewardService.instance.start();
     } catch (e) {
         debugPrint("startup: $e");
     }

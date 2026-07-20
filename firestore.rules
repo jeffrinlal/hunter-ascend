@@ -5,193 +5,132 @@ service cloud.firestore {
     // ══════════════════════════════════════════════════════════════════════
     // HUNTERS COLLECTION
     // ══════════════════════════════════════════════════════════════════════
-    //
-    // Each hunter document is at: hunters/{uid}
-    //
-    // SECURITY PRINCIPLE:
-    // - Users can only read and write their own document.
-    // - Updates are restricted: each write may only touch fields relevant
-    //   to that operation.
-    // - Membership fields are writable by the owner ONLY via a dedicated
-    //   rule that limits affected keys to membership-related fields.
-    // - Gameplay fields are writable by the owner but CANNOT touch
-    //   membership fields in the same write.
-    // - Cross-user duel stat writes are temporarily allowed (deferred item).
-    // ══════════════════════════════════════════════════════════════════════
-
-    match /hunters/{hunterId} {
-
-      // ── Read: only the document owner ──
-      allow read: if request.auth != null && request.auth.uid == hunterId;
-
-      // ── Create: only the document owner ──
+    match /hunters/{userId} {
+      allow read: if request.auth != null;
       allow create: if request.auth != null
-                    && request.auth.uid == hunterId;
-
-      // ── Update: restricted by field sets ──
+                    && request.auth.uid == userId;
       allow update: if request.auth != null
-                    && (
-                      // ── Own document: gameplay fields ──
-                      // Allows updating any field EXCEPT membership fields.
-                      (request.auth.uid == hunterId
-                       && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-                         'membershipType',
-                         'membershipExpiry',
-                         'pendingMaxRewardAds',
-                         'pendingMaxRewardStartedAt',
-                         'lastRewardClaim'
-                       ]))
-                      ||
-                      // ── Own document: membership reward claim ──
-                      // Allows updating ONLY membership-related fields.
-                      (request.auth.uid == hunterId
-                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-                         'membershipType',
-                         'membershipExpiry',
-                         'pendingMaxRewardAds',
-                         'pendingMaxRewardStartedAt',
-                         'lastRewardClaim'
-                       ]))
-                      ||
-                      // ── Cross-user: duel stats only (temporary) ──
-                      (request.auth.uid != hunterId
-                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-                         'duelWins', 'duelLosses'
-                       ]))
-                    );
+                    && request.auth.uid == userId;
+      // Required by anonymous logout: the guest user deletes their own
+      // hunter document before deleting the auth account.
+      allow delete: if request.auth != null
+                    && request.auth.uid == userId;
 
-      // ── Delete: never allowed from client ──
-      allow delete: if false;
-
-      // ════════════════════════════════════════════════════════════════════
-      // RANK REWARDS SUBCOLLECTION (hunters/{hunterId}/rankRewards/{rewardId})
-      // ════════════════════════════════════════════════════════════════════
-      //
-      // Permanent, one-time-only reward grants for reaching a Hunter Rank.
-      // Stored separately from XP/level so progression fields are never
-      // overloaded with reward data.
-      //
-      // - create: the owner may grant themselves a reward ONLY ONCE — since
-      //   `create` only succeeds while the document does not yet exist, this
-      //   makes duplicate grants structurally impossible (a second attempt
-      //   for the same rewardId is evaluated as an `update`, which is denied
-      //   below), even across multiple devices/sessions racing each other.
-      // - update: never allowed — a granted reward can never be silently
-      //   revoked or altered.
-      // - delete: never allowed — rewards are permanent.
+      // ── Rank Rewards (permanent, one-time-only grants) ──
+      // create-only: a second create for the same rewardId is structurally
+      // rejected (doc already exists → evaluated as update → denied).
       match /rankRewards/{rewardId} {
-        allow read: if request.auth != null && request.auth.uid == hunterId;
-        allow create: if request.auth != null && request.auth.uid == hunterId;
+        allow read: if request.auth != null;
+        allow create: if request.auth != null && request.auth.uid == userId;
         allow update: if false;
         allow delete: if false;
       }
 
-      // ════════════════════════════════════════════════════════════════════
-      // UNLOCKED ACHIEVEMENTS SUBCOLLECTION
-      // (hunters/{hunterId}/unlockedAchievements/{achievementId})
-      // ════════════════════════════════════════════════════════════════════
-      //
-      // Permanent record that an achievement's condition was met, plus a
-      // one-time XP-award flag — the same permanence pattern as
-      // `rankRewards`, but with one extra allowed transition to support a
-      // safe two-step claim (unlock, then award XP):
-      //
-      // - create: the owner may claim an achievement ONLY ONCE (the doc ID
-      //   is the achievement ID, so a second attempt is an `update`, denied
-      //   below except for the one narrow xpAwarded transition). Structurally
-      //   duplicate-proof across devices/sessions, exactly like `rankRewards`.
-      // - update: allowed ONLY to flip `xpAwarded` from false to true, and
-      //   ONLY that single field — this lets the client recover from a crash
-      //   or network failure between "claim recorded" and "XP granted"
-      //   without ever allowing the flag to be unset again or any other
-      //   field to change after creation.
-      // - delete: allowed ONLY while `xpAwarded` is still false — this is a
-      //   compensating rollback for the rare case where the XP transaction
-      //   itself fails after the claim was written, mirroring the existing
-      //   duel-XP flag rollback pattern (`duel_screen.dart`). Once XP has
-      //   been awarded, the record becomes fully permanent (no delete).
+      // ── Unlocked Achievements (permanent claims + XP-award flag) ──
+      // create: claim an achievement once.
+      // update: ONLY flip xpAwarded false→true (crash recovery).
+      // delete: ONLY while xpAwarded is still false (rollback on XP failure).
       match /unlockedAchievements/{achievementId} {
-        allow read: if request.auth != null && request.auth.uid == hunterId;
-        allow create: if request.auth != null && request.auth.uid == hunterId;
+        allow read: if request.auth != null;
+        allow create: if request.auth != null && request.auth.uid == userId;
         allow update: if request.auth != null
-                      && request.auth.uid == hunterId
+                      && request.auth.uid == userId
                       && resource.data.xpAwarded == false
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['xpAwarded'])
                       && request.resource.data.xpAwarded == true;
         allow delete: if request.auth != null
-                      && request.auth.uid == hunterId
+                      && request.auth.uid == userId
                       && resource.data.xpAwarded == false;
       }
 
-      // ════════════════════════════════════════════════════════════════════
-      // EQUIPPED REWARDS SUBCOLLECTION (hunters/{hunterId}/equippedRewards/current)
-      // ════════════════════════════════════════════════════════════════════
-      //
-      // The player's CURRENTLY SELECTED cosmetic per reward type (title,
-      // badge, border, aura, dashboard theme, report style, profile effect).
-      // This is deliberately a SEPARATE subcollection from `rankRewards`:
-      //
-      // - `rankRewards` = permanent ownership ledger. create-only, never
-      //   updated or deleted — a historical record of what was unlocked.
-      // - `equippedRewards` = mutable "currently active" selection. The owner
-      //   may freely update it any number of times as they switch cosmetics.
-      //
-      // Equipping/unequipping NEVER writes to `rankRewards`, so ownership
-      // records are never touched by a cosmetic switch. Ownership validation
-      // for what may be equipped is enforced client-side by
-      // EquippedRewardsService (checked against RankRewardService before any
-      // write); Firestore rules here only guard document ownership.
-      //
-      // - delete: not required by the app (unequip is modeled as writing
-      //   `null`/removing a single field), so left disabled for safety.
+      // ── Equipped Rewards (mutable cosmetic selection) ──
       match /equippedRewards/{docId} {
-        allow read: if request.auth != null && request.auth.uid == hunterId;
-        allow create: if request.auth != null && request.auth.uid == hunterId;
-        allow update: if request.auth != null && request.auth.uid == hunterId;
+        allow read: if request.auth != null;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update: if request.auth != null && request.auth.uid == userId;
         allow delete: if false;
       }
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // HUNTER NAMES COLLECTION (hunterNames/{nameKey})
+    // HUNTER NAMES
     // ══════════════════════════════════════════════════════════════════════
-    //
-    // Case-insensitive uniqueness reservation for hunter names. Doc ID is
-    // the lowercased name itself, so only one create can ever succeed for a
-    // given name — this is what makes name uniqueness race-free.
-    //
-    // - read: any authenticated user, so the assessment flow can determine
-    //   whether a name is available/owned BEFORE attempting to claim it
-    //   (including re-checking their OWN prior reservation after being
-    //   bounced back from Path Selection to correct other assessment data —
-    //   see AssessmentScreen's uid-ownership check).
-    // - create: only as your own reservation (uid must match the caller).
-    // - update/delete: never allowed — once claimed, a name reservation is
-    //   permanent (mirrors the rankRewards permanence pattern above).
-    match /hunterNames/{nameKey} {
+    match /hunterNames/{name} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
                     && request.resource.data.uid == request.auth.uid;
-      allow update: if false;
+      allow update, delete: if false;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // DUEL REQUESTS
+    // ══════════════════════════════════════════════════════════════════════
+    match /duel_requests/{requestId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.fromUid == request.auth.uid;
+      allow update: if request.auth != null
+                    && resource.data.toUid == request.auth.uid;
       allow delete: if false;
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // SUBSCRIPTIONS COLLECTION (legacy — locked)
+    // DUELS
     // ══════════════════════════════════════════════════════════════════════
-    match /subscriptions/{docId} {
-      allow read: if false;
+    match /duels/{duelId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // CUSTOM QUESTS
+    // ══════════════════════════════════════════════════════════════════════
+    match /custom_quests/{questId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null
+                            && resource.data.uid == request.auth.uid;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // WEIGHT HISTORY
+    // ══════════════════════════════════════════════════════════════════════
+    match /weight_history/{historyId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // RUNS
+    // ══════════════════════════════════════════════════════════════════════
+    match /runs/{runId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null
+                            && resource.data.uid == request.auth.uid;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // CALORIE LOGS
+    // ══════════════════════════════════════════════════════════════════════
+    match /calorie_logs/{logId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // APP CONFIG (read-only)
+    // ══════════════════════════════════════════════════════════════════════
+    match /app_config/{docId} {
+      allow read: if request.auth != null;
       allow write: if false;
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // DUELS COLLECTION
+    // SETTINGS (read-only)
     // ══════════════════════════════════════════════════════════════════════
-    match /duels/{duelId} {
+    match /settings/{document} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if false;
+      allow write: if false;
     }
 
     // ══════════════════════════════════════════════════════════════════════

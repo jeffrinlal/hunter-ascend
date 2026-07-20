@@ -57,6 +57,20 @@ class _MapScreenState extends State<MapScreen> {
   double _distanceKm = 0;
   int _selectedTab = 0; // 0 = map, 1 = history
 
+  // ── GPS health / watchdog ─────────────────────────────────
+  // Root-cause fix: distance/speed/calories/XP all derive exclusively from
+  // _distanceKm, which is only ever updated inside the position-stream
+  // listener below. If that stream stalls (weak signal, indoor start,
+  // provider throttling) every one of those stats silently freezes while
+  // the independent elapsed-time Timer keeps ticking — exactly the reported
+  // bug. These fields let the UI detect and surface that condition instead
+  // of failing silently.
+  Timer? _gpsWatchdogTimer;
+  DateTime? _lastPositionAt;
+  bool _isAcquiringGps = false;
+  bool _gpsSignalWeak = false;
+  static const Duration _gpsStaleThreshold = Duration(seconds: 15);
+
   // ── Banner Ad ────────────────────────────────────────────
   BannerAd? _bannerAd;
   bool _isBannerLoaded = false;
@@ -98,6 +112,8 @@ class _MapScreenState extends State<MapScreen> {
     _positionStream = null;
     _timer?.cancel();
     _timer = null;
+    _gpsWatchdogTimer?.cancel();
+    _gpsWatchdogTimer = null;
     _bannerAd?.dispose();
     super.dispose();
   }
@@ -164,8 +180,14 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   // ── Tracking ─────────────────────────────────────────────
+  //
+  // TEMP DEBUG LOGGING (remove before release): every debugPrint tagged
+  // '[RunTrack]' below instruments one stage of the Start Run -> Finish Run
+  // pipeline per the requested audit. They are purely additive (no behavior
+  // change) and safe to strip once the fix is confirmed on a real device.
   Future<void> _startTracking() async {
     if (_isTracking) return;
+    debugPrint('[RunTrack] STAGE 1: Start Run pressed.');
 
     // Re-verify location permission and services immediately before tracking.
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -185,6 +207,9 @@ class _MapScreenState extends State<MapScreen> {
       _routePoints = [];
       _elapsedSeconds = 0;
       _distanceKm = 0;
+      _isAcquiringGps = true;
+      _gpsSignalWeak = false;
+      _lastPositionAt = null;
     });
 
     // Timer
@@ -193,38 +218,115 @@ class _MapScreenState extends State<MapScreen> {
       if (!_isPaused) setState(() => _elapsedSeconds++);
     });
 
-    // GPS Stream
+    // GPS watchdog — this is the diagnostic counterpart to the root-cause
+    // fix. It does NOT change how distance is computed; it only detects
+    // when the position stream has stopped delivering fixes (the exact
+    // failure mode that previously froze distance/speed/calories/XP with
+    // no visible explanation) and surfaces that to the user instead of
+    // letting the run silently record nothing.
+    _gpsWatchdogTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted || !_isTracking || _isPaused) return;
+      final last = _lastPositionAt;
+      final stale = last == null || DateTime.now().difference(last) > _gpsStaleThreshold;
+      if (stale != _gpsSignalWeak) {
+        setState(() => _gpsSignalWeak = stale);
+      }
+    });
+
+    // GPS Stream — use platform-tuned settings so Android's fused location
+    // provider is explicitly told how often to request fixes (rather than
+    // relying on undocumented OS defaults, which can throttle updates for
+    // extended periods and was the root cause of positions never arriving).
+    final locationSettings = Platform.isAndroid
+        ? AndroidSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 5,
+            intervalDuration: const Duration(seconds: 2),
+            forceLocationManager: false,
+          )
+        : Platform.isIOS
+            ? AppleSettings(
+                accuracy: LocationAccuracy.high,
+                distanceFilter: 5,
+                activityType: ActivityType.fitness,
+              )
+            : const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 5);
+
+    debugPrint('[RunTrack] STAGE 2: Subscribing to position stream. settings=$locationSettings');
+
     _positionStream = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 5),
+      locationSettings: locationSettings,
     ).listen(
           (position) {
+        // TEMP DEBUG LOGGING — every raw Position the stream delivers.
+        debugPrint('[RunTrack] STAGE 3: Position received — '
+            'lat=${position.latitude}, lng=${position.longitude}, '
+            'accuracy=${position.accuracy}m, timestamp=${position.timestamp}');
+
+        // Reject positions with poor accuracy (large GPS error radius) so a
+        // noisy/low-quality fix can't be recorded as real movement — but
+        // still count it as "a fix was received" for watchdog purposes so
+        // the UI doesn't report "no signal" while fixes are in fact arriving.
+        _lastPositionAt = DateTime.now();
+        const maxAcceptableAccuracyMeters = 30.0;
+        final hasUsableAccuracy = !position.accuracy.isNaN && position.accuracy <= maxAcceptableAccuracyMeters;
+
         final newPoint = LatLng(position.latitude, position.longitude);
 
-        if (_routePoints.isNotEmpty && !_isPaused) {
+        double? addedDistance;
+        String filterReason = 'accepted';
+        if (!hasUsableAccuracy) {
+          filterReason = 'filtered out — accuracy ${position.accuracy}m exceeds ${maxAcceptableAccuracyMeters}m threshold';
+        } else if (_isPaused) {
+          filterReason = 'filtered out — run is paused';
+        } else if (_routePoints.isEmpty) {
+          filterReason = 'accepted (first point — no prior point to measure distance from)';
+        } else {
           final lastPoint = _routePoints.last;
           final distance = const Distance().as(LengthUnit.Kilometer, lastPoint, newPoint);
           // Ignore unrealistic GPS jumps so a sudden spike can't inflate distance.
           if (distance > 0 && distance < 0.1) {
-            setState(() => _distanceKm += distance);
+            addedDistance = distance;
+            filterReason = 'accepted — +${distance.toStringAsFixed(5)} km';
+          } else {
+            filterReason = 'filtered out — implausible jump (${distance.toStringAsFixed(5)} km between points)';
           }
         }
+        // TEMP DEBUG LOGGING — accept/reject decision for this position.
+        debugPrint('[RunTrack] STAGE 4: Position $filterReason');
+        // TEMP DEBUG LOGGING — distance contributed by this position (if any).
+        debugPrint('[RunTrack] STAGE 5: Distance added from this point = ${addedDistance ?? 0} km');
 
         setState(() {
+          _isAcquiringGps = false;
+          _gpsSignalWeak = false;
           _currentPosition = newPoint;
-          if (!_isPaused) _routePoints.add(newPoint);
+          if (addedDistance != null) _distanceKm += addedDistance;
+          if (hasUsableAccuracy && !_isPaused) _routePoints.add(newPoint);
         });
+
+        // TEMP DEBUG LOGGING — running total after this update.
+        debugPrint('[RunTrack] STAGE 6: Total distance after update = $_distanceKm km '
+            '(routePoints=${_routePoints.length})');
+        // TEMP DEBUG LOGGING — confirms setState (UI refresh) ran for this update.
+        debugPrint('[RunTrack] STAGE 7: UI refreshed via setState — '
+            'currentPosition=$_currentPosition, distanceKm=$_distanceKm, speedKmh=$_speedKmh, '
+            'calories=$_caloriesBurned, xp=$_xpEarned');
 
         try {
           _mapController.move(newPoint, _mapController.camera.zoom);
         } catch (_) {}
       },
       onError: (error) {
+        debugPrint('[RunTrack] Position stream onError fired: $error');
         debugPrint("GPS stream error: $error");
         // Stop tracking safely on stream error (e.g., permission revoked mid-run).
         _positionStream?.cancel();
         _positionStream = null;
         _timer?.cancel();
         _timer = null;
+        _gpsWatchdogTimer?.cancel();
+        _gpsWatchdogTimer = null;
         if (mounted) {
           setState(() {
             _isTracking = false;
@@ -247,10 +349,35 @@ class _MapScreenState extends State<MapScreen> {
     _positionStream = null;
     _timer?.cancel();
     _timer = null;
+    _gpsWatchdogTimer?.cancel();
+    _gpsWatchdogTimer = null;
+
+    // TEMP DEBUG LOGGING — STAGE 8: full snapshot at Finish Run.
+    debugPrint('[RunTrack] STAGE 8: Finish Run — '
+        'elapsedSeconds=$_elapsedSeconds, distanceKm=$_distanceKm, '
+        'speedKmh=$_speedKmh, calories=$_caloriesBurned, xp=$_xpEarned, '
+        'routePoints=${_routePoints.length}');
 
     if (_distanceKm < 0.01) {
-      setState(() { _isTracking = false; _isPaused = false; });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Too short to save! Keep running 🏃")));
+      // TEMP DEBUG LOGGING — exact reason "Run too short" is triggered.
+      debugPrint('[RunTrack] STAGE 8: "Run too short" triggered — '
+          'distanceKm=$_distanceKm is below the 0.01 km threshold '
+          '(routePoints=${_routePoints.length})');
+      setState(() {
+        _isTracking = false;
+        _isPaused = false;
+        _isAcquiringGps = false;
+        _gpsSignalWeak = false;
+      });
+      // Distinguish "you didn't move" from "GPS never produced a usable fix"
+      // so a stalled GPS stream is no longer misreported as a short run —
+      // this is diagnostic only; the actual fix is the tuned platform
+      // location settings + accuracy filtering above, which makes this
+      // branch far less likely to trigger for genuine runs.
+      final message = _routePoints.length < 2
+          ? "No GPS movement was recorded. Check your location signal and try again 📡"
+          : "Too short to save! Keep running 🏃";
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       return;
     }
 
@@ -805,6 +932,28 @@ class _MapScreenState extends State<MapScreen> {
           ],
         ),
       ),
+
+      // GPS status banner — surfaces the exact failure mode from the root-
+      // cause analysis (position stream stalled/no fix yet) instead of
+      // letting distance/speed/calories/XP freeze with no explanation.
+      if (_isTracking && (_isAcquiringGps || _gpsSignalWeak))
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
+          color: HunterTheme.gold.withOpacity(0.14),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            SizedBox(
+              width: 13,
+              height: 13,
+              child: CircularProgressIndicator(strokeWidth: 2, color: HunterTheme.gold),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              _isAcquiringGps ? "Acquiring GPS signal..." : "Weak GPS signal — distance may pause",
+              style: TextStyle(color: HunterTheme.gold, fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ]),
+        ),
 
       // Live stats bar
       if (_isTracking)

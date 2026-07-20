@@ -27,39 +27,69 @@ class SettingsScreen extends StatelessWidget {
 
       if (user == null) return;
 
-      // Cancel services that listen to HunterRepository's stream FIRST,
-      // before stopping the repository itself — this prevents a race where
-      // the repository's final stream emission triggers an evaluate()/
-      // syncForLevel() call whose Firestore write arrives at the server
-      // after signOut() has already invalidated the auth token (causing
-      // PERMISSION_DENIED on hunters/{uid}).
-      AchievementsService.instance.clearCache();
-      RankRewardService.instance.clearCache();
-      EquippedRewardsService.instance.clearCache();
+      debugPrint('[Logout] START — uid=${user.uid}, isAnonymous=${user.isAnonymous}');
 
-      // Now safe to tear down the repository (no active consumers remain).
+      debugPrint('[Logout] 1/9 AchievementsService.clearCache() — before');
+      AchievementsService.instance.clearCache();
+      debugPrint('[Logout] 1/9 AchievementsService.clearCache() — after');
+
+      debugPrint('[Logout] 2/9 RankRewardService.clearCache() — before');
+      RankRewardService.instance.clearCache();
+      debugPrint('[Logout] 2/9 RankRewardService.clearCache() — after');
+
+      debugPrint('[Logout] 3/9 EquippedRewardsService.clearCache() — before');
+      EquippedRewardsService.instance.clearCache();
+      debugPrint('[Logout] 3/9 EquippedRewardsService.clearCache() — after');
+
+      debugPrint('[Logout] 4/9 MembershipService.clearCache() — before');
       MembershipService.instance.clearCache();
+      debugPrint('[Logout] 4/9 MembershipService.clearCache() — after');
+
+      debugPrint('[Logout] 5a/9 HunterRepository.clearCache() — before');
       await HunterRepository.instance.clearCache();
+      debugPrint('[Logout] 5a/9 HunterRepository.clearCache() — after');
+
+      debugPrint('[Logout] 5b/9 WeightRepository.clearCache() — before');
       await WeightRepository.instance.clearCache();
+      debugPrint('[Logout] 5b/9 WeightRepository.clearCache() — after');
+
+      debugPrint('[Logout] 5c/9 QuestRepository.clearCache() — before');
       await QuestRepository.instance.clearCache();
+      debugPrint('[Logout] 5c/9 QuestRepository.clearCache() — after');
+
+      debugPrint('[Logout] 5d/9 LeaderboardRepository.clearCache() — before');
       await LeaderboardRepository.instance.clearCache();
+      debugPrint('[Logout] 5d/9 LeaderboardRepository.clearCache() — after');
+
+      debugPrint('[Logout] 6/9 SleepService.cancelSleep() — before');
       await SleepService.instance.cancelSleep();
+      debugPrint('[Logout] 6/9 SleepService.cancelSleep() — after');
 
       if (user.isAnonymous) {
-        // Delete Firestore data first (while auth token is still valid),
-        // then delete the anonymous Firebase Auth account.
+        debugPrint('[Logout] 7/9 Anonymous path — deleting hunters/${user.uid}');
+        debugPrint('[Logout] 7/9 currentUser before delete: ${FirebaseAuth.instance.currentUser?.uid}');
         await FirebaseFirestore.instance
             .collection('hunters')
             .doc(user.uid)
             .delete();
+        debugPrint('[Logout] 7/9 hunters doc delete — SUCCESS');
 
+        debugPrint('[Logout] 8/9 user.delete() — before');
         await user.delete();
-        // user.delete() also signs out automatically
+        debugPrint('[Logout] 8/9 user.delete() — after (also signs out)');
       } else {
-        // Google user — sign out from Google + Firebase
+        debugPrint('[Logout] 7/9 Google path — signing out');
+        debugPrint('[Logout] 7/9 currentUser before signOut: ${FirebaseAuth.instance.currentUser?.uid}');
         await GoogleSignIn().signOut();
+        debugPrint('[Logout] 7/9 GoogleSignIn().signOut() — after');
+
+        debugPrint('[Logout] 8/9 FirebaseAuth.signOut() — before');
+        debugPrint('[Logout] 8/9 currentUser before FirebaseAuth.signOut: ${FirebaseAuth.instance.currentUser?.uid}');
         await FirebaseAuth.instance.signOut();
+        debugPrint('[Logout] 8/9 FirebaseAuth.signOut() — after');
       }
+
+      debugPrint('[Logout] 9/9 Navigate to LoginScreen');
 
       // Navigate to login and clear all routes
       if (context.mounted) {
@@ -68,8 +98,12 @@ class SettingsScreen extends StatelessWidget {
               (route) => false,
         );
       }
-    } catch (e) {
-      debugPrint('Logout error: $e');
+
+      debugPrint('[Logout] COMPLETE — no errors');
+    } catch (e, stackTrace) {
+      debugPrint('[Logout] EXCEPTION: $e');
+      debugPrint('[Logout] STACK TRACE:\n$stackTrace');
+      debugPrint('[Logout] currentUser at exception time: ${FirebaseAuth.instance.currentUser?.uid}');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

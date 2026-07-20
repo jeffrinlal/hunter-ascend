@@ -5,11 +5,13 @@ import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 ///
 /// Purely presentational — receives the same water state and the exact same
 /// callbacks (`onAdd`, `onRemove`, `onSetCupSize`, `onEditGoal`) that already
-/// drive Firestore writes in the parent screen. Rendered as a neon
-/// capsule-shaped liquid bar with a glowing border, distinct from both the
-/// Basic dashboard's linear bar + drop icons and the Pro dashboard's
-/// circular gauge. No Firestore reads/writes happen in this widget.
-class EliteWaterCard extends StatelessWidget {
+/// drive Firestore writes in the parent screen.
+///
+/// Styled to match the rest of the Max "elite" design language: a gradient
+/// fill, a pulsing neon glow border (same treatment as [EliteMissionCard]),
+/// a glowing capsule liquid bar, gradient-filled +/- controls, and premium
+/// cup-size chips. No Firestore reads/writes happen in this widget.
+class EliteWaterCard extends StatefulWidget {
   final int waterIntakeMl;
   final int waterGoalMl;
   final int selectedCupSize;
@@ -30,86 +32,146 @@ class EliteWaterCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final progress = (waterIntakeMl / waterGoalMl).clamp(0.0, 1.0);
-    const accent = Colors.cyanAccent;
+  State<EliteWaterCard> createState() => _EliteWaterCardState();
+}
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        color: HunterTheme.cardColor,
-        border: Border.all(color: accent.withOpacity(0.45), width: 1.4),
-        boxShadow: [BoxShadow(color: accent.withOpacity(0.18), blurRadius: 22, spreadRadius: 1)],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Text('ELITE HYDRATION', style: TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 2)),
-            const Spacer(),
-            Text('${(progress * 100).toInt()}%', style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.w800)),
-            const SizedBox(width: 8),
-            GestureDetector(onTap: onEditGoal, child: const Icon(Icons.edit, size: 15, color: accent)),
-          ]),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(30),
-            child: Stack(children: [
-              Container(height: 22, color: HunterTheme.border),
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: progress),
-                duration: const Duration(milliseconds: 800),
-                builder: (context, value, _) => FractionallySizedBox(
-                  widthFactor: value,
-                  child: Container(
-                    height: 22,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: [accent.withOpacity(0.5), accent]),
-                    ),
-                  ),
-                ),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('$waterIntakeMl / $waterGoalMl ml', style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-              Row(children: [
-                _circleBtn(Icons.remove, onRemove),
-                const SizedBox(width: 8),
-                _circleBtn(Icons.add, onAdd),
-              ]),
+class _EliteWaterCardState extends State<EliteWaterCard> with SingleTickerProviderStateMixin {
+  static const Color _accent = Colors.cyanAccent;
+  static const List<int> _cupSizes = [150, 250, 350, 500];
+
+  late final AnimationController _glow = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 2),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _glow.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = (widget.waterIntakeMl / widget.waterGoalMl).clamp(0.0, 1.0);
+
+    return AnimatedBuilder(
+      animation: _glow,
+      builder: (context, _) {
+        final glow = _glow.value;
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [_accent.withOpacity(0.12), HunterTheme.cardColor],
+            ),
+            border: Border.all(color: _accent.withOpacity(0.45 + glow * 0.3), width: 1.5),
+            boxShadow: [
+              BoxShadow(color: _accent.withOpacity(0.14 + glow * 0.18), blurRadius: 26, spreadRadius: 1),
             ],
           ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [150, 250, 350, 500].map((size) {
-              final selected = selectedCupSize == size;
-              return GestureDetector(
-                onTap: () => onSetCupSize(size),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: selected ? accent.withOpacity(0.9) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: accent.withOpacity(0.7)),
-                  ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const Icon(Icons.water_drop_rounded, color: _accent, size: 16),
+                const SizedBox(width: 6),
+                const Flexible(
                   child: Text(
-                    '${size}ml',
-                    style: TextStyle(color: selected ? Colors.black : accent, fontWeight: FontWeight.w700, fontSize: 12),
+                    'ELITE HYDRATION',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: _accent, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 2),
                   ),
                 ),
-              );
-            }).toList(),
+                const Spacer(),
+                Text('${(progress * 100).toInt()}%', style: TextStyle(color: HunterTheme.textPrimary, fontSize: 12, fontWeight: FontWeight.w800)),
+                const SizedBox(width: 10),
+                GestureDetector(onTap: widget.onEditGoal, child: const Icon(Icons.edit, size: 15, color: _accent)),
+              ]),
+              const SizedBox(height: 16),
+              // Glowing capsule liquid bar.
+              ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: Stack(children: [
+                  Container(height: 22, color: HunterTheme.border),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: progress),
+                    duration: const Duration(milliseconds: 800),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, _) => FractionallySizedBox(
+                      widthFactor: value,
+                      child: Container(
+                        height: 22,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [_accent.withOpacity(0.55), _accent]),
+                          boxShadow: [BoxShadow(color: _accent.withOpacity(0.4 + glow * 0.2), blurRadius: 10)],
+                        ),
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Text(
+                      '${widget.waterIntakeMl} / ${widget.waterGoalMl} ml',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    _circleBtn(Icons.remove, widget.onRemove),
+                    const SizedBox(width: 10),
+                    _circleBtn(Icons.add, widget.onAdd),
+                  ]),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _cupSizes.map((size) {
+                  final selected = widget.selectedCupSize == size;
+                  return GestureDetector(
+                    onTap: () => widget.onSetCupSize(size),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: selected
+                            ? const LinearGradient(colors: [_accent, Color(0xFF4DD0E1)])
+                            : null,
+                        color: selected ? null : _accent.withOpacity(0.08),
+                        border: Border.all(color: _accent.withOpacity(selected ? 0.9 : 0.4)),
+                        boxShadow: selected
+                            ? [BoxShadow(color: _accent.withOpacity(0.4), blurRadius: 10, spreadRadius: 1)]
+                            : null,
+                      ),
+                      child: Text(
+                        '${size}ml',
+                        style: TextStyle(
+                          color: selected ? Colors.black : _accent,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -117,14 +179,18 @@ class EliteWaterCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 30,
-        height: 30,
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.cyanAccent),
-          boxShadow: [BoxShadow(color: Colors.cyanAccent.withOpacity(0.35), blurRadius: 6)],
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [_accent, Color(0xFF4DD0E1)],
+          ),
+          boxShadow: [BoxShadow(color: _accent.withOpacity(0.5), blurRadius: 10)],
         ),
-        child: Icon(icon, color: Colors.cyanAccent, size: 16),
+        child: const Icon(icon, color: Colors.black, size: 18),
       ),
     );
   }

@@ -10,6 +10,15 @@ import 'package:hunter_ascend/widgets/dashboard/dashboard_stats_grid.dart';
 /// variant) and Max dashboard (neon [elite] variant) to give stats a
 /// structurally different presentation than the Basic screen, and different
 /// from each other via the [elite] flag.
+///
+/// ## Layout / overflow safety
+/// The row is **content-driven**: it uses a horizontal [SingleChildScrollView]
+/// + [IntrinsicHeight] so each chip determines its own height and all chips
+/// share the tallest one. It deliberately does NOT wrap the chips in a
+/// fixed-height [SizedBox] + horizontal [ListView], because that forces a
+/// tight height onto each chip and squeezes its inner [Column] — which
+/// overflowed by a few pixels whenever the font's line-height or the system
+/// text scale pushed the content just past the computed height.
 class DashboardStatChipRow extends StatelessWidget {
   final List<DashboardStat> stats;
   final bool elite;
@@ -18,16 +27,19 @@ class DashboardStatChipRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
-    final rowHeight = (96 * textScale).clamp(96.0, 130.0);
-    return SizedBox(
-      height: rowHeight,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: stats.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, i) => _StatChip(stat: stats[i], elite: elite),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (int i = 0; i < stats.length; i++) ...[
+              if (i > 0) const SizedBox(width: 12),
+              _StatChip(stat: stats[i], elite: elite),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -63,9 +75,11 @@ class _StatChip extends StatelessWidget {
           ),
         ],
       ),
+      // mainAxisSize.min so the chip hugs its content; IntrinsicHeight in the
+      // parent then makes every chip match the tallest one.
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(6),
@@ -75,6 +89,8 @@ class _StatChip extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             stat.value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(color: HunterTheme.textPrimary, fontSize: 17, fontWeight: FontWeight.w800),
           ),
           Text(

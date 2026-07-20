@@ -51,10 +51,23 @@ class RankRewardService {
   /// Reward IDs already owned by the currently-loaded user (permanent).
   final Set<String> _ownedRewardIds = {};
 
+  /// Reward id -> the `grantedAt` timestamp read back from Firestore, for the
+  /// currently-loaded user. Populated purely from the existing `grantedAt`
+  /// field already written by [_grantReward] — no new Firestore field, no
+  /// change to what is stored or how granting works. Used by
+  /// [grantedAtFor] so reward-inventory UI can show "unlocked on ...".
+  final Map<String, DateTime> _grantedAt = {};
+
   bool _loaded = false;
   String? _loadedForUid;
   int _lastSyncedLevel = -1;
   bool _syncing = false;
+
+  /// The in-flight ownership load, if any — lets concurrent callers (e.g.
+  /// multiple widgets calling `ensureLoadedForCurrentUser`/`syncForLevel` on
+  /// the same frame) await the SAME Firestore read instead of each issuing
+  /// their own redundant `.get()`.
+  Future<void>? _loadingFuture;
 
   bool _authListenerBound = false;
   StreamSubscription<User?>? _authSub;
@@ -92,9 +105,15 @@ class RankRewardService {
     _hunterSub = null;
     _boundUid = null;
     _ownedRewardIds.clear();
+    _grantedAt.clear();
     _loaded = false;
     _loadedForUid = null;
     _lastSyncedLevel = -1;
+    // _loadingFuture is intentionally left as-is: an in-flight load for the
+    // PREVIOUS user may still resolve after this call. `_ensureLoadedForUid`
+    // re-checks `_loadedForUid == uid` after awaiting it, so a stale
+    // in-flight future can never leak another user's ownership into the new
+    // session — it just costs, at worst, one harmless extra read.
   }
 
   void _bindHunterStream(String uid) {
@@ -130,6 +149,12 @@ class RankRewardService {
   List<RankReward> rewardsForTier(int tier) =>
       kRankRewards.where((r) => r.rankTier == tier).toList();
 
+  /// When [rewardId] was first granted to the current user, or `null` if it
+  /// isn't owned (or the grant timestamp hasn't loaded yet). Read purely from
+  /// the existing `grantedAt` field already written by [_grantReward] — this
+  /// does not add any new Firestore field or alter granting rules.
+  DateTime? grantedAtFor(String rewardId) => _grantedAt[rewardId];
+
   // ── Core: sync + grant ──────────────────────────────────────────────────
 
   /// Grants every reward the hunter qualifies for at [level] that they don't
@@ -163,11 +188,29 @@ class RankRewardService {
   }
 
   /// Loads the set of reward IDs already owned by [uid], once per user. A
-  /// one-time Firestore `.get()` — not a live listener.
+  /// one-time Firestore `.get()` — not a live listener. Safe to call
+  /// concurrently: overlapping callers await the SAME in-flight read instead
+  /// of each issuing their own.
   Future<void> _ensureLoadedForUid(String uid) async {
     if (_loaded && _loadedForUid == uid) return;
 
+    if (_loadingFuture != null) {
+      await _loadingFuture;
+      if (_loaded && _loadedForUid == uid) return;
+    }
+
+    final future = _loadFor(uid);
+    _loadingFuture = future;
+    try {
+      await future;
+    } finally {
+      _loadingFuture = null;
+    }
+  }
+
+  Future<void> _loadFor(String uid) async {
     _ownedRewardIds.clear();
+    _grantedAt.clear();
     try {
       final snap = await FirebaseFirestore.instance
           .collection('hunters')
@@ -176,6 +219,10 @@ class RankRewardService {
           .get();
       for (final doc in snap.docs) {
         _ownedRewardIds.add(doc.id);
+        // Read back the EXISTING grantedAt field (already written by
+        // _grantReward) purely for display — never used to gate ownership.
+        final ts = doc.data()['grantedAt'];
+        if (ts is Timestamp) _grantedAt[doc.id] = ts.toDate();
       }
     } catch (e) {
       debugPrint('RankRewardService load: $e');
@@ -208,6 +255,11 @@ class RankRewardService {
         'grantedAt': FieldValue.serverTimestamp(),
       });
       _ownedRewardIds.add(reward.id);
+      // Record a local timestamp immediately so UI reading grantedAtFor()
+      // right after a fresh grant shows a sensible date without waiting for
+      // a full reload; a later _loadFor() will overwrite this with the exact
+      // server timestamp once read back.
+      _grantedAt[reward.id] = DateTime.now();
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
         // The rules rejected this as an "update" — meaning the reward was

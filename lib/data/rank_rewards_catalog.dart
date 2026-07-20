@@ -326,3 +326,19 @@ bool debugRankRewardsCatalogIsValid() {
   final maxTier = RankService.ranks.length - 1;
   return kRankRewards.every((r) => r.rankTier >= 0 && r.rankTier <= maxTier);
 }
+
+/// O(1) id -> [RankReward] lookup, built once from [kRankRewards].
+///
+/// Both [RankRewardService] and [EquippedRewardsService] previously looped
+/// over the full catalog with a linear `for` scan every time they needed to
+/// resolve a reward by id (e.g. `equippedRewardFor`). This map is the single
+/// shared source for that lookup, so there is exactly one place that builds
+/// it and every caller gets O(1) resolution instead of duplicating the same
+/// O(n) scan. Purely a lookup convenience — it introduces no new reward
+/// data and does not change which rewards exist or how they're granted.
+final Map<String, RankReward> kRankRewardsById = {
+  for (final r in kRankRewards) r.id: r,
+};
+
+/// Resolves a [RankReward] by its stable [id], or `null` if unknown.
+RankReward? rankRewardById(String id) => kRankRewardsById[id];

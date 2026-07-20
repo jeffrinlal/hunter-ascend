@@ -18,6 +18,7 @@ import 'dart:typed_data';
 import 'package:hunter_ascend/screens/profile/membership_screen.dart';
 import 'package:hunter_ascend/screens/profile/reports/reports_tab.dart';
 import 'package:hunter_ascend/screens/profile/achievements/achievements_tab.dart';
+import 'package:hunter_ascend/screens/profile/rewards/rewards_tab.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
@@ -70,7 +71,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -735,11 +736,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1,
                       ),
-                      isScrollable: false,
+                      isScrollable: true,
+                      tabAlignment: TabAlignment.start,
                       tabs: const [
                         Tab(text: 'REPORTS'),
                         Tab(text: 'PHYSIQUE'),
                         Tab(text: 'ACHIEVEMENTS'),
+                        Tab(text: 'REWARDS'),
                       ],
                     ),
                   ),
@@ -964,6 +967,9 @@ class _ProfileScreenState extends State<ProfileScreen>
 
                     // ── ACHIEVEMENTS ──────────────────────────────────
                     AchievementsTab(hunter: hunter),
+
+                    // ── REWARDS ────────────────────────────────────────
+                    RewardsTab(hunter: hunter),
                   ],
                 ),
           );

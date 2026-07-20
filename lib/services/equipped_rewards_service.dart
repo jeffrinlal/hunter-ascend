@@ -44,16 +44,42 @@ class EquippedRewardsService {
   bool _loaded = false;
   String? _loadedForUid;
 
+  /// The in-flight load, if any. Lets concurrent callers (e.g. several
+  /// widgets calling `ensureLoadedForCurrentUser` from `initState` on the
+  /// same frame) await the SAME Firestore read instead of each issuing their
+  /// own redundant `.get()`.
+  Future<void>? _loadingFuture;
+
   // ── Lifecycle ────────────────────────────────────────────────────────────
 
   /// Loads the current equip selections for the signed-in user, once per
-  /// user. Safe to call repeatedly (e.g. from `initState`) — only performs a
-  /// Firestore read the first time for a given uid.
+  /// user. Safe to call repeatedly and concurrently (e.g. from `initState` of
+  /// multiple widgets) — only ever performs a SINGLE in-flight Firestore read
+  /// per uid; overlapping callers await that same read.
   Future<void> ensureLoadedForCurrentUser() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     if (_loaded && _loadedForUid == uid) return;
 
+    // Another call is already loading — await it, then re-check whether it
+    // actually satisfied THIS uid (it may have been a stale load for a
+    // different user, e.g. if logout/login happened mid-flight). If not,
+    // fall through and start a fresh load for the current uid.
+    if (_loadingFuture != null) {
+      await _loadingFuture;
+      if (_loaded && _loadedForUid == uid) return;
+    }
+
+    final future = _loadFor(uid);
+    _loadingFuture = future;
+    try {
+      await future;
+    } finally {
+      _loadingFuture = null;
+    }
+  }
+
+  Future<void> _loadFor(String uid) async {
     _equipped.clear();
     try {
       final snap = await FirebaseFirestore.instance
@@ -84,6 +110,13 @@ class EquippedRewardsService {
     _equipped.clear();
     _loaded = false;
     _loadedForUid = null;
+    // Do NOT null out _loadingFuture here: an in-flight load for the
+    // PREVIOUS user may still resolve after logout. Its `_loadFor` will
+    // still write `_loadedForUid`/`_loaded`, but the next
+    // `ensureLoadedForCurrentUser` call for the NEW user checks
+    // `_loadedForUid == uid`, which will correctly mismatch and trigger a
+    // fresh load — so a stale in-flight future can never leak another
+    // user's equipped state into the new session.
   }
 
   // ── Read-only accessors ──────────────────────────────────────────────────
@@ -93,13 +126,13 @@ class EquippedRewardsService {
 
   /// The full [RankReward] currently equipped for [type], or `null` if none
   /// is equipped (or the stored id no longer matches a catalog entry).
+  ///
+  /// Resolves via the shared [kRankRewardsById] O(1) map rather than a linear
+  /// scan of the catalog.
   RankReward? equippedRewardFor(RankRewardType type) {
     final id = equippedIdFor(type);
     if (id == null) return null;
-    for (final r in kRankRewards) {
-      if (r.id == id) return r;
-    }
-    return null;
+    return kRankRewardsById[id];
   }
 
   /// Whether [reward] is the one currently equipped for its type.

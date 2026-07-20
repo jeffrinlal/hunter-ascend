@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
-import 'package:hunter_ascend/widgets/dashboard/steps_card.dart';
 import 'package:hunter_ascend/widgets/dashboard/pro_dashboard_layout.dart';
 import 'package:hunter_ascend/widgets/dashboard/max_dashboard_layout.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
@@ -24,7 +23,6 @@ import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/xp_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:hunter_ascend/screens/dashboard/dashboard_screen.dart';
-import 'package:hunter_ascend/widgets/glass/glass_card.dart';
 import 'package:hunter_ascend/widgets/glass/glass_background.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
@@ -1171,18 +1169,18 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       );
                     }
 
-                    // ── Basic (default) layout ──
+                    // ── Basic (default) layout — premium redesign ──
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildTopBar(hunter),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 18),
                         _buildHunterCard(hunter),
-                        const SizedBox(height: 16),
-                        StepsCard(steps: todaySteps),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
+                        _buildStepsCard(),
+                        const SizedBox(height: 14),
                         _buildQuickActions(),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
                         _buildWaterCard(),
                       ],
                     );
@@ -1198,6 +1196,72 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }
 
 
+  // ══ Basic dashboard premium identity ═════════════════════════════════════
+  //
+  // The Basic tier gets its own clean, airy "frosted card" identity — a soft
+  // accent-tinted gradient over the theme card colour, a hairline border and a
+  // gentle elevation shadow. Fully theme-aware (reads HunterTheme tokens, so it
+  // adapts to light/dark and every unlocked theme) and deliberately simpler
+  // than the Pro/Max layouts.
+
+  /// A premium Basic-tier surface. Distinct from the shared GlassCard used
+  /// elsewhere so Basic has its own look.
+  Widget _basicCard({
+    required Widget child,
+    EdgeInsetsGeometry? padding,
+    double radius = 20,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: padding ?? const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            HunterTheme.primary.withOpacity(0.055),
+            HunterTheme.cardColor,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: HunterTheme.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(HunterTheme.isDark ? 0.22 : 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _miniStat(IconData icon, String value, String label) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: _blue, size: 18),
+        const SizedBox(height: 5),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            style: TextStyle(color: HunterTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w800),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10.5, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+        ),
+      ],
+    );
+  }
+
+  Widget _miniDivider() =>
+      Container(width: 1, height: 34, color: HunterTheme.border);
+
   // ── Top Bar ──────────────────────────────────────────────
   Widget _buildTopBar(HunterData hunter) {
     final hasNotif = (hunter.notificationTime ?? '').isNotEmpty;
@@ -1205,42 +1269,68 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
     return Row(
       children: [
+        // Notification bell (unchanged behaviour) in a premium circular button.
         GestureDetector(
           onTap: () => _showNotificationDialog(),
-          child: Stack(
-            children: [
-              Icon(
-                hasNotif ? Icons.notifications_active : Icons.notifications_none,
-                color: hasNotif ? _blue : HunterTheme.textSecondary,
-                size: 24,
-              ),
-              if (hasNotif)
-                Positioned(
-                  right: 0, top: 0,
-                  child: Container(
-                    width: 8, height: 8,
-                    decoration: BoxDecoration(
-                      color: HunterTheme.success,
-                      shape: BoxShape.circle,
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: HunterTheme.cardColor,
+              border: Border.all(color: HunterTheme.border),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
+              ],
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  hasNotif ? Icons.notifications_active_rounded : Icons.notifications_none_rounded,
+                  color: hasNotif ? _blue : HunterTheme.textSecondary,
+                  size: 20,
+                ),
+                if (hasNotif)
+                  Positioned(
+                    right: 9,
+                    top: 9,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: HunterTheme.success,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: HunterTheme.cardColor, width: 1.2),
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
         const Spacer(),
         RichText(
           text: TextSpan(children: [
-            TextSpan(text: "HUNTER ", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1)),
-            TextSpan(text: "ASCEND", style: TextStyle(color: _blue, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1)),
+            TextSpan(text: "HUNTER ", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1)),
+            TextSpan(text: "ASCEND", style: TextStyle(color: _blue, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1)),
           ]),
         ),
         const Spacer(),
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.local_fire_department, color: Colors.orange, size: 22),
-          const SizedBox(width: 3),
-          Text("$streak", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
-        ]),
+        // Streak pill.
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          decoration: BoxDecoration(
+            color: Colors.orange.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.orange.withOpacity(0.35)),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 18),
+            const SizedBox(width: 4),
+            Text("$streak", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.w800, fontSize: 15)),
+          ]),
+        ),
       ],
     );
   }
@@ -1254,68 +1344,238 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     return _cachedProfileBytes!;
   }
 
-  // ── Hunter Card ──────────────────────────────────────────
+  // ── Hunter Card (premium hero) ───────────────────────────
   Widget _buildHunterCard(HunterData hunter) {
     final pic = hunter.profilePicture;
     final name = hunter.hunterName;
     final liveXp = hunter.xp;
     final liveLevel = hunter.level;
+    final xpProgress = (liveXp / 500).clamp(0.0, 1.0);
 
-    return GlassCard(
+    return _basicCard(
       child: Column(
         children: [
           Row(
             children: [
+              // Avatar with a gradient ring + soft glow.
               Container(
-                width: 72, height: 72,
+                width: 76,
+                height: 76,
+                padding: const EdgeInsets.all(2.5),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: _blue, width: 2),
-                  boxShadow: [BoxShadow(color: _blue.withOpacity(0.4), blurRadius: 16)],
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: HunterTheme.primaryGradient,
+                  ),
+                  boxShadow: [
+                    BoxShadow(color: _blue.withOpacity(0.35 * HunterTheme.glowStrength), blurRadius: 16, spreadRadius: 1),
+                  ],
                 ),
-                child: pic != null
-                    ? ClipOval(
-                        child: Image.memory(
-                          _profilePicBytes(pic),
-                          fit: BoxFit.cover,
-                          width: 72,
-                          height: 72,
-                        ),
-                      )
-                    : Center(child: Icon(Icons.person, color: _blue, size: 40)),
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: HunterTheme.cardColor),
+                  child: pic != null
+                      ? ClipOval(
+                          child: Image.memory(
+                            _profilePicBytes(pic),
+                            fit: BoxFit.cover,
+                            width: 66,
+                            height: 66,
+                          ),
+                        )
+                      : Center(child: Icon(Icons.person, color: _blue, size: 34)),
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(name, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text("$hunterRank HUNTER", style: TextStyle(color: rankColor, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: rankColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: rankColor.withOpacity(0.4)),
+                    ),
+                    child: Text(
+                      "$hunterRank HUNTER",
+                      style: TextStyle(color: rankColor, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1),
+                    ),
+                  ),
                 ]),
               ),
-              RankShieldBadge(rankLetter: rankLetter, size: 56),
+              const SizedBox(width: 8),
+              RankShieldBadge(rankLetter: rankLetter, size: 54),
             ],
           ),
-          const SizedBox(height: 16),
-          Column(
+          const SizedBox(height: 18),
+          // XP / Level presentation.
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text("LEVEL $liveLevel", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 30, fontWeight: FontWeight.bold)),
-                Text("$liveXp / 500 XP", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13)),
-              ]),
-              const SizedBox(height: 8),
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: liveXp / 500),
-                duration: const Duration(milliseconds: 800),
-                builder: (context, value, _) => ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: LinearProgressIndicator(
-                    value: value, minHeight: 8,
-                    backgroundColor: _blueDim,
-                    valueColor: AlwaysStoppedAnimation<Color>(_blue),
-                  ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text("LEVEL ", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 1)),
+                  Text("$liveLevel", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 26, fontWeight: FontWeight.w900)),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _blue.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _blue.withOpacity(0.3)),
                 ),
+                child: Text("$liveXp / 500 XP", style: TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.w800)),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          // Animated gradient XP bar with glow.
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: xpProgress),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, _) => ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Stack(
+                children: [
+                  Container(height: 10, color: HunterTheme.border),
+                  FractionallySizedBox(
+                    widthFactor: value,
+                    child: Container(
+                      height: 10,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: HunterTheme.primaryGradient),
+                        boxShadow: [
+                          BoxShadow(color: _blue.withOpacity(0.5 * HunterTheme.glowStrength), blurRadius: 8),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Daily summary at a glance.
+          Row(
+            children: [
+              Expanded(child: _miniStat(Icons.directions_walk_rounded, "$todaySteps", "Steps")),
+              _miniDivider(),
+              Expanded(child: _miniStat(Icons.water_drop_rounded, "${(waterIntakeMl / 1000).toStringAsFixed(1)}L", "Water")),
+              _miniDivider(),
+              Expanded(child: _miniStat(Icons.local_fire_department_rounded, "${hunter.streak}", "Streak")),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Steps card (premium step counter) ────────────────────
+  Widget _buildStepsCard() {
+    const goal = 10000;
+    final progress = (todaySteps / goal).clamp(0.0, 1.0);
+    final reached = todaySteps >= goal;
+    final remaining = (goal - todaySteps).clamp(0, goal);
+
+    return _basicCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [_blue.withOpacity(0.18), _blue.withOpacity(0.06)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _blue.withOpacity(0.25)),
+                ),
+                child: Icon(Icons.directions_walk_rounded, color: _blue, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("STEPS TODAY", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1)),
+                    const SizedBox(height: 3),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text("$todaySteps", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.w900)),
+                        Text("  / 10,000", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (reached)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: HunterTheme.success.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: HunterTheme.success.withOpacity(0.4)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.check_circle_rounded, color: HunterTheme.success, size: 14),
+                    const SizedBox(width: 4),
+                    Text("Goal", style: TextStyle(color: HunterTheme.success, fontSize: 11, fontWeight: FontWeight.w800)),
+                  ]),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: progress),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, _) => ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Stack(
+                children: [
+                  Container(height: 10, color: HunterTheme.border),
+                  FractionallySizedBox(
+                    widthFactor: value,
+                    child: Container(
+                      height: 10,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: HunterTheme.primaryGradient),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            reached ? "Daily goal complete — nice work!" : "$remaining steps to your daily goal",
+            style: TextStyle(
+              color: reached ? HunterTheme.success : HunterTheme.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -1397,20 +1657,24 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 46,
-        height: 46,
+        width: 48,
+        height: 48,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: HunterTheme.primary,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: HunterTheme.primaryGradient,
+          ),
           boxShadow: [
             BoxShadow(
-              color: HunterTheme.primary.withOpacity(0.35),
-              blurRadius: 10,
+              color: HunterTheme.primary.withOpacity(0.35 * HunterTheme.glowStrength),
+              blurRadius: 12,
               spreadRadius: 1,
             ),
           ],
         ),
-        child: Icon(icon, color: Colors.white, size: 24),
+        child: Icon(icon, color: Colors.black, size: 24),
       ),
     );
   }
@@ -1420,16 +1684,21 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     return GestureDetector(
       onTap: () => _setCupSize(size),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? HunterTheme.primary : HunterTheme.cardColor,
+          gradient: selected
+              ? LinearGradient(colors: HunterTheme.primaryGradient)
+              : null,
+          color: selected ? null : HunterTheme.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: HunterTheme.primary, width: 1.3),
+          border: Border.all(
+            color: selected ? Colors.transparent : HunterTheme.border,
+          ),
         ),
         child: Text(
           '${size}ml',
           style: TextStyle(
-            color: selected ? Colors.white : HunterTheme.primary,
+            color: selected ? Colors.black : HunterTheme.textSecondary,
             fontWeight: FontWeight.w700,
             fontSize: 12,
           ),
@@ -1600,45 +1869,84 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     final filledDrops =
         (waterIntakeMl / selectedCupSize).floor().clamp(0, dropCount).toInt();
 
-    return GlassCard(
+    return _basicCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Text(
-                '\ud83d\udca7 WATER INTAKE',
-                style: TextStyle(
-                  color: HunterTheme.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [_blue.withOpacity(0.18), _blue.withOpacity(0.06)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _blue.withOpacity(0.25)),
+                ),
+                child: Icon(Icons.water_drop_rounded, color: _blue, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'HYDRATION',
+                      style: TextStyle(
+                        color: HunterTheme.textTertiary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$waterIntakeMl / $waterGoalMl ml',
+                      style: TextStyle(
+                        color: HunterTheme.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Spacer(),
-              Text(
-                '$waterIntakeMl ml / $waterGoalMl ml',
-                style: TextStyle(
-                  color: HunterTheme.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 6),
               GestureDetector(
                 onTap: _showWaterGoalSheet,
-                child: Icon(Icons.edit, size: 16, color: HunterTheme.primary),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: HunterTheme.primary.withOpacity(0.10),
+                  ),
+                  child: Icon(Icons.edit_rounded, size: 15, color: HunterTheme.primary),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 8,
-              backgroundColor: const Color(0xFFE0E0E0),
-              valueColor: AlwaysStoppedAnimation<Color>(HunterTheme.primary),
+            borderRadius: BorderRadius.circular(8),
+            child: Stack(
+              children: [
+                Container(height: 10, color: HunterTheme.border),
+                FractionallySizedBox(
+                  widthFactor: progress,
+                  child: Container(
+                    height: 10,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: HunterTheme.primaryGradient),
+                      boxShadow: [
+                        BoxShadow(color: _blue.withOpacity(0.5 * HunterTheme.glowStrength), blurRadius: 8),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 14),
@@ -1652,7 +1960,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 size: 20,
                 color: i < filledDrops
                     ? HunterTheme.primary
-                    : const Color(0xFFE0E0E0),
+                    : HunterTheme.border,
               ),
             ),
           ),
@@ -1665,9 +1973,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
               Text(
                 '$selectedCupSize ml',
                 style: TextStyle(
-                  color: HunterTheme.primary,
+                  color: HunterTheme.textPrimary,
                   fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(width: 24),
@@ -1721,19 +2029,32 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: GlassCard(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        borderRadius: 14,
+      child: _basicCard(
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 14),
+        radius: 18,
         child: Column(
           children: [
-            Icon(icon, color: HunterTheme.primary, size: 26),
-            const SizedBox(height: 6),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [HunterTheme.primary.withOpacity(0.18), HunterTheme.primary.withOpacity(0.06)],
+                ),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: HunterTheme.primary.withOpacity(0.25)),
+              ),
+              child: Icon(icon, color: HunterTheme.primary, size: 24),
+            ),
+            const SizedBox(height: 10),
             Text(
               label,
               style: TextStyle(
                 color: HunterTheme.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],

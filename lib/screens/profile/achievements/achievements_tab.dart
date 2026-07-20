@@ -3,6 +3,7 @@ import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/data/models/achievement.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/services/achievements_service.dart';
+import 'package:hunter_ascend/widgets/achievement_unlocked_dialog.dart';
 
 /// Premium RPG-style Achievements screen (hosted as a Profile tab).
 ///
@@ -18,6 +19,7 @@ class AchievementsTab extends StatefulWidget {
 
 class _AchievementsTabState extends State<AchievementsTab> {
   bool _ready = false;
+  bool _dialogScheduled = false;
   AchievementCategory? _category; // null = All
   String _query = '';
   final TextEditingController _searchController = TextEditingController();
@@ -34,6 +36,36 @@ class _AchievementsTabState extends State<AchievementsTab> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  /// If new achievements were unlocked during evaluation, show the premium
+  /// "Achievement Unlocked" celebration dialog for each (one after another).
+  void _scheduleUnlockDialogs() {
+    if (_dialogScheduled) return;
+    if (AchievementsService.instance.pendingUnlocks.isEmpty) return;
+    _dialogScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final pending = AchievementsService.instance.takePendingUnlocks();
+      for (final achievement in pending) {
+        if (!mounted) break;
+        await AchievementUnlockedDialog.show(
+          context,
+          achievement: achievement,
+          onView: () => _viewAchievement(achievement),
+        );
+      }
+      _dialogScheduled = false;
+    });
+  }
+
+  /// Focuses a single achievement in the list (used by "View Achievement").
+  void _viewAchievement(Achievement achievement) {
+    if (!mounted) return;
+    _searchController.text = achievement.name;
+    setState(() {
+      _category = null;
+      _query = achievement.name;
+    });
   }
 
   @override
@@ -61,6 +93,9 @@ class _AchievementsTabState extends State<AchievementsTab> {
     }
 
     final all = AchievementsService.instance.evaluate(widget.hunter);
+
+    // Celebrate any achievements unlocked since the last evaluation.
+    _scheduleUnlockDialogs();
 
     // Apply category + search filters.
     final q = _query.trim().toLowerCase();

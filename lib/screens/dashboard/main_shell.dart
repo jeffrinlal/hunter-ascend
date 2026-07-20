@@ -13,6 +13,7 @@ import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/screens/profile/membership_screen.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/widgets/daily_motivation_dialog.dart';
+import 'package:hunter_ascend/widgets/premium_dialog.dart';
 
 /// Persistent shell hosting the main app screens behind a bottom NavigationBar.
 /// Tabs: Home (Dashboard), Quests, Leaderboard, Duels, Profile.
@@ -102,76 +103,33 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
 
     final tierName = expiredTier == MembershipTier.pro ? 'PRO' : 'MAX';
 
-    showDialog(
+    showPremiumDialog(
       context: context,
-      barrierDismissible: true,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: HunterTheme.cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Text(
-              '\u2694\uFE0F Membership Expired',
-              style: TextStyle(
-                color: HunterTheme.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Your $tierName membership has ended.\nWatch rewarded ads to unlock premium benefits again.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: HunterTheme.textSecondary,
-                fontSize: 14,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const MembershipScreen(),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: HunterTheme.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+      builder: (ctx) => PremiumDialogCard(
+        icon: Icons.workspace_premium_rounded,
+        accent: HunterTheme.gold,
+        title: 'Membership Expired',
+        message:
+            'Your $tierName membership has ended.\nWatch rewarded ads to unlock premium benefits again.',
+        actions: [
+          PremiumDialogButton.secondary(
+            'Maybe Later',
+            onTap: () => Navigator.of(ctx).pop(),
+          ),
+          PremiumDialogButton.primary(
+            'Renew',
+            icon: Icons.workspace_premium_rounded,
+            onTap: () {
+              Navigator.of(ctx).pop();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const MembershipScreen(),
                 ),
-                child: const Text('Renew Membership',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-              ),
-            ),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: () => Navigator.of(ctx).pop(),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  'Maybe Later',
-                  style: TextStyle(
-                    color: HunterTheme.textTertiary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

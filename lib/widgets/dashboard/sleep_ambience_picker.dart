@@ -88,7 +88,7 @@ class _SleepAmbiencePickerState extends State<SleepAmbiencePicker> {
 
           // ── Title ──
           Row(children: [
-            Icon(Icons.nights_stay_outlined, color: const Color(0xFF6C63FF), size: 22),
+            Icon(Icons.nights_stay_outlined, color: HunterTheme.purple, size: 22),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -169,12 +169,12 @@ class _SleepAmbiencePickerState extends State<SleepAmbiencePicker> {
                 style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6C63FF),
+                backgroundColor: HunterTheme.purple,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 elevation: 4,
-                shadowColor: const Color(0xFF6C63FF).withOpacity(0.4),
+                shadowColor: HunterTheme.purple.withOpacity(0.4),
               ),
             ),
           ),
@@ -185,7 +185,7 @@ class _SleepAmbiencePickerState extends State<SleepAmbiencePicker> {
 
   Widget _ambienceChip(SleepAmbience ambience) {
     final selected = _selectedAmbience == ambience;
-    final color = selected ? const Color(0xFF6C63FF) : HunterTheme.textSecondary;
+    final color = selected ? HunterTheme.purple : HunterTheme.textSecondary;
 
     return GestureDetector(
       onTap: () => setState(() => _selectedAmbience = ambience),
@@ -193,10 +193,10 @@ class _SleepAmbiencePickerState extends State<SleepAmbiencePicker> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF6C63FF).withOpacity(0.12) : HunterTheme.surface,
+          color: selected ? HunterTheme.purple.withOpacity(0.12) : HunterTheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? const Color(0xFF6C63FF).withOpacity(0.6) : HunterTheme.border,
+            color: selected ? HunterTheme.purple.withOpacity(0.6) : HunterTheme.border,
           ),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -205,7 +205,7 @@ class _SleepAmbiencePickerState extends State<SleepAmbiencePicker> {
           Text(
             SleepService.ambienceName(ambience),
             style: TextStyle(
-              color: selected ? const Color(0xFF6C63FF) : HunterTheme.textPrimary,
+              color: selected ? HunterTheme.purple : HunterTheme.textPrimary,
               fontSize: 12,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
@@ -224,16 +224,16 @@ class _SleepAmbiencePickerState extends State<SleepAmbiencePicker> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF6C63FF).withOpacity(0.12) : HunterTheme.surface,
+          color: selected ? HunterTheme.purple.withOpacity(0.12) : HunterTheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? const Color(0xFF6C63FF).withOpacity(0.6) : HunterTheme.border,
+            color: selected ? HunterTheme.purple.withOpacity(0.6) : HunterTheme.border,
           ),
         ),
         child: Text(
           SleepService.durationLabel(duration),
           style: TextStyle(
-            color: selected ? const Color(0xFF6C63FF) : HunterTheme.textPrimary,
+            color: selected ? HunterTheme.purple : HunterTheme.textPrimary,
             fontSize: 12,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           ),

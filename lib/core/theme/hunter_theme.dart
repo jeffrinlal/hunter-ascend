@@ -201,6 +201,60 @@ class HunterTheme {
               : textS.withOpacity(0.3),
         ),
       ),
+
+      // ── Premium dialog surface (applies to every AlertDialog / Dialog that
+      //    doesn't override these). Rounded corners, clean card surface (no
+      //    M3 primary tint), soft elevation + shadow, cohesive typography. ──
+      dialogTheme: DialogThemeData(
+        backgroundColor: card,
+        surfaceTintColor: Colors.transparent,
+        elevation: 18,
+        shadowColor: Colors.black.withOpacity(0.45),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        titleTextStyle: TextStyle(
+          color: textP,
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.2,
+        ),
+        contentTextStyle: TextStyle(
+          color: textS,
+          fontSize: 14,
+          height: 1.45,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+
+      // ── Premium modal bottom sheets (rounded top, clean surface, drag
+      //    handle) for every showModalBottomSheet that doesn't override. ──
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: card,
+        modalBackgroundColor: card,
+        surfaceTintColor: Colors.transparent,
+        elevation: 18,
+        modalElevation: 18,
+        showDragHandle: true,
+        dragHandleColor: textS.withOpacity(0.35),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+        ),
+        clipBehavior: Clip.antiAlias,
+      ),
+
+      // ── SnackBars: floating premium pill (theme-aware surface). ──
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: card,
+        contentTextStyle: TextStyle(color: textP, fontSize: 13.5, fontWeight: FontWeight.w600),
+        actionTextColor: accent,
+        elevation: 12,
+        insetPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: textS.withOpacity(0.15)),
+        ),
+      ),
     );
   }
 }

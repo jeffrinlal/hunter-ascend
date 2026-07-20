@@ -12,6 +12,10 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/milestone_service.dart';
+import 'package:hunter_ascend/services/xp_service.dart';
+import 'package:hunter_ascend/services/achievements_service.dart';
+import 'package:hunter_ascend/data/models/hunter_data.dart';
+import 'package:hunter_ascend/widgets/achievement_unlocked_dialog.dart';
 
 /// Live 1v1 duel screen: shows progress, countdown, and result for [duelId].
 class DuelScreen extends StatefulWidget {
@@ -41,6 +45,11 @@ class _DuelScreenState extends State<DuelScreen> {
   String _lastResetCheckDay = '';
   // Guards the auto-completion path so it runs at most once per device.
   bool _completingDuel = false;
+  // Session-level re-entrancy guard for the duel XP grant. Prevents the
+  // post-frame award from being scheduled repeatedly across the many stream
+  // emissions/rebuilds of a completed duel. Cross-session/device idempotency
+  // is enforced separately by the per-player flag on the duel document.
+  bool _duelXpHandled = false;
   Duration remaining = Duration.zero;
 
   // ── Ad ──────────────────────────────────────────────────
@@ -165,6 +174,162 @@ class _DuelScreenState extends State<DuelScreen> {
     String loserUid = winnerUid == duel['player1'] ? duel['player2'] : duel['player1'];
     await FirebaseFirestore.instance.collection('hunters').doc(winnerUid).update({'duelWins': FieldValue.increment(1)});
     await FirebaseFirestore.instance.collection('hunters').doc(loserUid).update({'duelLosses': FieldValue.increment(1)});
+  }
+
+  // ── Duel XP integration ───────────────────────────────────
+  // Grants Hunter progression XP for a COMPLETED duel exactly once per player:
+  //   • Winner  → +100 XP via the shared XpService (reuses level-up, daily/
+  //               weekly XP, and leaderboard invalidation — no logic copied).
+  //   • Loser   → −20 XP, safely clamped to 0, level never reduced.
+  //   • Draw    → no change for either player.
+  //
+  // Idempotency: a per-player flag on the duel document (playerNXpAwarded,
+  // mirroring the existing playerNViewedResult flags) is claimed inside a
+  // transaction. Only the single invocation — across rebuilds, stream
+  // emissions, multiple listeners, network retries, app restarts and devices —
+  // that flips the flag false→true proceeds to grant XP. If the grant fails the
+  // flag is rolled back so the reward is retried later, never duplicated.
+  //
+  // XP is only ever written to the LOCAL hunter's OWN document. This is
+  // mandatory: the Firestore rules permit cross-user hunter writes solely for
+  // duelWins/duelLosses, never xp. Duel score, winner logic, completion,
+  // counters and history are left completely untouched.
+  Future<void> _applyDuelXpOnce(Map<String, dynamic> duel) async {
+    if (_duelXpHandled) return;
+    _duelXpHandled = true;
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      _duelXpHandled = false;
+      return;
+    }
+    if (duel['status'] != 'completed') {
+      _duelXpHandled = false;
+      return;
+    }
+
+    final bool isP1 = duel['player1'] == uid;
+    final bool isP2 = duel['player2'] == uid;
+    if (!isP1 && !isP2) return; // not a participant — nothing to grant
+
+    final String winnerUid = (duel['winner'] ?? '').toString();
+    if (winnerUid.isEmpty) return; // draw — no XP for either side
+
+    final String flagField = isP1 ? 'player1XpAwarded' : 'player2XpAwarded';
+    final duelRef =
+        FirebaseFirestore.instance.collection('duels').doc(widget.duelId);
+
+    // ── Idempotency gate: atomically claim this player's XP for this duel ──
+    bool claimed = false;
+    try {
+      await FirebaseFirestore.instance.runTransaction((txn) async {
+        final snap = await txn.get(duelRef);
+        if (!snap.exists) return;
+        final d = snap.data() as Map<String, dynamic>;
+        if (d['status'] != 'completed') return; // safety re-check
+        if (d[flagField] == true) return; // already granted — skip
+        txn.update(duelRef, {flagField: true});
+        claimed = true;
+      });
+    } catch (e) {
+      debugPrint('applyDuelXp gate: $e');
+      _duelXpHandled = false; // transient failure — allow a later retry
+      return;
+    }
+
+    if (!claimed) return; // another device/session already granted it
+
+    // ── Apply the outcome to the LOCAL hunter only ──
+    final bool won = winnerUid == uid;
+    try {
+      if (won) {
+        // +100 XP through the existing service — reuses all level-up, daily/
+        // weekly and leaderboard logic. No level-up logic is duplicated.
+        final result = await XpService.instance.awardXp(amount: 100);
+        if (result == null) throw Exception('awardXp returned null');
+
+        // A +100 award (< 500 XP per level) can cross at most one level
+        // boundary, so the previous level is exactly result.level - 1. Reuse
+        // the existing multi-level celebration helper for the level-up UI.
+        if (result.leveledUp && mounted) {
+          MilestoneService.celebrateLevelUps(
+              context, result.level - 1, result.level);
+        }
+      } else {
+        // Loser: safely deduct 20 XP from the current progress.
+        await _deductXpSafely(uid, 20);
+      }
+
+      // Immediately re-run the existing achievement evaluation so any
+      // achievement newly satisfied by this duel's XP/level/rank/stat changes
+      // (level, rank, XP, duel or hidden) unlocks and celebrates right now,
+      // without waiting for the user to open the Achievements screen.
+      await _evaluateAchievementsNow();
+    } catch (e) {
+      debugPrint('applyDuelXp grant: $e');
+      // Roll back the claim so the reward can be retried, preventing a
+      // permanently-lost reward while still guaranteeing no duplicates.
+      try {
+        await duelRef.update({flagField: false});
+      } catch (_) {}
+      _duelXpHandled = false;
+    }
+  }
+
+  /// Safely subtracts [amount] XP from a hunter's current in-level XP progress
+  /// without ever going negative and without changing their level. Mirrors the
+  /// existing discipline-penalty pattern and only writes the caller's OWN
+  /// document. Examples: 320 → 300, 12 → 0, 0 → 0.
+  Future<void> _deductXpSafely(String uid, int amount) async {
+    final ref = FirebaseFirestore.instance.collection('hunters').doc(uid);
+    await FirebaseFirestore.instance.runTransaction((txn) async {
+      final snap = await txn.get(ref);
+      if (!snap.exists) return;
+      final d = snap.data() as Map<String, dynamic>;
+      final int curXp = (d['xp'] ?? 0) as int;
+      final int newXp = (curXp - amount).clamp(0, 999999);
+      // Only 'xp' is touched — 'level' is intentionally left unchanged.
+      txn.update(ref, {'xp': newXp});
+    });
+  }
+
+  /// Re-runs the shared achievement evaluation for the local hunter and shows
+  /// the standard celebration dialog for anything newly unlocked. This reuses
+  /// [AchievementsService] and [AchievementUnlockedDialog] exactly as the
+  /// Achievements screen does — no achievement logic is duplicated here. The
+  /// service only queues achievements that cross their threshold for the first
+  /// time (and never on the initial baseline pass), so this is safe to call on
+  /// every duel completion without producing spurious or repeated unlocks.
+  Future<void> _evaluateAchievementsNow() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      // Read the freshly-updated hunter document so evaluation sees the new
+      // xp / level and the duelWins / duelLosses written on completion.
+      final snap = await FirebaseFirestore.instance
+          .collection('hunters')
+          .doc(uid)
+          .get();
+      if (!snap.exists) return;
+
+      final hunter = HunterData.fromFirestore(snap.data()!);
+      await AchievementsService.instance.ensureLoaded();
+      AchievementsService.instance.evaluate(hunter);
+
+      // Funnel each unlock through the shared MilestoneService queue so the
+      // achievement dialogs never overlap with each other or with the level-up
+      // celebration — they play sequentially after any level-up dialog.
+      final unlocked = AchievementsService.instance.takePendingUnlocks();
+      for (final achievement in unlocked) {
+        if (!mounted) break;
+        MilestoneService.enqueue(
+          context,
+          (ctx) => AchievementUnlockedDialog.show(ctx, achievement: achievement),
+        );
+      }
+    } catch (e) {
+      debugPrint('evaluateAchievementsNow: $e');
+    }
   }
 
   // ── Auto-complete duel when its time is up ────────────────
@@ -749,6 +914,12 @@ class _DuelScreenState extends State<DuelScreen> {
                 FirebaseFirestore.instance.collection('duels').doc(widget.duelId).update({vField: true});
               });
             }
+
+            // Grant this completed duel's Hunter XP exactly once for the local
+            // player (winner +100 via XpService / loser −20 safely). Guarded by
+            // _duelXpHandled + a per-player flag so repeated stream emissions,
+            // rebuilds, retries and multiple devices never double-award.
+            WidgetsBinding.instance.addPostFrameCallback((_) => _applyDuelXpOnce(duel));
 
             // Determine result visuals.
             final Color resultColor = draw

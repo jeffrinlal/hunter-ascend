@@ -4,6 +4,12 @@ import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hunter_ascend/widgets/milestone_celebration_dialog.dart';
 
+/// Signature for a queued dialog presenter. The job is invoked when it reaches
+/// the front of the queue and MUST return a Future that completes when its
+/// dialog is dismissed (e.g. the Future returned by `showDialog` /
+/// `showGeneralDialog`).
+typedef DialogJob = Future<void> Function(BuildContext context);
+
 /// Types of milestones that trigger celebrations.
 enum MilestoneType {
   steps,
@@ -48,11 +54,31 @@ class MilestoneData {
 class MilestoneService {
   MilestoneService._();
 
-  static bool _isShowing = false;
-  static final Queue<_QueuedMilestone> _queue = Queue();
+  // ─────────────────────────────────────────────────────────────────────────
+  // Sequential dialog queue
+  // ─────────────────────────────────────────────────────────────────────────
+  //
+  // A single global queue guarantees celebrations never overlap or compete.
+  // Milestone dialogs (level-up, streak, steps, duel victory, ...) AND any
+  // custom dialog enqueued via [enqueue] (e.g. the achievement-unlock dialog)
+  // are shown strictly one at a time, in enqueue order, with a short gap
+  // between each. So a duel that triggers a level-up and several achievement
+  // unlocks shows: level-up → achievement 1 → achievement 2 → ... with no two
+  // dialogs on screen at once.
 
-  /// Shows a milestone celebration dialog. If another celebration is already
-  /// visible, the new one is queued and shown after the current one closes.
+  static bool _isShowing = false;
+  static final Queue<_QueuedDialog> _queue = Queue();
+
+  /// Enqueues an arbitrary dialog [job] to run through the shared queue. Use
+  /// this to funnel custom celebration dialogs (such as the achievement unlock
+  /// dialog) through the same queue as milestone dialogs so they never overlap.
+  static void enqueue(BuildContext context, DialogJob job) {
+    _queue.add(_QueuedDialog(context: context, job: job));
+    _pump();
+  }
+
+  /// Shows a milestone celebration dialog. If another dialog (milestone or
+  /// custom) is already visible, this one is queued and shown afterwards.
   static void show(
     BuildContext context, {
     required MilestoneType type,
@@ -68,24 +94,13 @@ class MilestoneService {
       xp: xp,
       icon: icon,
     );
-
-    if (_isShowing) {
-      _queue.add(_QueuedMilestone(context: context, data: data));
-      return;
-    }
-
-    _present(context, data);
+    enqueue(context, (ctx) => _showMilestoneDialog(ctx, data));
   }
 
-  static void _present(BuildContext context, MilestoneData data) {
-    if (!context.mounted) {
-      _processQueue();
-      return;
-    }
-
-    _isShowing = true;
-
-    showGeneralDialog(
+  /// Presents the milestone dialog and returns a Future that completes when it
+  /// is dismissed. Visuals and behaviour are unchanged from before.
+  static Future<void> _showMilestoneDialog(BuildContext context, MilestoneData data) {
+    return showGeneralDialog(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Milestone',
@@ -101,18 +116,28 @@ class MilestoneService {
           child: FadeTransition(opacity: animation, child: child),
         );
       },
-    ).then((_) {
-      _isShowing = false;
-      _processQueue();
-    });
+    );
   }
 
-  static void _processQueue() {
+  /// Drives the queue: shows the next dialog only when nothing is currently
+  /// visible. [_isShowing] is claimed synchronously before awaiting the job so
+  /// two dialogs can never race onto the screen together.
+  static void _pump() {
+    if (_isShowing) return;
     if (_queue.isEmpty) return;
+
     final next = _queue.removeFirst();
-    // Brief delay between celebrations.
-    Future.delayed(const Duration(milliseconds: 400), () {
-      _present(next.context, next.data);
+    if (!next.context.mounted) {
+      // Skip a stale entry and continue draining the queue.
+      _pump();
+      return;
+    }
+
+    _isShowing = true;
+    next.job(next.context).whenComplete(() {
+      _isShowing = false;
+      // Brief gap between celebrations for a smoother experience.
+      Future.delayed(const Duration(milliseconds: 350), _pump);
     });
   }
 
@@ -337,8 +362,8 @@ class MilestoneService {
   }
 }
 
-class _QueuedMilestone {
-  const _QueuedMilestone({required this.context, required this.data});
+class _QueuedDialog {
+  const _QueuedDialog({required this.context, required this.job});
   final BuildContext context;
-  final MilestoneData data;
+  final DialogJob job;
 }

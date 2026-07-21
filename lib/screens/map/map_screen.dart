@@ -222,6 +222,8 @@ class _MapScreenState extends State<MapScreen> {
       return;
     }
 
+    if (!mounted) return;
+
     // TEMP DEBUG LOGGING — state values immediately before this setState
     // flips them, so the transition (old -> new) is visible in the log.
     debugPrint('[RunTrack][STATE] Before start setState: '
@@ -288,6 +290,7 @@ class _MapScreenState extends State<MapScreen> {
       locationSettings: locationSettings,
     ).listen(
           (position) {
+        if (!mounted) return;
         // TEMP DEBUG LOGGING — runs before the STAGE 3a counter increments,
         // so (_positionCallbackCount == 0) here means this is the very
         // first position callback invocation since _startTracking().

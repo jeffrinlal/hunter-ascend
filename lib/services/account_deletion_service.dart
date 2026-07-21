@@ -19,10 +19,12 @@ class AccountDeletionResult {
     required this.retainedAwardedAchievements,
   });
 
-  /// Achievement claims with awarded XP deliberately retained as inaccessible
-  /// orphan documents. Deleting them would let a future client retry a
-  /// permanent XP grant, so Firestore rules only allow deletion before XP is
-  /// awarded.
+  /// Achievement claims with awarded XP are retained only for the recovery
+  /// edge case where Firestore cleanup succeeds but Firebase Auth deletion
+  /// fails and the original UID remains active. If that UID recreates its
+  /// hunter profile before retrying deletion, these claims prevent its
+  /// achievements from being awarded again. A recreated account with a new UID
+  /// never reads these documents.
   final int retainedAwardedAchievements;
 }
 

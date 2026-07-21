@@ -338,7 +338,7 @@ class SettingsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                'This permanently deletes your account and known private data. Finish or cancel active duels first; completed shared duel history remains for other participants, while awarded achievement claims remain protected but inaccessible.',
+                'This permanently deletes your account and known private data. Finish or cancel active duels first; completed shared duel history remains for other participants. Awarded achievement claims are left behind only to preserve recovery if Auth deletion fails while this UID remains active; after successful Auth deletion, they are inaccessible.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: HunterTheme.textPrimary.withOpacity(0.5),
@@ -519,8 +519,9 @@ class SettingsScreen extends StatelessWidget {
           .deleteCurrentUserData(user.uid);
       firestoreCleanupCompleted = true;
       debugPrint(
-        'Account deletion retained '
-        '${cleanup.retainedAwardedAchievements} awarded achievement claim(s).',
+        'Account deletion kept '
+        '${cleanup.retainedAwardedAchievements} awarded achievement claim(s) '
+        'for same-UID deletion recovery.',
       );
 
       // Delete Auth last. If this fails, the signed-in user can reauthenticate
@@ -561,8 +562,9 @@ class SettingsScreen extends StatelessWidget {
         _showDeleteAccountError(
           context,
           firestoreCleanupCompleted
-              ? 'Your Firestore data was removed, but your sign-in account '
-                  'could not be deleted. Re-authenticate and retry deletion.'
+              ? 'Your deletable Firestore data was removed, but your sign-in '
+                  'account could not be deleted. Re-authenticate and retry '
+                  'deletion.'
               : 'Account deletion could not finish. Some data may already '
                   'have been removed; stay signed in and retry.',
         );

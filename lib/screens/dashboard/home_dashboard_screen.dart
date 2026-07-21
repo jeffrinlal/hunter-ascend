@@ -25,6 +25,7 @@ import 'package:hunter_ascend/services/xp_service.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:hunter_ascend/screens/dashboard/dashboard_screen.dart';
+import 'package:hunter_ascend/screens/dashboard/missions_screen.dart';
 import 'package:hunter_ascend/widgets/glass/glass_background.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
@@ -152,7 +153,14 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       checkBrokenStreak();
-      checkDisciplinePunishment();
+      () async {
+        try {
+          await MissionsScreen.resetDailyQuestsIfNeeded();
+        } catch (e) {
+          debugPrint('daily quest reset before discipline: $e');
+        }
+        if (mounted) checkDisciplinePunishment();
+      }();
     });
 
     loadHunterData().then((_) async {

@@ -47,6 +47,45 @@ class MissionsScreen extends StatefulWidget {
 
   @override
   State<MissionsScreen> createState() => _MissionsScreenState();
+
+  /// Runs the daily rollover before discipline evaluates yesterday's counts.
+  /// A transaction keeps simultaneous startup calls from resetting twice.
+  static Future<bool> resetDailyQuestsIfNeeded() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    final ref = FirebaseFirestore.instance.collection('hunters').doc(user.uid);
+    final today = DateTime.now().toString().substring(0, 10);
+    final current = await ref.get();
+    if (current.exists && (current.data()?['lastQuestResetDate'] ?? '') == today) {
+      return false;
+    }
+    final customCount = await FirebaseFirestore.instance
+        .collection('custom_quests')
+        .where('uid', isEqualTo: user.uid)
+        .get()
+        .then((snapshot) => snapshot.docs.length);
+
+    var reset = false;
+    await FirebaseFirestore.instance.runTransaction((txn) async {
+      reset = false;
+      final snap = await txn.get(ref);
+      if (!snap.exists) return;
+      final data = snap.data()!;
+      if ((data['lastQuestResetDate'] ?? '') == today) return;
+
+      final completed = List.from(data['completedQuests'] ?? []);
+      final aiQuests = List.from(data['aiQuests'] ?? []);
+      txn.update(ref, {
+        'yesterdayCompletedCount': completed.length,
+        'yesterdayTotalQuests': aiQuests.length + customCount,
+        'completedQuests': [],
+        'lastQuestResetDate': today,
+      });
+      reset = true;
+    });
+    return reset;
+  }
 }
 
 
@@ -96,7 +135,7 @@ class _MissionsScreenState extends State<MissionsScreen> {
     final today = now.toString().substring(0, 10);
     if (today != _missionDay) {
       _missionDay = today;
-      _loadAIQuests().then((_) => checkDailyReset());
+      checkDailyReset().then((_) => _loadAIQuests());
     }
   }
 
@@ -271,8 +310,8 @@ class _MissionsScreenState extends State<MissionsScreen> {
     loadWeeklyBannerAd();
 
     loadHunterData().then((_) async {
-      await _loadAIQuests();
       await checkDailyReset();
+      await _loadAIQuests();
     });
 
     _restoreDashboardActiveQuest();
@@ -637,26 +676,21 @@ class _MissionsScreenState extends State<MissionsScreen> {
   }
 
   Future<void> checkDailyReset() async {
+    await MissionsScreen.resetDailyQuestsIfNeeded();
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
-    if (!doc.exists) return;
+    final doc = await FirebaseFirestore.instance
+        .collection('hunters')
+        .doc(user.uid)
+        .get();
+    if (!mounted || !doc.exists) return;
     final data = doc.data()!;
     final today = DateTime.now().toString().substring(0, 10);
-    if ((data['lastQuestResetDate'] ?? '') == today) return;
-
-    final yesterdaysCompleted = List.from(data['completedQuests'] ?? []);
-    final yesterdaysAiQuests = List.from(data['aiQuests'] ?? []);
-    final customCount = (await FirebaseFirestore.instance.collection('custom_quests').where('uid', isEqualTo: user.uid).get()).docs.length;
-
-    await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
-      'yesterdayCompletedCount': yesterdaysCompleted.length,
-      'yesterdayTotalQuests': yesterdaysAiQuests.length + customCount,
-      'completedQuests': [],
-      'lastQuestResetDate': today,
-    });
-    if (!mounted) return;
-    setState(() => completedQuests.clear());
+    if ((data['lastQuestResetDate'] ?? '') == today) {
+      setState(() {
+        completedQuests = List<String>.from(data['completedQuests'] ?? []);
+      });
+    }
   }
 
   Future<void> saveCompletedQuest(String questName) async {

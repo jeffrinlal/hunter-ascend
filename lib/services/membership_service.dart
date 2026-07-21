@@ -343,8 +343,7 @@ class MembershipService {
   /// account deletion. Visual app preferences are intentionally retained.
   Future<void> clearAccountData() async {
     clearCache();
-    final prefs = _cachedPrefs ?? await SharedPreferences.getInstance();
-    _cachedPrefs = prefs;
+    final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_basicModePrefsKey);
   }
 

@@ -3,28 +3,30 @@ import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/models/rank_reward.dart';
 import 'package:hunter_ascend/data/rank_rewards_catalog.dart';
+import 'package:hunter_ascend/services/badge_equip_service.dart';
 import 'package:hunter_ascend/services/equipped_rewards_service.dart';
 import 'package:hunter_ascend/services/rank_reward_service.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
 
 /// Lightweight Hunter Rank reward inventory (hosted as a Profile tab).
 ///
-/// Presentation only. Ownership and equip state are strictly separated at
-/// the data-source level, matching the architecture established across
-/// Phases 3–4:
+/// Presentation only. Ownership is always answered EXCLUSIVELY by
+/// [RankRewardService] (`isOwned`, `ownedRewards`, `rewardsForTier`,
+/// `grantedAtFor`) — this screen never grants, revokes, or infers ownership
+/// any other way. Owned/claimed rewards remain completely private; only the
+/// currently-equipped BADGE (if any) is ever shown to other users.
 ///
-/// - **Ownership** ("do I own this?") is answered EXCLUSIVELY by
-///   [RankRewardService] (`isOwned`, `ownedRewards`, `rewardsForTier`,
-///   `grantedAtFor`). This screen never grants, revokes, or infers ownership
-///   any other way.
-/// - **Equipped state** ("what's active right now?") is answered EXCLUSIVELY
-///   by [EquippedRewardsService] (`equippedIdFor`/`isEquipped`). Ownership is
-///   NEVER read to determine what's equipped, and equipping/unequipping is
-///   done ONLY through [EquippedRewardsService.equip]/`.unequip` — this
-///   widget never writes to the ownership ledger.
+/// **Equipped state** is split by reward type:
+/// - [RankRewardType.badge] — the single publicly-visible slot. Read
+///   directly off `widget.hunter.equippedBadgeId` (already streamed with the
+///   rest of the hunter document — no extra read) and written through
+///   [BadgeEquipService].
+/// - Every other type (title, border, aura, dashboardTheme, reportStyle,
+///   profileEffect) — private, answered by [EquippedRewardsService]
+///   (`equippedIdFor`/`isEquipped`) exactly as before, written through
+///   [EquippedRewardsService.equip]/`.unequip`.
 ///
-/// No new Firestore fields, no changes to granting rules, no changes to
-/// [RankService]/[XpService].
+/// This widget never writes to the ownership ledger.
 class RewardsTab extends StatefulWidget {
   final HunterData hunter;
   const RewardsTab({super.key, required this.hunter});
@@ -455,12 +457,22 @@ class _RewardsTabState extends State<RewardsTab> {
     );
   }
 
+  /// Whether [reward] is currently equipped. Badges are read directly off
+  /// `widget.hunter.equippedBadgeId` (the publicly-visible field, already
+  /// streamed with the rest of the hunter document); every other type is
+  /// answered by [EquippedRewardsService] exactly as before. Never derived
+  /// from `owned` or any other ownership signal.
+  bool _isEquipped(RankReward reward) {
+    if (reward.type == RankRewardType.badge) {
+      return widget.hunter.equippedBadgeId == reward.id;
+    }
+    return EquippedRewardsService.instance.isEquipped(reward);
+  }
+
   // ── Reward card ───────────────────────────────────────────────────────
   Widget _buildCard(RankReward reward, bool owned) {
     final rc = reward.color;
-    // Equipped state comes ONLY from EquippedRewardsService — never derived
-    // from `owned` or any other ownership signal.
-    final equipped = EquippedRewardsService.instance.isEquipped(reward);
+    final equipped = _isEquipped(reward);
     final grantedAt = RankRewardService.instance.grantedAtFor(reward.id);
 
     return Container(
@@ -616,13 +628,21 @@ class _RewardsTabState extends State<RewardsTab> {
     );
   }
 
-  /// Equips/unequips exclusively through [EquippedRewardsService]. Never
-  /// touches [RankRewardService] — ownership is completely unaffected by
-  /// this action, in either direction.
+  /// Equips/unequips [reward]. Badges are routed through [BadgeEquipService]
+  /// (writes the public `equippedBadgeId` field on the hunter document —
+  /// the update is picked up automatically by the live `HunterData` stream
+  /// this tab already listens to, so no local state needs to be set here).
+  /// Every other type keeps going through [EquippedRewardsService] exactly
+  /// as before. Never touches [RankRewardService] — ownership is completely
+  /// unaffected by this action, in either direction.
   Future<void> _onEquipToggle(RankReward reward, bool currentlyEquipped) async {
     setState(() => _busy = true);
     final bool ok;
-    if (currentlyEquipped) {
+    if (reward.type == RankRewardType.badge) {
+      ok = currentlyEquipped
+          ? await BadgeEquipService.instance.unequip()
+          : await BadgeEquipService.instance.equip(reward);
+    } else if (currentlyEquipped) {
       ok = await EquippedRewardsService.instance.unequip(reward.type);
     } else {
       ok = await EquippedRewardsService.instance.equip(reward);

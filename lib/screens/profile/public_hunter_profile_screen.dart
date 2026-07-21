@@ -8,6 +8,7 @@ import 'package:hunter_ascend/screens/leaderboard/compare_hunters_screen.dart';
 import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
+import 'package:hunter_ascend/widgets/equipped_badge_chip.dart';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
 import 'package:hunter_ascend/widgets/premium_avatar.dart';
 
@@ -265,6 +266,10 @@ class PublicHunterProfileScreen extends StatelessWidget {
                                 ),
 
                                 const SizedBox(width: 8),
+
+                                EquippedBadgeChip(badgeId: data['equippedBadgeId']?.toString(), size: 18),
+
+                                const SizedBox(width: 6),
 
                                 MembershipBadge(
                                   membership: effectiveMembership,

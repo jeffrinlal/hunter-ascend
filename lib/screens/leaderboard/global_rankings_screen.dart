@@ -15,6 +15,7 @@ import 'dart:math' as math;
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:hunter_ascend/widgets/dashboard/entrance_fade_slide.dart';
+import 'package:hunter_ascend/widgets/equipped_badge_chip.dart';
 
 // ── Leaderboard membership palette ─────────────────────────────────────────
 // Leaderboard-local premium membership styling. Pro = blue/cyan, Max =
@@ -453,6 +454,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
         rankColor: _rankColor(entry.level),
         tierColor: _positionColor(i),
         tierLabel: i == 0 ? 'LEGENDARY' : (i == 1 ? 'ELITE' : 'MASTER'),
+        equippedBadgeId: entry.equippedBadgeId,
         onTap: entry.uid == currentUid
             ? null
             : () => Navigator.push(context, MaterialPageRoute(builder: (_) => PublicHunterProfileScreen(hunterUid: entry.uid))),
@@ -581,6 +583,8 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
                 children: [
                   Row(children: [
                     Flexible(child: Text(entry.hunterName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: nameColor, fontSize: 14.5, fontWeight: FontWeight.w700))),
+                    const SizedBox(width: 6),
+                    EquippedBadgeChip(badgeId: entry.equippedBadgeId, size: 14),
                     if (v.isPremium) ...[const SizedBox(width: 6), _membershipChip(membership, fontSize: 8)],
                     if (isMe) ...[const SizedBox(width: 6), _youPill()],
                   ]),
@@ -652,7 +656,11 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
                   if (v.isPremium) ...[const SizedBox(width: 8), _membershipChip(myMembership, fontSize: 8)],
                 ]),
                 const SizedBox(height: 4),
-                Text(hunter.hunterName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)),
+                Row(children: [
+                  Flexible(child: Text(hunter.hunterName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 17, fontWeight: FontWeight.w800))),
+                  const SizedBox(width: 6),
+                  EquippedBadgeChip(badgeId: hunter.equippedBadgeId, size: 16),
+                ]),
                 const SizedBox(height: 2),
                 Text('${getRankTitle(hunter.level)}  \u00b7  Lv.${hunter.level}  \u00b7  ${hunter.xp} XP', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12)),
               ],
@@ -843,6 +851,7 @@ class _TopHunter {
   final Color rankColor;
   final Color tierColor;
   final String tierLabel;
+  final String? equippedBadgeId;
   final VoidCallback? onTap;
 
   const _TopHunter({
@@ -857,6 +866,7 @@ class _TopHunter {
     required this.rankColor,
     required this.tierColor,
     required this.tierLabel,
+    required this.equippedBadgeId,
     required this.onTap,
   });
 }
@@ -938,6 +948,8 @@ class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProvide
                           style: TextStyle(color: h.isMe ? HunterTheme.primary : HunterTheme.textPrimary, fontSize: 19, fontWeight: FontWeight.w900),
                         ),
                       ),
+                      const SizedBox(width: 6),
+                      EquippedBadgeChip(badgeId: h.equippedBadgeId, size: 16),
                       if (_membershipVisual(h.membership).isPremium) ...[
                         const SizedBox(width: 6),
                         _membershipChip(h.membership, fontSize: 8),
@@ -970,12 +982,22 @@ class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProvide
           children: [
             _auraStack(h, 84, 27),
             const SizedBox(height: 10),
-            Text(
-              h.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: h.isMe ? HunterTheme.primary : HunterTheme.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w800),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(
+                    h.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: h.isMe ? HunterTheme.primary : HunterTheme.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                EquippedBadgeChip(badgeId: h.equippedBadgeId, size: 13),
+              ],
             ),
             if (_membershipVisual(h.membership).isPremium || h.isMe) ...[
               const SizedBox(height: 6),

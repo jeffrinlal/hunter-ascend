@@ -22,13 +22,14 @@ class LeaderboardEntryAdapter extends TypeAdapter<LeaderboardEntry> {
       profilePicture: fields[6] as String?,
       membership: fields[7] as String?,
       membershipExpiry: fields[8] as String?,
+      equippedBadgeId: fields[9] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, LeaderboardEntry obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(10)
       ..writeByte(0)..write(obj.uid)
       ..writeByte(1)..write(obj.hunterName)
       ..writeByte(2)..write(obj.level)
@@ -37,7 +38,8 @@ class LeaderboardEntryAdapter extends TypeAdapter<LeaderboardEntry> {
       ..writeByte(5)..write(obj.dailyXp)
       ..writeByte(6)..write(obj.profilePicture)
       ..writeByte(7)..write(obj.membership)
-      ..writeByte(8)..write(obj.membershipExpiry);
+      ..writeByte(8)..write(obj.membershipExpiry)
+      ..writeByte(9)..write(obj.equippedBadgeId);
   }
 
   @override

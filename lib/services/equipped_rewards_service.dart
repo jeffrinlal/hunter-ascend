@@ -12,7 +12,18 @@ import 'package:hunter_ascend/services/rank_reward_service.dart';
 // single [ListenableBuilder]/[Listenable.merge]. No behavior, persistence,
 // or ownership-gating change.
 
-/// Tracks the player's CURRENTLY EQUIPPED cosmetic per [RankRewardType].
+/// Tracks the player's CURRENTLY EQUIPPED cosmetic per [RankRewardType],
+/// for every type EXCEPT [RankRewardType.badge].
+///
+/// ## Badges are handled separately
+/// The badge type is deliberately excluded from this service. Badges are
+/// meant to be shown publicly (Profile, Dashboard, Global Rankings, Compare
+/// Hunters, Public Hunter Profile), so they are equipped via the much
+/// simpler [BadgeEquipService], which writes a single denormalized
+/// `equippedBadgeId` field directly on the hunter document instead of this
+/// service's private, owner-only-readable `equippedRewards` subcollection.
+/// [equip]/[unequip] both refuse [RankRewardType.badge] — see their doc
+/// comments.
 ///
 /// ## Ownership vs. equipped — why these are two separate services
 /// [RankRewardService] is the permanent ownership ledger: once a reward is
@@ -21,11 +32,12 @@ import 'package:hunter_ascend/services/rank_reward_service.dart';
 /// rules — `create`-only, no `update`, no `delete`).
 ///
 /// This service is the OPPOSITE by design: it stores which single reward is
-/// currently *active* per type (one title, one badge, one border, one aura,
-/// one dashboard theme, one report style, one profile effect), in a single
-/// mutable document — `hunters/{uid}/equippedRewards/current`. Equipping a
-/// different unlocked cosmetic is a normal, frequent, freely-repeatable
-/// action, so this document supports `update` (see firestore.rules).
+/// currently *active* per type (one title, one border, one aura, one
+/// dashboard theme, one report style, one profile effect — badge excluded,
+/// see above), in a single mutable document —
+/// `hunters/{uid}/equippedRewards/current`. Equipping a different unlocked
+/// cosmetic is a normal, frequent, freely-repeatable action, so this
+/// document supports `update` (see firestore.rules).
 ///
 /// Equipping/unequipping here NEVER writes to `rankRewards` — ownership
 /// records are completely untouched by cosmetic switches. Conversely,
@@ -151,15 +163,22 @@ class EquippedRewardsService extends ChangeNotifier {
 
   /// Equips [reward] as the active cosmetic for its type.
   ///
-  /// Validates OWNERSHIP first via [RankRewardService.isOwned] — a reward
-  /// that hasn't been permanently unlocked can never be equipped. Returns
-  /// `false` (no write performed) if the reward isn't owned or no user is
+  /// Refuses [RankRewardType.badge] — badges are equipped exclusively via
+  /// [BadgeEquipService], never through this subcollection. Validates
+  /// OWNERSHIP first via [RankRewardService.isOwned] — a reward that hasn't
+  /// been permanently unlocked can never be equipped. Returns `false` (no
+  /// write performed) if the reward is a badge, isn't owned, or no user is
   /// signed in; `true` once the equip write succeeds.
   ///
   /// This only ever writes to `equippedRewards` — [RankRewardService]'s
   /// ownership ledger is read-only from this method's perspective and is
   /// never modified here.
   Future<bool> equip(RankReward reward) async {
+    if (reward.type == RankRewardType.badge) {
+      debugPrint('EquippedRewardsService.equip: badges are handled by BadgeEquipService — refusing.');
+      return false;
+    }
+
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return false;
 
@@ -190,7 +209,14 @@ class EquippedRewardsService extends ChangeNotifier {
 
   /// Unequips whatever is currently active for [type] (reverting to the
   /// default look for that slot). A no-op if nothing is equipped for [type].
+  ///
+  /// Refuses [RankRewardType.badge] — see [equip].
   Future<bool> unequip(RankRewardType type) async {
+    if (type == RankRewardType.badge) {
+      debugPrint('EquippedRewardsService.unequip: badges are handled by BadgeEquipService — refusing.');
+      return false;
+    }
+
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return false;
     if (!_equipped.containsKey(type.name)) return true; // already unequipped

@@ -30,6 +30,7 @@ import 'package:hunter_ascend/widgets/glass/glass_background.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
+import 'package:hunter_ascend/widgets/equipped_badge_chip.dart';
 
 
 /// Home dashboard: hunter stats, steps, water, streak, notifications, quick actions.
@@ -1436,11 +1437,19 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
               const SizedBox(width: 14),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.w900),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      EquippedBadgeChip(badgeId: hunter.equippedBadgeId, size: 16),
+                    ],
                   ),
                   const SizedBox(height: 6),
                   Container(

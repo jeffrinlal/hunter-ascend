@@ -241,12 +241,37 @@
 
 ### C4. Equip / Unequip
 
+Badges are equipped through a different mechanism than every other reward
+type, because badges are the one type shown publicly (Profile, Dashboard,
+Global Rankings, Compare Hunters, Public Hunter Profile). Test them
+separately.
+
+**C4a. Non-badge types** (title, border, aura, dashboardTheme, reportStyle,
+profileEffect) — private, via `EquippedRewardsService` +
+`hunters/{uid}/equippedRewards/current`:
+
 | # | Test | Expected | Pass |
 |---|---|---|---|
-| 106 | Tap EQUIP on an owned reward | Button changes to UNEQUIP, checkmark appears, Firestore `equippedRewards/current` updated | [ ] |
+| 106 | Tap EQUIP on an owned title/border/aura/etc. | Button changes to UNEQUIP, checkmark appears, Firestore `equippedRewards/current` updated | [ ] |
 | 107 | Tap UNEQUIP | Button reverts to EQUIP, checkmark removed, field deleted from Firestore doc | [ ] |
 | 108 | Equip a title, then equip a different title | Previous title unequipped, new one equipped (one per type) | [ ] |
-| 109 | Attempt to equip a locked reward (via modified client) | `EquippedRewardsService.equip` returns false, no write | [ ] |
+| 109 | Attempt to equip a locked title/border/etc. (via modified client) | `EquippedRewardsService.equip` returns false, no write | [ ] |
+
+**C4b. Badges** — the single publicly-visible slot, via `BadgeEquipService` +
+`hunters/{uid}.equippedBadgeId` (denormalized directly on the hunter
+document, not the `equippedRewards` subcollection):
+
+| # | Test | Expected | Pass |
+|---|---|---|---|
+| 109a | Tap EQUIP on an owned badge | Button changes to UNEQUIP, checkmark appears, Firestore `hunters/{uid}.equippedBadgeId` set to the badge's id | [ ] |
+| 109b | Tap UNEQUIP | Button reverts to EQUIP, checkmark removed, `equippedBadgeId` field deleted from the hunter doc | [ ] |
+| 109c | Equip a badge, then equip a different badge | Previous badge automatically replaced — only one badge equipped at a time (single scalar field) | [ ] |
+| 109d | Attempt to equip a locked badge (via modified client) | `BadgeEquipService.equip` returns false, no write | [ ] |
+| 109e | Tap EQUIP on the badge that is already equipped | No Firestore write occurs (idempotency guard); button/UI state unchanged | [ ] |
+| 109f | Tap UNEQUIP when no badge is equipped | No Firestore write occurs (idempotency guard) | [ ] |
+| 109g | Equip a badge, then open Global Rankings | Badge appears next to the hunter's name without a stale delay (leaderboard cache is invalidated on equip/unequip) | [ ] |
+| 109h | Equip a badge, then check Profile, Dashboard, and Public Hunter Profile (own profile) | Badge appears on all three immediately (live Firestore listeners, no extra reads) | [ ] |
+| 109i | Manually set `equippedBadgeId` to a nonexistent/removed badge id (via Firestore console) | Badge chip renders nothing on all five screens — no crash | [ ] |
 
 ### C5. UI refresh
 

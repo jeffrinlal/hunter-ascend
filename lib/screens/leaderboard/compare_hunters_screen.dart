@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:hunter_ascend/services/achievements_service.dart';
+import 'package:hunter_ascend/widgets/equipped_badge_chip.dart';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
 import 'package:hunter_ascend/widgets/premium_avatar.dart';
 
@@ -348,6 +349,7 @@ class _CompareHuntersScreenState extends State<CompareHuntersScreen> {
                           myRankColor,
                           myData['profilePicture'],
                           _effectiveMembership(myData),
+                          myData['equippedBadgeId']?.toString(),
                           isMe: true,
                         ),
                       ),
@@ -394,6 +396,7 @@ class _CompareHuntersScreenState extends State<CompareHuntersScreen> {
                           theirRankColor,
                           theirData['profilePicture'],
                           _effectiveMembership(theirData),
+                          theirData['equippedBadgeId']?.toString(),
                           isMe: false,
                         ),
                       ),
@@ -535,6 +538,7 @@ class _CompareHuntersScreenState extends State<CompareHuntersScreen> {
       Color rankColor,
       String? profilePicture,
       String membership,
+      String? equippedBadgeId,
       {required bool isMe}
       ) {
     final rank = RankService.instance.letterForLevel(level);
@@ -598,6 +602,10 @@ class _CompareHuntersScreenState extends State<CompareHuntersScreen> {
         ),
         ),
         ),
+
+        const SizedBox(width: 6),
+
+        EquippedBadgeChip(badgeId: equippedBadgeId, size: 14),
 
         const SizedBox(width: 6),
 

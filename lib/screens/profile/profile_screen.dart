@@ -22,6 +22,7 @@ import 'package:hunter_ascend/screens/profile/achievements/achievements_tab.dart
 import 'package:hunter_ascend/screens/profile/rewards/rewards_tab.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
+import 'package:hunter_ascend/widgets/equipped_badge_chip.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/models/weight_entry.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
@@ -438,6 +439,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 ),
 
                                 const SizedBox(width: 8),
+
+                                EquippedBadgeChip(badgeId: hunter.equippedBadgeId, size: 18),
+
+                                const SizedBox(width: 6),
 
                                 _membershipChip(
                                   MembershipService.instance.membershipName.toLowerCase(),

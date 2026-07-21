@@ -112,6 +112,8 @@ class HunterData {
     this.hitMidnightAction = false,
     this.hitEarlyBirdAction = false,
     this.hitNightOwlAction = false,
+    // ── Publicly-equipped badge ──
+    this.equippedBadgeId,
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -256,6 +258,20 @@ class HunterData {
   @HiveField(71) final bool hitNightOwlAction;
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // PUBLICLY-EQUIPPED BADGE
+  // ═══════════════════════════════════════════════════════════════════════════
+  //
+  // Unlike the other six Hunter Rank reward types (title, border, aura,
+  // dashboardTheme, reportStyle, profileEffect) — which stay private in
+  // `hunters/{uid}/equippedRewards/current` — the equipped BADGE is
+  // deliberately denormalized directly onto this document so every screen
+  // that already reads a hunter document (Profile, Dashboard, Global
+  // Rankings, Compare Hunters, Public Hunter Profile) can display it with
+  // zero additional Firestore reads. Only one badge can ever be equipped at
+  // a time because this is a single scalar field, not a per-type map.
+  @HiveField(75) final String? equippedBadgeId;
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // FACTORY: Firestore → Domain
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -352,6 +368,8 @@ class HunterData {
       hitMidnightAction: data['hitMidnightAction'] == true,
       hitEarlyBirdAction: data['hitEarlyBirdAction'] == true,
       hitNightOwlAction: data['hitNightOwlAction'] == true,
+      // Publicly-equipped badge
+      equippedBadgeId: data['equippedBadgeId']?.toString(),
     );
   }
 
@@ -428,6 +446,7 @@ class HunterData {
       'hitMidnightAction': hitMidnightAction,
       'hitEarlyBirdAction': hitEarlyBirdAction,
       'hitNightOwlAction': hitNightOwlAction,
+      if (equippedBadgeId != null) 'equippedBadgeId': equippedBadgeId,
     };
   }
 
@@ -511,6 +530,7 @@ class HunterData {
     bool? hitMidnightAction,
     bool? hitEarlyBirdAction,
     bool? hitNightOwlAction,
+    String? equippedBadgeId,
   }) {
     return HunterData(
       hunterName: hunterName ?? this.hunterName,
@@ -588,6 +608,7 @@ class HunterData {
       hitMidnightAction: hitMidnightAction ?? this.hitMidnightAction,
       hitEarlyBirdAction: hitEarlyBirdAction ?? this.hitEarlyBirdAction,
       hitNightOwlAction: hitNightOwlAction ?? this.hitNightOwlAction,
+      equippedBadgeId: equippedBadgeId ?? this.equippedBadgeId,
     );
   }
 

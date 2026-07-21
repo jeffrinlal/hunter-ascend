@@ -19,6 +19,7 @@ class LeaderboardEntry {
     this.profilePicture,
     this.membership,
     this.membershipExpiry,
+    this.equippedBadgeId,
   });
 
   @HiveField(0) final String uid;
@@ -30,6 +31,12 @@ class LeaderboardEntry {
   @HiveField(6) final String? profilePicture;
   @HiveField(7) final String? membership;
   @HiveField(8) final String? membershipExpiry;
+
+  /// The single publicly-equipped badge id, or `null` if none equipped.
+  /// Parsed straight from the `equippedBadgeId` field already present on
+  /// every hunter document returned by the leaderboard query — no extra
+  /// Firestore read is required to populate this.
+  @HiveField(9) final String? equippedBadgeId;
 
   /// Creates a [LeaderboardEntry] from a Firestore document.
   factory LeaderboardEntry.fromFirestore(String docId, Map<String, dynamic> data) {
@@ -43,6 +50,7 @@ class LeaderboardEntry {
       profilePicture: data['profilePicture'] as String?,
       membership: data['membershipType']?.toString() ?? data['membership']?.toString(),
       membershipExpiry: _parseExpiryToString(data['membershipExpiry']),
+      equippedBadgeId: data['equippedBadgeId']?.toString(),
     );
   }
 

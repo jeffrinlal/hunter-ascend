@@ -109,13 +109,15 @@ class HunterDataAdapter extends TypeAdapter<HunterData> {
       lastProteinGoalHitDate: fields[72] as String?,
       lastBalancedMacroDate: fields[73] as String?,
       stepsAccumulatedToday: fields[74] as int? ?? 0,
+      // Publicly-equipped badge
+      equippedBadgeId: fields[75] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, HunterData obj) {
     writer
-      ..writeByte(75) // total number of fields
+      ..writeByte(76) // total number of fields
       // Core identity
       ..writeByte(0)..write(obj.hunterName)
       ..writeByte(1)..write(obj.xp)
@@ -207,7 +209,9 @@ class HunterDataAdapter extends TypeAdapter<HunterData> {
       // Achievement tracking: nutrition (date guards)
       ..writeByte(72)..write(obj.lastProteinGoalHitDate)
       ..writeByte(73)..write(obj.lastBalancedMacroDate)
-      ..writeByte(74)..write(obj.stepsAccumulatedToday);
+      ..writeByte(74)..write(obj.stepsAccumulatedToday)
+      // Publicly-equipped badge
+      ..writeByte(75)..write(obj.equippedBadgeId);
   }
 
   @override

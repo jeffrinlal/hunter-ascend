@@ -202,6 +202,8 @@ class _MapScreenState extends State<MapScreen> {
       return;
     }
 
+    if (!mounted) return;
+
     setState(() {
       _isTracking = true;
       _isPaused = false;
@@ -259,6 +261,7 @@ class _MapScreenState extends State<MapScreen> {
       locationSettings: locationSettings,
     ).listen(
           (position) {
+        if (!mounted) return;
         // TEMP DEBUG LOGGING — every raw Position the stream delivers.
         debugPrint('[RunTrack] STAGE 3: Position received — '
             'lat=${position.latitude}, lng=${position.longitude}, '

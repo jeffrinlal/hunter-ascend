@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -402,7 +403,8 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   // .snapshots() listener on the same `hunters/{uid}` document — this
   // screen no longer duplicates that Firestore read.
   late final Stream<HunterData?> _hunterStream;
-  late final Stream<List<MealEntry>> _mealsStream;
+  late Stream<List<MealEntry>> _mealsStream;
+  Timer? _midnightRefreshTimer;
 
   // Auto-categorize a meal purely from the time it was logged.
   String _categoryForTime(DateTime t) {
@@ -444,13 +446,26 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     loadBannerAd();
     _hunterStream = HunterRepository.instance.watch();
     _mealsStream = _todayMealsStream();
+    _scheduleMidnightRefresh();
   }
 
   @override
   void dispose() {
     _foodController.dispose();
+    _midnightRefreshTimer?.cancel();
     _bannerAd?.dispose();
     super.dispose();
+  }
+
+  void _scheduleMidnightRefresh() {
+    _midnightRefreshTimer?.cancel();
+    final now = DateTime.now();
+    final nextMidnight = DateTime(now.year, now.month, now.day + 1);
+    _midnightRefreshTimer = Timer(nextMidnight.difference(now), () {
+      if (!mounted) return;
+      setState(() => _mealsStream = _todayMealsStream());
+      _scheduleMidnightRefresh();
+    });
   }
 
   // ── Get calorie goal from BMI ─────────────────────────────────────────

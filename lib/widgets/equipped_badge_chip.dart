@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/data/models/rank_reward.dart';
 import 'package:hunter_ascend/data/rank_rewards_catalog.dart';
 
 /// Small public badge indicator, shown next to a hunter's name wherever

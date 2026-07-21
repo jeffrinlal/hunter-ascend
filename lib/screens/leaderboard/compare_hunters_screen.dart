@@ -13,7 +13,7 @@ import 'package:hunter_ascend/widgets/membership_badge.dart';
 import 'package:hunter_ascend/widgets/premium_avatar.dart';
 
 /// Side-by-side stat comparison of two hunters.
-class CompareHuntersScreen extends StatelessWidget {
+class CompareHuntersScreen extends StatefulWidget {
   final String hunterUid;
 
   const CompareHuntersScreen({
@@ -21,6 +21,35 @@ class CompareHuntersScreen extends StatelessWidget {
     required this.hunterUid,
   });
 
+  @override
+  State<CompareHuntersScreen> createState() => _CompareHuntersScreenState();
+}
+
+class _CompareHuntersScreenState extends State<CompareHuntersScreen> {
+  // Held in state (rather than created inline in build()) so a failed load
+  // can be retried without relying on an unrelated rebuild (e.g. a theme
+  // change) to re-trigger the Firestore reads.
+  late Future<List<DocumentSnapshot<Map<String, dynamic>>>> _compareFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _compareFuture = _loadComparison();
+  }
+
+  Future<List<DocumentSnapshot<Map<String, dynamic>>>> _loadComparison() {
+    final currentUid = FirebaseAuth.instance.currentUser!.uid;
+    return Future.wait([
+      FirebaseFirestore.instance.collection('hunters').doc(currentUid).get(),
+      FirebaseFirestore.instance.collection('hunters').doc(widget.hunterUid).get(),
+    ]);
+  }
+
+  void _retry() {
+    setState(() {
+      _compareFuture = _loadComparison();
+    });
+  }
 
   /// Resolves effective membership from a hunter doc. A premium tier
   /// with an expired expiry is treated as Basic.
@@ -80,8 +109,6 @@ class CompareHuntersScreen extends StatelessWidget {
   }
 
   Widget _themedBuild(BuildContext context) {
-    final currentUid = FirebaseAuth.instance.currentUser!.uid;
-
     return Scaffold(
       backgroundColor: HunterTheme.background,
       appBar: AppBar(
@@ -127,12 +154,55 @@ class CompareHuntersScreen extends StatelessWidget {
           ],
         ),
       ),
-      body: FutureBuilder(
-        future: Future.wait([
-          FirebaseFirestore.instance.collection('hunters').doc(currentUid).get(),
-          FirebaseFirestore.instance.collection('hunters').doc(hunterUid).get(),
-        ]),
+      body: FutureBuilder<List<DocumentSnapshot<Map<String, dynamic>>>>(
+        future: _compareFuture,
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 74,
+                      height: 74,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [HunterTheme.danger.withOpacity(0.16), HunterTheme.cardColor],
+                        ),
+                        border: Border.all(color: HunterTheme.danger.withOpacity(0.3)),
+                      ),
+                      child: Icon(Icons.error_outline_rounded, color: HunterTheme.danger, size: 34),
+                    ),
+                    const SizedBox(height: 18),
+                    Text('Could not load this comparison',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: HunterTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 6),
+                    Text('Check your connection and try again.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12.5)),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: _retry,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: HunterTheme.primary,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('RETRY', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1)),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
           if (!snapshot.hasData) {
             return Center(
               child: Column(
@@ -163,8 +233,46 @@ class CompareHuntersScreen extends StatelessWidget {
             );
           }
 
-          final myData    = snapshot.data![0].data() as Map<String, dynamic>;
-          final theirData = snapshot.data![1].data() as Map<String, dynamic>;
+          final myDoc = snapshot.data![0];
+          final theirDoc = snapshot.data![1];
+
+          if (!myDoc.exists || !theirDoc.exists) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 74,
+                      height: 74,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [HunterTheme.textTertiary.withOpacity(0.16), HunterTheme.cardColor],
+                        ),
+                        border: Border.all(color: HunterTheme.textTertiary.withOpacity(0.3)),
+                      ),
+                      child: Icon(Icons.person_off_outlined, color: HunterTheme.textTertiary, size: 32),
+                    ),
+                    const SizedBox(height: 18),
+                    Text('Hunter profile unavailable',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: HunterTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 6),
+                    Text('This hunter could not be found.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12.5)),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          final myData    = myDoc.data() ?? <String, dynamic>{};
+          final theirData = theirDoc.data() ?? <String, dynamic>{};
 
           final myWins     = (myData['duelWins']    ?? 0) as int;
           final myLosses   = (myData['duelLosses']  ?? 0) as int;

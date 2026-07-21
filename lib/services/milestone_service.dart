@@ -2,6 +2,8 @@ import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hunter_ascend/data/cache_constants.dart';
+import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/widgets/milestone_celebration_dialog.dart';
 
 /// Signature for a queued dialog presenter. The job is invoked when it reaches
@@ -367,9 +369,13 @@ class MilestoneService {
   }
 
   /// Reads the cached HunterData from Hive (avoids async/circular deps).
-  static dynamic _getCachedHunterData() {
+  ///
+  /// Uses the same box name/type as [HunterRepository] and [HiveInit]
+  /// (`CacheConstants.hunterBox`) so this actually reads the box the app
+  /// opens at startup, rather than a box that is never opened.
+  static HunterData? _getCachedHunterData() {
     try {
-      final box = Hive.box<dynamic>('hunter_box');
+      final box = Hive.box<HunterData>(CacheConstants.hunterBox);
       return box.get('current');
     } catch (_) {
       return null;

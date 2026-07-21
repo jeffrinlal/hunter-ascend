@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hunter_ascend/services/xp_service.dart';
+import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
 
 /// Ambience options for the sleep mission.
 enum SleepAmbience { none, rain, ocean, forest, campfire, whiteNoise, nightCrickets }
@@ -29,6 +31,8 @@ class SleepResult {
 class SleepService {
   SleepService._();
   static final SleepService instance = SleepService._();
+  final AudioPlayer _player = AudioPlayer();
+  Timer? _stopTimer;
 
   // ── SharedPreferences keys ──────────────────────────────────────────────
   static const String _keyActive = 'sleep_active';
@@ -136,6 +140,7 @@ class SleepService {
     await prefs.setInt(_keyStartTime, _startTime!.millisecondsSinceEpoch);
     await prefs.setInt(_keyAmbience, ambience.index);
     await prefs.setInt(_keyAmbienceDuration, duration.index);
+    await _playAmbience(ambience, duration);
   }
 
   // ── Stop Sleep ──────────────────────────────────────────────────────────
@@ -161,6 +166,8 @@ class SleepService {
     await prefs.remove(_keyStartTime);
     await prefs.remove(_keyAmbience);
     await prefs.remove(_keyAmbienceDuration);
+    _stopTimer?.cancel();
+    await _player.stop();
 
     // Check if already rewarded today.
     final today = DateTime.now().toString().substring(0, 10);
@@ -203,6 +210,8 @@ class SleepService {
     await prefs.remove(_keyStartTime);
     await prefs.remove(_keyAmbience);
     await prefs.remove(_keyAmbienceDuration);
+    _stopTimer?.cancel();
+    await _player.stop();
   }
 
   /// Removes every account-scoped sleep value after permanent account
@@ -289,4 +298,75 @@ class SleepService {
       case AmbienceDuration.untilStopped: return 'Until stopped';
     }
   }
+  Future<void> _playAmbience(
+      SleepAmbience ambience,
+      AmbienceDuration duration,
+      ) async {
+    await _player.stop();
+    _stopTimer?.cancel();
+
+    String? file;
+
+    switch (ambience) {
+      case SleepAmbience.none:
+        return;
+
+      case SleepAmbience.rain:
+        file = 'rain.mp3';
+        break;
+
+      case SleepAmbience.ocean:
+        file = 'ocean.mp3';
+        break;
+
+      case SleepAmbience.forest:
+        file = 'forest.mp3';
+        break;
+
+      case SleepAmbience.campfire:
+        file = 'campfire.mp3';
+        break;
+
+      case SleepAmbience.whiteNoise:
+        file = 'white_noise.mp3';
+        break;
+
+      case SleepAmbience.nightCrickets:
+        file = 'night_crickets.mp3';
+        break;
+    }
+
+    await _player.setReleaseMode(ReleaseMode.loop);
+
+    await _player.play(
+      AssetSource('audio/sleep/$file'),
+    );
+
+    switch (duration) {
+      case AmbienceDuration.thirtyMin:
+        _stopTimer = Timer(
+          const Duration(minutes: 30),
+              () => _player.stop(),
+        );
+        break;
+
+      case AmbienceDuration.fortyFiveMin:
+        _stopTimer = Timer(
+          const Duration(minutes: 45),
+              () => _player.stop(),
+        );
+        break;
+
+      case AmbienceDuration.sixtyMin:
+        _stopTimer = Timer(
+          const Duration(minutes: 60),
+              () => _player.stop(),
+        );
+        break;
+
+      case AmbienceDuration.untilStopped:
+        break;
+    }
+  }
 }
+

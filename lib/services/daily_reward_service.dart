@@ -47,4 +47,13 @@ class DailyRewardService {
 
     return result;
   }
+
+  /// Removes the current hunter's persisted daily-reward gate after permanent
+  /// account deletion, allowing a replacement account to start fresh.
+  Future<void> clearAccountData() async {
+    _lastClaimDate = null;
+    _initialized = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyLastClaimDate);
+  }
 }

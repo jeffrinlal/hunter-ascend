@@ -339,6 +339,15 @@ class MembershipService {
     tierNotifier.value = MembershipTier.basic;
   }
 
+  /// Clears the account-scoped membership preference as part of permanent
+  /// account deletion. Visual app preferences are intentionally retained.
+  Future<void> clearAccountData() async {
+    clearCache();
+    final prefs = _cachedPrefs ?? await SharedPreferences.getInstance();
+    _cachedPrefs = prefs;
+    await prefs.remove(_basicModePrefsKey);
+  }
+
   /// Performs the actual Firestore read, coalescing concurrent calls into a
   /// single in-flight request.
   Future<void> _fetchAndCache() async {

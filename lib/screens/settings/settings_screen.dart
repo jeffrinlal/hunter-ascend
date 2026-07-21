@@ -4,6 +4,7 @@ import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hunter_ascend/screens/auth/login_screen.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
@@ -16,6 +17,9 @@ import 'package:hunter_ascend/services/sleep_service.dart';
 import 'package:hunter_ascend/services/rank_reward_service.dart';
 import 'package:hunter_ascend/services/equipped_rewards_service.dart';
 import 'package:hunter_ascend/services/achievements_service.dart';
+import 'package:hunter_ascend/services/daily_reward_service.dart';
+import 'package:hunter_ascend/services/milestone_service.dart';
+import 'package:hunter_ascend/services/rank_celebration_service.dart';
 
 /// App settings: theme toggle, account, and links.
 class SettingsScreen extends StatelessWidget {
@@ -407,26 +411,83 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _runLocalAccountCleanup(
+    String label,
+    Future<void> Function() cleanup,
+  ) async {
+    try {
+      await cleanup();
+    } catch (e, stackTrace) {
+      // Server deletion has already succeeded at this point. Keep clearing
+      // the remaining account-scoped state and do not report success as a
+      // retryable failure merely because a local cache is unavailable.
+      debugPrint('Delete account local cleanup ($label): $e');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
+
+  Future<void> _clearDeletedAccountLocalState(String uid) async {
+    // Stop account-scoped listeners first, then clear every account cache and
+    // preference. Each task is isolated so one device-local failure cannot
+    // leave later stores untouched or block the completed deletion flow.
+    await _runLocalAccountCleanup(
+      'achievements',
+      () async => AchievementsService.instance.clearCache(),
+    );
+    await _runLocalAccountCleanup(
+      'rank rewards',
+      () async => RankRewardService.instance.clearCache(),
+    );
+    await _runLocalAccountCleanup(
+      'equipped rewards',
+      () async => EquippedRewardsService.instance.clearCache(),
+    );
+    await _runLocalAccountCleanup(
+      'membership',
+      MembershipService.instance.clearAccountData,
+    );
+    await _runLocalAccountCleanup(
+      'hunter cache',
+      HunterRepository.instance.clearCache,
+    );
+    await _runLocalAccountCleanup(
+      'weight cache',
+      WeightRepository.instance.clearCache,
+    );
+    await _runLocalAccountCleanup(
+      'quest cache',
+      QuestRepository.instance.clearCache,
+    );
+    await _runLocalAccountCleanup(
+      'leaderboard cache',
+      LeaderboardRepository.instance.clearCache,
+    );
+    await _runLocalAccountCleanup(
+      'sleep',
+      SleepService.instance.clearAccountData,
+    );
+    await _runLocalAccountCleanup(
+      'daily reward',
+      DailyRewardService.instance.clearAccountData,
+    );
+    await _runLocalAccountCleanup(
+      'milestones',
+      MilestoneService.clearAccountData,
+    );
+    await _runLocalAccountCleanup(
+      'rank celebrations',
+      () => RankCelebrationService.instance.clearAccountData(uid),
+    );
+  }
+
   Future<void> _handleDeleteAccount(BuildContext context) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      if (user == null || user.isAnonymous) return;
 
-      // Cancel services that listen to HunterRepository's stream FIRST
-      // (same race-prevention as _handleLogout — see comment there).
-      AchievementsService.instance.clearCache();
-      RankRewardService.instance.clearCache();
-      EquippedRewardsService.instance.clearCache();
-
-      MembershipService.instance.clearCache();
-      await HunterRepository.instance.clearCache();
-      await WeightRepository.instance.clearCache();
-      await QuestRepository.instance.clearCache();
-      await LeaderboardRepository.instance.clearCache();
-      await SleepService.instance.cancelSleep();
-
-      // Re-authenticate with Google before deletion (required by Firebase
-      // for destructive operations if the sign-in is not recent).
+      // Firebase requires a recent Google credential for a destructive account
+      // operation. Do this before changing any local state so cancellation does
+      // not interrupt the still-valid session.
       final googleSignIn = GoogleSignIn();
       final googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
@@ -450,27 +511,36 @@ class SettingsScreen extends StatelessWidget {
         idToken: googleAuth.idToken,
       );
       await user.reauthenticateWithCredential(credential);
+      // Ensure the callable receives the freshly re-authenticated ID token,
+      // including its current auth_time claim.
+      await user.getIdToken(true);
 
-      // Delete Firestore user data
-      await FirebaseFirestore.instance
-          .collection('hunters')
-          .doc(user.uid)
-          .delete();
-
-      // Delete the hunterName reservation (if it exists)
-      final hunterDoc = await FirebaseFirestore.instance
-          .collection('hunterNames')
-          .where('uid', isEqualTo: user.uid)
-          .limit(1)
-          .get();
-      for (final doc in hunterDoc.docs) {
-        await doc.reference.delete();
+      // Firestore parent deletion does not cascade into subcollections, and
+      // client rules intentionally cannot delete every global user document.
+      // The callable uses the authenticated UID only, removes the complete
+      // server-side footprint, then deletes that exact Auth account.
+      final result = await FirebaseFunctions.instance
+          .httpsCallable('deleteAccount')
+          .call();
+      final data = result.data;
+      if (data is! Map || data['success'] != true) {
+        throw StateError('Account deletion was not confirmed by the server.');
       }
 
-      // Delete the Firebase Auth account
-      await user.delete();
+      await _clearDeletedAccountLocalState(user.uid);
 
-      await googleSignIn.signOut();
+      // The callable has already removed the Firebase Auth user. These local
+      // sign-outs only clear SDK/provider state and must not mask success.
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (e) {
+        debugPrint('Delete account Firebase sign-out: $e');
+      }
+      try {
+        await googleSignIn.signOut();
+      } catch (e) {
+        debugPrint('Delete account Google sign-out: $e');
+      }
 
       if (context.mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -478,8 +548,9 @@ class SettingsScreen extends StatelessWidget {
               (route) => false,
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('Delete account error: $e');
+      debugPrintStack(stackTrace: stackTrace);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -488,9 +559,9 @@ class SettingsScreen extends StatelessWidget {
               side: const BorderSide(color: Colors.redAccent, width: 1),
               borderRadius: BorderRadius.circular(6),
             ),
-            content: Text(
+            content: const Text(
               'Account deletion failed. Please try again.',
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.redAccent,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,

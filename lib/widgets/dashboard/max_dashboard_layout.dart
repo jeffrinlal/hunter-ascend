@@ -146,7 +146,7 @@ class _MaxDashboardLayoutState extends State<MaxDashboardLayout>
                 DashboardStat(label: "Today's XP", value: '${hunter.dailyXp}', icon: Icons.bolt_rounded, color: HunterTheme.gold),
                 DashboardStat(label: 'Steps', value: '${widget.todaySteps}', icon: Icons.directions_walk_rounded, color: HunterTheme.primary),
                 DashboardStat(label: 'Active Streak', value: '${hunter.streak} days', icon: Icons.local_fire_department_rounded, color: Colors.orange),
-                DashboardStat(label: 'Water', value: '${(widget.waterIntakeMl / 1000).toStringAsFixed(1)}L', icon: Icons.water_drop_rounded, color: Colors.cyan),
+                DashboardStat(label: 'Water', value: '${(widget.waterIntakeMl / 1000).toStringAsFixed(1)}L', icon: Icons.water_drop_rounded, color: HunterTheme.purpleLight),
               ],
             ),
           ),

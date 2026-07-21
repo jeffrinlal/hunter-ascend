@@ -205,6 +205,31 @@ class SleepService {
     await prefs.remove(_keyAmbienceDuration);
   }
 
+  /// Removes every account-scoped sleep value after permanent account
+  /// deletion so a new account on this device cannot inherit progress,
+  /// rewards, or the previous hunter's saved choices.
+  Future<void> clearAccountData() async {
+    _active = false;
+    _startTime = null;
+    _selectedAmbience = null;
+    _selectedAmbienceDuration = null;
+    _lastRewardDate = null;
+    _lastChosenAmbience = SleepAmbience.none;
+    _lastChosenDuration = AmbienceDuration.thirtyMin;
+    stateNotifier.value = false;
+
+    final prefs = await SharedPreferences.getInstance();
+    await Future.wait([
+      prefs.remove(_keyActive),
+      prefs.remove(_keyStartTime),
+      prefs.remove(_keyAmbience),
+      prefs.remove(_keyAmbienceDuration),
+      prefs.remove(_keyLastRewardDate),
+      prefs.remove(_keyLastChosenAmbience),
+      prefs.remove(_keyLastChosenDuration),
+    ]);
+  }
+
   // ── XP Calculation ──────────────────────────────────────────────────────
 
   /// Returns the XP to award based on sleep duration in minutes.

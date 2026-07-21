@@ -42,6 +42,12 @@ const MIN_CLAIM_INTERVAL_MS = 30 * 1000;
  */
 const MAX_PENDING_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Account deletion must follow a recent Google re-authentication. The client
+ * refreshes its ID token after re-authentication before invoking the callable.
+ */
+const MAX_ACCOUNT_DELETION_AUTH_AGE_SECONDS = 5 * 60;
+
 // ── claimMembershipReward ──────────────────────────────────────────────────
 //
 // Callable function: the Flutter client calls this after a rewarded ad has
@@ -289,6 +295,171 @@ exports.claimMembershipReward = functions.https.onCall(async (data, context) => 
     throw new functions.https.HttpsError(
       "internal",
       "Failed to process reward. Please try again."
+    );
+  }
+});
+
+/**
+ * Deletes every document owned by the authenticated caller from a top-level
+ * collection whose owner UID is stored in [field]. This runs with Admin SDK
+ * privileges, but the caller UID is always taken from context.auth rather than
+ * client input.
+ */
+async function deleteOwnedDocuments(collection, field, uid) {
+  const snapshot = await db.collection(collection).where(field, "==", uid).get();
+  if (snapshot.empty) return 0;
+
+  const writer = db.bulkWriter();
+  writer.onWriteError((error) => {
+    functions.logger.error("Account deletion document cleanup failed", {
+      collection,
+      field,
+      uid,
+      documentPath: error.documentRef.path,
+      failedAttempts: error.failedAttempts,
+      error: error.message,
+    });
+    return error.failedAttempts < 3;
+  });
+
+  for (const document of snapshot.docs) {
+    writer.delete(document.ref);
+  }
+  await writer.close();
+  return snapshot.size;
+}
+
+/**
+ * Keeps a remaining duel participant's history intact while removing every
+ * reference to the deleted user. Active duels become cancelled, and completed
+ * duels retain only an anonymized counterpart rather than the deleted UID.
+ */
+async function anonymizeDeletedUserDuels(uid) {
+  const [asPlayer1, asPlayer2, asParticipant] = await Promise.all([
+    db.collection("duels").where("player1", "==", uid).get(),
+    db.collection("duels").where("player2", "==", uid).get(),
+    db.collection("duels").where("participants", "array-contains", uid).get(),
+  ]);
+  const duels = new Map();
+  for (const document of [
+    ...asPlayer1.docs,
+    ...asPlayer2.docs,
+    ...asParticipant.docs,
+  ]) {
+    duels.set(document.id, document);
+  }
+  if (duels.size === 0) return 0;
+
+  const writer = db.bulkWriter();
+  writer.onWriteError((error) => {
+    functions.logger.error("Account deletion duel cleanup failed", {
+      uid,
+      documentPath: error.documentRef.path,
+      failedAttempts: error.failedAttempts,
+      error: error.message,
+    });
+    return error.failedAttempts < 3;
+  });
+
+  for (const document of duels.values()) {
+    const duel = document.data();
+    const player1Deleted = duel.player1 === uid;
+    const player2Deleted = duel.player2 === uid;
+    const participants = Array.isArray(duel.participants)
+      ? duel.participants.filter((participant) => participant !== uid)
+      : [];
+    const updates = {participants};
+
+    if (duel.cancelRequestedBy === uid) {
+      updates.cancelRequestedBy = admin.firestore.FieldValue.delete();
+      updates.cancelStatus = admin.firestore.FieldValue.delete();
+    }
+    if (duel.status === "active") {
+      updates.status = "cancelled";
+    }
+    if (duel.winner === uid) {
+      updates.winner = "deleted";
+    }
+    if (player1Deleted) {
+      updates.player1 = admin.firestore.FieldValue.delete();
+      updates.player1Name = "Deleted Hunter";
+      updates.player1Score = admin.firestore.FieldValue.delete();
+      updates.player1CompletedToday = admin.firestore.FieldValue.delete();
+      updates.player1ViewedResult = admin.firestore.FieldValue.delete();
+      updates.player1XpAwarded = admin.firestore.FieldValue.delete();
+    }
+    if (player2Deleted) {
+      updates.player2 = admin.firestore.FieldValue.delete();
+      updates.player2Name = "Deleted Hunter";
+      updates.player2Score = admin.firestore.FieldValue.delete();
+      updates.player2CompletedToday = admin.firestore.FieldValue.delete();
+      updates.player2ViewedResult = admin.firestore.FieldValue.delete();
+      updates.player2XpAwarded = admin.firestore.FieldValue.delete();
+    }
+
+    writer.update(document.ref, updates);
+  }
+
+  await writer.close();
+  return duels.size;
+}
+
+/**
+ * Deletes the calling hunter's complete account footprint, then removes that
+ * same Firebase Auth identity. The UID is never accepted as an argument, so
+ * this callable can only affect the authenticated caller's own data.
+ */
+exports.deleteAccount = functions.https.onCall(async (_data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "You must be signed in to delete an account."
+    );
+  }
+
+  const uid = context.auth.uid;
+  const authTime = context.auth.token.auth_time;
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  if (
+    typeof authTime !== "number" ||
+    nowSeconds - authTime > MAX_ACCOUNT_DELETION_AUTH_AGE_SECONDS
+  ) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Re-authenticate before deleting your account."
+    );
+  }
+
+  functions.logger.info("Account deletion requested", {uid});
+
+  try {
+    const deleted = {};
+    deleted.hunterNames = await deleteOwnedDocuments("hunterNames", "uid", uid);
+    deleted.customQuests = await deleteOwnedDocuments("custom_quests", "uid", uid);
+    deleted.weightHistory = await deleteOwnedDocuments("weight_history", "uid", uid);
+    deleted.runs = await deleteOwnedDocuments("runs", "uid", uid);
+    deleted.calorieLogs = await deleteOwnedDocuments("calorie_logs", "uid", uid);
+    deleted.sentDuelRequests = await deleteOwnedDocuments("duel_requests", "fromUid", uid);
+    deleted.receivedDuelRequests = await deleteOwnedDocuments("duel_requests", "toUid", uid);
+    deleted.duels = await anonymizeDeletedUserDuels(uid);
+
+    // Firestore does not cascade a parent-document delete into subcollections.
+    // recursiveDelete removes the profile AND rankRewards,
+    // unlockedAchievements, equippedRewards, and any future user subcollection.
+    await db.recursiveDelete(db.collection("hunters").doc(uid));
+    await admin.auth().deleteUser(uid);
+
+    functions.logger.info("Account deletion completed", {uid, deleted});
+    return {success: true, deleted};
+  } catch (error) {
+    functions.logger.error("Account deletion failed", {
+      uid,
+      error: error.message,
+      stack: error.stack,
+    });
+    throw new functions.https.HttpsError(
+      "internal",
+      "Account deletion could not be fully completed. Some data may already be deleted; please retry while signed in."
     );
   }
 });

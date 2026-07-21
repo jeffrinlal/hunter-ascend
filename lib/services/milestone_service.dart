@@ -296,6 +296,21 @@ class MilestoneService {
 
   static const String _keyWeightGoalTargetCelebrated = 'milestone_weight_goal_target_celebrated';
 
+  /// Removes account-scoped milestone state after permanent account deletion
+  /// so a replacement account does not inherit crossed thresholds or stale
+  /// celebrations. App-wide visual settings remain untouched.
+  static Future<void> clearAccountData() async {
+    _previousStepCount = null;
+    _queue.clear();
+    final prefs = await SharedPreferences.getInstance();
+    await Future.wait([
+      prefs.remove(_keyStepMilestonesDate),
+      prefs.remove(_keyStepMilestonesCelebrated),
+      prefs.remove(_keyStreakMilestonesCelebrated),
+      prefs.remove(_keyWeightGoalTargetCelebrated),
+    ]);
+  }
+
   /// Checks if recording [newWeight] crosses the hunter's target weight.
   /// Celebrates once per target. Only triggers when the user CROSSES the
   /// threshold (previous weight was on the other side of the target).

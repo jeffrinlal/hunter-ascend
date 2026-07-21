@@ -36,7 +36,8 @@ class EliteWaterCard extends StatefulWidget {
 }
 
 class _EliteWaterCardState extends State<EliteWaterCard> with SingleTickerProviderStateMixin {
-  static const Color _accent = Colors.cyanAccent;
+  static const Color _accent = Color(0xFFAA88FF);
+  static const Color _accentBright = Color(0xFF7C4DFF);
   static const List<int> _cupSizes = [150, 250, 350, 500];
 
   late final AnimationController _glow = AnimationController(
@@ -148,7 +149,7 @@ class _EliteWaterCardState extends State<EliteWaterCard> with SingleTickerProvid
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(16),
                         gradient: selected
-                            ? const LinearGradient(colors: [_accent, Color(0xFF4DD0E1)])
+                            ? const LinearGradient(colors: [_accent, _accentBright])
                             : null,
                         color: selected ? null : _accent.withOpacity(0.08),
                         border: Border.all(color: _accent.withOpacity(selected ? 0.9 : 0.4)),
@@ -186,7 +187,7 @@ class _EliteWaterCardState extends State<EliteWaterCard> with SingleTickerProvid
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [_accent, Color(0xFF4DD0E1)],
+            colors: [_accent, _accentBright],
           ),
           boxShadow: [BoxShadow(color: _accent.withOpacity(0.5), blurRadius: 10)],
         ),

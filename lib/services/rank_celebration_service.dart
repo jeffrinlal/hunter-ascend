@@ -32,6 +32,13 @@ class RankCelebrationService {
 
   static const String _prefsKeyPrefix = 'rankCelebration_lastCelebratedTier_';
 
+  /// Removes the current hunter's rank-celebration marker after permanent
+  /// account deletion so a replacement account cannot retain local progress.
+  Future<void> clearAccountData(String uid) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('$_prefsKeyPrefix$uid');
+  }
+
   /// Detects whether [oldLevel] -> [newLevel] crossed one or more Hunter Rank
   /// boundaries for [uid] and, if so, enqueues:
   ///   1. Exactly ONE Rank-Up dialog spanning the whole jump — from the

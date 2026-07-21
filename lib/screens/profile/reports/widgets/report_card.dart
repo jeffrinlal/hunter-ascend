@@ -13,8 +13,8 @@ import 'count_up.dart';
 // stale colours).
 
 /// Soft, blurred ambient orbs painted behind the content so the glass cards
-/// have something to blur. Subtler in light mode (elegant), stronger in dark
-/// (blue glow). Purely decorative and non-interactive.
+/// have something to blur. Subtler in light mode and colored by the active
+/// report palette in dark mode. Purely decorative and non-interactive.
 class AmbientGlow extends StatelessWidget {
   AmbientGlow({super.key});
 
@@ -60,8 +60,8 @@ class AmbientGlow extends StatelessWidget {
       );
 }
 
-/// Glassmorphism card: translucent fill + backdrop blur + themed border, with
-/// a blue glow in dark mode and an elegant soft shadow in light mode.
+/// Glassmorphism card: themed fill + border, with an active-accent glow in
+/// dark mode and an elegant soft shadow in light mode.
 class GlassCard extends StatelessWidget {
   GlassCard({super.key, required this.child, this.padding});
 
@@ -143,7 +143,7 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-/// Thin horizontal divider with a soft blue centre glow.
+/// Thin horizontal divider with a soft themed centre glow.
 class HairLine extends StatelessWidget {
   HairLine({super.key});
 

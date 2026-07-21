@@ -4,19 +4,9 @@ import 'package:flutter/material.dart';
 
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 
-/// Theme-aware "System Window" palette for the Hunter Report, using the Hunter
-/// Ascend orange/gold design language (NOT blue).
-///
-/// Surfaces and text are pulled straight from [HunterTheme] so the report feels
-/// native to the app in both light and dark themes. Accents are the Hunter
-/// orange + gold used across the rest of the app:
-///
-/// • Dark  → dark surfaces, warm orange glow, gold highlights, light text.
-/// • Light → light/warm surfaces, orange accents, gold highlights, dark text,
-///           elegant soft shadows.
-///
-/// The DARK constants are also exposed so the shareable report image can stay a
-/// fixed premium-dark (orange/gold) design regardless of the in-app theme.
+/// Ascend report palette. In-app surfaces, text, and accent treatments use
+/// [HunterTheme] so every standard or premium dark theme renders consistently.
+/// The fixed-dark share-card constants remain intentionally separate.
 class ReportPalette {
   ReportPalette._();
 
@@ -48,20 +38,16 @@ class ReportPalette {
   static const _lWarn = Color(0xFFE5484D); // red (weight-gain)
   static const _lFat = Color(0xFFC77F1A); // amber
 
-  static const _dAccent = darkAccent;
-  static const _dAccentBright = darkAccentBright;
-  static const _dGold = darkGold;
-  static const _dMint = darkMint;
-  static const _dWarn = darkWarn;
-  static const _dFat = darkFat;
-
-  // ══ Dynamic accent tokens ══
-  static Color get accent => _dark ? _dAccent : _lAccent;
-  static Color get accentBright => _dark ? _dAccentBright : _lAccentBright;
-  static Color get gold => _dark ? _dGold : _lGold;
-  static Color get mint => _dark ? _dMint : _lMint;
-  static Color get warn => _dark ? _dWarn : _lWarn;
-  static Color get fatAccent => _dark ? _dFat : _lFat;
+  // ══ Theme-aware accent tokens ══
+  // Live report UI follows the active palette. The fixed dark constants above
+  // are intentionally reserved for the share image only.
+  static Color get accent => _dark ? HunterTheme.primary : _lAccent;
+  static Color get accentBright =>
+      _dark ? HunterTheme.secondary : _lAccentBright;
+  static Color get gold => _dark ? HunterTheme.gold : _lGold;
+  static Color get mint => _dark ? HunterTheme.success : _lMint;
+  static Color get warn => _dark ? HunterTheme.danger : _lWarn;
+  static Color get fatAccent => _dark ? HunterTheme.secondary : _lFat;
 
   /// Max-tier accent — matches the app's purple Max branding in both themes.
   static Color get purple =>
@@ -98,7 +84,8 @@ class ReportPalette {
   /// Glass card border colour.
   static Color get cardBorder => accent.withOpacity(_dark ? 0.22 : 0.30);
 
-  /// Card depth: a warm orange glow in dark, an elegant soft shadow in light.
+  /// Card depth: follows the active accent in dark mode and remains softly
+  /// elevated in light mode.
   static List<BoxShadow> get cardShadow => _dark
       ? [
           BoxShadow(
@@ -122,8 +109,8 @@ class ReportPalette {
           ),
         ];
 
-  /// Restrained 5-step rating colour scale (orange/gold, adapts to theme).
-  /// Top rating = gold, descending through bright orange → orange → muted text.
+  /// Restrained 5-step rating colour scale, derived from the active theme.
+  /// Top rating = gold, descending through the active accent to muted text.
   static Color ratingColor(int level) => _ratingFrom(
         level,
         top: gold,

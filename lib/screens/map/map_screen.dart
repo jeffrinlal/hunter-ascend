@@ -72,6 +72,12 @@ class _MapScreenState extends State<MapScreen> {
   bool _gpsSignalWeak = false;
   static const Duration _gpsStaleThreshold = Duration(seconds: 15);
 
+  // TEMP DEBUG LOGGING (remove before release): counts how many times the
+  // Geolocator position-stream callback has actually been invoked this run,
+  // independent of any filter outcome. This is read-only diagnostic state —
+  // it is never used in any conditional/business-logic branch, only printed.
+  int _positionCallbackCount = 0;
+
   // ── Banner Ad ────────────────────────────────────────────
   BannerAd? _bannerAd;
   bool _isBannerLoaded = false;
@@ -109,8 +115,15 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
+    // TEMP DEBUG LOGGING — covers the case where the screen is closed/
+    // navigated away from mid-run (neither Pause, Resume, nor Stop was
+    // pressed), so the timeline doesn't silently end.
+    debugPrint('[RunTrack][STATE] dispose() entered. '
+        '_isTracking=$_isTracking, _isPaused=$_isPaused, '
+        'distanceKm=$_distanceKm, positionStreamWasActive=${_positionStream != null}');
     _positionStream?.cancel();
     _positionStream = null;
+    debugPrint('[RunTrack][STATE] Position stream cancelled (from dispose()).');
     _timer?.cancel();
     _timer = null;
     _gpsWatchdogTimer?.cancel();
@@ -187,7 +200,14 @@ class _MapScreenState extends State<MapScreen> {
   // pipeline per the requested audit. They are purely additive (no behavior
   // change) and safe to strip once the fix is confirmed on a real device.
   Future<void> _startTracking() async {
-    if (_isTracking) return;
+    // TEMP DEBUG LOGGING — logs every call to _startTracking(), including
+    // calls the guard below rejects (e.g. a double-tap while already
+    // tracking), so the timeline shows entry regardless of outcome.
+    debugPrint('[RunTrack][STATE] _startTracking() entered. currentIsTracking=$_isTracking');
+    if (_isTracking) {
+      debugPrint('[RunTrack][STATE] _startTracking() aborted by guard — already tracking.');
+      return;
+    }
     debugPrint('[RunTrack] STAGE 1: Start Run pressed.');
 
     // Re-verify location permission and services immediately before tracking.
@@ -202,6 +222,10 @@ class _MapScreenState extends State<MapScreen> {
       return;
     }
 
+    // TEMP DEBUG LOGGING — state values immediately before this setState
+    // flips them, so the transition (old -> new) is visible in the log.
+    debugPrint('[RunTrack][STATE] Before start setState: '
+        '_isTracking=$_isTracking, _isPaused=$_isPaused, _distanceKm=$_distanceKm');
     setState(() {
       _isTracking = true;
       _isPaused = false;
@@ -211,7 +235,12 @@ class _MapScreenState extends State<MapScreen> {
       _isAcquiringGps = true;
       _gpsSignalWeak = false;
       _lastPositionAt = null;
+      _positionCallbackCount = 0; // TEMP DEBUG LOGGING — reset per run.
     });
+    // TEMP DEBUG LOGGING — confirms the transition landed.
+    debugPrint('[RunTrack][STATE] After start setState: '
+        '_isTracking=$_isTracking (false->true), _isPaused=$_isPaused (->false), '
+        '_distanceKm=$_distanceKm (reset to 0)');
 
     // Timer
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -259,6 +288,21 @@ class _MapScreenState extends State<MapScreen> {
       locationSettings: locationSettings,
     ).listen(
           (position) {
+        // TEMP DEBUG LOGGING — runs before the STAGE 3a counter increments,
+        // so (_positionCallbackCount == 0) here means this is the very
+        // first position callback invocation since _startTracking().
+        if (_positionCallbackCount == 0) {
+          debugPrint('[RunTrack][STATE] First position of this run received '
+              'by the listener (about to process it below).');
+        }
+        // TEMP DEBUG LOGGING — proves the Geolocator stream callback is
+        // actually being invoked at all, independent of any filter outcome.
+        // This answers "is the callback firing?" with a hard counter rather
+        // than inferring it from downstream state.
+        _positionCallbackCount++;
+        debugPrint('[RunTrack] STAGE 3a: Position-stream callback invoked. '
+            'callbackCount=$_positionCallbackCount');
+
         // TEMP DEBUG LOGGING — every raw Position the stream delivers.
         debugPrint('[RunTrack] STAGE 3: Position received — '
             'lat=${position.latitude}, lng=${position.longitude}, '
@@ -272,16 +316,44 @@ class _MapScreenState extends State<MapScreen> {
         const maxAcceptableAccuracyMeters = 30.0;
         final hasUsableAccuracy = !position.accuracy.isNaN && position.accuracy <= maxAcceptableAccuracyMeters;
 
+        // TEMP DEBUG LOGGING — explicit accuracy-filter verdict, logged
+        // unconditionally and before any other filter runs.
+        debugPrint('[RunTrack] STAGE 3b: Accuracy filter — '
+            'accuracy=${position.accuracy}m, threshold=${maxAcceptableAccuracyMeters}m, '
+            'isNaN=${position.accuracy.isNaN}, passes=$hasUsableAccuracy');
+
         final newPoint = LatLng(position.latitude, position.longitude);
+
+        // TEMP DEBUG LOGGING — raw distance from the last route point,
+        // computed and logged unconditionally (even if a filter above would
+        // otherwise reject this point first) so the actual GPS-reported
+        // movement between fixes is always visible, not just the movement
+        // for points that happened to pass every other filter.
+        if (_routePoints.isNotEmpty) {
+          final rawDistanceKm = const Distance()
+              .as(LengthUnit.Kilometer, _routePoints.last, newPoint);
+          debugPrint('[RunTrack] STAGE 3c: Raw distance from last route point '
+              '(pre-filter) = ${rawDistanceKm.toStringAsFixed(6)} km '
+              '(${(rawDistanceKm * 1000).toStringAsFixed(2)} m), '
+              'lastPoint=${_routePoints.last}, newPoint=$newPoint');
+        } else {
+          debugPrint('[RunTrack] STAGE 3c: Raw distance from last route point '
+              '(pre-filter) = N/A (_routePoints is empty — this will be the '
+              'first point)');
+        }
 
         double? addedDistance;
         String filterReason = 'accepted';
+        String rejectionCategory = 'none';
         if (!hasUsableAccuracy) {
           filterReason = 'filtered out — accuracy ${position.accuracy}m exceeds ${maxAcceptableAccuracyMeters}m threshold';
+          rejectionCategory = 'poor_accuracy';
         } else if (_isPaused) {
           filterReason = 'filtered out — run is paused';
+          rejectionCategory = 'paused';
         } else if (_routePoints.isEmpty) {
           filterReason = 'accepted (first point — no prior point to measure distance from)';
+          rejectionCategory = 'none (first point)';
         } else {
           final lastPoint = _routePoints.last;
           final distance = const Distance().as(LengthUnit.Kilometer, lastPoint, newPoint);
@@ -289,14 +361,30 @@ class _MapScreenState extends State<MapScreen> {
           if (distance > 0 && distance < 0.1) {
             addedDistance = distance;
             filterReason = 'accepted — +${distance.toStringAsFixed(5)} km';
+            rejectionCategory = 'none';
+          } else if (distance <= 0) {
+            // TEMP DEBUG LOGGING — distinguishes "exactly zero/negative
+            // distance" from "jump filter" rejection, which the original
+            // single `else` branch did not separate.
+            filterReason = 'filtered out — zero/non-positive distance (${distance.toStringAsFixed(8)} km between points)';
+            rejectionCategory = 'zero_distance';
           } else {
             filterReason = 'filtered out — implausible jump (${distance.toStringAsFixed(5)} km between points)';
+            rejectionCategory = 'jump_filter';
           }
         }
-        // TEMP DEBUG LOGGING — accept/reject decision for this position.
-        debugPrint('[RunTrack] STAGE 4: Position $filterReason');
+        // TEMP DEBUG LOGGING — accept/reject decision for this position,
+        // plus the specific rejection category (poor_accuracy / paused /
+        // zero_distance / jump_filter / none).
+        debugPrint('[RunTrack] STAGE 4: Position $filterReason '
+            '[rejectionCategory=$rejectionCategory]');
         // TEMP DEBUG LOGGING — distance contributed by this position (if any).
         debugPrint('[RunTrack] STAGE 5: Distance added from this point = ${addedDistance ?? 0} km');
+
+        // TEMP DEBUG LOGGING — capture _distanceKm immediately before the
+        // mutation below so the before/after can be compared and logged
+        // without altering the mutation itself.
+        final double distanceKmBeforeUpdate = _distanceKm;
 
         setState(() {
           _isAcquiringGps = false;
@@ -305,6 +393,19 @@ class _MapScreenState extends State<MapScreen> {
           if (addedDistance != null) _distanceKm += addedDistance;
           if (hasUsableAccuracy && !_isPaused) _routePoints.add(newPoint);
         });
+
+        // TEMP DEBUG LOGGING — explicitly states whether _distanceKm changed
+        // as a result of this position update, and if not, why (mirrors the
+        // same rejectionCategory computed above for STAGE 4).
+        if (_distanceKm != distanceKmBeforeUpdate) {
+          debugPrint('[RunTrack][STATE] _distanceKm CHANGED: '
+              '$distanceKmBeforeUpdate -> $_distanceKm '
+              '(delta=${(_distanceKm - distanceKmBeforeUpdate).toStringAsFixed(6)} km)');
+        } else {
+          debugPrint('[RunTrack][STATE] _distanceKm UNCHANGED at $_distanceKm '
+              'despite receiving a position update '
+              '[reason=$rejectionCategory]');
+        }
 
         // TEMP DEBUG LOGGING — running total after this update.
         debugPrint('[RunTrack] STAGE 6: Total distance after update = $_distanceKm km '
@@ -324,15 +425,22 @@ class _MapScreenState extends State<MapScreen> {
         // Stop tracking safely on stream error (e.g., permission revoked mid-run).
         _positionStream?.cancel();
         _positionStream = null;
+        // TEMP DEBUG LOGGING — position stream cancellation from the error path.
+        debugPrint('[RunTrack][STATE] Position stream cancelled (from onError handler).');
         _timer?.cancel();
         _timer = null;
         _gpsWatchdogTimer?.cancel();
         _gpsWatchdogTimer = null;
         if (mounted) {
+          // TEMP DEBUG LOGGING — state before/after the error-path reset.
+          debugPrint('[RunTrack][STATE] Before error-path setState: '
+              '_isTracking=$_isTracking, _isPaused=$_isPaused');
           setState(() {
             _isTracking = false;
             _isPaused = false;
           });
+          debugPrint('[RunTrack][STATE] After error-path setState: '
+              '_isTracking=$_isTracking (->false), _isPaused=$_isPaused (->false)');
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Location tracking stopped due to an error.")),
           );
@@ -342,12 +450,29 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _pauseTracking() {
+    // TEMP DEBUG LOGGING — logs whether this tap is a "Pause" or "Resume"
+    // action (determined from the state BEFORE the toggle below), without
+    // changing the toggle expression itself.
+    final bool wasPaused = _isPaused;
+    debugPrint('[RunTrack][STATE] ${wasPaused ? "Resume" : "Pause"} pressed. '
+        '_isPaused before=$wasPaused, distanceKm=$_distanceKm, '
+        'routePoints=${_routePoints.length}');
     setState(() => _isPaused = !_isPaused);
+    debugPrint('[RunTrack][STATE] _isPaused changed: $wasPaused -> $_isPaused');
   }
 
   Future<void> _stopTracking() async {
+    // TEMP DEBUG LOGGING — logs entry into _stopTracking() with the state
+    // as it stood right before cancellation, so the timeline shows exactly
+    // what was accumulated at the moment Stop was pressed.
+    debugPrint('[RunTrack][STATE] Stop pressed. _stopTracking() entered. '
+        '_isTracking=$_isTracking, _isPaused=$_isPaused, '
+        'distanceKm=$_distanceKm, routePoints=${_routePoints.length}, '
+        'positionStreamWasActive=${_positionStream != null}');
+
     _positionStream?.cancel();
     _positionStream = null;
+    debugPrint('[RunTrack][STATE] Position stream cancelled (from _stopTracking()).');
     _timer?.cancel();
     _timer = null;
     _gpsWatchdogTimer?.cancel();
@@ -364,12 +489,18 @@ class _MapScreenState extends State<MapScreen> {
       debugPrint('[RunTrack] STAGE 8: "Run too short" triggered — '
           'distanceKm=$_distanceKm is below the 0.01 km threshold '
           '(routePoints=${_routePoints.length})');
+      // TEMP DEBUG LOGGING — state before the short-run reset.
+      debugPrint('[RunTrack][STATE] Before short-run setState: '
+          '_isTracking=$_isTracking, _isPaused=$_isPaused');
       setState(() {
         _isTracking = false;
         _isPaused = false;
         _isAcquiringGps = false;
         _gpsSignalWeak = false;
       });
+      // TEMP DEBUG LOGGING — state after the short-run reset.
+      debugPrint('[RunTrack][STATE] After short-run setState: '
+          '_isTracking=$_isTracking (->false), _isPaused=$_isPaused (->false)');
       // Distinguish "you didn't move" from "GPS never produced a usable fix"
       // so a stalled GPS stream is no longer misreported as a short run —
       // this is diagnostic only; the actual fix is the tuned platform
@@ -474,7 +605,13 @@ class _MapScreenState extends State<MapScreen> {
                           xpEarned: savedXp,
                           timerDisplay: savedTimerDisplay,
                         );
+                        // TEMP DEBUG LOGGING — final _isTracking/_isPaused
+                        // reset after a successful save.
+                        debugPrint('[RunTrack][STATE] Before SAVE RUN setState: '
+                            '_isTracking=$_isTracking, _isPaused=$_isPaused');
                         setState(() { _isTracking = false; _isPaused = false; });
+                        debugPrint('[RunTrack][STATE] After SAVE RUN setState: '
+                            '_isTracking=$_isTracking (->false), _isPaused=$_isPaused (->false)');
                       } else {
                         setDialogState(() => isSaving = false);
                       }
@@ -496,7 +633,13 @@ class _MapScreenState extends State<MapScreen> {
                 TextButton(
                   onPressed: isSaving ? null : () {
                     Navigator.pop(dialogContext);
+                    // TEMP DEBUG LOGGING — _isTracking/_isPaused reset on
+                    // Discard (run summary dismissed without saving).
+                    debugPrint('[RunTrack][STATE] Before DISCARD setState: '
+                        '_isTracking=$_isTracking, _isPaused=$_isPaused');
                     setState(() { _isTracking = false; _isPaused = false; });
+                    debugPrint('[RunTrack][STATE] After DISCARD setState: '
+                        '_isTracking=$_isTracking (->false), _isPaused=$_isPaused (->false)');
                   },
                   child: Text("DISCARD", style: TextStyle(color: HunterTheme.textTertiary)),
                 ),

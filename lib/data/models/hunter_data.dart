@@ -435,11 +435,12 @@ class HunterData {
       'totalRunsCompleted': totalRunsCompleted,
       'totalRunDistanceKm': totalRunDistanceKm,
       'longestRunKm': longestRunKm,
-      'mealsLoggedCount': mealsLoggedCount,
-      'proteinGoalHitDays': proteinGoalHitDays,
-      'balancedMacroDays': balancedMacroDays,
-      if (lastProteinGoalHitDate != null) 'lastProteinGoalHitDate': lastProteinGoalHitDate,
-      if (lastBalancedMacroDate != null) 'lastBalancedMacroDate': lastBalancedMacroDate,
+      // mealsLoggedCount / proteinGoalHitDays / balancedMacroDays /
+      // lastProteinGoalHitDate / lastBalancedMacroDate are intentionally
+      // NOT written here — they're local-only nutrition achievement
+      // counters (see HunterRepository.updateNutritionAchievementLocal).
+      // Nothing else reads them from Firestore, so keeping them local
+      // avoids an extra write on every meal save.
       'waterLogCount': waterLogCount,
       'waterGoalStreak': waterGoalStreak,
       if (lastWaterGoalHitDate != null) 'lastWaterGoalHitDate': lastWaterGoalHitDate,

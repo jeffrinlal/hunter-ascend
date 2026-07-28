@@ -381,7 +381,25 @@ class AchievementsService {
     try {
       final snap = await FirebaseFirestore.instance.collection('hunters').doc(uid).get();
       if (!snap.exists) return;
-      final hunter = HunterData.fromFirestore(snap.data()!);
+      var hunter = HunterData.fromFirestore(snap.data()!);
+
+      // mealsLoggedCount / proteinGoalHitDays / balancedMacroDays /
+      // lastProteinGoalHitDate / lastBalancedMacroDate are local-only (see
+      // HunterRepository.updateNutritionAchievementLocal) and are never
+      // written to Firestore, so the fresh snapshot above never carries
+      // them — merge in the locally-cached values so nutrition
+      // achievements evaluate against the real, current counts.
+      final cached = HunterRepository.instance.getCached();
+      if (cached != null) {
+        hunter = hunter.copyWith(
+          mealsLoggedCount: cached.mealsLoggedCount,
+          proteinGoalHitDays: cached.proteinGoalHitDays,
+          lastProteinGoalHitDate: cached.lastProteinGoalHitDate,
+          balancedMacroDays: cached.balancedMacroDays,
+          lastBalancedMacroDate: cached.lastBalancedMacroDate,
+        );
+      }
+
       if (!context.mounted) return;
       await checkAndCelebrate(context, hunter);
     } catch (e) {

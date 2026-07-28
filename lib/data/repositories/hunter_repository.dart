@@ -134,7 +134,24 @@ class HunterRepository {
     final data = snapshot.data();
     if (data == null) return;
 
-    final hunterData = HunterData.fromFirestore(data);
+    var hunterData = HunterData.fromFirestore(data);
+
+    // mealsLoggedCount / proteinGoalHitDays / balancedMacroDays /
+    // lastProteinGoalHitDate / lastBalancedMacroDate are local-only —
+    // never written to Firestore (see updateNutritionAchievementLocal).
+    // Carry forward whatever is already cached so an unrelated Firestore
+    // sync (XP gain, quest update, etc.) doesn't wipe them back to 0.
+    final existing = _lastEmitted ?? getCached();
+    if (existing != null) {
+      hunterData = hunterData.copyWith(
+        mealsLoggedCount: existing.mealsLoggedCount,
+        proteinGoalHitDays: existing.proteinGoalHitDays,
+        lastProteinGoalHitDate: existing.lastProteinGoalHitDate,
+        balancedMacroDays: existing.balancedMacroDays,
+        lastBalancedMacroDate: existing.lastBalancedMacroDate,
+      );
+    }
+
     _lastEmitted = hunterData;
 
     // Write to Hive (immediate, no debounce).
@@ -143,6 +160,62 @@ class HunterRepository {
     // Emit to stream.
     if (_controller != null && !_controller!.isClosed) {
       _controller!.add(hunterData);
+    }
+  }
+
+  /// Updates ONLY the local-only nutrition achievement tracking fields
+  /// (mealsLoggedCount, proteinGoalHitDays, balancedMacroDays, and their
+  /// last-hit dates) directly in the Hive cache and emits the change to
+  /// the stream. These fields are never written to Firestore — nothing
+  /// outside this device reads them (no leaderboard/public-profile/other
+  /// user ever sees them), so there's no need to round-trip them through
+  /// `hunters/{uid}`. Caller supplies already-computed totals; this method
+  /// does no Firestore reads or writes.
+  void updateNutritionAchievementLocal({
+    required bool incrementMealsLogged,
+    required bool hitProteinGoalToday,
+    required bool hitBalancedToday,
+    required String today,
+  }) {
+    try {
+      final box = Hive.box<HunterData>(CacheConstants.hunterBox);
+      final current = box.get('current') ?? _lastEmitted;
+      if (current == null) return;
+
+      final newMealsCount = incrementMealsLogged
+          ? current.mealsLoggedCount + 1
+          : current.mealsLoggedCount;
+
+      var newProteinDays = current.proteinGoalHitDays;
+      var newProteinDate = current.lastProteinGoalHitDate;
+      if (hitProteinGoalToday && current.lastProteinGoalHitDate != today) {
+        newProteinDays += 1;
+        newProteinDate = today;
+      }
+
+      var newBalancedDays = current.balancedMacroDays;
+      var newBalancedDate = current.lastBalancedMacroDate;
+      if (hitBalancedToday && current.lastBalancedMacroDate != today) {
+        newBalancedDays += 1;
+        newBalancedDate = today;
+      }
+
+      final updated = current.copyWith(
+        mealsLoggedCount: newMealsCount,
+        proteinGoalHitDays: newProteinDays,
+        lastProteinGoalHitDate: newProteinDate,
+        balancedMacroDays: newBalancedDays,
+        lastBalancedMacroDate: newBalancedDate,
+      );
+
+      box.put('current', updated);
+      _lastEmitted = updated;
+
+      if (_controller != null && !_controller!.isClosed) {
+        _controller!.add(updated);
+      }
+    } catch (e) {
+      debugPrint('[HIVE] updateNutritionAchievementLocal ERROR: $e');
     }
   }
 

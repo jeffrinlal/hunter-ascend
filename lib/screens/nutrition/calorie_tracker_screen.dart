@@ -406,6 +406,13 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   late Stream<List<MealEntry>> _mealsStream;
   Timer? _midnightRefreshTimer;
 
+  // Mirrors the latest value emitted by [_mealsStream] so achievement
+  // tracking can read today's totals without an extra Firestore query.
+  // Updated via a plain .listen() alongside the StreamBuilder in build() —
+  // same underlying Firestore listener, no additional reads.
+  List<MealEntry> _currentMeals = [];
+  StreamSubscription<List<MealEntry>>? _mealsSub;
+
   // Auto-categorize a meal purely from the time it was logged.
   String _categoryForTime(DateTime t) {
     final m = t.hour * 60 + t.minute;
@@ -446,6 +453,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     loadBannerAd();
     _hunterStream = HunterRepository.instance.watch();
     _mealsStream = _todayMealsStream();
+    _mealsSub = _mealsStream.listen((meals) => _currentMeals = meals);
     _scheduleMidnightRefresh();
   }
 
@@ -453,6 +461,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   void dispose() {
     _foodController.dispose();
     _midnightRefreshTimer?.cancel();
+    _mealsSub?.cancel();
     _bannerAd?.dispose();
     super.dispose();
   }
@@ -463,7 +472,10 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     final nextMidnight = DateTime(now.year, now.month, now.day + 1);
     _midnightRefreshTimer = Timer(nextMidnight.difference(now), () {
       if (!mounted) return;
+      _mealsSub?.cancel();
       setState(() => _mealsStream = _todayMealsStream());
+      _currentMeals = [];
+      _mealsSub = _mealsStream.listen((meals) => _currentMeals = meals);
       _scheduleMidnightRefresh();
     });
   }
@@ -518,7 +530,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     // re-evaluate/celebrate. Kept as a best-effort follow-up: a failure here
     // never affects the meal that was already saved above.
     try {
-      await _updateNutritionAchievementTracking(user.uid, today);
+      await _updateNutritionAchievementTracking(today, meal);
     } catch (e) {
       debugPrint('saveMeal achievement tracking: $e');
     }
@@ -529,36 +541,33 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   /// goals — mirroring the SAME 30/40/30 split already used for display in
   /// [_buildCalorieRingCard] (protein/carbs/fat goal computation), so the
   /// achievement condition matches what the user actually sees on screen.
-  Future<void> _updateNutritionAchievementTracking(String uid, String today) async {
-    final hunterRef = FirebaseFirestore.instance.collection('hunters').doc(uid);
+  ///
+  /// These counters are local-only (see
+  /// [HunterRepository.updateNutritionAchievementLocal]) — nothing else
+  /// (leaderboard, public profile, other users) ever reads them, so this
+  /// no longer touches Firestore at all. Today's totals are taken from
+  /// [_currentMeals], which [_mealsStream] already keeps live, plus the
+  /// meal that was just saved (the stream may not have emitted yet).
+  Future<void> _updateNutritionAchievementTracking(
+      String today,
+      MealEntry justSaved,
+      ) async {
+    final hunterData = HunterRepository.instance.getCached();
+    if (hunterData == null) return;
 
-    // Sum today's logged meals fresh from Firestore (not from any in-memory
-    // list) so this is correct even if the day's meals were logged across
-    // multiple sessions/devices.
-    final todaySnap = await FirebaseFirestore.instance
-        .collection('calorie_logs')
-        .where('uid', isEqualTo: uid)
-        .where('date', isEqualTo: today)
-        .get();
-    double totalProtein = 0, totalCarbs = 0, totalFat = 0;
-    int totalCalories = 0;
-    for (final doc in todaySnap.docs) {
-      final m = MealEntry.fromMap(doc.data());
-      totalProtein += m.protein;
-      totalCarbs += m.carbs;
-      totalFat += m.fat;
-      totalCalories += m.calories;
-    }
-
-    final hunterSnap = await hunterRef.get();
-    final hunterData = hunterSnap.data() ?? {};
-    final calorieGoal = calorieGoalFromData(hunterData);
+    final calorieGoal = calorieGoalFromData(hunterData.toFirestore());
     final proteinGoal = (calorieGoal * 0.30 / 4).round();
     final carbsGoal = (calorieGoal * 0.40 / 4).round();
     final fatGoal = (calorieGoal * 0.30 / 9).round();
 
-    final lastProteinDate = hunterData['lastProteinGoalHitDate']?.toString();
-    final lastBalancedDate = hunterData['lastBalancedMacroDate']?.toString();
+    final totalProtein =
+        _currentMeals.fold(0.0, (s, m) => s + m.protein) + justSaved.protein;
+    final totalCarbs =
+        _currentMeals.fold(0.0, (s, m) => s + m.carbs) + justSaved.carbs;
+    final totalFat =
+        _currentMeals.fold(0.0, (s, m) => s + m.fat) + justSaved.fat;
+    final totalCalories =
+        _currentMeals.fold(0, (s, m) => s + m.calories) + justSaved.calories;
 
     final hitProteinGoalToday = proteinGoal > 0 && totalProtein >= proteinGoal;
     final hitBalancedToday = totalCalories > 0 &&
@@ -566,19 +575,12 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
         totalCarbs >= carbsGoal * 0.9 &&
         totalFat >= fatGoal * 0.9;
 
-    final updates = <String, dynamic>{
-      'mealsLoggedCount': FieldValue.increment(1),
-    };
-    if (hitProteinGoalToday && lastProteinDate != today) {
-      updates['proteinGoalHitDays'] = FieldValue.increment(1);
-      updates['lastProteinGoalHitDate'] = today;
-    }
-    if (hitBalancedToday && lastBalancedDate != today) {
-      updates['balancedMacroDays'] = FieldValue.increment(1);
-      updates['lastBalancedMacroDate'] = today;
-    }
-
-    await hunterRef.update(updates);
+    HunterRepository.instance.updateNutritionAchievementLocal(
+      incrementMealsLogged: true,
+      hitProteinGoalToday: hitProteinGoalToday,
+      hitBalancedToday: hitBalancedToday,
+      today: today,
+    );
 
     if (mounted) {
       await AchievementsService.instance.checkAndCelebrateForCurrentUser(context);

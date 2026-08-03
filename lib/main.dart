@@ -22,6 +22,7 @@ import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'package:hunter_ascend/widgets/connectivity_banner.dart';
 import 'dart:math' as math;
 import 'package:facebook_app_events/facebook_app_events.dart';
+import 'package:hunter_ascend/core/skins/skin_service.dart';
 
 Future<void> signInAnonymously() async {
     if (FirebaseAuth.instance.currentUser == null) {
@@ -91,6 +92,7 @@ void main() async {
 
         // Load and validate the user's selected premium dark theme.
         await ThemeService.instance.initialize();
+        await SkinService.instance.initialize();
 
         // Initialize Hive local cache.
         await HiveInit.initialize();

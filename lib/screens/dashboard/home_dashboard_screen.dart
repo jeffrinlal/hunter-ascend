@@ -27,6 +27,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:hunter_ascend/screens/dashboard/dashboard_screen.dart';
 import 'package:hunter_ascend/screens/dashboard/missions_screen.dart';
 import 'package:hunter_ascend/widgets/glass/glass_background.dart';
+import 'package:hunter_ascend/core/skins/skin_id.dart';
+import 'package:hunter_ascend/core/skins/skin_service.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
@@ -1142,7 +1144,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier, SkinService.instance.activeSkinNotifier]),
       builder: (context, _) => _themedBuild(context),
     );
   }
@@ -1168,7 +1170,14 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                     final hunter = snap.data;
                     if (hunter == null) return buildDashboardSkeleton();
 
-                    // ── Tier-based layout selection ──
+                    // ── Skin-based layout selection (checked first) ──
+                    final activeSkin = SkinService.instance.activeSkinNotifier.value;
+                    if (activeSkin != SkinId.classic) {
+                      // TODO: return SkinDashboardLayout(skin: activeSkin, hunter: hunter, ...)
+                      // once a non-classic dashboard layout exists.
+                    }
+
+                    // ── Tier-based layout selection (classic skin only) ──
                     final membership = MembershipService.instance;
                     if (membership.isMax) {
                       return MaxDashboardLayout(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
+import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 
 /// Reusable screen for displaying legal documents (Privacy Policy, Terms of
 /// Service, etc.) in a scrollable, theme-aware layout with selectable text.
@@ -27,11 +29,14 @@ class LegalDocumentScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
-      builder: (context, _) => Scaffold(
-        backgroundColor: HunterTheme.background,
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        MembershipTheme.tierNotifier,
+      ]),
+      builder: (context, _) => MembershipScaffold(
         appBar: AppBar(
-          backgroundColor: HunterTheme.background,
+          backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
             icon: Icon(Icons.arrow_back_ios_new,

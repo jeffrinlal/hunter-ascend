@@ -2,18 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/screens/dashboard/home_dashboard_screen.dart';
 import 'package:hunter_ascend/screens/dashboard/missions_screen.dart';
 import 'package:hunter_ascend/screens/leaderboard/global_rankings_screen.dart';
 import 'package:hunter_ascend/screens/profile/profile_screen.dart';
+import 'package:hunter_ascend/screens/battle/battle_hub_screen.dart';
 import 'package:hunter_ascend/screens/duel/duel_screen.dart';
 import 'package:hunter_ascend/screens/duel/duel_request_screen.dart';
-import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/screens/profile/membership_screen.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/widgets/daily_motivation_dialog.dart';
 import 'package:hunter_ascend/widgets/premium_dialog.dart';
+import 'package:hunter_ascend/widgets/membership/membership_bottom_nav.dart';
 
 /// Persistent shell hosting the main app screens behind a bottom NavigationBar.
 /// Tabs: Home (Dashboard), Quests, Leaderboard, Duels, Profile.
@@ -186,12 +188,12 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
       bioQuests: widget.bioQuests,
     ),
     GlobalRankingsScreen(activeIndex: _activeTabIndex, tabIndex: 2),
-    const CreateDuelScreen(), // Duels tab (same pattern as other tabs)
+    const BattleHubScreen(), // Duels tab → Battle Hub (mode chooser)
     const ProfileScreen(),
   ];
 
   // Checks for active duel or pending request. If found, pushes on top.
-  // Otherwise just switches to the Duels tab (CreateDuelScreen).
+  // Otherwise just switches to the Duels tab (Battle Hub).
   Future<void> _openDuels() async {
     if (_isOpeningDuels) return;
     _isOpeningDuels = true;
@@ -266,12 +268,22 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      // tierNotifier is merged in so the membership-aware chrome (ambient
+      // background + bottom nav) instantly re-skins when the tier changes —
+      // no app restart, and no rebuilds unless the tier actually changes.
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        MembershipService.instance.tierNotifier,
+      ]),
       builder: (context, _) => _themedBuild(context),
     );
   }
 
   Widget _themedBuild(BuildContext context) {
+    // Each tab screen is itself membership-aware (via MembershipScaffold or its
+    // own Pro/Max layout), so no ambient layer is needed behind the stack —
+    // that would only paint a gradient hidden under every tab's opaque body.
     return Scaffold(
       backgroundColor: HunterTheme.background,
       body: FadeTransition(
@@ -298,160 +310,70 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
     _setActiveTab(i);
   }
 
-  // ── Premium floating bottom navigation (presentation only) ────────────────
+  // ── Membership-aware floating bottom navigation (presentation only) ──────
   //
-  // A rounded, floating bar that matches the app's premium design language:
-  // theme-aware surface + border, soft elevation + accent glow, and an animated
-  // gradient "pill" behind the active tab's icon. Fully theme-aware (reads
-  // HunterTheme tokens incl. primaryGradient / glowStrength) and responsive
-  // (equal Expanded cells, SafeArea-aware so it clears the home indicator and
-  // landscape notches).
+  // Navigation logic is UNCHANGED — taps still route through [_onNavTap].
+  // The presentation (surface tint, border, active pill gradient and glow)
+  // is resolved from the current membership tier by [MembershipBottomNav]:
+  // Basic keeps the stock look, Pro gets the gold treatment, Max the purple
+  // luxury treatment with glow.
   Widget _buildBottomNav(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              HunterTheme.primary.withOpacity(0.05),
-              HunterTheme.cardColor,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: HunterTheme.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(HunterTheme.isDark ? 0.38 : 0.10),
-              blurRadius: 24,
-              offset: const Offset(0, 10),
-            ),
-            BoxShadow(
-              color: HunterTheme.primary.withOpacity(0.10 * HunterTheme.glowStrength),
-              blurRadius: 22,
-              spreadRadius: -4,
-              offset: const Offset(0, 6),
-            ),
-          ],
+    return MembershipBottomNav(
+      selectedIndex: _index,
+      onDestinationSelected: _onNavTap,
+      items: [
+        const MembershipNavItem(
+          icon: Icons.home_outlined,
+          selectedIcon: Icons.home_rounded,
+          label: 'Home',
         ),
-        child: Row(
-          children: [
-            _navItem(index: 0, icon: Icons.home_outlined, selectedIcon: Icons.home_rounded, label: 'Home'),
-            _navItem(index: 1, icon: Icons.checklist_outlined, selectedIcon: Icons.checklist_rounded, label: 'Missions'),
-            _navItem(index: 2, icon: Icons.leaderboard_outlined, selectedIcon: Icons.leaderboard_rounded, label: 'Leaderboard'),
-            _navItem(index: 3, icon: Icons.sports_kabaddi_rounded, selectedIcon: Icons.sports_kabaddi_rounded, label: 'Duels', showDuelBadge: true),
-            _navItem(index: 4, icon: Icons.person_outline_rounded, selectedIcon: Icons.person_rounded, label: 'Profile'),
-          ],
+        const MembershipNavItem(
+          icon: Icons.checklist_outlined,
+          selectedIcon: Icons.checklist_rounded,
+          label: 'Missions',
         ),
-      ),
+        const MembershipNavItem(
+          icon: Icons.leaderboard_outlined,
+          selectedIcon: Icons.leaderboard_rounded,
+          label: 'Leaderboard',
+        ),
+        MembershipNavItem(
+          icon: Icons.sports_kabaddi_rounded,
+          selectedIcon: Icons.sports_kabaddi_rounded,
+          label: 'Duels',
+          badge: _duelRequestBadge(selected: _index == 3),
+        ),
+        const MembershipNavItem(
+          icon: Icons.person_outline_rounded,
+          selectedIcon: Icons.person_rounded,
+          label: 'Profile',
+        ),
+      ],
     );
   }
 
-  Widget _navItem({
-    required int index,
-    required IconData icon,
-    required IconData selectedIcon,
-    required String label,
-    bool showDuelBadge = false,
-  }) {
-    final selected = _index == index;
-    final accent = HunterTheme.primary;
-    final iconColor = selected ? Colors.black : HunterTheme.textSecondary;
-
-    // Icon (with the unchanged duel-request badge overlay for the Duels tab).
-    Widget iconGlyph = Icon(selected ? selectedIcon : icon, size: 23, color: iconColor);
-    if (showDuelBadge) {
-      iconGlyph = StreamBuilder<QuerySnapshot>(
-        stream: _duelRequestBadgeStream,
-        builder: (context, snap) {
-          final hasPending = snap.hasData && snap.data!.docs.isNotEmpty;
-          return Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Icon(selected ? selectedIcon : icon, size: 23, color: iconColor),
-              if (hasPending)
-                Positioned(
-                  right: -3,
-                  top: -3,
-                  child: Container(
-                    width: 9,
-                    height: 9,
-                    decoration: BoxDecoration(
-                      color: HunterTheme.danger,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: selected ? accent : HunterTheme.cardColor,
-                        width: 1.4,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          );
-        },
-      );
-    }
-
-    return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => _onNavTap(index),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Floating active pill behind the icon (animates on selection).
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 280),
-                curve: Curves.easeOutCubic,
-                padding: EdgeInsets.symmetric(horizontal: selected ? 20 : 12, vertical: 7),
-                decoration: BoxDecoration(
-                  gradient: selected
-                      ? LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: HunterTheme.primaryGradient,
-                        )
-                      : null,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: selected
-                      ? [
-                          BoxShadow(
-                            color: accent.withOpacity(0.38 * HunterTheme.glowStrength),
-                            blurRadius: 14,
-                            spreadRadius: 0.5,
-                            offset: const Offset(0, 4),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: iconGlyph,
-              ),
-              const SizedBox(height: 5),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOut,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                  color: selected ? accent : HunterTheme.textTertiary,
-                  letterSpacing: 0.2,
-                ),
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
+  /// The unchanged duel-request badge overlay for the Duels tab: a small
+  /// danger dot shown while a pending duel request exists.
+  Widget _duelRequestBadge({required bool selected}) {
+    final accent = MembershipTheme.current.accent;
+    return StreamBuilder<QuerySnapshot>(
+      stream: _duelRequestBadgeStream,
+      builder: (context, snap) {
+        final hasPending = snap.hasData && snap.data!.docs.isNotEmpty;
+        if (!hasPending) return const SizedBox.shrink();
+        return Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(
+            color: HunterTheme.danger,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: selected ? accent : HunterTheme.cardColor,
+              width: 1.4,
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

@@ -3,8 +3,13 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
 
 
-/// Manages rewarded ad loading, caching, and lifecycle for the membership
-/// screen. Automatically preloads the next ad after one is consumed.
+/// Manages rewarded ad loading, caching, and lifecycle for rewarded-ad
+/// unlock flows (membership claims, plan shop unlocks, streak recovery).
+/// Automatically preloads the next ad after one is consumed.
+///
+/// Pass [adUnitId] to use a specific ad unit; otherwise defaults to the
+/// same streak-recovery rewarded ad unit used by the membership screen
+/// (debug/release switching handled by [AppConstants]).
 ///
 /// Usage:
 /// ```dart
@@ -18,11 +23,18 @@ import 'package:hunter_ascend/core/constants/app_constants.dart';
 /// manager.dispose();
 /// ```
 class RewardedAdManager {
-  RewardedAdManager({required this.onAdStatusChanged});
+  RewardedAdManager({
+    required this.onAdStatusChanged,
+    String? adUnitId,
+  }) : _adUnitId = adUnitId ?? AppConstants.streakRecoveryRewardedAdUnitId;
 
   /// Called whenever the ad status changes (loaded, failed, shown, etc.)
   /// so the UI can rebuild.
   final VoidCallback onAdStatusChanged;
+
+  /// Rewarded ad unit ID. Defaults to the streak-recovery/membership unit
+  /// (with automatic debug/release switching via [AppConstants]).
+  final String _adUnitId;
 
   /// The currently cached rewarded ad (null if not loaded).
   RewardedAd? _rewardedAd;
@@ -35,9 +47,6 @@ class RewardedAdManager {
 
   /// Maximum retry attempts before giving up.
   static const int _maxRetries = 3;
-
-  /// Rewarded ad unit ID. Debug/release switching is handled by AppConstants.
-  static String get _adUnitId => AppConstants.streakRecoveryRewardedAdUnitId;
 
   // ── Public State ─────────────────────────────────────────────────────────
 

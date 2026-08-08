@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,6 +12,7 @@ import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:hunter_ascend/services/achievements_service.dart';
 import 'package:hunter_ascend/widgets/equipped_badge_chip.dart';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
+import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 import 'package:hunter_ascend/widgets/premium_avatar.dart';
 
 /// Side-by-side stat comparison of two hunters.
@@ -104,16 +106,20 @@ class _CompareHuntersScreenState extends State<CompareHuntersScreen> {
     // own rendering.
     unawaited(_recordComparisonOnce(context));
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        MembershipTheme.tierNotifier,
+      ]),
       builder: (context, _) => _themedBuild(context),
     );
   }
 
   Widget _themedBuild(BuildContext context) {
-    return Scaffold(
-      backgroundColor: HunterTheme.background,
+    final tokens = MembershipTheme.current;
+    return MembershipScaffold(
       appBar: AppBar(
-        backgroundColor: HunterTheme.background,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: Padding(
           padding: const EdgeInsets.only(left: 12),
@@ -135,12 +141,12 @@ class _CompareHuntersScreenState extends State<CompareHuntersScreen> {
             Container(
               width: 28, height: 28,
               decoration: BoxDecoration(
-                color: HunterTheme.primary.withOpacity(0.12),
+                color: tokens.accent.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: HunterTheme.primary.withOpacity(0.4)),
+                border: Border.all(color: tokens.accent.withOpacity(0.4)),
               ),
               child: Icon(Icons.compare_arrows,
-                  color: HunterTheme.primary, size: 17),
+                  color: tokens.accent, size: 17),
             ),
             const SizedBox(width: 10),
             Text(
@@ -191,8 +197,8 @@ class _CompareHuntersScreenState extends State<CompareHuntersScreen> {
                     ElevatedButton(
                       onPressed: _retry,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: HunterTheme.primary,
-                        foregroundColor: Colors.black,
+                        backgroundColor: MembershipTheme.current.accent,
+                        foregroundColor: MembershipTheme.isMax ? Colors.white : Colors.black,
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
@@ -217,13 +223,13 @@ class _CompareHuntersScreenState extends State<CompareHuntersScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [HunterTheme.primary.withOpacity(0.16), HunterTheme.cardColor],
+                        colors: [MembershipTheme.current.accent.withOpacity(0.16), HunterTheme.cardColor],
                       ),
-                      border: Border.all(color: HunterTheme.primary.withOpacity(0.3)),
+                      border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.3)),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(22),
-                      child: CircularProgressIndicator(color: HunterTheme.primary, strokeWidth: 2.5),
+                      child: CircularProgressIndicator(color: MembershipTheme.current.accent, strokeWidth: 2.5),
                     ),
                   ),
                   const SizedBox(height: 18),
@@ -326,7 +332,7 @@ class _CompareHuntersScreenState extends State<CompareHuntersScreen> {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [HunterTheme.primary.withOpacity(0.09), HunterTheme.cardColor],
+                      colors: [MembershipTheme.current.accent.withOpacity(0.09), HunterTheme.cardColor],
                     ),
                     borderRadius: BorderRadius.circular(22),
                     border: Border.all(color: HunterTheme.border),
@@ -595,7 +601,7 @@ class _CompareHuntersScreenState extends State<CompareHuntersScreen> {
         textAlign: TextAlign.center,
         style: TextStyle(
         color: isMe
-        ? HunterTheme.primary
+        ? MembershipTheme.current.accent
             : HunterTheme.textPrimary,
         fontSize: 13,
         fontWeight: FontWeight.bold,

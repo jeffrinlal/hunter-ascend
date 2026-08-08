@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/widgets/dashboard/pro_dashboard_layout.dart';
 import 'package:hunter_ascend/widgets/dashboard/max_dashboard_layout.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
@@ -66,7 +67,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   // ── Colors ──────────────────────────────────────────────
   static Color get _bg => HunterTheme.background;
   static Color get _card => HunterTheme.cardColor;
-  static Color get _blue => HunterTheme.primary;
+  static Color get _blue => MembershipTheme.current.accent;
   static Color get _blueDim => HunterTheme.border;
   static Color get _border => HunterTheme.border;
 
@@ -521,7 +522,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
-                    color: HunterTheme.primary,
+                    color: MembershipTheme.current.accent,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Center(
@@ -683,7 +684,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: HunterTheme.border, width: 1.5),
             boxShadow: [
-              BoxShadow(color: HunterTheme.primary.withOpacity(0.15), blurRadius: 30, spreadRadius: 2),
+              BoxShadow(color: MembershipTheme.current.accent.withOpacity(0.15), blurRadius: 30, spreadRadius: 2),
             ],
           ),
           child: Column(
@@ -694,10 +695,10 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 decoration: BoxDecoration(
                   color: HunterTheme.border,
                   shape: BoxShape.circle,
-                  border: Border.all(color: HunterTheme.primary, width: 1.5),
-                  boxShadow: [BoxShadow(color: HunterTheme.primary.withOpacity(0.3), blurRadius: 16)],
+                  border: Border.all(color: MembershipTheme.current.accent, width: 1.5),
+                  boxShadow: [BoxShadow(color: MembershipTheme.current.accent.withOpacity(0.3), blurRadius: 16)],
                 ),
-                child: Icon(Icons.shield, color: HunterTheme.primary, size: 32),
+                child: Icon(Icons.shield, color: MembershipTheme.current.accent, size: 32),
               ),
               const SizedBox(height: 16),
               Text(
@@ -719,7 +720,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   ),
                   child: Text(
                     "Current: ${mode.toUpperCase()}",
-                    style: TextStyle(color: HunterTheme.primary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1),
+                    style: TextStyle(color: MembershipTheme.current.accent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1),
                   ),
                 ),
               const SizedBox(height: 20),
@@ -750,7 +751,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: HunterTheme.primary,
+                      backgroundColor: MembershipTheme.current.accent,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
@@ -879,7 +880,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         'label': 'Afternoon',
         'sub': '2:00 PM',
         'icon': Icons.wb_cloudy_outlined,
-        'color': HunterTheme.primary,
+        'color': MembershipTheme.current.accent,
         'hour': 14,
         'minute': 0,
       },
@@ -1144,7 +1145,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier, SkinService.instance.activeSkinNotifier]),
+      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier, SkinService.instance.activeSkinNotifier, MembershipTheme.tierNotifier]),
       builder: (context, _) => _themedBuild(context),
     );
   }
@@ -1274,7 +1275,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            HunterTheme.primary.withOpacity(0.055),
+            MembershipTheme.current.accent.withOpacity(0.055),
             HunterTheme.cardColor,
           ],
         ),
@@ -1422,7 +1423,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: HunterTheme.primaryGradient,
+                    colors: MembershipTheme.current.gradient,
                   ),
                   boxShadow: [
                     BoxShadow(color: _blue.withOpacity(0.35 * HunterTheme.glowStrength), blurRadius: 16, spreadRadius: 1),
@@ -1520,7 +1521,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                     child: Container(
                       height: 10,
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: HunterTheme.primaryGradient),
+                        gradient: LinearGradient(colors: MembershipTheme.current.gradient),
                         boxShadow: [
                           BoxShadow(color: _blue.withOpacity(0.5 * HunterTheme.glowStrength), blurRadius: 8),
                         ],
@@ -1623,7 +1624,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                     child: Container(
                       height: 10,
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: HunterTheme.primaryGradient),
+                        gradient: LinearGradient(colors: MembershipTheme.current.gradient),
                       ),
                     ),
                   ),
@@ -1771,17 +1772,19 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: HunterTheme.primaryGradient,
+            colors: MembershipTheme.current.gradient,
           ),
           boxShadow: [
             BoxShadow(
-              color: HunterTheme.primary.withOpacity(0.35 * HunterTheme.glowStrength),
+              color: MembershipTheme.current.accent.withOpacity(0.35 * HunterTheme.glowStrength),
               blurRadius: 12,
               spreadRadius: 1,
             ),
           ],
         ),
-        child: Icon(icon, color: Colors.black, size: 24),
+        child: Icon(icon,
+            color: MembershipTheme.isMax ? Colors.white : Colors.black,
+            size: 24),
       ),
     );
   }
@@ -1794,7 +1797,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           gradient: selected
-              ? LinearGradient(colors: HunterTheme.primaryGradient)
+              ? LinearGradient(colors: MembershipTheme.current.gradient)
               : null,
           color: selected ? null : HunterTheme.surface,
           borderRadius: BorderRadius.circular(20),
@@ -1805,7 +1808,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         child: Text(
           '${size}ml',
           style: TextStyle(
-            color: selected ? Colors.black : HunterTheme.textSecondary,
+            color: selected
+                ? (MembershipTheme.isMax ? Colors.white : Colors.black)
+                : HunterTheme.textSecondary,
             fontWeight: FontWeight.w700,
             fontSize: 12,
           ),
@@ -1835,15 +1840,19 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color:
-                        selected ? HunterTheme.primary : HunterTheme.cardColor,
+                    color: selected
+                        ? MembershipTheme.current.accent
+                        : HunterTheme.cardColor,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: HunterTheme.primary, width: 1.3),
+                    border: Border.all(
+                        color: MembershipTheme.current.accent, width: 1.3),
                   ),
                   child: Text(
                     '${v}ml',
                     style: TextStyle(
-                      color: selected ? Colors.white : HunterTheme.primary,
+                      color: selected
+                          ? (MembershipTheme.isPro ? Colors.black : Colors.white)
+                          : MembershipTheme.current.accent,
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
                     ),
@@ -1887,12 +1896,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(
-                            color: HunterTheme.primary.withOpacity(0.3)),
+                            color: MembershipTheme.current.accent.withOpacity(0.3)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide:
-                            BorderSide(color: HunterTheme.primary, width: 1.5),
+                        borderSide: BorderSide(
+                            color: MembershipTheme.current.accent, width: 1.5),
                       ),
                     ),
                   ),
@@ -1949,8 +1958,10 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                             Navigator.pop(sheetContext);
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: HunterTheme.primary,
-                            foregroundColor: Colors.white,
+                            backgroundColor: MembershipTheme.current.accent,
+                            foregroundColor: MembershipTheme.isPro
+                                ? Colors.black
+                                : Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
@@ -2028,9 +2039,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: HunterTheme.primary.withOpacity(0.10),
+                    color: MembershipTheme.current.accent.withOpacity(0.10),
                   ),
-                  child: Icon(Icons.edit_rounded, size: 15, color: HunterTheme.primary),
+                  child: Icon(Icons.edit_rounded, size: 15, color: MembershipTheme.current.accent),
                 ),
               ),
             ],
@@ -2046,7 +2057,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   child: Container(
                     height: 10,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: HunterTheme.primaryGradient),
+                      gradient: LinearGradient(colors: MembershipTheme.current.gradient),
                       boxShadow: [
                         BoxShadow(color: _blue.withOpacity(0.5 * HunterTheme.glowStrength), blurRadius: 8),
                       ],
@@ -2066,7 +2077,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 Icons.water_drop,
                 size: 20,
                 color: i < filledDrops
-                    ? HunterTheme.primary
+                    ? MembershipTheme.current.accent
                     : HunterTheme.border,
               ),
             ),
@@ -2148,12 +2159,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [HunterTheme.primary.withOpacity(0.18), HunterTheme.primary.withOpacity(0.06)],
+                  colors: [MembershipTheme.current.accent.withOpacity(0.18), MembershipTheme.current.accent.withOpacity(0.06)],
                 ),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: HunterTheme.primary.withOpacity(0.25)),
+                border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.25)),
               ),
-              child: Icon(icon, color: HunterTheme.primary, size: 24),
+              child: Icon(icon, color: MembershipTheme.current.accent, size: 24),
             ),
             const SizedBox(height: 10),
             Text(

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/core/utils/hunter_calculations.dart';
 import 'package:hunter_ascend/services/ads_service.dart';
@@ -11,9 +12,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'package:hunter_ascend/services/achievements_service.dart';
@@ -367,12 +368,12 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   // ── Theme-aware palette ─────────────────────────────────────────────────
   static Color get _bg => HunterTheme.background;
   static Color get _card => HunterTheme.cardColor;
-  static Color get _blue => HunterTheme.primary; // brand accent
+  static Color get _blue => MembershipTheme.current.accent; // brand accent
   static Color get _blueDim => HunterTheme.border; // track / secondary surface
-  static Color get _border => HunterTheme.primary.withOpacity(0.2);
+  static Color get _border => MembershipTheme.current.accent.withOpacity(0.2);
   static Color get _green => HunterTheme.success; // carbs (theme-aware)
   static Color get _red => HunterTheme.danger; // fats / over-goal (theme-aware)
-  static Color get _orange => HunterTheme.primary; // brand accent
+  static Color get _orange => MembershipTheme.current.accent; // brand accent
   static Color get _textPrimary => HunterTheme.textPrimary;
   static Color get _textSecondary => HunterTheme.textSecondary;
   static Color get _textTertiary => HunterTheme.textTertiary;
@@ -768,16 +769,16 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: HunterTheme.primaryGradient,
+                          colors: MembershipTheme.current.gradient,
                         ),
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(color: _orange.withOpacity(0.35 * HunterTheme.glowStrength), blurRadius: 10, offset: const Offset(0, 4)),
                         ]),
-                    child: const Center(
+                    child: Center(
                         child: Text("LOG MEAL",
                             style: TextStyle(
-                                color: Colors.black,
+                                color: MembershipTheme.isMax ? Colors.white : Colors.black,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 1))),
                   ),
@@ -806,7 +807,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier, MembershipTheme.tierNotifier]),
       builder: (context, _) => _themedBuild(context),
     );
   }
@@ -907,20 +908,20 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
                                 gradient: LinearGradient(
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
-                                  colors: HunterTheme.primaryGradient,
+                                  colors: MembershipTheme.current.gradient,
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(color: _orange.withOpacity(0.3 * HunterTheme.glowStrength), blurRadius: 8, offset: const Offset(0, 3)),
                                 ]),
                             child: _isLoading
-                                ? const SizedBox(
+                                ? SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
-                                    color: Colors.black, strokeWidth: 2))
-                                : const Icon(Icons.search_rounded,
-                                color: Colors.black, size: 22),
+                                    color: MembershipTheme.isMax ? Colors.white : Colors.black, strokeWidth: 2))
+                                : Icon(Icons.search_rounded,
+                                color: MembershipTheme.isMax ? Colors.white : Colors.black, size: 22),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -1036,13 +1037,15 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: HunterTheme.primaryGradient,
+                colors: MembershipTheme.current.gradient,
               ),
               boxShadow: [
                 BoxShadow(color: _orange.withOpacity(0.35 * HunterTheme.glowStrength), blurRadius: 12),
               ],
             ),
-            child: const Icon(Icons.restaurant_menu_rounded, color: Colors.black, size: 24),
+            child: Icon(Icons.restaurant_menu_rounded,
+                color: MembershipTheme.isMax ? Colors.white : Colors.black,
+                size: 24),
           ),
           const SizedBox(width: 14),
           Expanded(

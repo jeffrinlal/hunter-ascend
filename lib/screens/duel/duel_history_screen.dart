@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
+import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 
 /// Read-only list of the hunter's past duels and their outcomes.
 class DuelHistoryScreen extends StatelessWidget {
@@ -11,7 +13,11 @@ class DuelHistoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        MembershipTheme.tierNotifier,
+      ]),
       builder: (context, _) => _themedBuild(context),
     );
   }
@@ -19,10 +25,9 @@ class DuelHistoryScreen extends StatelessWidget {
   Widget _themedBuild(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
-    return Scaffold(
-      backgroundColor: HunterTheme.background,
+    return MembershipScaffold(
       appBar: AppBar(
-        backgroundColor: HunterTheme.background,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: Padding(
           padding: const EdgeInsets.only(left: 12),
@@ -53,7 +58,7 @@ class DuelHistoryScreen extends StatelessWidget {
             TextSpan(
               text: "HISTORY",
               style: TextStyle(
-                color: HunterTheme.primary,
+                color: MembershipTheme.current.accent,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1,
@@ -104,7 +109,7 @@ class DuelHistoryScreen extends StatelessWidget {
           // ── Loading state ──
           if (!snapshot.hasData) {
             return Center(
-              child: CircularProgressIndicator(color: HunterTheme.primary),
+              child: CircularProgressIndicator(color: MembershipTheme.current.accent),
             );
           }
 
@@ -138,16 +143,16 @@ class DuelHistoryScreen extends StatelessWidget {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            HunterTheme.primary.withOpacity(0.16),
+                            MembershipTheme.current.accent.withOpacity(0.16),
                             HunterTheme.cardColor,
                           ],
                         ),
-                        border: Border.all(color: HunterTheme.primary.withOpacity(0.3), width: 1.4),
+                        border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.3), width: 1.4),
                         boxShadow: [
-                          BoxShadow(color: HunterTheme.primary.withOpacity(0.14 * HunterTheme.glowStrength), blurRadius: 24),
+                          BoxShadow(color: MembershipTheme.current.accent.withOpacity(0.14 * HunterTheme.glowStrength), blurRadius: 24),
                         ],
                       ),
-                      child: Icon(Icons.sports_kabaddi_rounded, color: HunterTheme.primary, size: 42),
+                      child: Icon(Icons.sports_kabaddi_rounded, color: MembershipTheme.current.accent, size: 42),
                     ),
                     const SizedBox(height: 22),
                     Text(
@@ -198,7 +203,7 @@ class DuelHistoryScreen extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: HunterTheme.primaryGradient,
+                        colors: MembershipTheme.current.gradient,
                       ),
                       borderRadius: BorderRadius.circular(2),
                     ),
@@ -212,13 +217,13 @@ class DuelHistoryScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: HunterTheme.primary.withOpacity(0.12),
+                      color: MembershipTheme.current.accent.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: HunterTheme.primary.withOpacity(0.3)),
+                      border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.3)),
                     ),
                     child: Text(
                       "${myDuels.length}",
-                      style: TextStyle(color: HunterTheme.primary, fontSize: 12, fontWeight: FontWeight.w800),
+                      style: TextStyle(color: MembershipTheme.current.accent, fontSize: 12, fontWeight: FontWeight.w800),
                     ),
                   ),
                 ]),

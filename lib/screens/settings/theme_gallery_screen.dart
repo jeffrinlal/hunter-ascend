@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/app_theme_data.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_registry.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/services/rewarded_ad_manager.dart';
+import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 
 /// Premium theme gallery (reached from Settings).
 ///
@@ -51,18 +53,20 @@ class _ThemeGalleryScreenState extends State<ThemeGalleryScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge(
-          [themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        MembershipTheme.tierNotifier,
+      ]),
       builder: (context, _) => _themedBuild(context),
     );
   }
 
   Widget _themedBuild(BuildContext context) {
-    return Scaffold(
-      backgroundColor: HunterTheme.background,
+    return MembershipScaffold(
       body: Stack(
         children: [
-          // Subtle premium backdrop wash tinted by the active accent.
+          // Subtle premium backdrop wash tinted by the membership accent.
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
@@ -70,7 +74,7 @@ class _ThemeGalleryScreenState extends State<ThemeGalleryScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    HunterTheme.primary.withOpacity(0.10),
+                    MembershipTheme.current.accent.withOpacity(0.10),
                     HunterTheme.background,
                   ],
                   stops: const [0.0, 0.42],
@@ -154,13 +158,15 @@ class _ThemeGalleryScreenState extends State<ThemeGalleryScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: HunterTheme.primaryGradient,
+                colors: MembershipTheme.current.gradient,
               ),
               boxShadow: [
-                BoxShadow(color: HunterTheme.primary.withOpacity(0.35 * HunterTheme.glowStrength), blurRadius: 14),
+                BoxShadow(color: MembershipTheme.current.accent.withOpacity(0.35 * HunterTheme.glowStrength), blurRadius: 14),
               ],
             ),
-            child: const Icon(Icons.palette_rounded, color: Colors.black, size: 23),
+            child: Icon(Icons.palette_rounded,
+                color: MembershipTheme.isMax ? Colors.white : Colors.black,
+                size: 23),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -272,14 +278,14 @@ class _ThemeGalleryScreenState extends State<ThemeGalleryScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
-                  color: HunterTheme.primary.withOpacity(0.10),
+                  color: MembershipTheme.current.accent.withOpacity(0.10),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: HunterTheme.primary.withOpacity(0.25)),
+                  border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.25)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.play_circle_outline_rounded, color: HunterTheme.primary, size: 16),
+                    Icon(Icons.play_circle_outline_rounded, color: MembershipTheme.current.accent, size: 16),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
@@ -335,8 +341,8 @@ class _ThemeGalleryScreenState extends State<ThemeGalleryScreen> {
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: HunterTheme.primary,
-                        foregroundColor: Colors.black,
+                        backgroundColor: MembershipTheme.current.accent,
+                        foregroundColor: MembershipTheme.isMax ? Colors.white : Colors.black,
                         disabledBackgroundColor: HunterTheme.border,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         elevation: 0,
@@ -412,13 +418,13 @@ class _ThemePreviewCard extends StatelessWidget {
           color: HunterTheme.cardColor,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: isActive ? HunterTheme.primary.withOpacity(0.75) : HunterTheme.border,
+            color: isActive ? MembershipTheme.current.accent.withOpacity(0.75) : HunterTheme.border,
             width: isActive ? 1.8 : 1,
           ),
           boxShadow: [
             if (isActive)
               BoxShadow(
-                color: HunterTheme.primary.withOpacity(0.20 * HunterTheme.glowStrength),
+                color: MembershipTheme.current.accent.withOpacity(0.20 * HunterTheme.glowStrength),
                 blurRadius: 16,
                 spreadRadius: 0.5,
                 offset: const Offset(0, 4),
@@ -448,7 +454,7 @@ class _ThemePreviewCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 if (isActive)
-                  Icon(Icons.check_circle_rounded, color: HunterTheme.primary, size: 18)
+                  Icon(Icons.check_circle_rounded, color: MembershipTheme.current.accent, size: 18)
                 else if (themeData.theme == AppTheme.dark)
                   Icon(Icons.brightness_2_rounded, color: HunterTheme.textTertiary, size: 15)
                 else

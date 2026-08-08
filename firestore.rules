@@ -52,6 +52,17 @@ service cloud.firestore {
         allow update: if request.auth != null && request.auth.uid == userId;
         allow delete: if request.auth != null && request.auth.uid == userId;
       }
+
+      // ── Plan Unlocks (rewarded-ad PDF plan unlocks, time-limited) ──
+      // Each document represents a single plan unlock with unlockedAt and
+      // expiresAt timestamps. Owner-only, fully mutable so the client can
+      // re-unlock (overwrite) after watching another rewarded ad.
+      match /planUnlocks/{planId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // ══════════════════════════════════════════════════════════════════════

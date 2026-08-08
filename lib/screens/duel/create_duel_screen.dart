@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,6 +14,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/achievements_service.dart';
+import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 
 /// Form to create/send a duel challenge to another hunter.
 class CreateDuelScreen extends StatefulWidget {
@@ -590,7 +592,7 @@ Return ONLY a JSON array, no markdown, no explanation:
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => _hunterAlertDialog(
           icon: Icons.smart_toy_rounded,
-          iconColor: HunterTheme.primary,
+          iconColor: MembershipTheme.current.accent,
           title: '🤖 Generate AI Duel Quests',
           content: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -646,10 +648,10 @@ Return ONLY a JSON array, no markdown, no explanation:
             decoration: BoxDecoration(
               color: HunterTheme.cardColor,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: HunterTheme.primary.withOpacity(0.3)),
+              border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.3)),
               boxShadow: [
                 BoxShadow(
-                  color: HunterTheme.primary.withOpacity(0.2),
+                  color: MembershipTheme.current.accent.withOpacity(0.2),
                   blurRadius: 24,
                   spreadRadius: 2,
                 ),
@@ -662,7 +664,7 @@ Return ONLY a JSON array, no markdown, no explanation:
                   width: 54,
                   height: 54,
                   child: CircularProgressIndicator(
-                      color: HunterTheme.primary, strokeWidth: 3),
+                      color: MembershipTheme.current.accent, strokeWidth: 3),
                 ),
                 const SizedBox(height: 20),
                 Text(
@@ -804,7 +806,7 @@ Return ONLY a JSON array, no markdown, no explanation:
           decoration: BoxDecoration(
             color: HunterTheme.cardColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: HunterTheme.primary.withOpacity(0.25)),
+            border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.25)),
             boxShadow: [
               BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20),
             ],
@@ -815,7 +817,7 @@ Return ONLY a JSON array, no markdown, no explanation:
             children: [
               Row(
                 children: [
-                  Icon(Icons.auto_awesome, color: HunterTheme.primary),
+                  Icon(Icons.auto_awesome, color: MembershipTheme.current.accent),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -857,13 +859,13 @@ Return ONLY a JSON array, no markdown, no explanation:
                     Navigator.pop(ctx);
                     _handleRegenerate(freeRegenAvailable);
                   },
-                  icon: Icon(Icons.refresh, color: HunterTheme.primary),
+                  icon: Icon(Icons.refresh, color: MembershipTheme.current.accent),
                   label: Text(
                     freeRegenAvailable
                         ? '🔄 Regenerate AI Quests  •  ✨ FREE ×1 Today'
                         : '🔄 Regenerate  •  🎥 Watch Rewarded Ad',
                     style: TextStyle(
-                      color: HunterTheme.primary,
+                      color: MembershipTheme.current.accent,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -881,16 +883,21 @@ Return ONLY a JSON array, no markdown, no explanation:
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        MembershipTheme.tierNotifier,
+      ]),
       builder: (context, _) => _themedBuild(context),
     );
   }
 
   Widget _themedBuild(BuildContext context) {
-    return Scaffold(
-      backgroundColor: HunterTheme.background,
+    // Foreground for tier-gradient CTAs: black on Basic/Pro, white on Max.
+    final Color gradFg = MembershipTheme.isMax ? Colors.white : Colors.black;
+    return MembershipScaffold(
       appBar: AppBar(
-        backgroundColor: HunterTheme.background,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         automaticallyImplyLeading: false,
         leading: widget.pushed
@@ -917,7 +924,7 @@ Return ONLY a JSON array, no markdown, no explanation:
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.history, color: HunterTheme.primary),
+            icon: Icon(Icons.history, color: MembershipTheme.current.accent),
             onPressed: () {
               Navigator.push(
                 context,
@@ -1026,15 +1033,12 @@ Return ONLY a JSON array, no markdown, no explanation:
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
-                                colors: [
-                                  HunterTheme.primary,
-                                  HunterTheme.primary.withOpacity(0.85),
-                                ],
+                                colors: MembershipTheme.current.gradient,
                               ),
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: HunterTheme.primary.withOpacity(0.30),
+                                  color: MembershipTheme.current.accent.withOpacity(0.30),
                                   blurRadius: 10,
                                   offset: const Offset(0, 5),
                                 ),
@@ -1042,31 +1046,31 @@ Return ONLY a JSON array, no markdown, no explanation:
                             ),
                             child: Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.group_add_rounded,
-                                  color: Colors.black,
+                                  color: gradFg,
                                   size: 28,
                                 ),
 
                                 const SizedBox(width: 14),
 
-                                const Expanded(
+                                Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         "Invite Friends",
                                         style: TextStyle(
-                                          color: Colors.black,
+                                          color: gradFg,
                                           fontSize: 17,
                                           fontWeight: FontWeight.w900,
                                         ),
                                       ),
-                                      SizedBox(height: 4),
+                                      const SizedBox(height: 4),
                                       Text(
                                         "Tap here to challenge them to a duel",
                                         style: TextStyle(
-                                          color: Colors.black54,
+                                          color: gradFg.withOpacity(0.7),
                                           fontSize: 13,
                                         ),
                                       ),
@@ -1074,9 +1078,9 @@ Return ONLY a JSON array, no markdown, no explanation:
                                   ),
                                 ),
 
-                                const Icon(
+                                Icon(
                                   Icons.arrow_forward_ios_rounded,
-                                  color: Colors.black,
+                                  color: gradFg,
                                   size: 18,
                                 ),
                               ],
@@ -1094,12 +1098,12 @@ Return ONLY a JSON array, no markdown, no explanation:
                         color: HunterTheme.cardColor,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                            color: HunterTheme.primary.withOpacity(0.2)),
+                            color: MembershipTheme.current.accent.withOpacity(0.2)),
                       ),
                       child: Row(
                         children: [
                           Icon(Icons.fingerprint,
-                              color: HunterTheme.primary, size: 20),
+                              color: MembershipTheme.current.accent, size: 20),
                           const SizedBox(width: 10),
                           Expanded(
                             child: FutureBuilder<DocumentSnapshot>(
@@ -1121,7 +1125,7 @@ Return ONLY a JSON array, no markdown, no explanation:
                                 return SelectableText(
                                   data?['hunterName'] ?? 'Unknown Hunter',
                                   style: TextStyle(
-                                    color: HunterTheme.primary,
+                                    color: MembershipTheme.current.accent,
                                     fontSize: 12,
                                     letterSpacing: 0.5,
                                   ),
@@ -1153,7 +1157,7 @@ Return ONLY a JSON array, no markdown, no explanation:
                             width: 12, height: 12,
                             child: CircularProgressIndicator(
                               strokeWidth: 1.5,
-                              color: HunterTheme.primary,
+                              color: MembershipTheme.current.accent,
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -1204,7 +1208,7 @@ Return ONLY a JSON array, no markdown, no explanation:
                         color: HunterTheme.cardColor,
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                            color: HunterTheme.primary.withOpacity(0.15)),
+                            color: MembershipTheme.current.accent.withOpacity(0.15)),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.03),
@@ -1219,7 +1223,7 @@ Return ONLY a JSON array, no markdown, no explanation:
                           Row(
                             children: [
                               Icon(Icons.event,
-                                  size: 16, color: HunterTheme.primary),
+                                  size: 16, color: MembershipTheme.current.accent),
                               const SizedBox(width: 8),
                               Text('📅 DUEL DURATION',
                                   style: _dialogLabelStyle()),
@@ -1243,7 +1247,7 @@ Return ONLY a JSON array, no markdown, no explanation:
                           Row(
                             children: [
                               Icon(Icons.speed,
-                                  size: 16, color: HunterTheme.primary),
+                                  size: 16, color: MembershipTheme.current.accent),
                               const SizedBox(width: 8),
                               Text('DIFFICULTY', style: _dialogLabelStyle()),
                             ],
@@ -1289,19 +1293,19 @@ Return ONLY a JSON array, no markdown, no explanation:
                               gradient: LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
-                                colors: HunterTheme.primaryGradient,
+                                colors: MembershipTheme.current.gradient,
                               ),
                               borderRadius: BorderRadius.circular(14),
                               boxShadow: [
                                 BoxShadow(
-                                  color: HunterTheme.primary.withOpacity(0.35 * HunterTheme.glowStrength),
+                                  color: MembershipTheme.current.accent.withOpacity(0.35 * MembershipTheme.current.glowStrength),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
-                            child: const Icon(Icons.add_rounded,
-                                color: Colors.black, size: 26),
+                            child: Icon(Icons.add_rounded,
+                                color: gradFg, size: 26),
                           ),
                         ),
                       ],
@@ -1346,15 +1350,12 @@ Return ONLY a JSON array, no markdown, no explanation:
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [
-                                HunterTheme.primary,
-                                HunterTheme.primary.withOpacity(0.75),
-                              ],
+                              colors: MembershipTheme.current.gradient,
                             ),
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: HunterTheme.primary.withOpacity(0.3),
+                                color: MembershipTheme.current.accent.withOpacity(0.3),
                                 blurRadius: 12,
                                 offset: const Offset(0, 6),
                               ),
@@ -1362,8 +1363,8 @@ Return ONLY a JSON array, no markdown, no explanation:
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.smart_toy_rounded,
-                                  color: Colors.black, size: 26),
+                              Icon(Icons.smart_toy_rounded,
+                                  color: gradFg, size: 26),
                               const SizedBox(width: 14),
                               Expanded(
                                 child: Column(
@@ -1373,7 +1374,7 @@ Return ONLY a JSON array, no markdown, no explanation:
                                     Text(
                                       '🤖 Generate AI Duel Quests',
                                       style: TextStyle(
-                                        color: Colors.black,
+                                        color: gradFg,
                                         fontSize: 15,
                                         fontWeight: FontWeight.w900,
                                       ),
@@ -1382,7 +1383,7 @@ Return ONLY a JSON array, no markdown, no explanation:
                                     Text(
                                       'Generate balanced quests based on both hunters.',
                                       style: TextStyle(
-                                        color: Colors.black.withOpacity(0.6),
+                                        color: gradFg.withOpacity(0.6),
                                         fontSize: 12,
                                       ),
                                     ),
@@ -1390,15 +1391,15 @@ Return ONLY a JSON array, no markdown, no explanation:
                                 ),
                               ),
                               if (_isGeneratingAI)
-                                const SizedBox(
+                                SizedBox(
                                   width: 18,
                                   height: 18,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.black),
+                                      strokeWidth: 2, color: gradFg),
                                 )
                               else
-                                const Icon(Icons.arrow_forward_ios_rounded,
-                                    color: Colors.black, size: 16),
+                                Icon(Icons.arrow_forward_ios_rounded,
+                                    color: gradFg, size: 16),
                             ],
                           ),
                         ),
@@ -1658,7 +1659,7 @@ Return ONLY a JSON array, no markdown, no explanation:
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: HunterTheme.primaryGradient,
+              colors: MembershipTheme.current.gradient,
             ),
             borderRadius: BorderRadius.circular(2),
           ),
@@ -1687,7 +1688,7 @@ Return ONLY a JSON array, no markdown, no explanation:
   Widget _summaryRow(IconData icon, String label, String value) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: HunterTheme.primary),
+        Icon(icon, size: 16, color: MembershipTheme.current.accent),
         const SizedBox(width: 8),
         Text('$label: ',
             style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12)),
@@ -1715,17 +1716,19 @@ Return ONLY a JSON array, no markdown, no explanation:
         curve: Curves.easeOut,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? HunterTheme.primary : HunterTheme.cardColor,
+          color: selected
+              ? MembershipTheme.current.accent
+              : HunterTheme.cardColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected
-                ? HunterTheme.primary
-                : HunterTheme.primary.withOpacity(0.25),
+                ? MembershipTheme.current.accent
+                : MembershipTheme.current.accent.withOpacity(0.25),
           ),
           boxShadow: selected
               ? [
             BoxShadow(
-              color: HunterTheme.primary.withOpacity(0.3),
+              color: MembershipTheme.current.accent.withOpacity(0.3),
               blurRadius: 8,
               offset: const Offset(0, 3),
             ),
@@ -1735,7 +1738,9 @@ Return ONLY a JSON array, no markdown, no explanation:
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.black : HunterTheme.textPrimary,
+            color: selected
+                ? (MembershipTheme.isMax ? Colors.white : Colors.black)
+                : HunterTheme.textPrimary,
             fontWeight: FontWeight.w700,
             fontSize: 13,
           ),
@@ -1750,8 +1755,8 @@ Return ONLY a JSON array, no markdown, no explanation:
       child: primary
           ? ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: HunterTheme.primary,
-          foregroundColor: Colors.black,
+          backgroundColor: MembershipTheme.current.accent,
+          foregroundColor: MembershipTheme.isMax ? Colors.white : Colors.black,
           elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(
@@ -1783,17 +1788,17 @@ Return ONLY a JSON array, no markdown, no explanation:
       decoration: BoxDecoration(
         color: HunterTheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: HunterTheme.primary.withOpacity(0.2)),
+        border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.2)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: HunterTheme.primary.withOpacity(0.12),
+              color: MembershipTheme.current.accent.withOpacity(0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.bolt, color: HunterTheme.primary, size: 18),
+            child: Icon(Icons.bolt, color: MembershipTheme.current.accent, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1913,7 +1918,7 @@ Return ONLY a JSON array, no markdown, no explanation:
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: HunterTheme.textTertiary, fontSize: 14),
-        prefixIcon: Icon(icon, color: HunterTheme.primary, size: 20),
+        prefixIcon: Icon(icon, color: MembershipTheme.current.accent, size: 20),
         filled: true,
         fillColor: HunterTheme.cardColor,
         contentPadding:
@@ -1921,11 +1926,11 @@ Return ONLY a JSON array, no markdown, no explanation:
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide:
-          BorderSide(color: HunterTheme.primary.withOpacity(0.2)),
+          BorderSide(color: MembershipTheme.current.accent.withOpacity(0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: HunterTheme.primary, width: 1.5),
+          borderSide: BorderSide(color: MembershipTheme.current.accent, width: 1.5),
         ),
       ),
     );

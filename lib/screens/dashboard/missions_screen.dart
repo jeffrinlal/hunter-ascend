@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
-import 'package:hunter_ascend/core/utils/hunter_calculations.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/services/ads_service.dart';
-import 'package:hunter_ascend/core/constants/app_constants.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:hunter_ascend/core/utils/hunter_calculations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hunter_ascend/services/ai_quest_service.dart';
@@ -17,6 +16,7 @@ import 'package:hunter_ascend/screens/dashboard/sleep_start_screen.dart';
 import 'package:hunter_ascend/services/sleep_service.dart';
 import 'package:hunter_ascend/services/milestone_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/services/mission_engine.dart';
 import 'package:hunter_ascend/services/xp_service.dart';
 import 'package:hunter_ascend/services/rank_celebration_service.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
@@ -25,10 +25,16 @@ import 'package:hunter_ascend/data/models/custom_quest.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'package:hunter_ascend/data/repositories/quest_repository.dart';
 import 'package:hunter_ascend/widgets/dashboard/entrance_fade_slide.dart';
+import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
+import 'package:hunter_ascend/widgets/missions/active_mission_card.dart';
+import 'package:hunter_ascend/widgets/missions/mission_duration_dialog.dart';
 
 
 /// Missions screen: daily quests, weekly missions, AI quest generation,
-/// active quest timers, custom quest dialog, banner ads.
+/// custom quest dialog, banner ads. Execution (duration dialog, start flow,
+/// countdown, completion detection, active-card UI, persistence/restore)
+/// is delegated to the shared [MissionEngine] + [ActiveMissionCard] that
+/// Dungeons reuse as well.
 class MissionsScreen extends StatefulWidget {
   final bool fatLoss;
   final bool discipline;
@@ -92,33 +98,42 @@ class MissionsScreen extends StatefulWidget {
 class _MissionsScreenState extends State<MissionsScreen> {
 
   // ── Colors ──────────────────────────────────────────────
-  static Color get _bg => HunterTheme.background;
-  static Color get _card => HunterTheme.cardColor;
-  static Color get _blue => HunterTheme.primary;
+  // Membership-aware accent: app primary for Basic, gold for Pro, purple for Max.
+  static Color get _blue => MembershipTheme.current.accent;
 
   // ── State ────────────────────────────────────────────────
   int xp = 0;
   int level = 1;
 
-  bool questStarted = false;
-  String activeQuest = "";
   bool _isCompletingQuest = false;
   bool _isCompletingWeeklyQuest = false;
+
+  // ── Mission execution — delegated to the shared MissionEngine (start
+  //    flow, countdown, completion detection, persistence, restore). The
+  //    daily and weekly runs each own their own Firestore slot; Dungeons
+  //    run the same engine from the dungeon play screen. ─────────────────
+  final MissionEngine _dailyEngine = MissionEngine(
+    titleField: 'activeDashboardQuestName',
+    xpField: 'activeDashboardQuestXp',
+    endTimeField: 'activeDashboardQuestEndTime',
+  );
+  final MissionEngine _weeklyEngine = MissionEngine(
+    titleField: 'activeWeeklyMissionTitle',
+    xpField: 'activeWeeklyMissionXp',
+    endTimeField: 'activeWeeklyMissionEndTime',
+    rewardMultiplier: 3, // weekly missions reward 3x daily
+  );
+
+  /// Banners shown on the active mission cards (shared lifecycle: single
+  /// retry, membership-aware — see [MissionBannerAd]).
+  late final MissionBannerAd _dailyBanner =
+      MissionBannerAd(onChanged: _onBannerChanged);
+  late final MissionBannerAd _weeklyBanner =
+      MissionBannerAd(onChanged: _onBannerChanged);
 
   // ── Weekly missions ──────────────────────────────────────
   List<Map<String, dynamic>> weeklyMissions = [];
   bool _weeklyLoading = false;
-  bool weeklyQuestStarted = false;
-  String weeklyActiveTitle = "";
-  int weeklyQuestReward = 0;
-  DateTime? weeklyQuestEndTime;
-  Timer? _weeklyCountdownTimer;
-  Duration weeklyQuestRemaining = Duration.zero;
-
-  int questReward = 0;
-  DateTime? questEndTime;
-  Timer? _questCountdownTimer;
-  Duration questRemaining = Duration.zero;
 
   Duration timeUntilReset = Duration.zero;
   Timer? countdownTimer;
@@ -286,12 +301,6 @@ class _MissionsScreenState extends State<MissionsScreen> {
 
   final TextEditingController customQuestController = TextEditingController();
 
-  // ── Ads ──────────────────────────────────────────────────
-  BannerAd? bannerAd;
-  bool isBannerReady = false;
-  BannerAd? weeklyBannerAd;
-  bool weeklyBannerReady = false;
-
 
   // ── Init ─────────────────────────────────────────────────
   @override
@@ -300,23 +309,26 @@ class _MissionsScreenState extends State<MissionsScreen> {
 
     MembershipService.instance.tierNotifier.addListener(_onMembershipTierChanged);
 
+    _dailyEngine.addListener(_onEngineChanged);
+    _weeklyEngine.addListener(_onEngineChanged);
+
     updateQuestCountdown();
     countdownTimer = Timer.periodic(
       const Duration(minutes: 1),
       (_) => updateQuestCountdown(),
     );
 
-    loadBannerAd();
-    loadWeeklyBannerAd();
+    _dailyBanner.load();
+    _weeklyBanner.load();
 
     loadHunterData().then((_) async {
       await checkDailyReset();
       await _loadAIQuests();
     });
 
-    _restoreDashboardActiveQuest();
+    _dailyEngine.restore();
     _loadWeeklyMissions();
-    _restoreWeeklyActiveQuest();
+    _weeklyEngine.restore();
 
     // Initialize sleep mission state.
     SleepService.instance.initialize();
@@ -325,232 +337,40 @@ class _MissionsScreenState extends State<MissionsScreen> {
   @override
   void dispose() {
     MembershipService.instance.tierNotifier.removeListener(_onMembershipTierChanged);
-    _questCountdownTimer?.cancel();
-    _weeklyCountdownTimer?.cancel();
+    _dailyEngine.removeListener(_onEngineChanged);
+    _weeklyEngine.removeListener(_onEngineChanged);
+    _dailyEngine.dispose();
+    _weeklyEngine.dispose();
+    _dailyBanner.dispose();
+    _weeklyBanner.dispose();
     countdownTimer?.cancel();
-    bannerAd?.dispose();
-    weeklyBannerAd?.dispose();
     customQuestController.dispose();
     super.dispose();
   }
 
 
+  void _onEngineChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onBannerChanged() {
+    if (mounted) setState(() {});
+  }
+
   void _onMembershipTierChanged() {
-    if (!mounted) return;
-    final showAds = MembershipService.instance.showBannerAds;
-    if (!showAds) {
-      if (bannerAd != null) {
-        bannerAd!.dispose();
-        bannerAd = null;
-        isBannerReady = false;
-      }
-      if (weeklyBannerAd != null) {
-        weeklyBannerAd!.dispose();
-        weeklyBannerAd = null;
-        weeklyBannerReady = false;
-      }
-    } else {
-      if (bannerAd == null) loadBannerAd();
-      if (weeklyBannerAd == null) loadWeeklyBannerAd();
-    }
-    setState(() {});
-  }
-
-  // ── Ads ──────────────────────────────────────────────────
-  void loadBannerAd() {
-    if (!MembershipService.instance.showBannerAds) return;
-    bannerAd = AdsService.createBannerAd(
-      adUnitId: AppConstants.dashboardBannerAdUnitId,
-      onAdLoaded: (ad) { if (mounted) setState(() => isBannerReady = true); },
-      onAdFailedToLoad: (ad, error) {
-        debugPrint("BANNER FAILED: $error");
-        ad.dispose();
-        bannerAd = null;
-        // Retry once after a short delay.
-        if (mounted) {
-          Future.delayed(const Duration(seconds: 3), () {
-            if (mounted && bannerAd == null) {
-              bannerAd = AdsService.createBannerAd(
-                adUnitId: AppConstants.dashboardBannerAdUnitId,
-                onAdLoaded: (ad) { if (mounted) setState(() => isBannerReady = true); },
-                onAdFailedToLoad: (ad, error) { debugPrint("BANNER RETRY FAILED: $error"); ad.dispose(); bannerAd = null; },
-              );
-              bannerAd!.load();
-            }
-          });
-        }
-      },
-    );
-    bannerAd!.load();
-  }
-
-  void loadWeeklyBannerAd() {
-    if (!MembershipService.instance.showBannerAds) return;
-    weeklyBannerAd = AdsService.createBannerAd(
-      adUnitId: AppConstants.dashboardBannerAdUnitId,
-      onAdLoaded: (ad) { if (mounted) setState(() => weeklyBannerReady = true); },
-      onAdFailedToLoad: (ad, error) {
-        debugPrint("WEEKLY BANNER FAILED: $error");
-        ad.dispose();
-        weeklyBannerAd = null;
-        // Retry once after a short delay.
-        if (mounted) {
-          Future.delayed(const Duration(seconds: 3), () {
-            if (mounted && weeklyBannerAd == null) {
-              weeklyBannerAd = AdsService.createBannerAd(
-                adUnitId: AppConstants.dashboardBannerAdUnitId,
-                onAdLoaded: (ad) { if (mounted) setState(() => weeklyBannerReady = true); },
-                onAdFailedToLoad: (ad, error) { debugPrint("WEEKLY BANNER RETRY FAILED: $error"); ad.dispose(); weeklyBannerAd = null; },
-              );
-              weeklyBannerAd!.load();
-            }
-          });
-        }
-      },
-    );
-    weeklyBannerAd!.load();
+    // Banners manage their own load/dispose on tier changes — just rebuild.
+    if (mounted) setState(() {});
   }
 
 
   // ── Quest logic ──────────────────────────────────────────
   void startQuest(String questName, int reward) {
-    showDialog(
+    showMissionDurationDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _card,
-        title: Text("START MISSION", style: TextStyle(color: _blue)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(questName, style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            const SizedBox(height: 16),
-            Text("Choose a time to complete this mission", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12)),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              children: [2, 5, 10, 15, 30, 45, 60].map((mins) => ChoiceChip(
-                label: Text("$mins min"),
-                selected: false,
-                onSelected: (_) {
-                  Navigator.pop(context);
-                  _startQuestWithTimer(questName, reward, mins);
-                },
-              )).toList(),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
-              ),
-              child: const Text(
-                "\u26a0\ufe0f You must wait for the timer before you can complete this mission.",
-                style: TextStyle(color: Colors.orange, fontSize: 11),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL")),
-        ],
-      ),
+      title: questName,
+      onSelected: (minutes) =>
+          _dailyEngine.start(title: questName, minutes: minutes),
     );
-  }
-
-
-  void _startQuestWithTimer(String questName, int reward, int minutes) {
-    final endTime = DateTime.now().add(Duration(minutes: minutes));
-    int boostedReward;
-    if (minutes >= 60)      boostedReward = 50;
-    else if (minutes >= 45) boostedReward = 40;
-    else if (minutes >= 30) boostedReward = 30;
-    else if (minutes >= 15) boostedReward = 20;
-    else if (minutes >= 10) boostedReward = 15;
-    else if (minutes >= 5)  boostedReward = 10;
-    else                    boostedReward = 5;
-
-    setState(() {
-      questStarted = true;
-      activeQuest = questName;
-      questReward = boostedReward;
-      questEndTime = endTime;
-      questRemaining = Duration(minutes: minutes);
-    });
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
-        'activeDashboardQuestName': questName,
-        'activeDashboardQuestXp': questReward,
-        'activeDashboardQuestEndTime': Timestamp.fromDate(endTime),
-      });
-    }
-
-    _questCountdownTimer?.cancel();
-    _questCountdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
-      if (questEndTime == null) return;
-      final diff = questEndTime!.difference(DateTime.now());
-      setState(() => questRemaining = diff.isNegative ? Duration.zero : diff);
-    });
-  }
-
-
-  Future<void> _cancelActiveQuest() async {
-    _questCountdownTimer?.cancel();
-    setState(() {
-      questStarted = false;
-      activeQuest = "";
-      questReward = 0;
-      questEndTime = null;
-      questRemaining = Duration.zero;
-    });
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
-        'activeDashboardQuestName': FieldValue.delete(),
-        'activeDashboardQuestXp': FieldValue.delete(),
-        'activeDashboardQuestEndTime': FieldValue.delete(),
-      });
-    }
-  }
-
-  Future<void> _restoreDashboardActiveQuest() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
-    if (!doc.exists) return;
-    final data = doc.data()!;
-    final name = data['activeDashboardQuestName'];
-    final reward = data['activeDashboardQuestXp'];
-    final endTimeStamp = data['activeDashboardQuestEndTime'] as Timestamp?;
-    if (name == null) return;
-
-    final endTime = endTimeStamp?.toDate();
-    if (!mounted) return;
-
-    setState(() {
-      questStarted = true;
-      activeQuest = name;
-      questReward = reward ?? 0;
-      questEndTime = endTime;
-      questRemaining = endTime == null ? Duration.zero : (endTime.isBefore(DateTime.now()) ? Duration.zero : endTime.difference(DateTime.now()));
-    });
-
-    if (endTime != null && endTime.isAfter(DateTime.now())) {
-      _questCountdownTimer?.cancel();
-      _questCountdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (!mounted) return;
-        if (questEndTime == null) return;
-        final diff = questEndTime!.difference(DateTime.now());
-        setState(() => questRemaining = diff.isNegative ? Duration.zero : diff);
-      });
-    }
   }
 
 
@@ -563,21 +383,12 @@ class _MissionsScreenState extends State<MissionsScreen> {
     _isCompletingQuest = true;
     try {
     bool leveledUp = false;
-    _questCountdownTimer?.cancel();
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
-        'activeDashboardQuestName': FieldValue.delete(),
-        'activeDashboardQuestXp': FieldValue.delete(),
-        'activeDashboardQuestEndTime': FieldValue.delete(),
-      });
-    }
-    final completedQuestName = activeQuest;
-    final int reward = questReward;
-    setState(() {
-      questStarted = false; completedQuests.add(activeQuest);
-    });
+    final completedQuestName = _dailyEngine.title ?? '';
+    final int reward = _dailyEngine.reward;
+    await _dailyEngine.clearRun();
+    setState(() { completedQuests.add(completedQuestName); });
 
+    final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final oldLevel = level;
       final result = await XpService.instance.awardXp(amount: reward);
@@ -783,140 +594,12 @@ class _MissionsScreenState extends State<MissionsScreen> {
 
 
   void startWeeklyQuest(String title) {
-    showDialog(
+    showMissionDurationDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _card,
-        title: Text("START MISSION", style: TextStyle(color: _blue)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            const SizedBox(height: 16),
-            Text("Choose a time to complete this mission", style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12)),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              children: [2, 5, 10, 15, 30, 45, 60].map((mins) => ChoiceChip(
-                label: Text("$mins min"),
-                selected: false,
-                onSelected: (_) {
-                  Navigator.pop(context);
-                  _startWeeklyQuestWithTimer(title, mins);
-                },
-              )).toList(),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
-              ),
-              child: const Text(
-                "\u26a0\ufe0f You must wait for the timer before you can complete this mission.",
-                style: TextStyle(color: Colors.orange, fontSize: 11),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL")),
-        ],
-      ),
+      title: title,
+      onSelected: (minutes) =>
+          _weeklyEngine.start(title: title, minutes: minutes),
     );
-  }
-
-
-  void _startWeeklyQuestWithTimer(String title, int minutes) {
-    final endTime = DateTime.now().add(Duration(minutes: minutes));
-    int boostedReward;
-    if (minutes >= 60)      boostedReward = 50;
-    else if (minutes >= 45) boostedReward = 40;
-    else if (minutes >= 30) boostedReward = 30;
-    else if (minutes >= 15) boostedReward = 20;
-    else if (minutes >= 10) boostedReward = 15;
-    else if (minutes >= 5)  boostedReward = 10;
-    else                    boostedReward = 5;
-    boostedReward *= 3; // weekly missions reward 3x daily
-
-    setState(() {
-      weeklyQuestStarted = true;
-      weeklyActiveTitle = title;
-      weeklyQuestReward = boostedReward;
-      weeklyQuestEndTime = endTime;
-      weeklyQuestRemaining = Duration(minutes: minutes);
-    });
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
-        'activeWeeklyMissionTitle': title,
-        'activeWeeklyMissionXp': weeklyQuestReward,
-        'activeWeeklyMissionEndTime': Timestamp.fromDate(endTime),
-      });
-    }
-
-    _weeklyCountdownTimer?.cancel();
-    _weeklyCountdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
-      if (weeklyQuestEndTime == null) return;
-      final diff = weeklyQuestEndTime!.difference(DateTime.now());
-      setState(() => weeklyQuestRemaining = diff.isNegative ? Duration.zero : diff);
-    });
-  }
-
-  Future<void> _cancelActiveWeeklyQuest() async {
-    _weeklyCountdownTimer?.cancel();
-    setState(() {
-      weeklyQuestStarted = false;
-      weeklyActiveTitle = "";
-      weeklyQuestReward = 0;
-      weeklyQuestEndTime = null;
-      weeklyQuestRemaining = Duration.zero;
-    });
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      await FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
-        'activeWeeklyMissionTitle': FieldValue.delete(),
-        'activeWeeklyMissionXp': FieldValue.delete(),
-        'activeWeeklyMissionEndTime': FieldValue.delete(),
-      });
-    }
-  }
-
-
-  Future<void> _restoreWeeklyActiveQuest() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
-    if (!doc.exists) return;
-    final data = doc.data()!;
-    final title = data['activeWeeklyMissionTitle'];
-    final reward = data['activeWeeklyMissionXp'];
-    final endTimeStamp = data['activeWeeklyMissionEndTime'] as Timestamp?;
-    if (title == null) return;
-    final endTime = endTimeStamp?.toDate();
-    if (!mounted) return;
-    setState(() {
-      weeklyQuestStarted = true;
-      weeklyActiveTitle = title;
-      weeklyQuestReward = reward ?? 0;
-      weeklyQuestEndTime = endTime;
-      weeklyQuestRemaining = endTime == null ? Duration.zero : (endTime.isBefore(DateTime.now()) ? Duration.zero : endTime.difference(DateTime.now()));
-    });
-    if (endTime != null && endTime.isAfter(DateTime.now())) {
-      _weeklyCountdownTimer?.cancel();
-      _weeklyCountdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (!mounted) return;
-        if (weeklyQuestEndTime == null) return;
-        final diff = weeklyQuestEndTime!.difference(DateTime.now());
-        setState(() => weeklyQuestRemaining = diff.isNegative ? Duration.zero : diff);
-      });
-    }
   }
 
 
@@ -929,24 +612,16 @@ class _MissionsScreenState extends State<MissionsScreen> {
     _isCompletingWeeklyQuest = true;
     try {
     bool leveledUp = false;
-    _weeklyCountdownTimer?.cancel();
-    final completedTitle = weeklyActiveTitle;
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      FirebaseFirestore.instance.collection('hunters').doc(user.uid).update({
-        'activeWeeklyMissionTitle': FieldValue.delete(),
-        'activeWeeklyMissionXp': FieldValue.delete(),
-        'activeWeeklyMissionEndTime': FieldValue.delete(),
-      });
-    }
-    final int reward = weeklyQuestReward;
+    final completedTitle = _weeklyEngine.title ?? '';
+    final int reward = _weeklyEngine.reward;
+    await _weeklyEngine.clearRun();
     setState(() {
-      weeklyQuestStarted = false;
       for (final m in weeklyMissions) {
         if (m['title'] == completedTitle) m['completed'] = true;
       }
     });
 
+    final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final oldLevel = level;
       final result = await XpService.instance.awardXp(amount: reward);
@@ -1019,7 +694,7 @@ class _MissionsScreenState extends State<MissionsScreen> {
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: HunterTheme.border, width: 1.5),
             boxShadow: [
-              BoxShadow(color: HunterTheme.primary.withOpacity(0.15), blurRadius: 30, spreadRadius: 2),
+              BoxShadow(color: MembershipTheme.current.accent.withOpacity(0.15), blurRadius: 30, spreadRadius: 2),
             ],
           ),
           child: Column(
@@ -1030,10 +705,10 @@ class _MissionsScreenState extends State<MissionsScreen> {
                 decoration: BoxDecoration(
                   color: HunterTheme.border,
                   shape: BoxShape.circle,
-                  border: Border.all(color: HunterTheme.primary, width: 1.5),
-                  boxShadow: [BoxShadow(color: HunterTheme.primary.withOpacity(0.3), blurRadius: 16)],
+                  border: Border.all(color: MembershipTheme.current.accent, width: 1.5),
+                  boxShadow: [BoxShadow(color: MembershipTheme.current.accent.withOpacity(0.3), blurRadius: 16)],
                 ),
-                child: Icon(Icons.shield, color: HunterTheme.primary, size: 32),
+                child: Icon(Icons.shield, color: MembershipTheme.current.accent, size: 32),
               ),
               const SizedBox(height: 16),
               Text(
@@ -1055,7 +730,7 @@ class _MissionsScreenState extends State<MissionsScreen> {
                   ),
                   child: Text(
                     "Current: ${mode.toUpperCase()}",
-                    style: TextStyle(color: HunterTheme.primary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1),
+                    style: TextStyle(color: MembershipTheme.current.accent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1),
                   ),
                 ),
               const SizedBox(height: 20),
@@ -1086,7 +761,7 @@ class _MissionsScreenState extends State<MissionsScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: HunterTheme.primary,
+                      backgroundColor: MembershipTheme.current.accent,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
@@ -1194,7 +869,11 @@ class _MissionsScreenState extends State<MissionsScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        MembershipTheme.tierNotifier,
+      ]),
       builder: (context, _) => _themedBuild(context),
     );
   }
@@ -1236,8 +915,7 @@ class _MissionsScreenState extends State<MissionsScreen> {
   }
 
   Widget _themedBuild(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
+    return MembershipScaffold(
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -1256,15 +934,15 @@ class _MissionsScreenState extends State<MissionsScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              if (questStarted) ...[
-                _ActiveMissionCard(
-                  remaining: questRemaining,
-                  title: activeQuest,
-                  reward: questReward,
+              if (_dailyEngine.isActive) ...[
+                ActiveMissionCard(
+                  remaining: _dailyEngine.remaining,
+                  title: _dailyEngine.title ?? '',
+                  reward: _dailyEngine.reward,
                   onComplete: completeQuest,
-                  onCancel: _cancelActiveQuest,
-                  banner: bannerAd,
-                  bannerReady: isBannerReady,
+                  onCancel: () => _dailyEngine.clearRun(),
+                  banner: _dailyBanner.ad,
+                  bannerReady: _dailyBanner.ready,
                 ),
                 const SizedBox(height: 20),
               ],
@@ -1272,16 +950,16 @@ class _MissionsScreenState extends State<MissionsScreen> {
                 delay: const Duration(milliseconds: 100),
                 child: _buildQuestsSection(),
               ),
-              if (weeklyQuestStarted) ...[
+              if (_weeklyEngine.isActive) ...[
                 const SizedBox(height: 20),
-                _ActiveMissionCard(
-                  remaining: weeklyQuestRemaining,
-                  title: weeklyActiveTitle,
-                  reward: weeklyQuestReward,
+                ActiveMissionCard(
+                  remaining: _weeklyEngine.remaining,
+                  title: _weeklyEngine.title ?? '',
+                  reward: _weeklyEngine.reward,
                   onComplete: completeWeeklyQuest,
-                  onCancel: _cancelActiveWeeklyQuest,
-                  banner: weeklyBannerAd,
-                  bannerReady: weeklyBannerReady,
+                  onCancel: () => _weeklyEngine.clearRun(),
+                  banner: _weeklyBanner.ad,
+                  bannerReady: _weeklyBanner.ready,
                 ),
               ],
               const SizedBox(height: 24),
@@ -1380,9 +1058,9 @@ class _MissionsScreenState extends State<MissionsScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
-              color: HunterTheme.primary.withOpacity(0.1),
+              color: _blue.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: HunterTheme.primary.withOpacity(0.35)),
+              border: Border.all(color: _blue.withOpacity(0.35)),
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.shield_rounded, size: 14, color: _blue),
@@ -1402,11 +1080,13 @@ class _MissionsScreenState extends State<MissionsScreen> {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          gradient: LinearGradient(colors: [HunterTheme.primary, HunterTheme.primary.withOpacity(0.7)]),
+          gradient: LinearGradient(colors: MembershipTheme.current.gradient),
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: HunterTheme.primary.withOpacity(0.35), blurRadius: 8)],
+          boxShadow: [BoxShadow(color: _blue.withOpacity(0.35), blurRadius: 8)],
         ),
-        child: const Icon(Icons.add_rounded, color: Colors.black, size: 20),
+        child: Icon(Icons.add_rounded,
+            color: MembershipTheme.isMax ? Colors.white : Colors.black,
+            size: 20),
       ),
     );
   }
@@ -1476,7 +1156,7 @@ class _MissionsScreenState extends State<MissionsScreen> {
           children: [
             _premiumSectionHeader(
               icon: Icons.auto_awesome_rounded,
-              accent: HunterTheme.primary,
+              accent: MembershipTheme.current.accent,
               title: 'DAILY MISSIONS (AI)',
               countText: '$completedCount/$totalQuests',
               resetText: 'Resets in ${timeUntilReset.inHours}h ${timeUntilReset.inMinutes.remainder(60)}m',
@@ -1491,7 +1171,7 @@ class _MissionsScreenState extends State<MissionsScreen> {
             if (totalQuests == 0)
               _buildEmptyState(
                 icon: Icons.auto_awesome_rounded,
-                accent: HunterTheme.primary,
+                accent: MembershipTheme.current.accent,
                 title: 'No missions yet',
                 subtitle: 'Tap + to create your first custom mission.',
               ),
@@ -1554,7 +1234,7 @@ class _MissionsScreenState extends State<MissionsScreen> {
   }) {
     final Color accent = isCompleted
         ? HunterTheme.success
-        : (isCustom ? HunterTheme.gold : HunterTheme.primary);
+        : (isCustom ? HunterTheme.gold : MembershipTheme.current.accent);
 
     return GestureDetector(
       onTap: isCompleted ? null : onTap,
@@ -1661,7 +1341,7 @@ class _MissionsScreenState extends State<MissionsScreen> {
         if (_weeklyLoading)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 28),
-            child: Center(child: CircularProgressIndicator(color: HunterTheme.primary)),
+            child: Center(child: CircularProgressIndicator(color: MembershipTheme.current.accent)),
           )
         else if (weeklyMissions.isEmpty)
           _buildEmptyState(
@@ -1744,7 +1424,7 @@ class _MissionHeroState extends State<_MissionHero> with SingleTickerProviderSta
 
   @override
   Widget build(BuildContext context) {
-    final accent = HunterTheme.primary;
+    final accent = MembershipTheme.current.accent;
 
     final content = Row(
       children: [
@@ -1808,217 +1488,6 @@ class _MissionHeroState extends State<_MissionHero> with SingleTickerProviderSta
             ),
             border: Border.all(color: accent.withOpacity(0.32 + g * 0.22), width: 1.4),
             boxShadow: [BoxShadow(color: accent.withOpacity(0.10 + g * 0.14), blurRadius: 24, spreadRadius: 1)],
-          ),
-          child: child,
-        );
-      },
-    );
-  }
-}
-
-/// Premium active-mission card shared by the daily and weekly flows.
-///
-/// Presentation-only wrapper around the EXACT existing behaviour:
-/// - When the timer is not finished it shows the same "timer not finished"
-///   snackbar.
-/// - When ready it shows the same Hunter Verification dialog and, on confirm,
-///   invokes [onComplete] (completeQuest / completeWeeklyQuest).
-/// - [onCancel] runs the same cancel logic.
-/// The glow controller only repaints the decoration (content, including the
-/// AdWidget, is passed as [AnimatedBuilder.child] and is not rebuilt per frame).
-class _ActiveMissionCard extends StatefulWidget {
-  final Duration remaining;
-  final String title;
-  final int reward;
-  final VoidCallback onComplete;
-  final VoidCallback onCancel;
-  final BannerAd? banner;
-  final bool bannerReady;
-
-  const _ActiveMissionCard({
-    required this.remaining,
-    required this.title,
-    required this.reward,
-    required this.onComplete,
-    required this.onCancel,
-    required this.banner,
-    required this.bannerReady,
-  });
-
-  @override
-  State<_ActiveMissionCard> createState() => _ActiveMissionCardState();
-}
-
-class _ActiveMissionCardState extends State<_ActiveMissionCard> with SingleTickerProviderStateMixin {
-  late final AnimationController _glow = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1500),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _glow.dispose();
-    super.dispose();
-  }
-
-  void _onNotReady() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("\u26a0\ufe0f Timer not finished yet \u2014 mission cannot be completed.")),
-    );
-  }
-
-  void _onCompletePressed() {
-    showDialog(
-      context: context,
-      builder: (_) {
-        final messages = [
-          "\u2694\ufe0f Only you know whether this mission is complete.",
-          "\ud83d\udd25 Shortcuts create weak Hunters.",
-          "\ud83c\udfc6 Discipline separates Hunters from legends.",
-          "\u26a1 Every completed mission should represent real effort.",
-        ];
-        messages.shuffle();
-        return AlertDialog(
-          backgroundColor: HunterTheme.background,
-          title: const Text("Hunter Verification", style: TextStyle(color: Colors.amber)),
-          content: Text(
-            "Are you sure you completed this mission honestly?\n\nOnly you know the truth.\n\n${messages.first}",
-            style: TextStyle(color: HunterTheme.textPrimary),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text("CONTINUE MISSION")),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                widget.onComplete();
-              },
-              child: const Text("COMPLETE"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bool ready = widget.remaining == Duration.zero;
-    final Color c = ready ? HunterTheme.success : HunterTheme.primary;
-
-    final content = Column(
-      children: [
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.bolt_rounded, color: c, size: 16),
-          const SizedBox(width: 6),
-          Text('ACTIVE MISSION', style: TextStyle(color: c, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 2)),
-          const SizedBox(width: 6),
-          Icon(Icons.bolt_rounded, color: c, size: 16),
-        ]),
-        const SizedBox(height: 10),
-        Text(
-          ready ? 'Ready to Complete' : 'In Progress',
-          style: TextStyle(color: ready ? HunterTheme.success : Colors.orangeAccent, fontSize: 12.5, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          widget.title,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: HunterTheme.textPrimary, fontSize: 19, fontWeight: FontWeight.w800, height: 1.2),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [HunterTheme.gold.withOpacity(0.28), HunterTheme.gold.withOpacity(0.12)]),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: HunterTheme.gold.withOpacity(0.5)),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.bolt_rounded, color: HunterTheme.gold, size: 16),
-            const SizedBox(width: 6),
-            Text('Reward  +${widget.reward} XP', style: TextStyle(color: HunterTheme.gold, fontSize: 14, fontWeight: FontWeight.w800)),
-          ]),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          decoration: BoxDecoration(
-            color: c.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: c.withOpacity(0.4)),
-          ),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(ready ? Icons.check_circle_rounded : Icons.timer_rounded, color: c, size: 22),
-            const SizedBox(width: 10),
-            Flexible(
-              child: Text(
-                ready ? "TIME'S UP!" : formatMinutesSeconds(widget.remaining),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: ready ? HunterTheme.success : HunterTheme.textPrimary, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 1),
-              ),
-            ),
-          ]),
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: ready ? HunterTheme.success : HunterTheme.border,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
-            onPressed: ready ? _onCompletePressed : _onNotReady,
-            child: Text(
-              'COMPLETE MISSION',
-              style: TextStyle(
-                color: ready ? Colors.black : HunterTheme.textTertiary,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.5,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        GestureDetector(
-          onTap: widget.onCancel,
-          child: Text('Cancel mission', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 12, decoration: TextDecoration.underline)),
-        ),
-        if (widget.bannerReady && widget.banner != null) ...[
-          const SizedBox(height: 14),
-          Center(
-            child: SizedBox(
-              width: widget.banner!.size.width.toDouble(),
-              height: widget.banner!.size.height.toDouble(),
-              child: AdWidget(ad: widget.banner!),
-            ),
-          ),
-        ],
-      ],
-    );
-
-    return AnimatedBuilder(
-      animation: _glow,
-      child: content,
-      builder: (context, child) {
-        final g = _glow.value;
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [c.withOpacity(0.14), HunterTheme.cardColor],
-            ),
-            border: Border.all(color: c.withOpacity(0.5 + g * 0.3), width: 1.6),
-            boxShadow: [BoxShadow(color: c.withOpacity(0.14 + g * 0.18), blurRadius: 24, spreadRadius: 1)],
           ),
           child: child,
         );

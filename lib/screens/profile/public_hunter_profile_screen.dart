@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/screens/leaderboard/compare_hunters_screen.dart';
 import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
@@ -10,6 +11,7 @@ import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:hunter_ascend/widgets/equipped_badge_chip.dart';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
+import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 import 'package:hunter_ascend/widgets/premium_avatar.dart';
 
 /// Read-only profile of another hunter (viewed from rankings/duels).
@@ -45,14 +47,17 @@ class PublicHunterProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        MembershipTheme.tierNotifier,
+      ]),
       builder: (context, _) => _themedBuild(context),
     );
   }
 
   Widget _themedBuild(BuildContext context) {
-    return Scaffold(
-      backgroundColor: HunterTheme.background,
+    return MembershipScaffold(
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('hunters')
@@ -72,13 +77,13 @@ class PublicHunterProfileScreen extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [HunterTheme.primary.withOpacity(0.16), HunterTheme.cardColor],
+                        colors: [MembershipTheme.current.accent.withOpacity(0.16), HunterTheme.cardColor],
                       ),
-                      border: Border.all(color: HunterTheme.primary.withOpacity(0.3)),
+                      border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.3)),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(22),
-                      child: CircularProgressIndicator(color: HunterTheme.primary, strokeWidth: 2.5),
+                      child: CircularProgressIndicator(color: MembershipTheme.current.accent, strokeWidth: 2.5),
                     ),
                   ),
                   const SizedBox(height: 18),
@@ -283,7 +288,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                             Text(
                               "${effectiveMembership.toUpperCase()} HUNTER",
                               style: TextStyle(
-                                color: HunterTheme.primary,
+                                color: MembershipTheme.current.accent,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 2,
                                 fontSize: 11,
@@ -297,7 +302,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 _infoPill(
-                                    Icons.bolt, 'LV.$level', HunterTheme.primary),
+                                    Icons.bolt, 'LV.$level', MembershipTheme.current.accent),
                                 const SizedBox(width: 10),
                                 _infoPill(Icons.local_fire_department,
                                     '$streak DAY STREAK', HunterTheme.gold),
@@ -349,13 +354,13 @@ class PublicHunterProfileScreen extends StatelessWidget {
 
                       // Info tiles
                       _infoRow(Icons.bolt, 'Level', 'LV.$level',
-                          HunterTheme.primary),
+                          MembershipTheme.current.accent),
                       _infoRow(Icons.emoji_events, 'Total XP', '$xp XP',
                           HunterTheme.success),
                       _infoRow(Icons.local_fire_department, 'Streak',
                           '$streak Days', HunterTheme.gold),
                       _infoRow(Icons.sports_kabaddi, 'Total Duels',
-                          '$total', HunterTheme.primary),
+                          '$total', MembershipTheme.current.accent),
 
                       const SizedBox(height: 28),
 
@@ -364,14 +369,14 @@ class PublicHunterProfileScreen extends StatelessWidget {
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: HunterTheme.primary,
-                            foregroundColor: Colors.black,
+                            backgroundColor: MembershipTheme.current.accent,
+                            foregroundColor: MembershipTheme.isMax ? Colors.white : Colors.black,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
                             elevation: 6,
-                            shadowColor: HunterTheme.primary.withOpacity(0.4),
+                            shadowColor: MembershipTheme.current.accent.withOpacity(0.4),
                           ),
                           onPressed: () {
                             Navigator.push(
@@ -473,7 +478,7 @@ class PublicHunterProfileScreen extends StatelessWidget {
     return Row(children: [
       Container(width: 3, height: 14,
           decoration: BoxDecoration(
-              color: HunterTheme.primary,
+              color: MembershipTheme.current.accent,
               borderRadius: BorderRadius.circular(2))),
       const SizedBox(width: 8),
       Text(text,

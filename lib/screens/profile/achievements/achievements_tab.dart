@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/data/models/achievement.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/services/achievements_service.dart';
@@ -75,13 +76,13 @@ class _AchievementsTabState extends State<AchievementsTab> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [HunterTheme.primary.withOpacity(0.16), HunterTheme.cardColor],
+              colors: [MembershipTheme.current.accent.withOpacity(0.16), HunterTheme.cardColor],
             ),
-            border: Border.all(color: HunterTheme.primary.withOpacity(0.3)),
+            border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.3)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(22),
-            child: CircularProgressIndicator(color: HunterTheme.primary, strokeWidth: 2.5),
+            child: CircularProgressIndicator(color: MembershipTheme.current.accent, strokeWidth: 2.5),
           ),
         ),
       );
@@ -141,7 +142,7 @@ class _AchievementsTabState extends State<AchievementsTab> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [HunterTheme.primary.withOpacity(0.12), HunterTheme.gold.withOpacity(0.06), HunterTheme.cardColor],
+          colors: [MembershipTheme.current.accent.withOpacity(0.12), HunterTheme.gold.withOpacity(0.06), HunterTheme.cardColor],
         ),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: HunterTheme.border),
@@ -181,7 +182,7 @@ class _AchievementsTabState extends State<AchievementsTab> {
                           strokeWidth: 9,
                           strokeCap: StrokeCap.round,
                           backgroundColor: Colors.transparent,
-                          valueColor: AlwaysStoppedAnimation<Color>(HunterTheme.primary),
+                          valueColor: AlwaysStoppedAnimation<Color>(MembershipTheme.current.accent),
                         ),
                       ),
                     ),
@@ -204,7 +205,7 @@ class _AchievementsTabState extends State<AchievementsTab> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text('ACHIEVEMENTS',
-                        style: TextStyle(color: HunterTheme.primary, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                        style: TextStyle(color: MembershipTheme.current.accent, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 2)),
                     const SizedBox(height: 4),
                     Text('$unlocked of $total unlocked',
                         style: TextStyle(color: HunterTheme.textPrimary, fontSize: 19, fontWeight: FontWeight.w900)),
@@ -286,7 +287,7 @@ class _AchievementsTabState extends State<AchievementsTab> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: HunterTheme.primary, width: 1.4),
+          borderSide: BorderSide(color: MembershipTheme.current.accent, width: 1.4),
         ),
       ),
     );
@@ -309,6 +310,9 @@ class _AchievementsTabState extends State<AchievementsTab> {
   }
 
   Widget _chip(String label, IconData icon, bool selected, VoidCallback onTap) {
+    // Foreground for the tier-gradient selected state: black on Basic/Pro,
+    // white on Max.
+    final Color selFg = MembershipTheme.isMax ? Colors.white : Colors.black;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
@@ -319,23 +323,23 @@ class _AchievementsTabState extends State<AchievementsTab> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             gradient: selected
-                ? LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: HunterTheme.primaryGradient)
+                ? LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: MembershipTheme.current.gradient)
                 : null,
             color: selected ? null : HunterTheme.cardColor,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: selected ? Colors.transparent : HunterTheme.border),
             boxShadow: selected
-                ? [BoxShadow(color: HunterTheme.primary.withOpacity(0.3 * HunterTheme.glowStrength), blurRadius: 10)]
+                ? [BoxShadow(color: MembershipTheme.current.accent.withOpacity(0.3 * HunterTheme.glowStrength), blurRadius: 10)]
                 : null,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 15, color: selected ? Colors.black : HunterTheme.textSecondary),
+              Icon(icon, size: 15, color: selected ? selFg : HunterTheme.textSecondary),
               const SizedBox(width: 6),
               Text(label,
                   style: TextStyle(
-                    color: selected ? Colors.black : HunterTheme.textSecondary,
+                    color: selected ? selFg : HunterTheme.textSecondary,
                     fontSize: 12.5,
                     fontWeight: FontWeight.w800,
                   )),
@@ -560,11 +564,11 @@ class _AchievementsTabState extends State<AchievementsTab> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [HunterTheme.primary.withOpacity(0.14), HunterTheme.cardColor],
+                colors: [MembershipTheme.current.accent.withOpacity(0.14), HunterTheme.cardColor],
               ),
-              border: Border.all(color: HunterTheme.primary.withOpacity(0.28), width: 1.4),
+              border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.28), width: 1.4),
             ),
-            child: Icon(Icons.search_off_rounded, color: HunterTheme.primary, size: 36),
+            child: Icon(Icons.search_off_rounded, color: MembershipTheme.current.accent, size: 36),
           ),
           const SizedBox(height: 18),
           Text('No achievements found',

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -12,6 +13,7 @@ import 'package:hunter_ascend/screens/settings/theme_gallery_screen.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'package:hunter_ascend/data/repositories/weight_repository.dart';
 import 'package:hunter_ascend/data/repositories/quest_repository.dart';
+import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 import 'package:hunter_ascend/data/repositories/leaderboard_repository.dart';
 import 'package:hunter_ascend/services/sleep_service.dart';
 import 'package:hunter_ascend/services/rank_reward_service.dart';
@@ -201,7 +203,7 @@ class SettingsScreen extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
           side: BorderSide(
-            color: HunterTheme.primary.withOpacity(0.25),
+            color: MembershipTheme.current.accent.withOpacity(0.25),
             width: 1,
           ),
         ),
@@ -246,7 +248,7 @@ class SettingsScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: HunterTheme.primary.withOpacity(0.3),
+                            color: MembershipTheme.current.accent.withOpacity(0.3),
                             width: 1,
                           ),
                         ),
@@ -357,7 +359,7 @@ class SettingsScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: HunterTheme.primary.withOpacity(0.3),
+                            color: MembershipTheme.current.accent.withOpacity(0.3),
                             width: 1,
                           ),
                         ),
@@ -595,7 +597,13 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      // tierNotifier merged so the membership backdrop/medallion re-skin
+      // instantly on membership change.
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        MembershipTheme.tierNotifier,
+      ]),
       builder: (context, _) => _themedBuild(context),
     );
   }
@@ -613,7 +621,7 @@ class SettingsScreen extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    HunterTheme.primary.withOpacity(0.10),
+                    MembershipTheme.current.accent.withOpacity(0.10),
                     HunterTheme.background,
                   ],
                   stops: const [0.0, 0.42],
@@ -655,13 +663,21 @@ class SettingsScreen extends StatelessWidget {
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [HunterTheme.primary, HunterTheme.primary.withOpacity(0.7)],
+                            colors: MembershipTheme.current.gradient,
                           ),
                           boxShadow: [
-                            BoxShadow(color: HunterTheme.primary.withOpacity(0.35), blurRadius: 14),
+                            BoxShadow(
+                              color: MembershipTheme.current.accent
+                                  .withOpacity(0.35 * (MembershipTheme.isPremium ? MembershipTheme.current.glowStrength : 1.0)),
+                              blurRadius: 14,
+                            ),
                           ],
                         ),
-                        child: const Icon(Icons.settings_rounded, color: Colors.black, size: 24),
+                        child: Icon(
+                          Icons.settings_rounded,
+                          color: MembershipTheme.isMax ? Colors.white : Colors.black,
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -758,7 +774,7 @@ class SettingsScreen extends StatelessWidget {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                                 side: BorderSide(
-                                  color: HunterTheme.primary
+                                  color: MembershipTheme.current.accent
                                       .withOpacity(0.25),
                                   width: 1,
                                 ),
@@ -770,7 +786,7 @@ class SettingsScreen extends StatelessWidget {
                                   children: [
                                     Icon(
                                       Icons.bolt,
-                                      color: HunterTheme.primary,
+                                      color: MembershipTheme.current.accent,
                                       size: 36,
                                     ),
                                     const SizedBox(height: 12),
@@ -787,7 +803,7 @@ class SettingsScreen extends StatelessWidget {
                                     Text(
                                       'Version 1.0.0',
                                       style: TextStyle(
-                                        color: HunterTheme.primary
+                                        color: MembershipTheme.current.accent
                                             .withOpacity(0.7),
                                         fontSize: 12,
                                         letterSpacing: 1,
@@ -809,7 +825,7 @@ class SettingsScreen extends StatelessWidget {
                                         width: double.infinity,
                                         height: 44,
                                         decoration: BoxDecoration(
-                                          color: HunterTheme.primary,
+                                          color: MembershipTheme.current.accent,
                                           borderRadius:
                                           BorderRadius.circular(6),
                                         ),
@@ -817,7 +833,11 @@ class SettingsScreen extends StatelessWidget {
                                           child: Text(
                                             'CLOSE',
                                             style: TextStyle(
-                                              color: HunterTheme.background,
+                                              color: MembershipTheme.isPremium
+                                                  ? (MembershipTheme.isMax
+                                                      ? Colors.white
+                                                      : Colors.black)
+                                                  : HunterTheme.background,
                                               fontWeight: FontWeight.w800,
                                               letterSpacing: 2,
                                               fontSize: 12,
@@ -881,7 +901,7 @@ class SettingsScreen extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [HunterTheme.primary, HunterTheme.primary.withOpacity(0.5)],
+                colors: MembershipTheme.current.gradient,
               ),
               borderRadius: BorderRadius.circular(2),
             ),
@@ -928,7 +948,7 @@ class _SettingsTileState extends State<_SettingsTile> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = widget.isDanger ? HunterTheme.danger : HunterTheme.primary;
+    final accent = widget.isDanger ? HunterTheme.danger : MembershipTheme.current.accent;
 
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
@@ -1022,7 +1042,7 @@ class _DarkModeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = HunterTheme.primary;
+    final accent = MembershipTheme.current.accent;
 
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
@@ -1108,7 +1128,7 @@ class _PremiumToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = HunterTheme.primary;
+    final accent = MembershipTheme.current.accent;
     return GestureDetector(
       onTap: () => onChanged(!value),
       child: AnimatedContainer(
@@ -1155,14 +1175,17 @@ class PrivacyPolicyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        MembershipTheme.tierNotifier,
+      ]),
       builder: (context, _) => _themedBuild(context),
     );
   }
 
   Widget _themedBuild(BuildContext context) {
-    return Scaffold(
-      backgroundColor: HunterTheme.background,
+    return MembershipScaffold(
       body: SafeArea(
         child: Column(
           children: [

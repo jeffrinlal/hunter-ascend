@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,6 +10,7 @@ import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/screens/duel/duel_screen.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 
 /// Shows an incoming duel challenge so the hunter can accept or decline.
 class DuelRequestScreen extends StatefulWidget {
@@ -20,9 +22,8 @@ class DuelRequestScreen extends StatefulWidget {
 
 class _DuelRequestScreenState extends State<DuelRequestScreen> {
 
-  static Color get _bg => HunterTheme.background;
   static Color get _card => HunterTheme.cardColor;
-  static Color get _blue => HunterTheme.primary;
+  static Color get _blue => MembershipTheme.current.accent;
   static Color get _blueDim => HunterTheme.border;
   static Color get _border => HunterTheme.border;
   BannerAd? bannerAd;
@@ -65,16 +66,19 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        MembershipTheme.tierNotifier,
+      ]),
       builder: (context, _) => _themedBuild(context),
     );
   }
 
   Widget _themedBuild(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
+    return MembershipScaffold(
       appBar: AppBar(
-        backgroundColor: _bg,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: Padding(
           padding: const EdgeInsets.only(left: 12),
@@ -258,7 +262,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: HunterTheme.primaryGradient,
+                              colors: MembershipTheme.current.gradient,
                             ),
                             borderRadius: BorderRadius.circular(2),
                           ),
@@ -457,7 +461,7 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                               gradient: LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
-                                colors: HunterTheme.primaryGradient,
+                                colors: MembershipTheme.current.gradient,
                               ),
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
@@ -467,12 +471,13 @@ class _DuelRequestScreenState extends State<DuelRequestScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.check_rounded, color: Colors.black, size: 19),
+                                Icon(Icons.check_rounded,
+                                    color: MembershipTheme.isMax ? Colors.white : Colors.black, size: 19),
                                 const SizedBox(width: 8),
-                                const Text(
+                                Text(
                                   "ACCEPT",
                                   style: TextStyle(
-                                    color: Colors.black,
+                                    color: MembershipTheme.isMax ? Colors.white : Colors.black,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 1.5,
                                     fontSize: 14,

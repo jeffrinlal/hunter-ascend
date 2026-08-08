@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/membership_reward_service.dart';
 import 'package:hunter_ascend/services/rewarded_ad_manager.dart';
 import 'package:hunter_ascend/services/achievements_service.dart';
+import 'package:hunter_ascend/widgets/membership/membership_app_bar.dart';
+import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 
 /// State of the rewarded ad button.
 enum _AdButtonState {
@@ -346,7 +349,11 @@ class _MembershipScreenState extends State<MembershipScreen>
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        MembershipTheme.tierNotifier,
+      ]),
       builder: (context, _) => _themedBuild(context),
     );
   }
@@ -358,9 +365,8 @@ class _MembershipScreenState extends State<MembershipScreen>
 
     final adState = _adStateFromManager(_adManager);
 
-    return Scaffold(
-      backgroundColor: HunterTheme.background,
-      appBar: AppBar(title: const Text('MEMBERSHIP'), centerTitle: true),
+    return MembershipScaffold(
+      appBar: const MembershipAppBar(title: 'MEMBERSHIP'),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -1034,7 +1040,7 @@ class _RewardedAdButton extends StatelessWidget {
             GestureDetector(
               onTap: onRetry,
               child: Text('Tap to retry', style: TextStyle(
-                color: HunterTheme.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+                color: MembershipTheme.current.accent, fontSize: 12, fontWeight: FontWeight.w600)),
             ),
           ],
         ]);

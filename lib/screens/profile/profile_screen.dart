@@ -2,7 +2,9 @@ import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
+import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hunter_ascend/screens/settings/settings_screen.dart';
 import 'package:hunter_ascend/services/achievements_service.dart';
@@ -17,6 +19,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:hunter_ascend/screens/profile/membership_screen.dart';
+import 'package:hunter_ascend/screens/profile/shop_screen.dart';
 import 'package:hunter_ascend/screens/profile/reports/reports_tab.dart';
 import 'package:hunter_ascend/screens/profile/achievements/achievements_tab.dart';
 import 'package:hunter_ascend/screens/profile/rewards/rewards_tab.dart';
@@ -103,8 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   Widget _themedBuild(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
-    return Scaffold(
-      backgroundColor: HunterTheme.background,
+    return MembershipScaffold(
       body: StreamBuilder<HunterData?>(
         stream: HunterRepository.instance.watch(),
         initialData: HunterRepository.instance.getCached(),
@@ -222,27 +224,27 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     decoration: BoxDecoration(
                                       gradient: LinearGradient(
                                         colors: [
-                                          HunterTheme.primary.withOpacity(0.18),
-                                          HunterTheme.primary.withOpacity(0.06),
+                                          MembershipTheme.current.accent.withOpacity(0.18),
+                                          MembershipTheme.current.accent.withOpacity(0.06),
                                         ],
                                       ),
                                       borderRadius: BorderRadius.circular(22),
                                       border: Border.all(
-                                          color: HunterTheme.primary.withOpacity(0.5)),
+                                          color: MembershipTheme.current.accent.withOpacity(0.5)),
                                       boxShadow: [
-                                        BoxShadow(color: HunterTheme.primary.withOpacity(0.15), blurRadius: 10, offset: const Offset(0, 3)),
+                                        BoxShadow(color: MembershipTheme.current.accent.withOpacity(0.15), blurRadius: 10, offset: const Offset(0, 3)),
                                       ],
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(Icons.ios_share_rounded,
-                                            color: HunterTheme.primary, size: 16),
+                                            color: MembershipTheme.current.accent, size: 16),
                                         const SizedBox(width: 6),
                                         Text(
                                           'Share',
                                           style: TextStyle(
-                                            color: HunterTheme.primary,
+                                            color: MembershipTheme.current.accent,
                                             fontSize: 12.5,
                                             fontWeight: FontWeight.w700,
                                             letterSpacing: 0.3,
@@ -295,15 +297,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                     colors: [
-                                      HunterTheme.primary.withOpacity(0.14),
+                                      MembershipTheme.current.accent.withOpacity(0.14),
                                       HunterTheme.cardColor,
                                     ],
                                   ),
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
-                                      color: HunterTheme.primary.withOpacity(0.45)),
+                                      color: MembershipTheme.current.accent.withOpacity(0.45)),
                                   boxShadow: [
-                                    BoxShadow(color: HunterTheme.primary.withOpacity(0.12), blurRadius: 16),
+                                    BoxShadow(color: MembershipTheme.current.accent.withOpacity(0.12), blurRadius: 16),
                                   ],
                                 ),
                                 child: Column(
@@ -335,8 +337,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                                             : _linkGoogleAccount,
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor:
-                                          HunterTheme.primary,
-                                          foregroundColor: Colors.white,
+                                          MembershipTheme.current.accent,
+                                          foregroundColor: MembershipTheme.isPro
+                                              ? Colors.black
+                                              : Colors.white,
                                           padding: const EdgeInsets.symmetric(
                                               vertical: 12),
                                           shape: RoundedRectangleBorder(
@@ -345,13 +349,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                                           ),
                                         ),
                                         icon: _linkingGoogle
-                                            ? const SizedBox(
+                                            ? SizedBox(
                                           width: 18,
                                           height: 18,
                                           child:
                                           CircularProgressIndicator(
                                             strokeWidth: 2,
-                                            color: Colors.white,
+                                            color: MembershipTheme.isPro
+                                                ? Colors.black
+                                                : Colors.white,
                                           ),
                                         )
                                             : const Icon(Icons.link, size: 18),
@@ -398,7 +404,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                         gradient: LinearGradient(
                                           begin: Alignment.topLeft,
                                           end: Alignment.bottomRight,
-                                          colors: [HunterTheme.primary, HunterTheme.primary.withOpacity(0.75)],
+                                          colors: MembershipTheme.current.gradient,
                                         ),
                                         shape: BoxShape.circle,
                                         border: Border.all(
@@ -406,12 +412,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                                           width: 2.5,
                                         ),
                                         boxShadow: [
-                                          BoxShadow(color: HunterTheme.primary.withOpacity(0.4), blurRadius: 8),
+                                          BoxShadow(color: MembershipTheme.current.accent.withOpacity(0.4), blurRadius: 8),
                                         ],
                                       ),
-                                      child: const Icon(
+                                      child: Icon(
                                         Icons.camera_alt_rounded,
-                                        color: Colors.black,
+                                        color: MembershipTheme.isMax
+                                            ? Colors.white
+                                            : Colors.black,
                                         size: 15,
                                       ),
                                     ),
@@ -468,11 +476,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     padding: const EdgeInsets.all(6),
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: HunterTheme.primary.withOpacity(0.10),
+                                      color: MembershipTheme.current.accent.withOpacity(0.10),
                                     ),
                                     child: Icon(
                                       Icons.copy_rounded,
-                                      color: HunterTheme.primary,
+                                      color: MembershipTheme.current.accent,
                                       size: 15,
                                     ),
                                   ),
@@ -542,7 +550,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     Text(
                                       '$xp XP',
                                       style: TextStyle(
-                                        color: HunterTheme.primary,
+                                        color: MembershipTheme.current.accent,
                                         fontSize: 13,
                                         fontWeight: FontWeight.w800,
                                       ),
@@ -603,7 +611,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                     colors: [
-                                      HunterTheme.primary.withOpacity(0.16),
+                                      MembershipTheme.current.accent.withOpacity(0.16),
                                       HunterTheme.gold.withOpacity(0.12),
                                       HunterTheme.cardColor,
                                     ],
@@ -657,7 +665,96 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     ),
                                     Icon(
                                       Icons.arrow_forward_ios,
-                                      color: HunterTheme.primary,
+                                      color: MembershipTheme.current.accent,
+                                      size: 18,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            // ── Fitness Plans Shop card ──
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ShopScreen(),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      HunterTheme.info.withOpacity(0.16),
+                                      HunterTheme.purple.withOpacity(0.10),
+                                      HunterTheme.cardColor,
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: HunterTheme.info.withOpacity(0.4),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                        color: HunterTheme.info.withOpacity(0.12),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 4)),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(9),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: HunterTheme.info.withOpacity(0.15),
+                                        border: Border.all(
+                                            color: HunterTheme.info.withOpacity(0.4)),
+                                      ),
+                                      child: Icon(
+                                        Icons.menu_book_rounded,
+                                        color: HunterTheme.info,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            "Fitness Plans Shop",
+                                            style: TextStyle(
+                                              color: HunterTheme.textPrimary,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            "Unlock PDF plans with rewarded ads",
+                                            style: TextStyle(
+                                              color: HunterTheme.textSecondary,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      color: HunterTheme.info,
                                       size: 18,
                                     ),
                                   ],
@@ -681,7 +778,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                 children: [
-                                  Expanded(child: _statPill('$level', 'LEVEL', Icons.military_tech_rounded, HunterTheme.primary)),
+                                  Expanded(child: _statPill('$level', 'LEVEL', Icons.military_tech_rounded, MembershipTheme.current.accent)),
                                   _vDivider(),
                                   Expanded(child: _statPill('$questsDone', 'MISSIONS', Icons.checklist_rounded, HunterTheme.purple)),
                                   _vDivider(),
@@ -716,7 +813,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                     ),
                     child: TabBar(
                       controller: _tabController,
-                      labelColor: Colors.black,
+                      labelColor:
+                          MembershipTheme.isMax ? Colors.white : Colors.black,
                       unselectedLabelColor: HunterTheme.textSecondary,
                       indicatorSize: TabBarIndicatorSize.tab,
                       dividerColor: Colors.transparent,
@@ -725,11 +823,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [HunterTheme.primary, HunterTheme.primary.withOpacity(0.75)],
+                          colors: MembershipTheme.current.gradient,
                         ),
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
-                          BoxShadow(color: HunterTheme.primary.withOpacity(0.35), blurRadius: 10, spreadRadius: 0.5),
+                          BoxShadow(color: MembershipTheme.current.accent.withOpacity(0.35), blurRadius: 10, spreadRadius: 0.5),
                         ],
                       ),
                       labelStyle: const TextStyle(
@@ -866,9 +964,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     width: double.infinity,
                                     padding: const EdgeInsets.all(14),
                                     decoration: BoxDecoration(
-                                      color: HunterTheme.primary.withOpacity(0.06),
+                                      color: MembershipTheme.current.accent.withOpacity(0.06),
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: HunterTheme.primary.withOpacity(0.15)),
+                                      border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.15)),
                                     ),
                                     child: Column(
                                       children: [
@@ -882,7 +980,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                 fatLoss: hunter.fatLoss,
                                                 muscleGain: hunter.muscleGain,
                                               ),
-                                              child: Text('Edit', style: TextStyle(color: HunterTheme.primary, fontSize: 11, fontWeight: FontWeight.w600)),
+                                              child: Text('Edit', style: TextStyle(color: MembershipTheme.current.accent, fontSize: 11, fontWeight: FontWeight.w600)),
                                             ),
                                           ],
                                         ),
@@ -937,12 +1035,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                                       child: Row(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          Icon(Icons.flag_outlined, color: HunterTheme.primary, size: 16),
+                                          Icon(Icons.flag_outlined, color: MembershipTheme.current.accent, size: 16),
                                           const SizedBox(width: 8),
                                           Text(
                                             'Set Target Weight',
                                             style: TextStyle(
-                                              color: HunterTheme.primary,
+                                              color: MembershipTheme.current.accent,
                                               fontSize: 13,
                                               fontWeight: FontWeight.w600,
                                             ),
@@ -960,8 +1058,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                             width: double.infinity,
                             child: ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: HunterTheme.primary,
-                                foregroundColor: Colors.white,
+                                backgroundColor: MembershipTheme.current.accent,
+                                foregroundColor: MembershipTheme.isPro
+                                    ? Colors.black
+                                    : Colors.white,
                                 padding: const EdgeInsets.symmetric(
                                     vertical: 14),
                                 shape: RoundedRectangleBorder(
@@ -1036,14 +1136,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                   height: 84,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: HunterTheme.primary.withOpacity(0.10),
-                    border: Border.all(color: HunterTheme.primary.withOpacity(0.30), width: 1.4),
+                    color: MembershipTheme.current.accent.withOpacity(0.10),
+                    border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.30), width: 1.4),
                     boxShadow: [
-                      BoxShadow(color: HunterTheme.primary.withOpacity(0.14), blurRadius: 22),
+                      BoxShadow(color: MembershipTheme.current.accent.withOpacity(0.14), blurRadius: 22),
                     ],
                   ),
                   child: Icon(Icons.monitor_weight_outlined,
-                      color: HunterTheme.primary, size: 38),
+                      color: MembershipTheme.current.accent, size: 38),
                 ),
                 const SizedBox(height: 20),
                 Text('No weight history yet',
@@ -1166,11 +1266,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: HunterTheme.primary.withOpacity(0.1),
+                          color: MembershipTheme.current.accent.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(Icons.monitor_weight_outlined,
-                            color: HunterTheme.primary, size: 20),
+                            color: MembershipTheme.current.accent, size: 20),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -1255,13 +1355,13 @@ class _ProfileScreenState extends State<ProfileScreen>
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          HunterTheme.primary.withOpacity(0.06),
+          MembershipTheme.current.accent.withOpacity(0.06),
           HunterTheme.cardColor,
         ],
       ),
       borderRadius: BorderRadius.circular(20),
       border: Border.all(
-          color: HunterTheme.primary.withOpacity(0.18)),
+          color: MembershipTheme.current.accent.withOpacity(0.18)),
       boxShadow: [
         BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 14, offset: const Offset(0, 6)),
       ],
@@ -1276,10 +1376,10 @@ class _ProfileScreenState extends State<ProfileScreen>
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: HunterTheme.primary.withOpacity(0.10),
-            border: Border.all(color: HunterTheme.primary.withOpacity(0.25)),
+            color: MembershipTheme.current.accent.withOpacity(0.10),
+            border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.25)),
           ),
-          child: Icon(icon, color: HunterTheme.primary, size: 20),
+          child: Icon(icon, color: MembershipTheme.current.accent, size: 20),
         ),
         const SizedBox(height: 8),
         Text(value,
@@ -1786,11 +1886,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                       hintStyle: TextStyle(color: HunterTheme.textTertiary),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: HunterTheme.primary, width: 1),
+                        borderSide: BorderSide(color: MembershipTheme.current.accent, width: 1),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: HunterTheme.primary, width: 2),
+                        borderSide: BorderSide(color: MembershipTheme.current.accent, width: 2),
                       ),
                     ),
                     onChanged: (_) {
@@ -1810,8 +1910,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: HunterTheme.primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: MembershipTheme.current.accent,
+                    foregroundColor: MembershipTheme.isPro
+                        ? Colors.black
+                        : Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () async {
@@ -1896,12 +1998,12 @@ class _ProfileScreenState extends State<ProfileScreen>
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide:
-                BorderSide(color: HunterTheme.primary, width: 1),
+                BorderSide(color: MembershipTheme.current.accent, width: 1),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide:
-                BorderSide(color: HunterTheme.primary, width: 2),
+                BorderSide(color: MembershipTheme.current.accent, width: 2),
               ),
             ),
           ),
@@ -1913,8 +2015,10 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: HunterTheme.primary,
-                foregroundColor: Colors.white,
+                backgroundColor: MembershipTheme.current.accent,
+                foregroundColor: MembershipTheme.isPro
+                    ? Colors.black
+                    : Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8)),
               ),
@@ -2012,11 +2116,11 @@ class HexRadarPainter extends CustomPainter {
     canvas.drawPath(dataPath,
         Paint()
           ..style = PaintingStyle.fill
-          ..color = HunterTheme.primary.withOpacity(0.18));
+          ..color = MembershipTheme.current.accent.withOpacity(0.18));
     canvas.drawPath(dataPath,
         Paint()
           ..style = PaintingStyle.stroke
-          ..color = HunterTheme.primary.withOpacity(0.85)
+          ..color = MembershipTheme.current.accent.withOpacity(0.85)
           ..strokeWidth = 1.5);
 
     for (int i = 0; i < 6; i++) {
@@ -2026,7 +2130,7 @@ class HexRadarPainter extends CustomPainter {
       final displayValue = (values[i] * 100).round();
 
       _drawText(canvas, _labels[i], lx, ly - 7,
-          HunterTheme.primary, 11, FontWeight.bold);
+          MembershipTheme.current.accent, 11, FontWeight.bold);
       _drawText(canvas, '$displayValue', lx, ly + 8,
           HunterTheme.textSecondary, 11, FontWeight.normal);
     }

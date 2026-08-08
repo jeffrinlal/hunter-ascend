@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 
 /// Premium dialog design system.
 ///
@@ -83,7 +84,7 @@ class PremiumDialogCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final a = accent ?? HunterTheme.primary;
+    final a = accent ?? MembershipTheme.current.accent;
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -213,7 +214,7 @@ class PremiumDialogButton extends StatelessWidget {
     final destructive = kind == PremiumButtonKind.destructive;
 
     final Color fg = primary
-        ? Colors.black
+        ? (MembershipTheme.isMax ? Colors.white : Colors.black)
         : destructive
             ? HunterTheme.danger
             : HunterTheme.textSecondary;
@@ -228,7 +229,7 @@ class PremiumDialogButton extends StatelessWidget {
               ? LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: HunterTheme.primaryGradient,
+                  colors: MembershipTheme.current.gradient,
                 )
               : null,
           color: primary
@@ -247,7 +248,7 @@ class PremiumDialogButton extends StatelessWidget {
           boxShadow: primary
               ? [
                   BoxShadow(
-                    color: HunterTheme.primary.withOpacity(0.35 * HunterTheme.glowStrength),
+                    color: MembershipTheme.current.accent.withOpacity(0.35 * HunterTheme.glowStrength),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),

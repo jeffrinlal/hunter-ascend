@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/core/utils/hunter_calculations.dart';
 import 'package:hunter_ascend/services/ads_service.dart';
@@ -10,6 +11,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
+import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/milestone_service.dart';
 import 'package:hunter_ascend/services/xp_service.dart';
@@ -29,7 +31,7 @@ class DuelScreen extends StatefulWidget {
 class _DuelScreenState extends State<DuelScreen> {
   static Color get _bg => HunterTheme.background;
   static Color get _card => HunterTheme.cardColor;
-  static Color get _blue => HunterTheme.primary;
+  static Color get _blue => MembershipTheme.current.accent;
   static Color get _blueDim => HunterTheme.border;
   static Color get _border => HunterTheme.border;
   // ── Active quest timer state ──────────────────────────────
@@ -817,16 +819,19 @@ class _DuelScreenState extends State<DuelScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        MembershipTheme.tierNotifier,
+      ]),
       builder: (context, _) => _themedBuild(context),
     );
   }
 
   Widget _themedBuild(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
+    return MembershipScaffold(
       appBar: AppBar(
-        backgroundColor: _bg,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: Padding(
           padding: const EdgeInsets.only(left: 12),
@@ -986,16 +991,16 @@ class _DuelScreenState extends State<DuelScreen> {
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: HunterTheme.primaryGradient,
+                              colors: MembershipTheme.current.gradient,
                             ),
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(color: _blue.withValues(alpha: 0.4 * HunterTheme.glowStrength), blurRadius: 16, offset: const Offset(0, 6)),
                             ],
                           ),
-                          child: const Text(
+                          child: Text(
                             "RETURN TO BASE",
-                            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 14),
+                            style: TextStyle(color: MembershipTheme.isMax ? Colors.white : Colors.black, fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 14),
                           ),
                         ),
                       ),
@@ -1204,7 +1209,7 @@ class _DuelScreenState extends State<DuelScreen> {
                           child: Container(
                             height: 10,
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(colors: HunterTheme.primaryGradient),
+                              gradient: LinearGradient(colors: MembershipTheme.current.gradient),
                             ),
                           ),
                         ),

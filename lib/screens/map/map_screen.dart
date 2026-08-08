@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -18,6 +19,7 @@ import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/xp_service.dart';
 import 'package:hunter_ascend/services/achievements_service.dart';
+import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -32,7 +34,7 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   static Color get _bg => HunterTheme.background;
   static Color get _card => HunterTheme.cardColor;
-  static Color get _blue => HunterTheme.primary;
+  static Color get _blue => MembershipTheme.current.accent;
   static Color get _border => HunterTheme.border;
   // ── Map ──────────────────────────────────────────────────
   final MapController _mapController = MapController();
@@ -265,24 +267,16 @@ class _MapScreenState extends State<MapScreen> {
       }
     });
 
-    // GPS Stream — use platform-tuned settings so Android's fused location
-    // provider is explicitly told how often to request fixes (rather than
-    // relying on undocumented OS defaults, which can throttle updates for
-    // extended periods and was the root cause of positions never arriving).
-    final locationSettings = Platform.isAndroid
-        ? AndroidSettings(
-            accuracy: LocationAccuracy.high,
-            distanceFilter: 5,
-            intervalDuration: const Duration(seconds: 2),
-            forceLocationManager: false,
-          )
-        : Platform.isIOS
-            ? AppleSettings(
-                accuracy: LocationAccuracy.high,
-                distanceFilter: 5,
-                activityType: ActivityType.fitness,
-              )
-            : const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 5);
+    // GPS Stream — REGRESSION EXPERIMENT: temporarily reverted to the exact
+    // LocationSettings from commit 92d30bf (last known working
+    // implementation). The platform-tuned AndroidSettings/AppleSettings block
+    // was removed to isolate whether the stream configuration is the break
+    // point. Nothing else (accuracy gate, distance math, route/save logic)
+    // was touched. Revert back once the experiment concludes.
+    const locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 5,
+    );
 
     debugPrint('[RunTrack] STAGE 2: Subscribing to position stream. settings=$locationSettings');
 
@@ -784,8 +778,8 @@ class _MapScreenState extends State<MapScreen> {
           decoration: BoxDecoration(
             color: HunterTheme.cardColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: HunterTheme.primary.withOpacity(0.3), width: 1.5),
-            boxShadow: [BoxShadow(color: HunterTheme.primary.withOpacity(0.15), blurRadius: 24)],
+            border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.3), width: 1.5),
+            boxShadow: [BoxShadow(color: MembershipTheme.current.accent.withOpacity(0.15), blurRadius: 24)],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -793,11 +787,11 @@ class _MapScreenState extends State<MapScreen> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: HunterTheme.primary.withOpacity(0.12),
+                  color: MembershipTheme.current.accent.withOpacity(0.12),
                   shape: BoxShape.circle,
-                  border: Border.all(color: HunterTheme.primary.withOpacity(0.4)),
+                  border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.4)),
                 ),
-                child: Icon(Icons.share_rounded, color: HunterTheme.primary, size: 32),
+                child: Icon(Icons.share_rounded, color: MembershipTheme.current.accent, size: 32),
               ),
               const SizedBox(height: 16),
               Text(
@@ -820,8 +814,8 @@ class _MapScreenState extends State<MapScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: HunterTheme.primary,
-                    foregroundColor: Colors.black,
+                    backgroundColor: MembershipTheme.current.accent,
+                    foregroundColor: MembershipTheme.isMax ? Colors.white : Colors.black,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -954,16 +948,19 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        MembershipTheme.tierNotifier,
+      ]),
       builder: (context, _) => _themedBuild(context),
     );
   }
 
   Widget _themedBuild(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
+    return MembershipScaffold(
       appBar: AppBar(
-        backgroundColor: _bg,
+        backgroundColor: Colors.transparent,
         title: RichText(text: TextSpan(children: [
           TextSpan(text: "HUNTER ", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1)),
           TextSpan(text: "MAP", style: TextStyle(color: _blue, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1)),
@@ -1007,7 +1004,7 @@ class _MapScreenState extends State<MapScreen> {
                 ? LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: HunterTheme.primaryGradient,
+                    colors: MembershipTheme.current.gradient,
                   )
                 : null,
             borderRadius: BorderRadius.circular(12),
@@ -1095,7 +1092,7 @@ class _MapScreenState extends State<MapScreen> {
                 Polyline(
                   points: _routePoints,
                   strokeWidth: 5,
-                  color: HunterTheme.primary,
+                  color: MembershipTheme.current.accent,
                 ),
               ],
             ),
@@ -1222,7 +1219,7 @@ class _MapScreenState extends State<MapScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: HunterTheme.primaryGradient,
+                  colors: MembershipTheme.current.gradient,
                 ),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [BoxShadow(color: _blue.withOpacity(0.4 * HunterTheme.glowStrength), blurRadius: 20, offset: const Offset(0, 6))],

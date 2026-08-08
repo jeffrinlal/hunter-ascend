@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,6 +17,7 @@ import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:hunter_ascend/widgets/dashboard/entrance_fade_slide.dart';
 import 'package:hunter_ascend/widgets/equipped_badge_chip.dart';
+import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 
 // ── Leaderboard membership palette ─────────────────────────────────────────
 // Leaderboard-local premium membership styling. Pro = blue/cyan, Max =
@@ -226,7 +228,11 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier]),
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        MembershipTheme.tierNotifier,
+      ]),
       builder: (context, _) => _themedBuild(context),
     );
   }
@@ -268,7 +274,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
 
   // Premium empty / no-results state.
   Widget _buildEmptyState({required IconData icon, required String title, required String subtitle}) {
-    final accent = HunterTheme.primary;
+    final accent = MembershipTheme.current.accent;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -306,8 +312,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     }
     final limit = _activeTab == LeaderboardTab.overall ? 30 : 20;
 
-    return Scaffold(
-      backgroundColor: HunterTheme.background,
+    return MembershipScaffold(
       body: SafeArea(
         child: Column(
           children: [
@@ -339,7 +344,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
               child: _loading && _entries.isEmpty
                   ? SingleChildScrollView(padding: const EdgeInsets.all(16), child: buildLeaderboardSkeleton())
                   : RefreshIndicator(
-                      color: HunterTheme.primary,
+                      color: MembershipTheme.current.accent,
                       onRefresh: () async {
                         final fresh = await LeaderboardRepository.instance.fetch(_activeTab, forceRefresh: true);
                         if (mounted) setState(() => _entries = fresh);
@@ -480,17 +485,18 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     );
   }
 
-  // Compact "YOU" pill marking the current user (primary-based; readable on
-  // both premium and neutral cards).
+  // Compact "YOU" pill marking the current user (membership-accent based;
+  // readable on both premium and neutral cards).
   Widget _youPill() {
+    final accent = MembershipTheme.current.accent;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: HunterTheme.primary.withOpacity(0.14),
+        color: accent.withOpacity(0.14),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: HunterTheme.primary.withOpacity(0.45)),
+        border: Border.all(color: accent.withOpacity(0.45)),
       ),
-      child: Text('YOU', style: TextStyle(color: HunterTheme.primary, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1)),
+      child: Text('YOU', style: TextStyle(color: accent, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1)),
     );
   }
 
@@ -516,27 +522,30 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     final rc = _rankColor(level);
     final membership = _entryMembership(entry);
     final v = _membershipVisual(membership);
+    // Viewer's own tier accent — highlights the current user's row.
+    final myAccent = MembershipTheme.current.accent;
     // Text stays theme-aware for readability; the current user's name uses the
-    // primary accent so they remain easy to spot in the list.
-    final nameColor = isMe ? HunterTheme.primary : HunterTheme.textPrimary;
-    // The XP chip picks up the membership accent (or primary for the current
-    // user / basic hunters).
-    final xpAccent = v.isPremium ? v.accent : HunterTheme.primary;
+    // membership accent so they remain easy to spot in the list.
+    final nameColor = isMe ? myAccent : HunterTheme.textPrimary;
+    // The XP chip picks up the membership accent (or the viewer's accent for
+    // basic hunters).
+    final xpAccent = v.isPremium ? v.accent : myAccent;
 
     // Card visuals: membership tint gradient + accent border/glow for premium
-    // hunters; a soft primary highlight for the current user; neutral card
-    // otherwise. isMe always wins the border treatment so it stays findable.
+    // hunters; a soft membership-accent highlight for the current user;
+    // neutral card otherwise. isMe always wins the border treatment so it
+    // stays findable.
     final Gradient? cardGradient = v.cardGradient;
     final Color bgColor = v.isPremium
         ? HunterTheme.cardColor
-        : (isMe ? HunterTheme.primary.withOpacity(0.06) : HunterTheme.cardColor);
+        : (isMe ? myAccent.withOpacity(0.06) : HunterTheme.cardColor);
     final Color borderColor = isMe
-        ? HunterTheme.primary.withOpacity(0.55)
+        ? myAccent.withOpacity(0.55)
         : (v.isPremium ? v.cardBorder : HunterTheme.border);
     final double borderWidth = isMe ? 1.8 : (v.isPremium ? 1.3 : 1);
     final List<BoxShadow> shadow = v.isPremium
         ? [BoxShadow(color: v.glow.withOpacity(0.16), blurRadius: 14, spreadRadius: 0.5, offset: const Offset(0, 3))]
-        : [BoxShadow(color: (isMe ? HunterTheme.primary : Colors.black).withOpacity(isMe ? 0.10 : 0.04), blurRadius: 10, offset: const Offset(0, 3))];
+        : [BoxShadow(color: (isMe ? myAccent : Colors.black).withOpacity(isMe ? 0.10 : 0.04), blurRadius: 10, offset: const Offset(0, 3))];
 
     return GestureDetector(
       onTap: () {
@@ -561,7 +570,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
                 child: Text(
                   '${index + 1}',
                   style: TextStyle(
-                    color: isMe ? HunterTheme.primary : (v.isPremium ? v.accent : HunterTheme.textTertiary),
+                    color: isMe ? myAccent : (v.isPremium ? v.accent : HunterTheme.textTertiary),
                     fontSize: index < 9 ? 15 : 13,
                     fontWeight: FontWeight.w900,
                   ),
@@ -607,17 +616,20 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     final myMembership = _effectiveMembership({'membershipType': hunter.membershipType, 'membershipExpiry': hunter.membershipExpiry});
     final v = _membershipVisual(myMembership);
     final rankText = myRank > 0 ? '#$myRank' : '$limit+';
+    // The viewer's own tier accent drives the fallback treatment.
+    final myAccent = MembershipTheme.current.accent;
 
     // Card treatment: premium hunters get the membership tint + accent border
-    // and glow; everyone else keeps the primary "your position" highlight.
+    // and glow; everyone else keeps the "your position" highlight in the
+    // viewer's own tier accent.
     final Gradient cardGradient = v.isPremium
         ? v.cardGradient!
-        : LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [HunterTheme.primary.withOpacity(0.14), HunterTheme.cardColor]);
-    final Color borderColor = v.isPremium ? v.cardBorder : HunterTheme.primary.withOpacity(0.45);
-    final Color glowColor = v.isPremium ? v.glow : HunterTheme.primary;
-    // Rank number always reads as the primary accent (it's about placement,
+        : LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [myAccent.withOpacity(0.14), HunterTheme.cardColor]);
+    final Color borderColor = v.isPremium ? v.cardBorder : myAccent.withOpacity(0.45);
+    final Color glowColor = v.isPremium ? v.glow : myAccent;
+    // Rank number always reads as the viewer's accent (it's about placement,
     // not tier), keeping strong contrast on the tinted card.
-    final Color rankColor = HunterTheme.primary;
+    final Color rankColor = myAccent;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
@@ -652,7 +664,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Row(children: [
-                  Flexible(child: Text('YOUR POSITION', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: HunterTheme.primary, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5))),
+                  Flexible(child: Text('YOUR POSITION', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: MembershipTheme.current.accent, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5))),
                   if (v.isPremium) ...[const SizedBox(width: 8), _membershipChip(myMembership, fontSize: 8)],
                 ]),
                 const SizedBox(height: 4),
@@ -714,7 +726,7 @@ class _LeaderboardHeroState extends State<_LeaderboardHero> with SingleTickerPro
 
   @override
   Widget build(BuildContext context) {
-    final accent = HunterTheme.primary;
+    final accent = MembershipTheme.current.accent;
     final rankText = widget.myRank > 0 ? '#${widget.myRank}' : '${widget.limit}+';
 
     final topRow = Row(
@@ -945,7 +957,7 @@ class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProvide
                           h.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: h.isMe ? HunterTheme.primary : HunterTheme.textPrimary, fontSize: 19, fontWeight: FontWeight.w900),
+                          style: TextStyle(color: h.isMe ? MembershipTheme.current.accent : HunterTheme.textPrimary, fontSize: 19, fontWeight: FontWeight.w900),
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -992,7 +1004,7 @@ class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProvide
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: h.isMe ? HunterTheme.primary : HunterTheme.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w800),
+                    style: TextStyle(color: h.isMe ? MembershipTheme.current.accent : HunterTheme.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w800),
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -1101,11 +1113,11 @@ class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProvide
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: HunterTheme.primary.withOpacity(0.14),
+        color: MembershipTheme.current.accent.withOpacity(0.14),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: HunterTheme.primary.withOpacity(0.45)),
+        border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.45)),
       ),
-      child: Text('YOU', style: TextStyle(color: HunterTheme.primary, fontSize: 8, fontWeight: FontWeight.w800, letterSpacing: 1)),
+      child: Text('YOU', style: TextStyle(color: MembershipTheme.current.accent, fontSize: 8, fontWeight: FontWeight.w800, letterSpacing: 1)),
     );
   }
 
@@ -1438,7 +1450,7 @@ class _PremiumTabSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = HunterTheme.primary;
+    final accent = MembershipTheme.current.accent;
     final count = labels.length;
     // Sliding-pill alignment across `count` equal segments.
     final selected = index.clamp(0, count - 1);

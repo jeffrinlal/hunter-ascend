@@ -9,7 +9,6 @@ import 'package:hunter_ascend/core/utils/hunter_calculations.dart';
 import 'package:hunter_ascend/services/ads_service.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
@@ -17,51 +16,11 @@ import 'package:http/http.dart' as http;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
+import 'package:hunter_ascend/data/repositories/calorie_repository.dart';
 import 'package:hunter_ascend/services/achievements_service.dart';
 
-// ── Data model ────────────────────────────────────────────────────────────
-
-/// A single logged food entry (one meal/snack item) for the calorie tracker.
-///
-/// Backed by the `calorie_logs` Firestore collection; [toMap]/[fromMap]
-/// define that wire format. Immutable so list rebuilds stay cheap.
-class MealEntry {
-  final String? id;
-  final String name;
-  final int calories;
-  final double protein;
-  final double carbs;
-  final double fat;
-  final DateTime time;
-
-  MealEntry({
-    this.id,
-    required this.name,
-    required this.calories,
-    required this.protein,
-    required this.carbs,
-    required this.fat,
-    required this.time,
-  });
-
-  Map<String, dynamic> toMap() => {
-    'name': name,
-    'calories': calories,
-    'protein': protein,
-    'carbs': carbs,
-    'fat': fat,
-    'time': Timestamp.fromDate(time),
-  };
-
-  factory MealEntry.fromMap(Map<String, dynamic> m) => MealEntry(
-    name: m['name'] ?? '',
-    calories: m['calories'] ?? 0,
-    protein: (m['protein'] ?? 0).toDouble(),
-    carbs: (m['carbs'] ?? 0).toDouble(),
-    fat: (m['fat'] ?? 0).toDouble(),
-    time: (m['time'] as Timestamp).toDate(),
-  );
-}
+// Re-export MealEntry from the repository
+export 'package:hunter_ascend/data/repositories/calorie_repository.dart' show MealEntry;
 
 // ── AI Service ────────────────────────────────────────────────────────────
 
@@ -396,23 +355,8 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     {'key': 'lateNight', 'emoji': '🌙', 'label': 'Late Night'},
   ];
 
-  // Cached streams so collapsing/expanding sections (setState) doesn't
-  // re-subscribe and flicker. Same queries — created once.
-  //
-  // _hunterStream reuses the app-wide HunterRepository listener (already
-  // live for the whole session) instead of opening a second, uncached
-  // .snapshots() listener on the same `hunters/{uid}` document — this
-  // screen no longer duplicates that Firestore read.
+  // Cached streams - reuse HunterRepository for hunter data
   late final Stream<HunterData?> _hunterStream;
-  late Stream<List<MealEntry>> _mealsStream;
-  Timer? _midnightRefreshTimer;
-
-  // Mirrors the latest value emitted by [_mealsStream] so achievement
-  // tracking can read today's totals without an extra Firestore query.
-  // Updated via a plain .listen() alongside the StreamBuilder in build() —
-  // same underlying Firestore listener, no additional reads.
-  List<MealEntry> _currentMeals = [];
-  StreamSubscription<List<MealEntry>>? _mealsSub;
 
   // Auto-categorize a meal purely from the time it was logged.
   String _categoryForTime(DateTime t) {
@@ -453,83 +397,31 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     super.initState();
     loadBannerAd();
     _hunterStream = HunterRepository.instance.watch();
-    _mealsStream = _todayMealsStream();
-    _mealsSub = _mealsStream.listen((meals) => _currentMeals = meals);
-    _scheduleMidnightRefresh();
   }
 
   @override
   void dispose() {
     _foodController.dispose();
-    _midnightRefreshTimer?.cancel();
-    _mealsSub?.cancel();
     _bannerAd?.dispose();
     super.dispose();
   }
 
-  void _scheduleMidnightRefresh() {
-    _midnightRefreshTimer?.cancel();
-    final now = DateTime.now();
-    final nextMidnight = DateTime(now.year, now.month, now.day + 1);
-    _midnightRefreshTimer = Timer(nextMidnight.difference(now), () {
-      if (!mounted) return;
-      _mealsSub?.cancel();
-      setState(() => _mealsStream = _todayMealsStream());
-      _currentMeals = [];
-      _mealsSub = _mealsStream.listen((meals) => _currentMeals = meals);
-      _scheduleMidnightRefresh();
-    });
-  }
-
   // ── Get calorie goal from BMI ─────────────────────────────────────────
-  // ── Get today's meals from Firestore ─────────────────────────────────
-  Stream<List<MealEntry>> _todayMealsStream() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return Stream.value([]);
-
-    final today = DateTime.now().toString().substring(0, 10);
-
-    return FirebaseFirestore.instance
-        .collection('calorie_logs')
-        .where('uid', isEqualTo: user.uid)
-        .where('date', isEqualTo: today)
-        .orderBy('time', descending: true)
-        .snapshots()
-        .map((snap) => snap.docs.map((d) {
-      final meal = MealEntry.fromMap(d.data());
-      return MealEntry(
-        id: d.id,
-        name: meal.name,
-        calories: meal.calories,
-        protein: meal.protein,
-        carbs: meal.carbs,
-        fat: meal.fat,
-        time: meal.time,
-      );
-    }).toList());
-  }
-
-  // ── Save meal to Firestore ────────────────────────────────────────────
+  // ── Save meal to Firestore (via repository) ───────────────────────────
   Future<void> _saveMeal(MealEntry meal) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     final today = DateTime.now().toString().substring(0, 10);
 
-    try {
-      await FirebaseFirestore.instance.collection('calorie_logs').add({
-        ...meal.toMap(),
-        'uid': user.uid,
-        'date': today,
-      });
-    } catch (e) {
-      debugPrint("saveMeal: $e");
+    // Use repository to add meal (updates cache immediately + writes to Firestore)
+    final docId = await CalorieRepository.instance.addMeal(meal);
+    
+    if (docId == null) {
+      debugPrint("saveMeal: failed to add to repository");
       return;
     }
 
-    // Update cumulative/daily nutrition achievement tracking (backs
-    // nutri_first/100, nutri_protein, nutri_balanced) and immediately
-    // re-evaluate/celebrate. Kept as a best-effort follow-up: a failure here
-    // never affects the meal that was already saved above.
+    // Update cumulative/daily nutrition achievement tracking
     try {
       await _updateNutritionAchievementTracking(today, meal);
     } catch (e) {
@@ -547,8 +439,8 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
   /// [HunterRepository.updateNutritionAchievementLocal]) — nothing else
   /// (leaderboard, public profile, other users) ever reads them, so this
   /// no longer touches Firestore at all. Today's totals are taken from
-  /// [_currentMeals], which [_mealsStream] already keeps live, plus the
-  /// meal that was just saved (the stream may not have emitted yet).
+  /// [CalorieRepository.getCached()], which the repository already keeps live,
+  /// plus the meal that was just saved.
   Future<void> _updateNutritionAchievementTracking(
       String today,
       MealEntry justSaved,
@@ -561,14 +453,16 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     final carbsGoal = (calorieGoal * 0.40 / 4).round();
     final fatGoal = (calorieGoal * 0.30 / 9).round();
 
+    // Use repository cache for current meals
+    final currentMeals = CalorieRepository.instance.getCached();
     final totalProtein =
-        _currentMeals.fold(0.0, (s, m) => s + m.protein) + justSaved.protein;
+        currentMeals.fold(0.0, (s, m) => s + m.protein) + justSaved.protein;
     final totalCarbs =
-        _currentMeals.fold(0.0, (s, m) => s + m.carbs) + justSaved.carbs;
+        currentMeals.fold(0.0, (s, m) => s + m.carbs) + justSaved.carbs;
     final totalFat =
-        _currentMeals.fold(0.0, (s, m) => s + m.fat) + justSaved.fat;
+        currentMeals.fold(0.0, (s, m) => s + m.fat) + justSaved.fat;
     final totalCalories =
-        _currentMeals.fold(0, (s, m) => s + m.calories) + justSaved.calories;
+        currentMeals.fold(0, (s, m) => s + m.calories) + justSaved.calories;
 
     final hitProteinGoalToday = proteinGoal > 0 && totalProtein >= proteinGoal;
     final hitBalancedToday = totalCalories > 0 &&
@@ -590,14 +484,7 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
 
   // ── Delete meal ───────────────────────────────────────────────────────
   Future<void> _deleteMeal(String docId) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('calorie_logs')
-          .doc(docId)
-          .delete();
-    } catch (e) {
-      debugPrint("deleteMeal: $e");
-    }
+    await CalorieRepository.instance.deleteMeal(docId);
   }
 
   // ── Analyze text ─────────────────────────────────────────────────────
@@ -824,7 +711,8 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
         final calorieGoal = calorieGoalFromData(hunterData);
 
         return StreamBuilder<List<MealEntry>>(
-          stream: _mealsStream,
+          stream: CalorieRepository.instance.watch(),
+          initialData: CalorieRepository.instance.getCached(),
           builder: (context, mealSnap) {
             final meals = mealSnap.data ?? [];
             final totalCals = meals.fold(0, (sum, m) => sum + m.calories);

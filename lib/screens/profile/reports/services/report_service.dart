@@ -1,12 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/data/repositories/calorie_repository.dart';
 
 import '../models/report_data.dart';
 import '../utils/report_format.dart';
 
 /// Loads and derives all data the Hunter Report needs — read-only, on demand,
 /// once per screen open. Reuses ONLY existing collections/fields/indexes.
+/// 
+/// For today's calorie data, uses CalorieRepository.getCached() to avoid
+/// duplicate Firestore reads.
 class ReportService {
   ReportService._();
 
@@ -22,20 +26,27 @@ class ReportService {
     final now = DateTime.now();
     final cutoff = now.subtract(const Duration(days: maxRangeDays));
     final cutoffStr = dayKey(cutoff);
+    final today = dayKey(now);
     final db = FirebaseFirestore.instance;
 
     // ── Nutrition (calorie_logs) ──
-    // `date` is a 'yyyy-MM-dd' string that sorts chronologically, so a lexical
-    // range is a valid 30-day window (served by the existing uid/date index).
+    // For today's data: use CalorieRepository cache to avoid duplicate reads
+    // For historical data: query Firestore directly
     List<MealEntry> meals = [];
     bool nutritionOk = true;
     try {
+      // Get today's cached meals from repository (no Firestore read)
+      final todaysMeals = CalorieRepository.instance.getCached();
+      
+      // Query Firestore only for historical data (excluding today)
       final snap = await db
           .collection('calorie_logs')
           .where('uid', isEqualTo: uid)
           .where('date', isGreaterThanOrEqualTo: cutoffStr)
+          .where('date', isLessThan: today)
           .get();
-      meals = snap.docs.map((d) {
+      
+      final historicalMeals = snap.docs.map((d) {
         final m = d.data();
         return MealEntry(
           calories: _asInt(m['calories']),
@@ -45,6 +56,9 @@ class ReportService {
           time: (m['time'] as Timestamp?)?.toDate() ?? now,
         );
       }).toList();
+      
+      // Combine today's cached meals with historical Firestore data
+      meals = [...todaysMeals, ...historicalMeals];
     } catch (_) {
       nutritionOk = false;
     }

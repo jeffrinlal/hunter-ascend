@@ -1321,7 +1321,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
   // ── Top Bar ──────────────────────────────────────────────
   Widget _buildTopBar(HunterData hunter) {
-    final hasNotif = (hunter.notificationTime ?? '').isNotEmpty;
     final streak = hunter.streak;
 
     return Row(
@@ -1334,11 +1333,10 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             ),
           ),
           child: Container(
-            width: 42,
-            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
               color: HunterTheme.cardColor,
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(color: HunterTheme.gold.withOpacity(0.4)),
               boxShadow: [
                 BoxShadow(
@@ -1348,8 +1346,21 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 ),
               ],
             ),
-            child: const Center(
-              child: Text('🪙', style: TextStyle(fontSize: 18)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('🪙', style: TextStyle(fontSize: 16)),
+                const SizedBox(width: 6),
+                Text(
+                  'Shop',
+                  style: TextStyle(
+                    color: HunterTheme.gold,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -1386,9 +1397,20 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             border: Border.all(color: Colors.orange.withOpacity(0.35)),
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 18),
+            const Icon(
+              Icons.local_fire_department_rounded,
+              color: Colors.orange,
+              size: 18,
+            ),
             const SizedBox(width: 4),
-            Text("$streak", style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.w800, fontSize: 15)),
+            Text(
+              "$streak",
+              style: TextStyle(
+                color: HunterTheme.textPrimary,
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+              ),
+            ),
           ]),
         ),
       ],

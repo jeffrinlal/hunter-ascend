@@ -256,21 +256,28 @@ class _EliteHeroBanner extends StatelessWidget {
                       ),
                     ),
                     child: Container(
-                      padding: const EdgeInsets.all(6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.15),
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white.withOpacity(0.3)),
                       ),
-                      child: const Text('🪙', style: TextStyle(fontSize: 16)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  GestureDetector(
-                    onTap: onNotificationTap,
-                    child: Icon(
-                      hasNotif ? Icons.notifications_active : Icons.notifications_none,
-                      color: Colors.white,
-                      size: 22,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Text('🪙', style: TextStyle(fontSize: 14)),
+                          SizedBox(width: 5),
+                          Text(
+                            'Shop',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],

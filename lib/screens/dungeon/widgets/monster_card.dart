@@ -157,17 +157,20 @@ class _MonsterCardFrame extends StatelessWidget {
           if (defeated)
             Positioned.fill(
               child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: 1),
+                tween: Tween<double>(begin: 0.0, end: 1.0),
                 duration: const Duration(milliseconds: 420),
                 curve: Curves.easeOutBack,
                 builder:
-                    (context, value, child) => Opacity(
-                      opacity: value.clamp(0.0, 1.0),
-                      child: Transform.scale(
-                        scale: 0.6 + 0.4 * value,
-                        child: child,
-                      ),
-                    ),
+                    (context, value, child) {
+                      final safeOpacity = value.clamp(0.0, 1.0);
+                      return Opacity(
+                        opacity: safeOpacity,
+                        child: Transform.scale(
+                          scale: 0.6 + 0.4 * value,
+                          child: child,
+                        ),
+                      );
+                    },
                 child: Center(
                   child: Container(
                     padding: const EdgeInsets.symmetric(

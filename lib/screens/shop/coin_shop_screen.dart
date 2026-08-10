@@ -327,9 +327,12 @@ class _CoinShopScreenState extends State<CoinShopScreen>
         }
       },
       onAdDismissed: () {
-        // User closed the second ad
-        if (_adsWatchedInSequence < 2) {
-          // Second ad was closed/failed, don't award coins
+        // onAdDismissed fires AFTER onRewardEarned
+        // Check if reward was earned (state is 2) or ad was closed early (state < 2)
+        // Note: _awardCoinsAfterAd may have already reset state to 0, so we need
+        // to check if we're still in earning mode to determine if this was a success
+        if (_adsWatchedInSequence < 2 && _isEarningCoins) {
+          // Second ad was closed/failed without earning reward
           if (mounted) {
             setState(() {
               _isEarningCoins = false;
@@ -344,6 +347,8 @@ class _CoinShopScreenState extends State<CoinShopScreen>
             );
           }
         }
+        // If _isEarningCoins is false, the reward was already processed
+        // Do nothing to avoid showing error after success
       },
       onAdFailed: () {
         // Second ad failed, don't award coins

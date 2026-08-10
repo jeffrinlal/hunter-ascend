@@ -49,6 +49,11 @@ class _CoinShopScreenState extends State<CoinShopScreen>
   late final RewardedAdManager _adManager;
   String? _unlockingPlanId;
 
+  // Coin earning ad manager
+  late final RewardedAdManager _coinAdManager;
+  bool _isEarningCoins = false;
+  int _adsWatchedInSequence = 0; // 0, 1, or 2 for the 2-ad flow
+
   @override
   void initState() {
     super.initState();
@@ -61,11 +66,19 @@ class _CoinShopScreenState extends State<CoinShopScreen>
       },
     );
     _adManager.loadAd();
+
+    _coinAdManager = RewardedAdManager(
+      onAdStatusChanged: () {
+        if (mounted) setState(() {});
+      },
+    );
+    _coinAdManager.loadAd();
   }
 
   @override
   void dispose() {
     _adManager.dispose();
+    _coinAdManager.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -162,6 +175,213 @@ class _CoinShopScreenState extends State<CoinShopScreen>
         builder: (_) => PlanViewerScreen(plan: plan),
       ),
     );
+  }
+
+  // ── Coin Earning via Rewarded Ads ─────────────────────────────────────
+
+  /// Watch 1 ad → +20 coins
+  void _earnCoinsWithOneAd() {
+    if (_isEarningCoins) return;
+    if (!_coinAdManager.isReady) return;
+
+    setState(() => _isEarningCoins = true);
+
+    _coinAdManager.showAd(
+      onRewardEarned: () => _awardCoinsAfterAd(20),
+      onAdDismissed: () {
+        if (mounted) {
+          setState(() => _isEarningCoins = false);
+        }
+      },
+      onAdFailed: () {
+        if (mounted) {
+          setState(() => _isEarningCoins = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('❌ Could not show ad. Please try again.'),
+              backgroundColor: HunterTheme.danger,
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  /// Watch 2 ads → +50 coins total
+  /// Must watch BOTH ads successfully to get the reward.
+  void _earnCoinsWithTwoAds() {
+    if (_isEarningCoins) return;
+    if (!_coinAdManager.isReady) return;
+
+    setState(() {
+      _isEarningCoins = true;
+      _adsWatchedInSequence = 0;
+    });
+
+    _showFirstOfTwoAds();
+  }
+
+  void _showFirstOfTwoAds() {
+    if (!_coinAdManager.isReady) {
+      // Ad not ready, abort sequence
+      if (mounted) {
+        setState(() {
+          _isEarningCoins = false;
+          _adsWatchedInSequence = 0;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('❌ Ad not ready. Please try again.'),
+            backgroundColor: HunterTheme.danger,
+          ),
+        );
+      }
+      return;
+    }
+
+    _coinAdManager.showAd(
+      onRewardEarned: () {
+        // First ad completed successfully
+        if (mounted) {
+          setState(() => _adsWatchedInSequence = 1);
+          // Show second ad
+          _showSecondOfTwoAds();
+        }
+      },
+      onAdDismissed: () {
+        // User closed the ad
+        if (_adsWatchedInSequence == 0) {
+          // First ad was closed/failed, abort sequence
+          if (mounted) {
+            setState(() {
+              _isEarningCoins = false;
+              _adsWatchedInSequence = 0;
+            });
+          }
+        }
+      },
+      onAdFailed: () {
+        // First ad failed, abort sequence
+        if (mounted) {
+          setState(() {
+            _isEarningCoins = false;
+            _adsWatchedInSequence = 0;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('❌ Could not show ad. Please try again.'),
+              backgroundColor: HunterTheme.danger,
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  void _showSecondOfTwoAds() {
+    // Wait for the ad manager to load the next ad
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      
+      if (!_coinAdManager.isReady) {
+        // Second ad not ready, abort and don't award coins
+        setState(() {
+          _isEarningCoins = false;
+          _adsWatchedInSequence = 0;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('❌ Second ad not ready. No coins awarded.'),
+            backgroundColor: HunterTheme.danger,
+          ),
+        );
+        return;
+      }
+
+      _coinAdManager.showAd(
+        onRewardEarned: () {
+          // Second ad completed successfully, award 50 coins total
+          if (mounted) {
+            setState(() => _adsWatchedInSequence = 2);
+            _awardCoinsAfterAd(50);
+          }
+        },
+        onAdDismissed: () {
+          // User closed the second ad
+          if (_adsWatchedInSequence < 2) {
+            // Second ad was closed/failed, don't award coins
+            if (mounted) {
+              setState(() {
+                _isEarningCoins = false;
+                _adsWatchedInSequence = 0;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('❌ Second ad not completed. No coins awarded.'),
+                  backgroundColor: HunterTheme.danger,
+                ),
+              );
+            }
+          } else {
+            // Both ads completed, reset state
+            if (mounted) {
+              setState(() {
+                _isEarningCoins = false;
+                _adsWatchedInSequence = 0;
+              });
+            }
+          }
+        },
+        onAdFailed: () {
+          // Second ad failed, don't award coins
+          if (mounted) {
+            setState(() {
+              _isEarningCoins = false;
+              _adsWatchedInSequence = 0;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('❌ Second ad failed. No coins awarded.'),
+                backgroundColor: HunterTheme.danger,
+              ),
+            );
+          }
+        },
+      );
+    });
+  }
+
+  Future<void> _awardCoinsAfterAd(int amount) async {
+    final newBalance = await CoinService.instance.awardCoins(amount: amount);
+
+    if (!mounted) return;
+
+    if (newBalance != null) {
+      setState(() {
+        _coins = newBalance;
+        _isEarningCoins = false;
+        _adsWatchedInSequence = 0;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Earned $amount coins! New balance: $newBalance 🪙'),
+          backgroundColor: HunterTheme.success,
+        ),
+      );
+    } else {
+      setState(() {
+        _isEarningCoins = false;
+        _adsWatchedInSequence = 0;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('❌ Failed to award coins. Please try again.'),
+          backgroundColor: HunterTheme.danger,
+        ),
+      );
+    }
   }
 
   // ── Cosmetic Shop Methods (existing) ──────────────────────────────────
@@ -351,10 +571,147 @@ class _CoinShopScreenState extends State<CoinShopScreen>
             )
           : Column(
               children: [
+                _buildEarnCoinsSection(),
                 _buildCategoryTabs(),
                 Expanded(child: _buildItemGrid()),
               ],
             ),
+    );
+  }
+
+  Widget _buildEarnCoinsSection() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            HunterTheme.gold.withOpacity(0.12),
+            HunterTheme.gold.withOpacity(0.06),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: HunterTheme.gold.withOpacity(0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '🪙',
+                style: const TextStyle(fontSize: 20),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'EARN COINS',
+                style: TextStyle(
+                  color: HunterTheme.gold,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Watch ads to earn more coins.',
+            style: TextStyle(
+              color: HunterTheme.textSecondary,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildEarnCoinsButton(
+                  label: 'Watch 1 Ad',
+                  reward: '+20 🪙',
+                  onTap: _earnCoinsWithOneAd,
+                  isLoading: _isEarningCoins && _adsWatchedInSequence == 0,
+                  isDisabled: _isEarningCoins || !_coinAdManager.isReady,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildEarnCoinsButton(
+                  label: 'Watch 2 Ads',
+                  reward: '+50 🪙',
+                  onTap: _earnCoinsWithTwoAds,
+                  isLoading: _isEarningCoins && _adsWatchedInSequence > 0,
+                  isDisabled: _isEarningCoins || !_coinAdManager.isReady,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEarnCoinsButton({
+    required String label,
+    required String reward,
+    required VoidCallback onTap,
+    required bool isLoading,
+    required bool isDisabled,
+  }) {
+    return GestureDetector(
+      onTap: isDisabled ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        decoration: BoxDecoration(
+          color: isDisabled
+              ? HunterTheme.cardColor.withOpacity(0.5)
+              : HunterTheme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDisabled
+                ? HunterTheme.border.withOpacity(0.3)
+                : HunterTheme.gold.withOpacity(0.5),
+          ),
+        ),
+        child: Column(
+          children: [
+            if (isLoading)
+              SizedBox(
+                height: 16,
+                width: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: HunterTheme.gold,
+                ),
+              )
+            else
+              Text(
+                label,
+                style: TextStyle(
+                  color: isDisabled
+                      ? HunterTheme.textTertiary
+                      : HunterTheme.textPrimary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            const SizedBox(height: 4),
+            Text(
+              reward,
+              style: TextStyle(
+                color: isDisabled
+                    ? HunterTheme.textTertiary
+                    : HunterTheme.gold,
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

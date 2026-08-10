@@ -129,19 +129,20 @@ class MembershipTheme {
           label: 'BASIC',
         );
       case MembershipTier.pro:
-        // The Pro dashboard visual language: gold accents + warm glow.
+        // Professional Pro: muted gold accents, restrained glow, dark surfaces.
         return MembershipThemeTokens(
           tier: MembershipTier.pro,
           accent: HunterTheme.gold,
           accentAlt: HunterTheme.goldBright,
           gradient: const [HunterTheme.gold, HunterTheme.goldBright],
+          // Professional dark hero with subtle gold accent (not large gold block)
           heroGradient: [
-            HunterTheme.gold.withOpacity(0.85),
-            HunterTheme.primary.withOpacity(0.75),
+            const Color(0xFF1A1D23).withOpacity(0.95), // Deep charcoal
+            HunterTheme.gold.withOpacity(0.15),
           ],
-          glowStrength: 1.0,
+          glowStrength: 0.6, // Reduced from 1.0 for subtlety
           cardRadius: 20,
-          cardBorderWidth: 1.2,
+          cardBorderWidth: 1.0, // Thinner borders
           label: 'PRO',
         );
       case MembershipTier.max:

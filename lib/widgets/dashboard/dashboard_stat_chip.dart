@@ -58,19 +58,18 @@ class _StatChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(elite ? 18 : 24),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: elite
-              ? [accent.withOpacity(0.22), HunterTheme.cardColor]
-              : [accent.withOpacity(0.16), HunterTheme.cardColor],
-        ),
-        border: Border.all(color: accent.withOpacity(elite ? 0.55 : 0.35), width: elite ? 1.4 : 1.2),
+        // Professional: dark surface with subtle colored border
+        color: HunterTheme.cardColor,
+        border: Border.all(color: accent.withOpacity(elite ? 0.40 : 0.25), width: elite ? 1.2 : 1.0),
         boxShadow: [
           BoxShadow(
-            color: accent.withOpacity(elite ? 0.28 : 0.12),
-            blurRadius: elite ? 16 : 10,
-            spreadRadius: elite ? 1 : 0,
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+          BoxShadow(
+            color: accent.withOpacity(elite ? 0.12 : 0.08),
+            blurRadius: elite ? 14 : 10,
             offset: const Offset(0, 4),
           ),
         ],
@@ -83,7 +82,11 @@ class _StatChip extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: accent.withOpacity(0.18), shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: accent.withOpacity(0.15),
+              shape: BoxShape.circle,
+              border: Border.all(color: accent.withOpacity(0.3), width: 1),
+            ),
             child: Icon(stat.icon, color: accent, size: 16),
           ),
           const SizedBox(height: 8),

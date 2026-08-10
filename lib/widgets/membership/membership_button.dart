@@ -71,10 +71,10 @@ class MembershipButton extends StatelessWidget {
     final isPrimary = kind == MembershipButtonKind.primary;
     final isDestructive = kind == MembershipButtonKind.destructive;
 
-    // Foreground color: black on bright gold/primary gradients, white on the
-    // deep purple Max gradient, neutral/danger for the other kinds.
+    // Foreground color: Professional contrast - white on gold for Pro,
+    // white on purple for Max, neutral/danger for other kinds.
     final Color fg = isPrimary
-        ? (MembershipTheme.isMax ? Colors.white : Colors.black)
+        ? Colors.white // Better contrast on gold/purple gradients
         : isDestructive
             ? HunterTheme.danger
             : HunterTheme.textSecondary;
@@ -107,15 +107,15 @@ class MembershipButton extends StatelessWidget {
                   color: isDestructive
                       ? HunterTheme.danger.withOpacity(0.45)
                       : tokens.isPremium
-                          ? tokens.accent.withOpacity(0.4)
+                          ? tokens.accent.withOpacity(0.3)
                           : HunterTheme.border,
                 ),
           boxShadow: isPrimary
               ? [
                   BoxShadow(
                     color: tokens.accent
-                        .withOpacity(0.35 * tokens.glowStrength),
-                    blurRadius: 12,
+                        .withOpacity(0.25 * tokens.glowStrength), // Reduced glow
+                    blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
                 ]

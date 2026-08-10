@@ -182,16 +182,22 @@ class _PremiumHero extends StatelessWidget {
               bottomLeft: Radius.circular(48),
               bottomRight: Radius.circular(48),
             ),
+            // Professional: dark surface with subtle gold accent, not large gold block
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                accent.withOpacity(0.85),
-                HunterTheme.primary.withOpacity(0.75),
+                const Color(0xFF1A1D23), // Deep charcoal
+                HunterTheme.cardColor,
               ],
             ),
+            border: Border.all(
+              color: accent.withOpacity(0.3),
+              width: 1.5,
+            ),
             boxShadow: [
-              BoxShadow(color: accent.withOpacity(0.35), blurRadius: 30, offset: const Offset(0, 12)),
+              BoxShadow(color: accent.withOpacity(0.15), blurRadius: 24, offset: const Offset(0, 8)),
+              BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 16, offset: const Offset(0, 4)),
             ],
           ),
           child: Column(
@@ -201,15 +207,15 @@ class _PremiumHero extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.22),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white.withOpacity(0.5)),
+                      color: HunterTheme.cardColor.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: accent.withOpacity(0.6), width: 1),
                     ),
-                    child: const Text(
-                      'PRO MEMBER',
-                      style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.4),
+                    child: Text(
+                      'PRO',
+                      style: TextStyle(color: accent, fontSize: 9.5, fontWeight: FontWeight.w900, letterSpacing: 1.2),
                     ),
                   ),
                   const Spacer(),
@@ -217,7 +223,7 @@ class _PremiumHero extends StatelessWidget {
                     onTap: onNotificationTap,
                     child: Icon(
                       hasNotif ? Icons.notifications_active : Icons.notifications_none,
-                      color: Colors.white,
+                      color: HunterTheme.textPrimary,
                       size: 22,
                     ),
                   ),
@@ -226,19 +232,19 @@ class _PremiumHero extends StatelessWidget {
               const SizedBox(height: 28),
               Row(
                 children: [
-                  const Icon(Icons.military_tech_rounded, color: Colors.white, size: 20),
+                  Icon(Icons.military_tech_rounded, color: accent, size: 18),
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(
                       rankTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1.5),
+                      style: TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1.3),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               // FittedBox guards against overflow from very high levels or
               // large system text scales.
               FittedBox(
@@ -246,14 +252,14 @@ class _PremiumHero extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'LEVEL ${hunter.level}',
-                  style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w900),
+                  style: TextStyle(color: HunterTheme.textPrimary, fontSize: 36, fontWeight: FontWeight.w900),
                 ),
               ),
               Text(
                 hunter.hunterName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 15, fontWeight: FontWeight.w600),
+                style: TextStyle(color: HunterTheme.textSecondary, fontSize: 15, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -279,7 +285,10 @@ class _PremiumHero extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: HunterTheme.cardColor,
-                    border: Border.all(color: accent, width: 2.5),
+                    border: Border.all(color: accent, width: 2),
+                    boxShadow: [
+                      BoxShadow(color: accent.withOpacity(0.3), blurRadius: 12),
+                    ],
                   ),
                   child: avatarBytes != null
                       ? ClipOval(child: Image.memory(avatarBytes, fit: BoxFit.cover, width: _kProAvatarSize, height: _kProAvatarSize))

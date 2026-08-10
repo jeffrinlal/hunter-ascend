@@ -29,14 +29,12 @@ class PremiumMissionCard extends StatelessWidget {
           bottomLeft: Radius.circular(12),
           bottomRight: Radius.circular(30),
         ),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [accent.withOpacity(0.12), HunterTheme.cardColor],
-        ),
-        border: Border.all(color: accent.withOpacity(0.3)),
+        // Professional: dark surface with subtle gold accent
+        color: HunterTheme.cardColor,
+        border: Border.all(color: accent.withOpacity(0.25), width: 1),
         boxShadow: [
-          BoxShadow(color: accent.withOpacity(0.12), blurRadius: 18, offset: const Offset(0, 6)),
+          BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4)),
+          BoxShadow(color: accent.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, 6)),
         ],
       ),
       child: Row(
@@ -77,9 +75,9 @@ class PremiumMissionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  Icon(Icons.directions_walk_rounded, color: accent, size: 16),
+                  Icon(Icons.directions_walk_rounded, color: accent, size: 15),
                   const SizedBox(width: 6),
-                  Flexible(child: Text('PREMIUM MISSION', style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.4), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  Flexible(child: Text('MISSION', style: TextStyle(color: accent, fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 1.3), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 ]),
                 const SizedBox(height: 6),
                 Text('$steps steps', style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.w800), maxLines: 1, overflow: TextOverflow.ellipsis),

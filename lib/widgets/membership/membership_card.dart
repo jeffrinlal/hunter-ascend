@@ -46,13 +46,13 @@ class MembershipCard extends StatelessWidget {
     final r = radius ?? tokens.cardRadius;
 
     final decoration = BoxDecoration(
+      // Professional: dark surface with subtle accent, not large gradient
       gradient: isPremium
           ? LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                tokens.accent
-                    .withOpacity(MembershipTheme.isMax ? 0.10 : 0.07),
+                tokens.accent.withOpacity(MembershipTheme.isMax ? 0.08 : 0.04),
                 HunterTheme.cardColor,
               ],
             )
@@ -62,7 +62,7 @@ class MembershipCard extends StatelessWidget {
       border: Border.all(
         color: borderColor ??
             (isPremium
-                ? tokens.accent.withOpacity(0.35)
+                ? tokens.accent.withOpacity(0.25) // Subtler border
                 : HunterTheme.border),
         width: isPremium ? tokens.cardBorderWidth : 1,
       ),
@@ -74,8 +74,8 @@ class MembershipCard extends StatelessWidget {
         ),
         if (isPremium)
           BoxShadow(
-            color: tokens.accent.withOpacity(0.16 * tokens.glowStrength),
-            blurRadius: 18,
+            color: tokens.accent.withOpacity(0.10 * tokens.glowStrength), // Reduced glow
+            blurRadius: 16,
             spreadRadius: -4,
             offset: const Offset(0, 6),
           ),
@@ -130,7 +130,7 @@ class MembershipSurface extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  tokens.accent.withOpacity(0.05),
+                  tokens.accent.withOpacity(0.03), // Even more subtle
                   HunterTheme.cardColor,
                 ],
               )
@@ -139,7 +139,7 @@ class MembershipSurface extends StatelessWidget {
         borderRadius: BorderRadius.circular(r),
         border: Border.all(
           color: isPremium
-              ? tokens.accent.withOpacity(0.25)
+              ? tokens.accent.withOpacity(0.20) // Very subtle border
               : HunterTheme.border,
           width: isPremium ? tokens.cardBorderWidth : 1,
         ),
@@ -165,7 +165,7 @@ class MembershipBadgeChip extends StatelessWidget {
     final isMax = tokens.tier == MembershipTier.max;
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 8 : 10,
+        horizontal: compact ? 7 : 9,
         vertical: compact ? 3 : 4,
       ),
       decoration: BoxDecoration(
@@ -175,21 +175,22 @@ class MembershipBadgeChip extends StatelessWidget {
                 Colors.pinkAccent.withOpacity(0.7),
               ])
             : null,
-        color: isMax ? null : Colors.white.withOpacity(0.22),
-        borderRadius: BorderRadius.circular(8),
-        border: isMax
-            ? null
-            : Border.all(color: Colors.white.withOpacity(0.5)),
+        // Pro: subtle dark background with thin gold border
+        color: isMax ? null : HunterTheme.cardColor.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: isMax ? Colors.transparent : tokens.accent.withOpacity(0.6),
+          width: 1,
+        ),
       ),
       child: Text(
-        isMax ? 'MAX \u2022 ELITE HUNTER' : 'PRO MEMBER',
+        isMax ? 'MAX \u2022 ELITE HUNTER' : 'PRO',
         style: TextStyle(
-          // On Pro the chip sits on gold heroes (white text); on flat light
-          // surfaces use the accent instead for legibility.
-          color: Colors.white,
-          fontSize: compact ? 8.5 : 10,
+          // Pro: use gold accent for better visibility
+          color: isMax ? Colors.white : tokens.accent,
+          fontSize: compact ? 8 : 9.5,
           fontWeight: FontWeight.w900,
-          letterSpacing: 1.4,
+          letterSpacing: 1.2,
         ),
       ),
     );

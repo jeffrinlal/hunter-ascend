@@ -112,13 +112,10 @@ class HunterTheme {
   static const danger       = Color(0xFFFF4444);
   static const dangerAlt     = Color(0xFFE74C3C);
   static const dangerDeep   = Color(0xFFE5484D);
-  
-  // Professional Pro gold palette (muted, sophisticated)
-  static const gold         = Color(0xFFC9A961); // Primary muted gold
-  static const goldBright   = Color(0xFFD4B76A); // Subtle highlight
-  static const goldDeep     = Color(0xFFB8900A); // Keep for compatibility
-  static const goldDark     = Color(0xFF8A6800); // Keep for compatibility
-  
+  static const gold         = Color(0xFFFFD700);
+  static const goldBright    = Color(0xFFFFB300);
+  static const goldDeep     = Color(0xFFB8900A);
+  static const goldDark     = Color(0xFF8A6800);
   static const purple       = Color(0xFF9B59B6);
   static const purpleLight   = Color(0xFFAA88FF);
   static const info         = Color(0xFF3498DB);

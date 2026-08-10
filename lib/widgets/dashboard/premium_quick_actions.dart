@@ -41,13 +41,9 @@ class PremiumQuickActions extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(32),
-                // Professional: dark surface with subtle colored border
-                color: HunterTheme.cardColor,
-                border: Border.all(color: color.withOpacity(0.3), width: 1),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3)),
-                  BoxShadow(color: color.withOpacity(0.10), blurRadius: 12, offset: const Offset(0, 4)),
-                ],
+                gradient: LinearGradient(colors: [color.withOpacity(0.16), HunterTheme.cardColor]),
+                border: Border.all(color: color.withOpacity(0.4)),
+                boxShadow: [BoxShadow(color: color.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 4))],
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(icon, color: color, size: 20),

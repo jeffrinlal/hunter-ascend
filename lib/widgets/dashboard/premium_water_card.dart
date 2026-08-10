@@ -40,13 +40,12 @@ class PremiumWaterCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(26),
-        // Professional: dark surface with subtle cyan accent
-        color: HunterTheme.cardColor,
-        border: Border.all(color: accent.withOpacity(0.25), width: 1),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4)),
-          BoxShadow(color: accent.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, 6)),
-        ],
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [accent.withOpacity(0.10), HunterTheme.cardColor],
+        ),
+        border: Border.all(color: accent.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -139,10 +138,8 @@ class PremiumWaterCard extends StatelessWidget {
         height: 34,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            colors: [Color(0xFF00D9E8), Color(0xFF00B8C7)],
-          ),
-          boxShadow: [BoxShadow(color: Colors.cyan.withOpacity(0.3), blurRadius: 8)],
+          color: Colors.cyan,
+          boxShadow: [BoxShadow(color: Colors.cyan.withOpacity(0.4), blurRadius: 8)],
         ),
         child: Icon(icon, color: Colors.white, size: 18),
       ),

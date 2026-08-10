@@ -70,7 +70,14 @@ class _CoinShopScreenState extends State<CoinShopScreen>
 
     _coinAdManager = RewardedAdManager(
       onAdStatusChanged: () {
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {
+            // Update loading state when ad status changes
+            if (_adsWatchedInSequence == 1) {
+              _isLoadingSecondAd = _coinAdManager.isLoading;
+            }
+          });
+        }
       },
     );
     _coinAdManager.loadAd();
@@ -251,8 +258,8 @@ class _CoinShopScreenState extends State<CoinShopScreen>
             _adsWatchedInSequence = 1;
             _isLoadingSecondAd = true;
           });
-          // Start loading second ad immediately
-          _coinAdManager.loadAd();
+          // RewardedAdManager automatically loads the next ad in onAdDismissedFullScreenContent
+          // Do NOT call loadAd() here - it's already handled
         }
       },
       onAdDismissed: () {
@@ -267,10 +274,10 @@ class _CoinShopScreenState extends State<CoinShopScreen>
             });
           }
         } else {
-          // First ad completed, waiting for second ad load
+          // First ad completed, ad manager will automatically load next ad
           if (mounted) {
             setState(() {
-              _isLoadingSecondAd = true;
+              _isLoadingSecondAd = _coinAdManager.isLoading;
             });
           }
         }
@@ -692,7 +699,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
                   ),
                 ),
                 const SizedBox(height: 10),
-                // Second ad button or loading state
+                // Second ad button, loading state, or error state
                 if (_isLoadingSecondAd)
                   Container(
                     width: double.infinity,
@@ -724,6 +731,62 @@ class _CoinShopScreenState extends State<CoinShopScreen>
                         ),
                       ],
                     ),
+                  )
+                else if (_coinAdManager.isUnavailable)
+                  // Show retry option if ad failed to load
+                  Column(
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: HunterTheme.danger.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: HunterTheme.danger.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: HunterTheme.danger,
+                              size: 20,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Ad 2/2 failed to load',
+                              style: TextStyle(
+                                color: HunterTheme.danger,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() => _isLoadingSecondAd = true);
+                          _coinAdManager.retry();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: HunterTheme.info.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: HunterTheme.info),
+                          ),
+                          child: Text(
+                            'Retry Loading Ad',
+                            style: TextStyle(
+                              color: HunterTheme.info,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   )
                 else
                   GestureDetector(

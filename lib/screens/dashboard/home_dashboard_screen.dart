@@ -1326,51 +1326,54 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
     return Row(
       children: [
-        // Notification bell (unchanged behaviour) in a premium circular button.
+        // Coin Shop button
         GestureDetector(
-          onTap: () => _showNotificationDialog(),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const CoinShopScreen(),
+            ),
+          ),
           child: Container(
             width: 42,
             height: 42,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: HunterTheme.cardColor,
-              border: Border.all(color: HunterTheme.border),
+              border: Border.all(color: HunterTheme.gold.withOpacity(0.4)),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
+                BoxShadow(
+                  color: HunterTheme.gold.withOpacity(0.15),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
               ],
             ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(
-                  hasNotif ? Icons.notifications_active_rounded : Icons.notifications_none_rounded,
-                  color: hasNotif ? _blue : HunterTheme.textSecondary,
-                  size: 20,
-                ),
-                if (hasNotif)
-                  Positioned(
-                    right: 9,
-                    top: 9,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: HunterTheme.success,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: HunterTheme.cardColor, width: 1.2),
-                      ),
-                    ),
-                  ),
-              ],
+            child: const Center(
+              child: Text('🪙', style: TextStyle(fontSize: 18)),
             ),
           ),
         ),
         const Spacer(),
         RichText(
           text: TextSpan(children: [
-            TextSpan(text: "HUNTER ", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1)),
-            TextSpan(text: "ASCEND", style: TextStyle(color: _blue, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1)),
+            TextSpan(
+              text: "HUNTER ",
+              style: TextStyle(
+                color: HunterTheme.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1,
+              ),
+            ),
+            TextSpan(
+              text: "ASCEND",
+              style: TextStyle(
+                color: _blue,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1,
+              ),
+            ),
           ]),
         ),
         const Spacer(),

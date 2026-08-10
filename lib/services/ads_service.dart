@@ -40,14 +40,22 @@ class AdsService {
 /// the standard banner unit ([AppConstants.dashboardBannerAdUnitId]), ONE
 /// retry three seconds after a failed load, and automatic dispose/reload
 /// when the membership tier gains or loses banner ads.
+///
+/// [allTiers] opts OUT of the normal Basic-only rule — the Dungeon
+/// active-quest banner is part of the quest experience itself and shows
+/// for Basic, Pro AND Max alike (presentation only; it never touches
+/// gameplay).
 class MissionBannerAd {
-  MissionBannerAd({this.onChanged}) {
+  MissionBannerAd({this.onChanged, this.allTiers = false}) {
     MembershipService.instance.tierNotifier.addListener(_onTierChanged);
   }
 
   /// Called whenever [ad] / [ready] change (load succeeded, tier flipped) —
   /// screens typically `setState` here.
   final VoidCallback? onChanged;
+
+  /// True when the banner must show for EVERY membership tier.
+  final bool allTiers;
 
   BannerAd? _ad;
   bool _ready = false;
@@ -56,8 +64,12 @@ class MissionBannerAd {
   BannerAd? get ad => _ad;
   bool get ready => _ready;
 
+  /// Normal surfaces gate on the Basic-only [MembershipService.showBannerAds];
+  /// [allTiers] surfaces always load.
+  bool get _allowed => allTiers || MembershipService.instance.showBannerAds;
+
   void load() {
-    if (!MembershipService.instance.showBannerAds) return;
+    if (!_allowed) return;
     if (_ad != null) return;
     _ad = AdsService.createBannerAd(
       adUnitId: AppConstants.dashboardBannerAdUnitId,
@@ -95,7 +107,7 @@ class MissionBannerAd {
   }
 
   void _onTierChanged() {
-    if (!MembershipService.instance.showBannerAds) {
+    if (!_allowed) {
       _disposeAd();
     } else if (_ad == null) {
       _retried = false;

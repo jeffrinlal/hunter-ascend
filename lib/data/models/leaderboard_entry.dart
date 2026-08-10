@@ -16,30 +16,49 @@ class LeaderboardEntry {
     required this.xp,
     this.weeklyXp = 0,
     this.dailyXp = 0,
+    this.dungeonScore = 0,
     this.profilePicture,
     this.membership,
     this.membershipExpiry,
     this.equippedBadgeId,
   });
 
-  @HiveField(0) final String uid;
-  @HiveField(1) final String hunterName;
-  @HiveField(2) final int level;
-  @HiveField(3) final int xp;
-  @HiveField(4) final int weeklyXp;
-  @HiveField(5) final int dailyXp;
-  @HiveField(6) final String? profilePicture;
-  @HiveField(7) final String? membership;
-  @HiveField(8) final String? membershipExpiry;
+  @HiveField(0)
+  final String uid;
+  @HiveField(1)
+  final String hunterName;
+  @HiveField(2)
+  final int level;
+  @HiveField(3)
+  final int xp;
+  @HiveField(4)
+  final int weeklyXp;
+  @HiveField(5)
+  final int dailyXp;
+
+  /// Permanent ALL-TIME dungeon leaderboard score — incremented only when
+  /// a dungeon clear reward is claimed. NEVER resets (no period key).
+  @HiveField(10)
+  final int dungeonScore;
+  @HiveField(6)
+  final String? profilePicture;
+  @HiveField(7)
+  final String? membership;
+  @HiveField(8)
+  final String? membershipExpiry;
 
   /// The single publicly-equipped badge id, or `null` if none equipped.
   /// Parsed straight from the `equippedBadgeId` field already present on
   /// every hunter document returned by the leaderboard query — no extra
   /// Firestore read is required to populate this.
-  @HiveField(9) final String? equippedBadgeId;
+  @HiveField(9)
+  final String? equippedBadgeId;
 
   /// Creates a [LeaderboardEntry] from a Firestore document.
-  factory LeaderboardEntry.fromFirestore(String docId, Map<String, dynamic> data) {
+  factory LeaderboardEntry.fromFirestore(
+    String docId,
+    Map<String, dynamic> data,
+  ) {
     return LeaderboardEntry(
       uid: docId,
       hunterName: (data['hunterName'] ?? 'Hunter').toString(),
@@ -47,8 +66,10 @@ class LeaderboardEntry {
       xp: (data['xp'] ?? 0) as int,
       weeklyXp: (data['weeklyXp'] ?? 0) as int,
       dailyXp: (data['dailyXp'] ?? 0) as int,
+      dungeonScore: (data['dungeonScore'] ?? 0) as int,
       profilePicture: data['profilePicture'] as String?,
-      membership: data['membershipType']?.toString() ?? data['membership']?.toString(),
+      membership:
+          data['membershipType']?.toString() ?? data['membership']?.toString(),
       membershipExpiry: _parseExpiryToString(data['membershipExpiry']),
       equippedBadgeId: data['equippedBadgeId']?.toString(),
     );

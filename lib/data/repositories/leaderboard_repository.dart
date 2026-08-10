@@ -3,9 +3,14 @@ import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:hunter_ascend/data/cache_constants.dart';
 import 'package:hunter_ascend/data/models/leaderboard_entry.dart';
+import 'package:hunter_ascend/services/xp_service.dart';
 
 /// Leaderboard tab identifiers.
-enum LeaderboardTab { overall, weekly, daily }
+///
+/// DAILY and DUNGEON are deliberately different animals:
+/// - [daily]   — time-based, current 24-hour period, resets every day.
+/// - [dungeon] — ALL-TIME, permanent, NEVER resets (no period key).
+enum LeaderboardTab { daily, dungeon, overall }
 
 /// Cache-first repository for leaderboard data.
 ///
@@ -18,9 +23,12 @@ enum LeaderboardTab { overall, weekly, daily }
 ///   by extending [LeaderboardTab] and adding query methods.
 ///
 /// ## Firestore Queries
+/// - Daily: current 24-hour period ONLY (dailyResetEpoch == today's UTC
+///   midnight epoch), orderBy dailyXp DESC, limit 20 — stale periods are
+///   excluded server-side, deterministically.
+/// - Dungeon: PERMANENT all-time, orderBy dungeonScore DESC, limit 30.
+///   No period key, no reset, ever.
 /// - Overall: orderBy level DESC, xp DESC, limit 30
-/// - Weekly: orderBy weeklyXp DESC, limit 20
-/// - Daily: orderBy dailyXp DESC, limit 20
 class LeaderboardRepository {
   LeaderboardRepository._();
   static final LeaderboardRepository instance = LeaderboardRepository._();
@@ -58,7 +66,10 @@ class LeaderboardRepository {
 
   /// Fetches leaderboard data from Firestore and caches it.
   /// If [forceRefresh] is false and cache is fresh, returns cached data.
-  Future<List<LeaderboardEntry>> fetch(LeaderboardTab tab, {bool forceRefresh = false}) async {
+  Future<List<LeaderboardEntry>> fetch(
+    LeaderboardTab tab, {
+    bool forceRefresh = false,
+  }) async {
     if (!forceRefresh && !isStale(tab)) {
       final cached = getCached(tab);
       if (cached != null) return cached;
@@ -68,9 +79,10 @@ class LeaderboardRepository {
       final query = _buildQuery(tab);
       final snapshot = await query.get();
 
-      final entries = snapshot.docs
-          .map((doc) => LeaderboardEntry.fromFirestore(doc.id, doc.data()))
-          .toList();
+      final entries =
+          snapshot.docs
+              .map((doc) => LeaderboardEntry.fromFirestore(doc.id, doc.data()))
+              .toList();
 
       _writeToCache(tab, entries);
       return entries;
@@ -114,14 +126,27 @@ class LeaderboardRepository {
             .orderBy('level', descending: true)
             .orderBy('xp', descending: true)
             .limit(30);
-      case LeaderboardTab.weekly:
-        return collection
-            .orderBy('weeklyXp', descending: true)
-            .limit(20);
       case LeaderboardTab.daily:
+        // DAILY = the CURRENT 24-hour period only. `dailyXp` is only valid
+        // while a hunter's `dailyResetEpoch` matches the current period —
+        // XpService zeroes `dailyXp` and stamps the epoch on the first
+        // award of each new period. Filtering by the epoch therefore
+        // excludes every stale score SERVER-SIDE: no dependence on anyone
+        // opening the app, no client-side clearing, no duplicate reset
+        // system — it IS the existing daily-reset architecture.
         return collection
+            .where(
+              'dailyResetEpoch',
+              isEqualTo: XpService.todayMidnightUtcEpoch(),
+            )
             .orderBy('dailyXp', descending: true)
             .limit(20);
+      case LeaderboardTab.dungeon:
+        // DUNGEON = permanent ALL-TIME score. No period key, no expiry,
+        // never reset. `orderBy` on a missing field excludes documents
+        // that never cleared a dungeon, so only real scores appear.
+        // Limit is enforced server-side (top 30).
+        return collection.orderBy('dungeonScore', descending: true).limit(30);
     }
   }
 
@@ -135,6 +160,16 @@ class LeaderboardRepository {
     }
   }
 
-  String _dataKey(LeaderboardTab tab) => 'data_${tab.name}';
-  String _timestampKey(LeaderboardTab tab) => 'ts_${tab.name}';
+  String _dataKey(LeaderboardTab tab) =>
+      'data_${tab.name}${_periodSuffix(tab)}';
+  String _timestampKey(LeaderboardTab tab) =>
+      'ts_${tab.name}${_periodSuffix(tab)}';
+
+  /// The Daily tab's cache key is scoped to the CURRENT 24-hour period, so
+  /// a period rollover can never serve yesterday's cached scores (Dungeon
+  /// and Overall are permanent and cache without a period).
+  String _periodSuffix(LeaderboardTab tab) =>
+      tab == LeaderboardTab.daily
+          ? '_${XpService.todayMidnightUtcEpoch()}'
+          : '';
 }

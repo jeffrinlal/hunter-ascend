@@ -18,13 +18,20 @@ enum DungeonObjectiveType {
   steps(label: 'Steps', icon: Icons.directions_walk, unit: 'steps'),
   water(label: 'Water', icon: Icons.water_drop_rounded, unit: 'ml'),
   walkingDistance(
-      label: 'Walking', icon: Icons.directions_walk_rounded, unit: 'km'),
+    label: 'Walking',
+    icon: Icons.directions_walk_rounded,
+    unit: 'km',
+  ),
   runningDistance(
-      label: 'Running', icon: Icons.directions_run_rounded, unit: 'km'),
+    label: 'Running',
+    icon: Icons.directions_run_rounded,
+    unit: 'km',
+  ),
   calories(
-      label: 'Calories',
-      icon: Icons.local_fire_department_rounded,
-      unit: 'kcal');
+    label: 'Calories',
+    icon: Icons.local_fire_department_rounded,
+    unit: 'kcal',
+  );
 
   const DungeonObjectiveType({
     required this.label,
@@ -63,6 +70,23 @@ enum DungeonObjectiveType {
   }
 }
 
+/// Quest lifecycle of a monster objective (timer-based quest system).
+/// Explicit states — the UI never infers state from text alone:
+///
+/// * [notStarted] — START QUEST not pressed yet,
+/// * [active] — quest running (timer counting down, objective may be
+///   partial or already reached),
+/// * [objectiveReachedWaitingForTimer] — the fitness target is hit but
+///   the timer still runs: the quest MUST NOT complete early,
+/// * [completed] — BOTH requirements satisfied (objective reached AND
+///   timer finished).
+enum DungeonQuestState {
+  notStarted,
+  active,
+  objectiveReachedWaitingForTimer,
+  completed,
+}
+
 /// One fitness objective inside a dungeon run — fully STRUCTURED data:
 /// [type] tells the tracker which fitness source to observe, [target] is
 /// the amount to gain in the type's canonical [unit], and [title] is
@@ -87,9 +111,10 @@ class DungeonObjective {
     String? monster,
     this.progress = 0,
     this.startValue,
-  }) : monster = (monster == null || monster.trim().isEmpty)
-            ? null
-            : monster.trim();
+    this.durationSeconds = 0,
+    this.questStartedAt,
+  }) : monster =
+           (monster == null || monster.trim().isEmpty) ? null : monster.trim();
 
   /// Display-only flavor text ("Drink 2L Water"). NEVER parsed for
   /// tracking — the tracker keys entirely off [type].
@@ -122,6 +147,80 @@ class DungeonObjective {
   /// manager captures it defensively on the first live reading.
   double? startValue;
 
+  // ── Timer-based quest fields (monsters only — the boss keeps its
+  //    pure-progress completion, unchanged) ─────────────────────────────
+
+  /// AI-provided quest duration (structured `durationSeconds`, validated
+  /// and clamped at parse time). 0 for the boss and for legacy rows.
+  final int durationSeconds;
+
+  /// When START QUEST was pressed — persisted immediately, so the timer
+  /// survives navigation, rebuilds and app restarts. The remaining time
+  /// is ALWAYS derived from this timestamp ([remainingQuestTime]), never
+  /// from an in-memory counter.
+  DateTime? questStartedAt;
+
+  /// questEndTime = questStartedAt + durationSeconds.
+  DateTime? get questEndTime =>
+      questStartedAt?.add(Duration(seconds: durationSeconds));
+
+  /// Whether the quest's timer requirement is satisfied. True only after
+  /// the quest was started AND the clock has passed [questEndTime]
+  /// (exactly the MissionEngine end-timestamp idiom — no negative
+  /// remainders, no restarts).
+  bool get timerFinished {
+    final end = questEndTime;
+    return end != null && !DateTime.now().isBefore(end);
+  }
+
+  /// False for the boss and for rows persisted before the quest system —
+  /// those keep their original progress-only completion instead of
+  /// demanding a timer they never had.
+  bool get hasQuestTimer => durationSeconds > 0;
+
+  /// Remaining quest time — always recomputed from the persisted
+  /// timestamp, clamped at zero.
+  Duration remainingQuestTime() {
+    final end = questEndTime;
+    if (end == null) return Duration(seconds: durationSeconds);
+    final diff = end.difference(DateTime.now());
+    return diff.isNegative ? Duration.zero : diff;
+  }
+
+  /// The quest is cleared (monster defeated) ONLY when BOTH requirements
+  /// hold: the fitness objective reached AND the timer finished. Neither
+  /// alone is enough. Rows without a timer (boss, legacy) clear on
+  /// progress alone — their original behavior.
+  bool get questCleared => isComplete && (!hasQuestTimer || timerFinished);
+
+  /// Explicit quest state — the UI renders from this, never from text.
+  DungeonQuestState get questState {
+    if (questCleared) return DungeonQuestState.completed;
+    if (questStartedAt == null) return DungeonQuestState.notStarted;
+    if (isComplete) return DungeonQuestState.objectiveReachedWaitingForTimer;
+    return DungeonQuestState.active;
+  }
+
+  /// "10 min" / "1 h 05 min" style label for the AI-provided duration.
+  String get durationLabel {
+    final minutes = (durationSeconds / 60).ceil();
+    final hours = minutes ~/ 60;
+    final rest = minutes % 60;
+    return hours > 0
+        ? '$hours h ${rest.toString().padLeft(2, '0')} min'
+        : '$rest min';
+  }
+
+  /// "07:42" countdown label — always derived from [questStartedAt],
+  /// clamped at zero (never negative).
+  String get remainingQuestLabel {
+    final remaining = remainingQuestTime();
+    final minutes = remaining.inMinutes;
+    final seconds = remaining.inSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:'
+        '${seconds.toString().padLeft(2, '0')}';
+  }
+
   String get unit => type.unit;
 
   bool get isComplete => progress >= target;
@@ -133,7 +232,8 @@ class DungeonObjective {
   String get targetLabel => '${_fmt(target)} ${type.unit}';
 
   /// "5200 / 8000 steps" style live progress label.
-  String get progressLabel => '${_fmt(progress)} / ${_fmt(target)} ${type.unit}';
+  String get progressLabel =>
+      '${_fmt(progress)} / ${_fmt(target)} ${type.unit}';
 
   /// Whole numbers for counts, one decimal for km.
   String _fmt(double value) =>

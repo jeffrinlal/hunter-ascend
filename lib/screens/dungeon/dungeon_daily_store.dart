@@ -3,13 +3,20 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:hunter_ascend/screens/dungeon/dungeon_generation.dart';
 import 'package:hunter_ascend/screens/dungeon/dungeon_objective.dart';
+import 'package:hunter_ascend/screens/dungeon/dungeon_rewards.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Daily dungeon persistence (Phase 5) — one entry per gate letter:
 ///
 /// * `lastPlayedDate` — last calendar day the hunter entered the gate.
-/// * `completedDate`  — calendar day the dungeon was cleared ("Rewards
-///                       Claimed"; one clear per day).
+/// * `completedDate`  — calendar day the dungeon was cleared (one clear
+///                       per day; the reward claim itself is tracked by
+///                       `rewardClaimed`).
+/// * `completedAt`    — ISO completion time of today's clear.
+/// * `rewardClaimed`  — whether today's clear reward was already claimed
+///                       (exactly-once gate for the XP award).
+/// * `clearReward`    — today's claimed reward record (XP, coins, loot)
+///                       so the cleared screen re-shows the SAME reward.
 /// * `objectivesDate` — calendar day the stored objectives were generated.
 /// * `objectives`     — the day's generated monsters PLUS the boss
 ///                       objective (`boss: true` flag), so re-entering on
@@ -73,6 +80,9 @@ class DungeonDailyStore {
       objectivesJson: entry['objectives'],
       story: entry['story'] as String?,
       startedAt: entry['startedAt'] as String?,
+      completedAt: entry['completedAt'] as String?,
+      rewardClaimed: entry['rewardClaimed'] == true,
+      clearRewardJson: entry['clearReward'],
     );
   }
 
@@ -89,75 +99,74 @@ class DungeonDailyStore {
   static Future<void> saveObjectives(
     String gateLetter,
     GeneratedDungeon dungeon,
-  ) =>
-      _update(
-        gateLetter,
-        (entry) {
-          entry['objectivesDate'] = today;
-          entry['story'] = dungeon.story;
-          entry['objectives'] = [
-            ...dungeon.monsters.map((o) => _objectiveToJson(o)),
-            _objectiveToJson(dungeon.boss),
-          ];
-        },
-      );
+  ) => _update(gateLetter, (entry) {
+    entry['objectivesDate'] = today;
+    entry['story'] = dungeon.story;
+    entry['objectives'] = [
+      ...dungeon.monsters.map((o) => _objectiveToJson(o)),
+      _objectiveToJson(dungeon.boss),
+    ];
+  });
 
   static Map<String, dynamic> _objectiveToJson(DungeonObjective o) => {
-        'title': o.title,
-        'type': o.type.name,
-        'target': o.target,
-        if (o.isBoss) 'boss': true,
-        if (o.monster != null) 'monster': o.monster,
-        // Freshly generated objectives start at zero; [saveProgress]
-        // updates this field as the run plays out.
-        'progress': o.progress,
-        // Session snapshot — the hunter's value when the dungeon started
-        // (captured ONCE by DungeonSessionManager; fixed until the
-        // dungeon ends). Absent until the session captures it.
-        if (o.startValue != null) 'start': o.startValue,
-      };
+    'title': o.title,
+    'type': o.type.name,
+    'target': o.target,
+    if (o.isBoss) 'boss': true,
+    if (o.monster != null) 'monster': o.monster,
+    // Freshly generated objectives start at zero; [saveProgress]
+    // updates this field as the run plays out.
+    'progress': o.progress,
+    // Session snapshot — the hunter's value when the dungeon started
+    // (captured ONCE by DungeonSessionManager; fixed until the
+    // dungeon ends). Absent until the session captures it.
+    if (o.startValue != null) 'start': o.startValue,
+    // Quest timer (monsters only) — the AI-provided duration; the START
+    // QUEST timestamp is merged in by [saveProgress] once pressed.
+    if (o.durationSeconds > 0) 'duration': o.durationSeconds,
+    if (o.questStartedAt != null)
+      'questStartedAt': o.questStartedAt!.toIso8601String(),
+  };
 
-  /// Persists live run progress AND session snapshots into today's saved
-  /// objectives (matched by title + boss flag, which are unique within a
-  /// generated dungeon). Only the `progress` and `start` fields are
-  /// merged — the saved dungeon, its date stamp and every other field
-  /// stay untouched, and writes reuse the same serialized chain as every
-  /// other daily update.
+  /// Persists live run progress, session snapshots AND quest start
+  /// timestamps into today's saved objectives (matched by title + boss
+  /// flag, which are unique within a generated dungeon). Only the
+  /// `progress`, `start` and `questStartedAt` fields are merged — the
+  /// saved dungeon, its date stamp and every other field stay untouched,
+  /// and writes reuse the same serialized chain as every other daily
+  /// update.
   static Future<void> saveProgress(
     String gateLetter,
     Iterable<DungeonObjective> objectives,
-  ) =>
-      _update(
-        gateLetter,
-        (entry) {
-          final rows = entry['objectives'];
-          if (rows is! List) return; // Nothing saved today — nothing to merge.
-          final byKey = {
-            for (final o in objectives) _rowKey(o.title, o.isBoss): o,
-          };
-          for (final row in rows) {
-            if (row is! Map) continue;
-            final key = _rowKey(
-              (row['title'] ?? '').toString(),
-              row['boss'] == true,
-            );
-            final objective = byKey[key];
-            if (objective == null) continue;
-            row['progress'] = objective.progress;
-            // The snapshot is written once (first capture wins) and never
-            // re-anchored afterwards.
-            if (objective.startValue != null && row['start'] == null) {
-              row['start'] = objective.startValue;
-            }
-          }
-        },
-      );
+  ) => _update(gateLetter, (entry) {
+    final rows = entry['objectives'];
+    if (rows is! List) return; // Nothing saved today — nothing to merge.
+    final byKey = {for (final o in objectives) _rowKey(o.title, o.isBoss): o};
+    for (final row in rows) {
+      if (row is! Map) continue;
+      final key = _rowKey((row['title'] ?? '').toString(), row['boss'] == true);
+      final objective = byKey[key];
+      if (objective == null) continue;
+      row['progress'] = objective.progress;
+      // The snapshot is written once (first capture wins) and never
+      // re-anchored afterwards.
+      if (objective.startValue != null && row['start'] == null) {
+        row['start'] = objective.startValue;
+      }
+      // Same write-once rule for the START QUEST timestamp — the timer
+      // is always reconstructed from this persisted value, never
+      // restarted by navigation, rebuilds or app restarts.
+      if (objective.questStartedAt != null && row['questStartedAt'] == null) {
+        row['questStartedAt'] = objective.questStartedAt!.toIso8601String();
+      }
+    }
+  });
 
   /// Stamps the session start — written once per day (first entry wins).
   static Future<void> markSessionStarted(String gateLetter) => _update(
-        gateLetter,
-        (entry) => entry['startedAt'] ??= DateTime.now().toIso8601String(),
-      );
+    gateLetter,
+    (entry) => entry['startedAt'] ??= DateTime.now().toIso8601String(),
+  );
 
   /// Row identity for progress merging — titles are unique inside one
   /// dungeon (the parser dedupes), and the flag keeps a monster and the
@@ -165,9 +174,37 @@ class DungeonDailyStore {
   static String _rowKey(String title, bool isBoss) =>
       '${title.trim().toLowerCase()}|${isBoss ? 'boss' : 'monster'}';
 
-  /// Marks the dungeon cleared for today — the one-reward-per-day gate.
+  /// Marks the dungeon cleared for today — the one-reward-per-day gate —
+  /// and stamps the COMPLETION TIME once (first clear wins).
   static Future<void> markCleared(String gateLetter) =>
-      _update(gateLetter, (entry) => entry['completedDate'] = today);
+      _update(gateLetter, (entry) {
+        entry['completedDate'] = today;
+        entry['completedAt'] ??= DateTime.now().toIso8601String();
+      });
+
+  /// Persists whether today's clear REWARD has been claimed — the
+  /// exactly-once gate for the XP award. Claim-first + rollback (the
+  /// duel-XP idempotency pattern): the caller marks `claimed: true`
+  /// BEFORE awarding and rolls back to `false` only if the award itself
+  /// fails, so a reward can never be paid twice yet a failed award stays
+  /// retriable.
+  static Future<void> markRewardClaimed(
+    String gateLetter, {
+    required bool claimed,
+  }) => _update(gateLetter, (entry) => entry['rewardClaimed'] = claimed);
+
+  /// Persists today's clear REWARD RECORD (Phase 7) — XP, coins and the
+  /// picked loot — alongside the claim flag, so reopening the cleared
+  /// dungeon re-shows the SAME rewards without ever granting them again.
+  static Future<void> saveClearReward(
+    String gateLetter,
+    DungeonClearReward reward,
+  ) => _update(gateLetter, (entry) => entry['clearReward'] = reward.toJson());
+
+  /// Removes a stored reward record — the rollback half of the claim
+  /// idempotency pattern when the XP award itself fails.
+  static Future<void> clearClearReward(String gateLetter) =>
+      _update(gateLetter, (entry) => entry.remove('clearReward'));
 
   // ── Internals ──────────────────────────────────────────────────────────
 
@@ -201,9 +238,8 @@ class DungeonDailyStore {
     try {
       final all = await _readAll();
       final existing = all[gateLetter];
-      final entry = existing is Map<String, dynamic>
-          ? existing
-          : <String, dynamic>{};
+      final entry =
+          existing is Map<String, dynamic> ? existing : <String, dynamic>{};
       mutate(entry);
       all[gateLetter] = entry;
       final prefs = await SharedPreferences.getInstance();
@@ -223,6 +259,9 @@ class DungeonDailyState {
     this.objectivesJson,
     this.story,
     this.startedAt,
+    this.completedAt,
+    this.rewardClaimed = false,
+    this.clearRewardJson,
   });
 
   final String? lastPlayedDate;
@@ -240,10 +279,31 @@ class DungeonDailyState {
   /// capture) — null for entries saved before sessions existed.
   final String? startedAt;
 
+  /// ISO timestamp of today's clear (completion time) — null when the
+  /// dungeon has not been cleared yet (or the entry predates Phase 5).
+  final String? completedAt;
+
+  /// Whether today's clear reward has ALREADY been claimed — the
+  /// exactly-once gate that prevents double XP on re-entry, rebuild or
+  /// app restart.
+  final bool rewardClaimed;
+
+  /// The stored clear-reward record (Phase 7) — XP, coins and loot picked
+  /// at claim time, so the cleared screen always re-shows the SAME reward.
+  final dynamic clearRewardJson;
+
+  /// [clearRewardJson] parsed — only meaningful while today's clear is in
+  /// effect (callers gate on [completedToday]).
+  DungeonClearReward? get clearReward =>
+      DungeonClearReward.fromJson(clearRewardJson);
+
   /// [startedAt] parsed, or null when absent/unparseable.
-  DateTime? get sessionStartedAt => startedAt == null
-      ? null
-      : DateTime.tryParse(startedAt!);
+  DateTime? get sessionStartedAt =>
+      startedAt == null ? null : DateTime.tryParse(startedAt!);
+
+  /// [completedAt] parsed, or null when absent/unparseable.
+  DateTime? get completedAtDate =>
+      completedAt == null ? null : DateTime.tryParse(completedAt!);
 
   /// Cleared sometime today → rewards already claimed, gate locked until
   /// the calendar day rolls over (automatic reset — no timer needed).
@@ -291,8 +351,9 @@ class DungeonDailyState {
     for (final item in json) {
       if (item is! Map) continue;
       final title = (item['title'] ?? '').toString().trim();
-      DungeonObjectiveType? type =
-          DungeonObjectiveType.tryParse((item['type'] ?? '').toString());
+      DungeonObjectiveType? type = DungeonObjectiveType.tryParse(
+        (item['type'] ?? '').toString(),
+      );
       // Migration for dungeons persisted before the structured schema:
       // the old walk/run types were pedometer step-count objectives, so
       // they map onto `steps` and keep their saved progress. The old
@@ -311,19 +372,29 @@ class DungeonDailyState {
       // saved before snapshot tracking — the session manager captures it
       // on the next entry).
       final progress = double.tryParse('${item['progress'] ?? 0}') ?? 0;
-      final start = item['start'] == null
-          ? null
-          : double.tryParse('${item['start']}');
+      final start =
+          item['start'] == null ? null : double.tryParse('${item['start']}');
       final monster = (item['monster'] ?? '').toString().trim();
-      objectives.add(DungeonObjective(
-        title: title,
-        type: type,
-        target: target,
-        isBoss: item['boss'] == true,
-        monster: monster.isEmpty ? null : monster,
-        progress: progress.clamp(0.0, target),
-        startValue: start,
-      ));
+      // Quest timer fields — 0/null for rows saved before the quest
+      // system (they keep progress-only completion via hasQuestTimer).
+      final duration =
+          int.tryParse('${item['duration'] ?? 0}')?.clamp(0, 1 << 30) ?? 0;
+      final questStarted = DateTime.tryParse(
+        (item['questStartedAt'] ?? '').toString(),
+      );
+      objectives.add(
+        DungeonObjective(
+          title: title,
+          type: type,
+          target: target,
+          isBoss: item['boss'] == true,
+          monster: monster.isEmpty ? null : monster,
+          progress: progress.clamp(0.0, target),
+          startValue: start,
+          durationSeconds: duration,
+          questStartedAt: questStarted,
+        ),
+      );
     }
     return objectives;
   }

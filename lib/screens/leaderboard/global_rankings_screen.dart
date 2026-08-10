@@ -15,6 +15,7 @@ import 'dart:typed_data';
 import 'dart:math' as math;
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
+import 'package:hunter_ascend/services/user_activity_service.dart';
 import 'package:hunter_ascend/widgets/dashboard/entrance_fade_slide.dart';
 import 'package:hunter_ascend/widgets/equipped_badge_chip.dart';
 import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
@@ -51,20 +52,21 @@ class GlobalRankingsScreen extends StatefulWidget {
   const GlobalRankingsScreen({super.key, this.activeIndex, this.tabIndex});
 
   @override
-  State<GlobalRankingsScreen> createState() =>
-      _GlobalRankingsScreenState();
+  State<GlobalRankingsScreen> createState() => _GlobalRankingsScreenState();
 }
 
 class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     with SingleTickerProviderStateMixin {
-
   bool _searchMode = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchText = '';
 
-  // ── Tab controller for Overall / Weekly / Daily ──
-  late final TabController _tabController = TabController(length: 3, vsync: this);
-  LeaderboardTab _activeTab = LeaderboardTab.overall;
+  // ── Tab controller for Daily / Dungeon / Overall ──
+  late final TabController _tabController = TabController(
+    length: 3,
+    vsync: this,
+  );
+  LeaderboardTab _activeTab = LeaderboardTab.daily;
 
   // ── Leaderboard data (from repository) ──
   List<LeaderboardEntry> _entries = [];
@@ -74,6 +76,9 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
   // profile picture is decoded only once and the same Uint8List is reused
   // across scrolls/rebuilds (re-decodes only when the Base64 string changes).
   final Map<String, Uint8List> _avatarCache = {};
+
+  /// Today's unique active-hunter count for the header (null = loading/failed).
+  int? _activeHunterCount;
 
   Uint8List _decodedAvatar(String base64Data) =>
       _avatarCache[base64Data] ??= base64Decode(base64Data);
@@ -89,6 +94,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     super.initState();
     _tabController.addListener(_onTabChanged);
     _loadLeaderboard();
+    _loadActiveHunterCount();
     widget.activeIndex?.addListener(_onActiveIndexChanged);
     // Handle the case where the Leaderboard is already the active tab when
     // this State is first created (e.g. it's the initial tab).
@@ -133,8 +139,15 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
   // network failure, so failures are silently absorbed here.
   Future<void> _refreshInBackground() async {
     try {
+      final countFuture = UserActivityService.instance.todayActiveCount();
       final fresh = await LeaderboardRepository.instance.fetch(_activeTab);
-      if (mounted) setState(() => _entries = fresh);
+      final count = await countFuture;
+      if (mounted) {
+        setState(() {
+          _entries = fresh;
+          _activeHunterCount = count;
+        });
+      }
     } catch (e) {
       // LeaderboardRepository.fetch already catches internally and falls
       // back to cached data; this is a defensive no-op guard only.
@@ -142,9 +155,21 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     }
   }
 
+  // Loads today's unique active-hunter count (independent of the selected
+  // tab — it reflects all authenticated users who opened the app today).
+  // ONE efficient server-side count aggregation; no documents downloaded.
+  Future<void> _loadActiveHunterCount() async {
+    final count = await UserActivityService.instance.todayActiveCount();
+    if (mounted) setState(() => _activeHunterCount = count);
+  }
+
   void _onTabChanged() {
     if (!_tabController.indexIsChanging) return;
-    final tabs = [LeaderboardTab.overall, LeaderboardTab.weekly, LeaderboardTab.daily];
+    final tabs = [
+      LeaderboardTab.daily,
+      LeaderboardTab.dungeon,
+      LeaderboardTab.overall,
+    ];
     setState(() => _activeTab = tabs[_tabController.index]);
     _loadLeaderboard();
   }
@@ -153,14 +178,20 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     // Show cached data instantly.
     final cached = LeaderboardRepository.instance.getCached(_activeTab);
     if (cached != null && cached.isNotEmpty) {
-      setState(() { _entries = cached; _loading = false; });
+      setState(() {
+        _entries = cached;
+        _loading = false;
+      });
     } else {
       setState(() => _loading = true);
     }
     // Refresh in background (or immediately if stale/empty).
     final fresh = await LeaderboardRepository.instance.fetch(_activeTab);
     if (mounted) {
-      setState(() { _entries = fresh; _loading = false; });
+      setState(() {
+        _entries = fresh;
+        _loading = false;
+      });
     }
   }
 
@@ -189,8 +220,8 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
   /// field, and expiry. Returns `'basic'` if expired or unset.
   String _effectiveMembership(Map<String, dynamic>? data) {
     if (data == null) return 'basic';
-    final raw = (data['membershipType'] ?? data['membership'] ?? 'basic')
-        .toString();
+    final raw =
+        (data['membershipType'] ?? data['membership'] ?? 'basic').toString();
     final tier = MembershipTier.fromString(raw);
     if (tier == MembershipTier.basic) return 'basic';
     final expiry = _parseExpiry(data['membershipExpiry']);
@@ -219,9 +250,13 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
   /// Returns the appropriate XP label based on active tab.
   String _xpLabel(LeaderboardEntry entry) {
     switch (_activeTab) {
-      case LeaderboardTab.weekly: return '${entry.weeklyXp} WXP';
-      case LeaderboardTab.daily: return '${entry.dailyXp} DXP';
-      case LeaderboardTab.overall: return '${entry.xp} XP';
+      case LeaderboardTab.daily:
+        return '${entry.dailyXp} DXP';
+      // Permanent all-time dungeon score (never resets).
+      case LeaderboardTab.dungeon:
+        return '${entry.dungeonScore} DP';
+      case LeaderboardTab.overall:
+        return '${entry.xp} XP';
     }
   }
 
@@ -251,12 +286,19 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
       decoration: InputDecoration(
         hintText: 'Search hunters by name...',
         hintStyle: TextStyle(color: HunterTheme.textTertiary, fontSize: 14),
-        prefixIcon: Icon(Icons.search_rounded, color: HunterTheme.textSecondary, size: 20),
+        prefixIcon: Icon(
+          Icons.search_rounded,
+          color: HunterTheme.textSecondary,
+          size: 20,
+        ),
         isDense: true,
         filled: true,
         fillColor: HunterTheme.background.withOpacity(0.35),
         contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }
@@ -267,13 +309,17 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
   Widget _buildTabBar() {
     return _PremiumTabSelector(
       index: _tabController.index,
-      labels: const ['Overall', 'Weekly', 'Daily'],
+      labels: const ['Daily', 'Dungeon', 'Overall'],
       onChanged: (i) => _tabController.animateTo(i),
     );
   }
 
   // Premium empty / no-results state.
-  Widget _buildEmptyState({required IconData icon, required String title, required String subtitle}) {
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
     final accent = MembershipTheme.current.accent;
     return Center(
       child: Padding(
@@ -288,14 +334,32 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
                 shape: BoxShape.circle,
                 color: accent.withOpacity(0.12),
                 border: Border.all(color: accent.withOpacity(0.35), width: 1.4),
-                boxShadow: [BoxShadow(color: accent.withOpacity(0.18), blurRadius: 18)],
+                boxShadow: [
+                  BoxShadow(color: accent.withOpacity(0.18), blurRadius: 18),
+                ],
               ),
               child: Icon(icon, color: accent, size: 34),
             ),
             const SizedBox(height: 18),
-            Text(title, textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: HunterTheme.textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text(subtitle, textAlign: TextAlign.center, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, height: 1.4)),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: HunterTheme.textSecondary,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
           ],
         ),
       ),
@@ -304,13 +368,6 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
 
   Widget _themedBuild(BuildContext context) {
     final currentUid = FirebaseAuth.instance.currentUser?.uid;
-    // Same ranking computation as the body — used to surface the player's
-    // current rank in the hero.
-    int myRank = 0;
-    for (int i = 0; i < _entries.length; i++) {
-      if (_entries[i].uid == currentUid) { myRank = i + 1; break; }
-    }
-    final limit = _activeTab == LeaderboardTab.overall ? 30 : 20;
 
     return MembershipScaffold(
       body: SafeArea(
@@ -319,8 +376,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
             const SizedBox(height: 8),
             EntranceFadeSlide(
               child: _LeaderboardHero(
-                myRank: myRank,
-                limit: limit,
+                activeHunters: _activeHunterCount,
                 searchMode: _searchMode,
                 onToggleSearch: () {
                   setState(() {
@@ -341,16 +397,29 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
             const SizedBox(height: 10),
             // ── Content ──
             Expanded(
-              child: _loading && _entries.isEmpty
-                  ? SingleChildScrollView(padding: const EdgeInsets.all(16), child: buildLeaderboardSkeleton())
-                  : RefreshIndicator(
-                      color: MembershipTheme.current.accent,
-                      onRefresh: () async {
-                        final fresh = await LeaderboardRepository.instance.fetch(_activeTab, forceRefresh: true);
-                        if (mounted) setState(() => _entries = fresh);
-                      },
-                      child: _buildLeaderboardBody(currentUid),
-                    ),
+              child:
+                  _loading && _entries.isEmpty
+                      ? SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: buildLeaderboardSkeleton(),
+                      )
+                      : RefreshIndicator(
+                        color: MembershipTheme.current.accent,
+                        onRefresh: () async {
+                          final countFuture =
+                              UserActivityService.instance.todayActiveCount();
+                          final fresh = await LeaderboardRepository.instance
+                              .fetch(_activeTab, forceRefresh: true);
+                          final count = await countFuture;
+                          if (mounted) {
+                            setState(() {
+                              _entries = fresh;
+                              _activeHunterCount = count;
+                            });
+                          }
+                        },
+                        child: _buildLeaderboardBody(currentUid),
+                      ),
             ),
           ],
         ),
@@ -361,12 +430,25 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
   Widget _buildLeaderboardBody(String? currentUid) {
     // Apply search filter if in search mode.
     final isSearching = _searchMode && _searchText.isNotEmpty;
-    final entries = isSearching
-        ? _entries.where((e) => e.hunterName.toLowerCase().contains(_searchText.toLowerCase())).toList()
-        : _entries;
+    final entries =
+        isSearching
+            ? _entries
+                .where(
+                  (e) => e.hunterName.toLowerCase().contains(
+                    _searchText.toLowerCase(),
+                  ),
+                )
+                .toList()
+            : _entries;
     int myRank = 0;
-    for (int i = 0; i < _entries.length; i++) { if (_entries[i].uid == currentUid) { myRank = i + 1; break; } }
-    final limit = _activeTab == LeaderboardTab.overall ? 30 : 20;
+    for (int i = 0; i < _entries.length; i++) {
+      if (_entries[i].uid == currentUid) {
+        myRank = i + 1;
+        break;
+      }
+    }
+    // Daily is a 20-slot period; Dungeon and Overall are 30-slot boards.
+    final limit = _activeTab == LeaderboardTab.daily ? 20 : 30;
 
     // Empty search results
     if (isSearching && entries.isEmpty) {
@@ -395,7 +477,8 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
             child: _buildEmptyState(
               icon: Icons.emoji_events_rounded,
               title: 'No rankings yet',
-              subtitle: 'Be the first to claim the throne — complete missions to earn XP.',
+              subtitle:
+                  'Be the first to claim the throne — complete missions to earn XP.',
             ),
           ),
         ],
@@ -407,7 +490,11 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
       slivers: [
         // Your Position (hidden during search)
         if (!isSearching)
-          SliverToBoxAdapter(child: EntranceFadeSlide(child: _buildYourPosition(currentUid, myRank, limit))),
+          SliverToBoxAdapter(
+            child: EntranceFadeSlide(
+              child: _buildYourPosition(currentUid, myRank, limit),
+            ),
+          ),
         // Podium (hidden during search — filtered results don't have ranked positions)
         if (!isSearching && entries.isNotEmpty)
           SliverToBoxAdapter(
@@ -426,9 +513,17 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
               (context, listIndex) {
                 final index = isSearching ? listIndex : listIndex + 3;
                 if (index >= entries.length) return null;
-                return _buildListItem(context, entries[index], index, currentUid);
+                return _buildListItem(
+                  context,
+                  entries[index],
+                  index,
+                  currentUid,
+                );
               },
-              childCount: isSearching ? entries.length : (entries.length > 3 ? entries.length - 3 : 0),
+              childCount:
+                  isSearching
+                      ? entries.length
+                      : (entries.length > 3 ? entries.length - 3 : 0),
             ),
           ),
         ),
@@ -440,30 +535,45 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
   // ranked entries (ranking order preserved) and hands them to the
   // [_EliteTopThree] centerpiece. All navigation/membership/rank logic is
   // resolved here with the existing helpers.
-  Widget _buildPodium(BuildContext context, List<LeaderboardEntry> entries, String? currentUid) {
+  Widget _buildPodium(
+    BuildContext context,
+    List<LeaderboardEntry> entries,
+    String? currentUid,
+  ) {
     final tops = <_TopHunter>[];
     for (int i = 0; i < entries.length && i < 3; i++) {
       final entry = entries[i];
-      final img = (entry.profilePicture != null && entry.profilePicture!.isNotEmpty)
-          ? MemoryImage(_decodedAvatar(entry.profilePicture!))
-          : null;
-      tops.add(_TopHunter(
-        position: i + 1,
-        name: entry.hunterName,
-        membership: _entryMembership(entry),
-        rankTitle: getRankTitle(entry.level),
-        xpLabel: _xpLabel(entry),
-        level: entry.level,
-        isMe: entry.uid == currentUid,
-        image: img,
-        rankColor: _rankColor(entry.level),
-        tierColor: _positionColor(i),
-        tierLabel: i == 0 ? 'LEGENDARY' : (i == 1 ? 'ELITE' : 'MASTER'),
-        equippedBadgeId: entry.equippedBadgeId,
-        onTap: entry.uid == currentUid
-            ? null
-            : () => Navigator.push(context, MaterialPageRoute(builder: (_) => PublicHunterProfileScreen(hunterUid: entry.uid))),
-      ));
+      final img =
+          (entry.profilePicture != null && entry.profilePicture!.isNotEmpty)
+              ? MemoryImage(_decodedAvatar(entry.profilePicture!))
+              : null;
+      tops.add(
+        _TopHunter(
+          position: i + 1,
+          name: entry.hunterName,
+          membership: _entryMembership(entry),
+          rankTitle: getRankTitle(entry.level),
+          xpLabel: _xpLabel(entry),
+          level: entry.level,
+          isMe: entry.uid == currentUid,
+          image: img,
+          rankColor: _rankColor(entry.level),
+          tierColor: _positionColor(i),
+          tierLabel: i == 0 ? 'LEGENDARY' : (i == 1 ? 'ELITE' : 'MASTER'),
+          equippedBadgeId: entry.equippedBadgeId,
+          onTap:
+              entry.uid == currentUid
+                  ? null
+                  : () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (_) =>
+                              PublicHunterProfileScreen(hunterUid: entry.uid),
+                    ),
+                  ),
+        ),
+      );
     }
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
@@ -474,14 +584,34 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
   Widget _buildListDivider() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
-      child: Row(children: [
-        Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08))),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text('LEADERBOARD', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold)),
-        ),
-        Expanded(child: Container(height: 1, color: HunterTheme.textPrimary.withOpacity(0.08))),
-      ]),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              height: 1,
+              color: HunterTheme.textPrimary.withOpacity(0.08),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              'LEADERBOARD',
+              style: TextStyle(
+                color: HunterTheme.textTertiary,
+                fontSize: 10,
+                letterSpacing: 2,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              height: 1,
+              color: HunterTheme.textPrimary.withOpacity(0.08),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -496,7 +626,15 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: accent.withOpacity(0.45)),
       ),
-      child: Text('YOU', style: TextStyle(color: accent, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1)),
+      child: Text(
+        'YOU',
+        style: TextStyle(
+          color: accent,
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1,
+        ),
+      ),
     );
   }
 
@@ -510,13 +648,25 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: accent.withOpacity(0.35)),
       ),
-      child: Text(_xpLabel(entry), style: TextStyle(color: accent, fontWeight: FontWeight.w800, fontSize: 12)),
+      child: Text(
+        _xpLabel(entry),
+        style: TextStyle(
+          color: accent,
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
+        ),
+      ),
     );
   }
 
   // Premium ranking-list card (#4+). All ranking/membership/navigation logic
   // preserved; only the visual presentation changed.
-  Widget _buildListItem(BuildContext context, LeaderboardEntry entry, int index, String? currentUid) {
+  Widget _buildListItem(
+    BuildContext context,
+    LeaderboardEntry entry,
+    int index,
+    String? currentUid,
+  ) {
     final isMe = entry.uid == currentUid;
     final level = entry.level;
     final rc = _rankColor(level);
@@ -536,21 +686,44 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     // neutral card otherwise. isMe always wins the border treatment so it
     // stays findable.
     final Gradient? cardGradient = v.cardGradient;
-    final Color bgColor = v.isPremium
-        ? HunterTheme.cardColor
-        : (isMe ? myAccent.withOpacity(0.06) : HunterTheme.cardColor);
-    final Color borderColor = isMe
-        ? myAccent.withOpacity(0.55)
-        : (v.isPremium ? v.cardBorder : HunterTheme.border);
+    final Color bgColor =
+        v.isPremium
+            ? HunterTheme.cardColor
+            : (isMe ? myAccent.withOpacity(0.06) : HunterTheme.cardColor);
+    final Color borderColor =
+        isMe
+            ? myAccent.withOpacity(0.55)
+            : (v.isPremium ? v.cardBorder : HunterTheme.border);
     final double borderWidth = isMe ? 1.8 : (v.isPremium ? 1.3 : 1);
-    final List<BoxShadow> shadow = v.isPremium
-        ? [BoxShadow(color: v.glow.withOpacity(0.16), blurRadius: 14, spreadRadius: 0.5, offset: const Offset(0, 3))]
-        : [BoxShadow(color: (isMe ? myAccent : Colors.black).withOpacity(isMe ? 0.10 : 0.04), blurRadius: 10, offset: const Offset(0, 3))];
+    final List<BoxShadow> shadow =
+        v.isPremium
+            ? [
+              BoxShadow(
+                color: v.glow.withOpacity(0.16),
+                blurRadius: 14,
+                spreadRadius: 0.5,
+                offset: const Offset(0, 3),
+              ),
+            ]
+            : [
+              BoxShadow(
+                color: (isMe ? myAccent : Colors.black).withOpacity(
+                  isMe ? 0.10 : 0.04,
+                ),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ];
 
     return GestureDetector(
       onTap: () {
         if (entry.uid == currentUid) return;
-        Navigator.push(context, MaterialPageRoute(builder: (_) => PublicHunterProfileScreen(hunterUid: entry.uid)));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PublicHunterProfileScreen(hunterUid: entry.uid),
+          ),
+        );
       },
       child: Padding(
         padding: const EdgeInsets.only(bottom: 10),
@@ -563,48 +736,88 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
             border: Border.all(color: borderColor, width: borderWidth),
             boxShadow: shadow,
           ),
-          child: Row(children: [
-            SizedBox(
-              width: 32,
-              child: Center(
-                child: Text(
-                  '${index + 1}',
-                  style: TextStyle(
-                    color: isMe ? myAccent : (v.isPremium ? v.accent : HunterTheme.textTertiary),
-                    fontSize: index < 9 ? 15 : 13,
-                    fontWeight: FontWeight.w900,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 32,
+                child: Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(
+                      color:
+                          isMe
+                              ? myAccent
+                              : (v.isPremium
+                                  ? v.accent
+                                  : HunterTheme.textTertiary),
+                      fontSize: index < 9 ? 15 : 13,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            _MembershipAvatar(
-              membership: membership,
-              radius: 20,
-              image: entry.profilePicture != null && entry.profilePicture!.isNotEmpty ? MemoryImage(_decodedAvatar(entry.profilePicture!)) : null,
-              child: Icon(Icons.person, color: rc, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(children: [
-                    Flexible(child: Text(entry.hunterName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: nameColor, fontSize: 14.5, fontWeight: FontWeight.w700))),
-                    const SizedBox(width: 6),
-                    EquippedBadgeChip(badgeId: entry.equippedBadgeId, size: 14),
-                    if (v.isPremium) ...[const SizedBox(width: 6), _membershipChip(membership, fontSize: 8)],
-                    if (isMe) ...[const SizedBox(width: 6), _youPill()],
-                  ]),
-                  const SizedBox(height: 3),
-                  Text('${getRankTitle(level)}  \u00b7  Lv.$level', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 11.5, letterSpacing: 0.3, fontWeight: FontWeight.w500)),
-                ],
+              const SizedBox(width: 8),
+              _MembershipAvatar(
+                membership: membership,
+                radius: 20,
+                image:
+                    entry.profilePicture != null &&
+                            entry.profilePicture!.isNotEmpty
+                        ? MemoryImage(_decodedAvatar(entry.profilePicture!))
+                        : null,
+                child: Icon(Icons.person, color: rc, size: 20),
               ),
-            ),
-            const SizedBox(width: 10),
-            _xpChip(entry, xpAccent),
-          ]),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            entry.hunterName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: nameColor,
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        EquippedBadgeChip(
+                          badgeId: entry.equippedBadgeId,
+                          size: 14,
+                        ),
+                        if (v.isPremium) ...[
+                          const SizedBox(width: 6),
+                          _membershipChip(membership, fontSize: 8),
+                        ],
+                        if (isMe) ...[const SizedBox(width: 6), _youPill()],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${getRankTitle(level)}  \u00b7  Lv.$level',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: HunterTheme.textSecondary,
+                        fontSize: 11.5,
+                        letterSpacing: 0.3,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              _xpChip(entry, xpAccent),
+            ],
+          ),
         ),
       ),
     );
@@ -613,7 +826,10 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
   Widget _buildYourPosition(String? currentUid, int myRank, int limit) {
     final hunter = HunterRepository.instance.getCached();
     if (hunter == null) return const SizedBox.shrink();
-    final myMembership = _effectiveMembership({'membershipType': hunter.membershipType, 'membershipExpiry': hunter.membershipExpiry});
+    final myMembership = _effectiveMembership({
+      'membershipType': hunter.membershipType,
+      'membershipExpiry': hunter.membershipExpiry,
+    });
     final v = _membershipVisual(myMembership);
     final rankText = myRank > 0 ? '#$myRank' : '$limit+';
     // The viewer's own tier accent drives the fallback treatment.
@@ -622,10 +838,16 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     // Card treatment: premium hunters get the membership tint + accent border
     // and glow; everyone else keeps the "your position" highlight in the
     // viewer's own tier accent.
-    final Gradient cardGradient = v.isPremium
-        ? v.cardGradient!
-        : LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [myAccent.withOpacity(0.14), HunterTheme.cardColor]);
-    final Color borderColor = v.isPremium ? v.cardBorder : myAccent.withOpacity(0.45);
+    final Gradient cardGradient =
+        v.isPremium
+            ? v.cardGradient!
+            : LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [myAccent.withOpacity(0.14), HunterTheme.cardColor],
+            );
+    final Color borderColor =
+        v.isPremium ? v.cardBorder : myAccent.withOpacity(0.45);
     final Color glowColor = v.isPremium ? v.glow : myAccent;
     // Rank number always reads as the viewer's accent (it's about placement,
     // not tier), keeping strong contrast on the tinted card.
@@ -639,52 +861,125 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
           borderRadius: BorderRadius.circular(20),
           gradient: cardGradient,
           border: Border.all(color: borderColor, width: 1.6),
-          boxShadow: [BoxShadow(color: glowColor.withOpacity(0.14), blurRadius: 20, spreadRadius: 1)],
+          boxShadow: [
+            BoxShadow(
+              color: glowColor.withOpacity(0.14),
+              blurRadius: 20,
+              spreadRadius: 1,
+            ),
+          ],
         ),
-        child: Row(children: [
-          // Prominent rank badge.
-          Column(mainAxisSize: MainAxisSize.min, children: [
-            Text('RANK', style: TextStyle(color: rankColor.withOpacity(0.85), fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
-            const SizedBox(height: 1),
-            Text(rankText, style: TextStyle(color: rankColor, fontSize: 22, fontWeight: FontWeight.w900)),
-          ]),
-          const SizedBox(width: 16),
-          _MembershipAvatar(
-            membership: myMembership,
-            radius: 24,
-            ringWidth: 2.5,
-            animated: true,
-            image: hunter.profilePicture != null && hunter.profilePicture!.isNotEmpty ? MemoryImage(_decodedAvatar(hunter.profilePicture!)) : null,
-            child: Icon(Icons.person, color: _rankColor(hunter.level), size: 28),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
+          children: [
+            // Prominent rank badge.
+            Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(children: [
-                  Flexible(child: Text('YOUR POSITION', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: MembershipTheme.current.accent, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5))),
-                  if (v.isPremium) ...[const SizedBox(width: 8), _membershipChip(myMembership, fontSize: 8)],
-                ]),
-                const SizedBox(height: 4),
-                Row(children: [
-                  Flexible(child: Text(hunter.hunterName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 17, fontWeight: FontWeight.w800))),
-                  const SizedBox(width: 6),
-                  EquippedBadgeChip(badgeId: hunter.equippedBadgeId, size: 16),
-                ]),
-                const SizedBox(height: 2),
-                Text('${getRankTitle(hunter.level)}  \u00b7  Lv.${hunter.level}  \u00b7  ${hunter.xp} XP', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12)),
+                Text(
+                  'RANK',
+                  style: TextStyle(
+                    color: rankColor.withOpacity(0.85),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  rankText,
+                  style: TextStyle(
+                    color: rankColor,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ],
             ),
-          ),
-        ]),
+            const SizedBox(width: 16),
+            _MembershipAvatar(
+              membership: myMembership,
+              radius: 24,
+              ringWidth: 2.5,
+              animated: true,
+              image:
+                  hunter.profilePicture != null &&
+                          hunter.profilePicture!.isNotEmpty
+                      ? MemoryImage(_decodedAvatar(hunter.profilePicture!))
+                      : null,
+              child: Icon(
+                Icons.person,
+                color: _rankColor(hunter.level),
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          'YOUR POSITION',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: MembershipTheme.current.accent,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ),
+                      if (v.isPremium) ...[
+                        const SizedBox(width: 8),
+                        _membershipChip(myMembership, fontSize: 8),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          hunter.hunterName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: HunterTheme.textPrimary,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      EquippedBadgeChip(
+                        badgeId: hunter.equippedBadgeId,
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${getRankTitle(hunter.level)}  \u00b7  Lv.${hunter.level}  \u00b7  ${hunter.xp} XP',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: HunterTheme.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
-
-
 
 /// Immersive leaderboard hero.
 ///
@@ -694,15 +989,14 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
 /// pattern so only the decoration repaints per frame (content — including the
 /// search field — is not rebuilt by the animation).
 class _LeaderboardHero extends StatefulWidget {
-  final int myRank;
-  final int limit;
+  /// Today's unique active-hunter count (null = loading/failed).
+  final int? activeHunters;
   final bool searchMode;
   final VoidCallback onToggleSearch;
   final Widget? searchField;
 
   const _LeaderboardHero({
-    required this.myRank,
-    required this.limit,
+    required this.activeHunters,
     required this.searchMode,
     required this.onToggleSearch,
     this.searchField,
@@ -712,7 +1006,8 @@ class _LeaderboardHero extends StatefulWidget {
   State<_LeaderboardHero> createState() => _LeaderboardHeroState();
 }
 
-class _LeaderboardHeroState extends State<_LeaderboardHero> with SingleTickerProviderStateMixin {
+class _LeaderboardHeroState extends State<_LeaderboardHero>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _glow = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2600),
@@ -727,7 +1022,8 @@ class _LeaderboardHeroState extends State<_LeaderboardHero> with SingleTickerPro
   @override
   Widget build(BuildContext context) {
     final accent = MembershipTheme.current.accent;
-    final rankText = widget.myRank > 0 ? '#${widget.myRank}' : '${widget.limit}+';
+    final activeText =
+        widget.activeHunters != null ? '${widget.activeHunters}' : '—';
 
     final topRow = Row(
       children: [
@@ -736,9 +1032,17 @@ class _LeaderboardHeroState extends State<_LeaderboardHero> with SingleTickerPro
           height: 46,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [accent, accent.withOpacity(0.7)]),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [accent, accent.withOpacity(0.7)],
+            ),
           ),
-          child: const Icon(Icons.emoji_events_rounded, color: Colors.black, size: 26),
+          child: const Icon(
+            Icons.emoji_events_rounded,
+            color: Colors.black,
+            size: 26,
+          ),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -746,9 +1050,28 @@ class _LeaderboardHeroState extends State<_LeaderboardHero> with SingleTickerPro
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('GLOBAL RANKINGS', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 2)),
+              Text(
+                'GLOBAL RANKINGS',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: accent,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 2,
+                ),
+              ),
               const SizedBox(height: 3),
-              Text('Climb the ranks, Hunter.', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 19, fontWeight: FontWeight.w900)),
+              Text(
+                'Climb the ranks, Hunter.',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: HunterTheme.textPrimary,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ],
           ),
         ),
@@ -763,60 +1086,92 @@ class _LeaderboardHeroState extends State<_LeaderboardHero> with SingleTickerPro
               color: HunterTheme.background.withOpacity(0.35),
               border: Border.all(color: accent.withOpacity(0.3)),
             ),
-            child: Icon(widget.searchMode ? Icons.close_rounded : Icons.search_rounded, color: HunterTheme.textSecondary, size: 20),
+            child: Icon(
+              widget.searchMode ? Icons.close_rounded : Icons.search_rounded,
+              color: HunterTheme.textSecondary,
+              size: 20,
+            ),
           ),
         ),
       ],
     );
 
-    final Widget lowerSection = widget.searchField != null
-        ? widget.searchField!
-        : Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: accent.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: accent.withOpacity(0.2)),
-            ),
-            child: Row(children: [
-              Icon(Icons.leaderboard_rounded, color: accent, size: 18),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('YOUR RANK', style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
-                    const SizedBox(height: 1),
-                    Text(
-                      widget.myRank > 0 ? 'Keep climbing' : 'Enter the rankings',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
+    final Widget lowerSection =
+        widget.searchField != null
+            ? widget.searchField!
+            : Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: accent.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: accent.withOpacity(0.2)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.groups_rounded, color: accent, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          "TODAY'S ACTIVE HUNTERS",
+                          style: TextStyle(
+                            color: HunterTheme.textTertiary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          'Hunters who opened the app today',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: HunterTheme.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [HunterTheme.gold, HunterTheme.goldBright],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: HunterTheme.gold.withOpacity(0.35),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      activeText,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [HunterTheme.gold, HunterTheme.goldBright]),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [BoxShadow(color: HunterTheme.gold.withOpacity(0.35), blurRadius: 8)],
-                ),
-                child: Text(rankText, style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w900)),
-              ),
-            ]),
-          );
+            );
 
     final content = Column(
       mainAxisSize: MainAxisSize.min,
-      children: [
-        topRow,
-        const SizedBox(height: 14),
-        lowerSection,
-      ],
+      children: [topRow, const SizedBox(height: 14), lowerSection],
     );
 
     return AnimatedBuilder(
@@ -833,10 +1188,23 @@ class _LeaderboardHeroState extends State<_LeaderboardHero> with SingleTickerPro
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [accent.withOpacity(0.20), accent.withOpacity(0.05), HunterTheme.cardColor],
+              colors: [
+                accent.withOpacity(0.20),
+                accent.withOpacity(0.05),
+                HunterTheme.cardColor,
+              ],
             ),
-            border: Border.all(color: accent.withOpacity(0.30 + g * 0.20), width: 1.4),
-            boxShadow: [BoxShadow(color: accent.withOpacity(0.10 + g * 0.12), blurRadius: 22, spreadRadius: 1)],
+            border: Border.all(
+              color: accent.withOpacity(0.30 + g * 0.20),
+              width: 1.4,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withOpacity(0.10 + g * 0.12),
+                blurRadius: 22,
+                spreadRadius: 1,
+              ),
+            ],
           ),
           child: child,
         );
@@ -844,8 +1212,6 @@ class _LeaderboardHeroState extends State<_LeaderboardHero> with SingleTickerPro
     );
   }
 }
-
-
 
 // ── Elite Top 3 ────────────────────────────────────────────────────────────
 
@@ -897,7 +1263,8 @@ class _EliteTopThree extends StatefulWidget {
   State<_EliteTopThree> createState() => _EliteTopThreeState();
 }
 
-class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProviderStateMixin {
+class _EliteTopThreeState extends State<_EliteTopThree>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _aura = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 8),
@@ -923,7 +1290,12 @@ class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProvide
             children: [
               Expanded(child: _compactCard(hunters[1])),
               const SizedBox(width: 12),
-              Expanded(child: hunters.length > 2 ? _compactCard(hunters[2]) : const SizedBox.shrink()),
+              Expanded(
+                child:
+                    hunters.length > 2
+                        ? _compactCard(hunters[2])
+                        : const SizedBox.shrink(),
+              ),
             ],
           ),
         ],
@@ -957,7 +1329,14 @@ class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProvide
                           h.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: h.isMe ? MembershipTheme.current.accent : HunterTheme.textPrimary, fontSize: 19, fontWeight: FontWeight.w900),
+                          style: TextStyle(
+                            color:
+                                h.isMe
+                                    ? MembershipTheme.current.accent
+                                    : HunterTheme.textPrimary,
+                            fontSize: 19,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -970,7 +1349,15 @@ class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProvide
                     ],
                   ),
                   const SizedBox(height: 3),
-                  Text('${h.rankTitle}  \u00b7  Lv.${h.level}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12)),
+                  Text(
+                    '${h.rankTitle}  \u00b7  Lv.${h.level}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: HunterTheme.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   _xpChip(h),
                 ],
@@ -1004,7 +1391,14 @@ class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProvide
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: h.isMe ? MembershipTheme.current.accent : HunterTheme.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      color:
+                          h.isMe
+                              ? MembershipTheme.current.accent
+                              : HunterTheme.textPrimary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -1017,8 +1411,10 @@ class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProvide
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (_membershipVisual(h.membership).isPremium) _membershipChip(h.membership, fontSize: 7),
-                  if (_membershipVisual(h.membership).isPremium && h.isMe) const SizedBox(width: 5),
+                  if (_membershipVisual(h.membership).isPremium)
+                    _membershipChip(h.membership, fontSize: 7),
+                  if (_membershipVisual(h.membership).isPremium && h.isMe)
+                    const SizedBox(width: 5),
                   if (h.isMe) _youChip(),
                 ],
               ),
@@ -1047,9 +1443,13 @@ class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProvide
             child: RepaintBoundary(
               child: AnimatedBuilder(
                 animation: _aura,
-                builder: (context, _) => CustomPaint(
-                  painter: _EliteAuraPainter(rotation: _aura.value * 2 * math.pi, color: h.tierColor),
-                ),
+                builder:
+                    (context, _) => CustomPaint(
+                      painter: _EliteAuraPainter(
+                        rotation: _aura.value * 2 * math.pi,
+                        color: h.tierColor,
+                      ),
+                    ),
               ),
             ),
           ),
@@ -1059,7 +1459,11 @@ class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProvide
             ringWidth: 2,
             animated: true,
             image: h.image,
-            child: Icon(Icons.person, color: h.rankColor, size: avatarRadius * 1.35),
+            child: Icon(
+              Icons.person,
+              color: h.rankColor,
+              size: avatarRadius * 1.35,
+            ),
           ),
           Positioned(top: 0, child: _rankSymbol(h.position, h.tierColor)),
         ],
@@ -1073,12 +1477,29 @@ class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProvide
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [light, tierColor]),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [light, tierColor],
+        ),
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: Colors.white.withOpacity(0.55), width: 1),
-        boxShadow: [BoxShadow(color: tierColor.withOpacity(0.55), blurRadius: 8, spreadRadius: 0.5)],
+        boxShadow: [
+          BoxShadow(
+            color: tierColor.withOpacity(0.55),
+            blurRadius: 8,
+            spreadRadius: 0.5,
+          ),
+        ],
       ),
-      child: Text('#$position', style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.w900)),
+      child: Text(
+        '#$position',
+        style: const TextStyle(
+          color: Colors.black,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 
@@ -1090,9 +1511,19 @@ class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProvide
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: [light, tierColor]),
         borderRadius: BorderRadius.circular(8),
-        boxShadow: [BoxShadow(color: tierColor.withOpacity(0.4), blurRadius: 8)],
+        boxShadow: [
+          BoxShadow(color: tierColor.withOpacity(0.4), blurRadius: 8),
+        ],
       ),
-      child: Text(label, style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.black,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1.5,
+        ),
+      ),
     );
   }
 
@@ -1104,7 +1535,16 @@ class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProvide
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: h.tierColor.withOpacity(0.4)),
       ),
-      child: Text(h.xpLabel, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 12, fontWeight: FontWeight.w800)),
+      child: Text(
+        h.xpLabel,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: HunterTheme.textPrimary,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
 
@@ -1115,25 +1555,47 @@ class _EliteTopThreeState extends State<_EliteTopThree> with SingleTickerProvide
       decoration: BoxDecoration(
         color: MembershipTheme.current.accent.withOpacity(0.14),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.45)),
+        border: Border.all(
+          color: MembershipTheme.current.accent.withOpacity(0.45),
+        ),
       ),
-      child: Text('YOU', style: TextStyle(color: MembershipTheme.current.accent, fontSize: 8, fontWeight: FontWeight.w800, letterSpacing: 1)),
+      child: Text(
+        'YOU',
+        style: TextStyle(
+          color: MembershipTheme.current.accent,
+          fontSize: 8,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1,
+        ),
+      ),
     );
   }
 
   // Brushed-metal tier frame (diagonal tier-tinted sheen + glow).
-  BoxDecoration _frameDecoration(Color tierColor, double radius, {required bool featured}) {
+  BoxDecoration _frameDecoration(
+    Color tierColor,
+    double radius, {
+    required bool featured,
+  }) {
     return BoxDecoration(
       borderRadius: BorderRadius.circular(radius),
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [tierColor.withOpacity(0.22), HunterTheme.cardColor, tierColor.withOpacity(0.10)],
+        colors: [
+          tierColor.withOpacity(0.22),
+          HunterTheme.cardColor,
+          tierColor.withOpacity(0.10),
+        ],
         stops: const [0.0, 0.55, 1.0],
       ),
       border: Border.all(color: tierColor.withOpacity(0.55), width: 1.5),
       boxShadow: [
-        BoxShadow(color: tierColor.withOpacity(featured ? 0.30 : 0.22), blurRadius: featured ? 22 : 16, spreadRadius: 1),
+        BoxShadow(
+          color: tierColor.withOpacity(featured ? 0.30 : 0.22),
+          blurRadius: featured ? 22 : 16,
+          spreadRadius: 1,
+        ),
       ],
     );
   }
@@ -1185,15 +1647,20 @@ class _EliteAuraPainter extends CustomPainter {
 
     // Rotating energy sweep arc.
     final rect = Rect.fromCircle(center: center, radius: radius * 0.84);
-    final sweepPaint = Paint()
-      ..shader = SweepGradient(
-        colors: [color.withOpacity(0.0), color.withOpacity(0.9), color.withOpacity(0.0)],
-        stops: const [0.0, 0.5, 1.0],
-        transform: GradientRotation(rotation),
-      ).createShader(rect)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round;
+    final sweepPaint =
+        Paint()
+          ..shader = SweepGradient(
+            colors: [
+              color.withOpacity(0.0),
+              color.withOpacity(0.9),
+              color.withOpacity(0.0),
+            ],
+            stops: const [0.0, 0.5, 1.0],
+            transform: GradientRotation(rotation),
+          ).createShader(rect)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5
+          ..strokeCap = StrokeCap.round;
     canvas.drawArc(rect, rotation, math.pi * 0.55, false, sweepPaint);
   }
 
@@ -1213,10 +1680,9 @@ class _EliteAuraPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_EliteAuraPainter old) => old.rotation != rotation || old.color != color;
+  bool shouldRepaint(_EliteAuraPainter old) =>
+      old.rotation != rotation || old.color != color;
 }
-
-
 
 // ── Membership visual system ────────────────────────────────────────────────
 
@@ -1227,9 +1693,9 @@ class _MembershipVisual {
   final bool isPremium;
   final bool isMax;
   final Gradient frameGradient; // avatar ring
-  final Gradient chipGradient;  // membership chip fill (white text)
-  final Color glow;             // bright glow / frame ring accent
-  final Color accent;           // readable accent for numbers/borders
+  final Gradient chipGradient; // membership chip fill (white text)
+  final Color glow; // bright glow / frame ring accent
+  final Color accent; // readable accent for numbers/borders
   final Gradient? cardGradient; // subtle tint over cardColor (null for basic)
   final Color cardBorder;
 
@@ -1293,8 +1759,12 @@ _MembershipVisual _membershipVisual(String membership) {
   return _MembershipVisual(
     isPremium: false,
     isMax: false,
-    frameGradient: const LinearGradient(colors: [Colors.transparent, Colors.transparent]),
-    chipGradient: const LinearGradient(colors: [Colors.transparent, Colors.transparent]),
+    frameGradient: const LinearGradient(
+      colors: [Colors.transparent, Colors.transparent],
+    ),
+    chipGradient: const LinearGradient(
+      colors: [Colors.transparent, Colors.transparent],
+    ),
     glow: Colors.transparent,
     accent: HunterTheme.textSecondary,
     cardGradient: null,
@@ -1331,16 +1801,21 @@ class _MembershipAvatar extends StatefulWidget {
   State<_MembershipAvatar> createState() => _MembershipAvatarState();
 }
 
-class _MembershipAvatarState extends State<_MembershipAvatar> with SingleTickerProviderStateMixin {
+class _MembershipAvatarState extends State<_MembershipAvatar>
+    with SingleTickerProviderStateMixin {
   AnimationController? _rot;
 
-  bool get _spins => widget.animated && _membershipVisual(widget.membership).isMax;
+  bool get _spins =>
+      widget.animated && _membershipVisual(widget.membership).isMax;
 
   @override
   void initState() {
     super.initState();
     if (_spins) {
-      _rot = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat();
+      _rot = AnimationController(
+        vsync: this,
+        duration: const Duration(seconds: 6),
+      )..repeat();
     }
   }
 
@@ -1374,27 +1849,45 @@ class _MembershipAvatarState extends State<_MembershipAvatar> with SingleTickerP
     }
 
     Widget frame(Gradient gradient) => Container(
-          padding: EdgeInsets.all(widget.ringWidth),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: gradient,
-            boxShadow: [BoxShadow(color: v.glow.withOpacity(0.45), blurRadius: 12, spreadRadius: 0.5)],
+      padding: EdgeInsets.all(widget.ringWidth),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: gradient,
+        boxShadow: [
+          BoxShadow(
+            color: v.glow.withOpacity(0.45),
+            blurRadius: 12,
+            spreadRadius: 0.5,
           ),
-          child: Container(
-            padding: const EdgeInsets.all(1.5),
-            decoration: BoxDecoration(shape: BoxShape.circle, color: HunterTheme.cardColor),
-            child: inner,
-          ),
-        );
+        ],
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(1.5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: HunterTheme.cardColor,
+        ),
+        child: inner,
+      ),
+    );
 
     if (_rot != null) {
       return RepaintBoundary(
         child: AnimatedBuilder(
           animation: _rot!,
-          builder: (context, _) => frame(SweepGradient(
-            colors: const [_kMaxDeep, _kMaxPurple, _kMaxViolet, _kMaxPurple, _kMaxDeep],
-            transform: GradientRotation(_rot!.value * 2 * math.pi),
-          )),
+          builder:
+              (context, _) => frame(
+                SweepGradient(
+                  colors: const [
+                    _kMaxDeep,
+                    _kMaxPurple,
+                    _kMaxViolet,
+                    _kMaxPurple,
+                    _kMaxDeep,
+                  ],
+                  transform: GradientRotation(_rot!.value * 2 * math.pi),
+                ),
+              ),
         ),
       );
     }
@@ -1409,7 +1902,10 @@ Widget _membershipChip(String membership, {double fontSize = 9}) {
   final v = _membershipVisual(membership);
   if (!v.isPremium) return const SizedBox.shrink();
   return Container(
-    padding: EdgeInsets.symmetric(horizontal: fontSize * 0.72, vertical: fontSize * 0.28),
+    padding: EdgeInsets.symmetric(
+      horizontal: fontSize * 0.72,
+      vertical: fontSize * 0.28,
+    ),
     decoration: BoxDecoration(
       gradient: v.chipGradient,
       borderRadius: BorderRadius.circular(6),
@@ -1418,11 +1914,20 @@ Widget _membershipChip(String membership, {double fontSize = 9}) {
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(v.isMax ? Icons.auto_awesome : Icons.bolt, color: Colors.white, size: fontSize + 2),
+        Icon(
+          v.isMax ? Icons.auto_awesome : Icons.bolt,
+          color: Colors.white,
+          size: fontSize + 2,
+        ),
         SizedBox(width: fontSize * 0.28),
         Text(
           v.isMax ? 'MAX' : 'PRO',
-          style: TextStyle(color: Colors.white, fontSize: fontSize, fontWeight: FontWeight.w900, letterSpacing: 0.8),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: fontSize,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.8,
+          ),
         ),
       ],
     ),
@@ -1431,7 +1936,7 @@ Widget _membershipChip(String membership, {double fontSize = 9}) {
 
 // ── Premium tab selector ─────────────────────────────────────────────────────
 
-/// Premium segmented control for Overall / Weekly / Daily.
+/// Premium segmented control for Daily / Dungeon / Overall.
 ///
 /// Presentation-only: tapping a segment calls [onChanged] (wired to the
 /// existing [TabController.animateTo]). A glass card holds a sliding
@@ -1464,7 +1969,13 @@ class _PremiumTabSelector extends StatelessWidget {
         color: HunterTheme.cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: HunterTheme.border),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Stack(
         children: [
@@ -1478,9 +1989,19 @@ class _PremiumTabSelector extends StatelessWidget {
               heightFactor: 1,
               child: Container(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [accent, accent.withOpacity(0.75)]),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [accent, accent.withOpacity(0.75)],
+                  ),
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: [BoxShadow(color: accent.withOpacity(0.40), blurRadius: 12, spreadRadius: 0.5)],
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withOpacity(0.40),
+                      blurRadius: 12,
+                      spreadRadius: 0.5,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1498,9 +2019,13 @@ class _PremiumTabSelector extends StatelessWidget {
                         duration: const Duration(milliseconds: 200),
                         curve: Curves.easeOut,
                         style: TextStyle(
-                          color: i == selected ? Colors.black : HunterTheme.textSecondary,
+                          color:
+                              i == selected
+                                  ? Colors.black
+                                  : HunterTheme.textSecondary,
                           fontSize: 13.5,
-                          fontWeight: i == selected ? FontWeight.w800 : FontWeight.w600,
+                          fontWeight:
+                              i == selected ? FontWeight.w800 : FontWeight.w600,
                           letterSpacing: 0.3,
                         ),
                         child: Text(labels[i]),

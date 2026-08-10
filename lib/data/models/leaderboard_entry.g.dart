@@ -23,23 +23,36 @@ class LeaderboardEntryAdapter extends TypeAdapter<LeaderboardEntry> {
       membership: fields[7] as String?,
       membershipExpiry: fields[8] as String?,
       equippedBadgeId: fields[9] as String?,
+      dungeonScore: fields[10] as int? ?? 0,
     );
   }
 
   @override
   void write(BinaryWriter writer, LeaderboardEntry obj) {
     writer
+      ..writeByte(11)
+      ..writeByte(0)
+      ..write(obj.uid)
+      ..writeByte(1)
+      ..write(obj.hunterName)
+      ..writeByte(2)
+      ..write(obj.level)
+      ..writeByte(3)
+      ..write(obj.xp)
+      ..writeByte(4)
+      ..write(obj.weeklyXp)
+      ..writeByte(5)
+      ..write(obj.dailyXp)
+      ..writeByte(6)
+      ..write(obj.profilePicture)
+      ..writeByte(7)
+      ..write(obj.membership)
+      ..writeByte(8)
+      ..write(obj.membershipExpiry)
+      ..writeByte(9)
+      ..write(obj.equippedBadgeId)
       ..writeByte(10)
-      ..writeByte(0)..write(obj.uid)
-      ..writeByte(1)..write(obj.hunterName)
-      ..writeByte(2)..write(obj.level)
-      ..writeByte(3)..write(obj.xp)
-      ..writeByte(4)..write(obj.weeklyXp)
-      ..writeByte(5)..write(obj.dailyXp)
-      ..writeByte(6)..write(obj.profilePicture)
-      ..writeByte(7)..write(obj.membership)
-      ..writeByte(8)..write(obj.membershipExpiry)
-      ..writeByte(9)..write(obj.equippedBadgeId);
+      ..write(obj.dungeonScore);
   }
 
   @override

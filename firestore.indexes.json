@@ -15,6 +15,20 @@
       ]
     },
     {
+      "collectionGroup": "hunters",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "dailyResetEpoch",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dailyXp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "weight_history",
       "queryScope": "COLLECTION",
       "fields": [

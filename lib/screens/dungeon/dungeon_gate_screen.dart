@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
-import 'package:hunter_ascend/screens/dungeon/dungeon_coming_soon_screen.dart';
 import 'package:hunter_ascend/screens/dungeon/dungeon_gates.dart';
 import 'package:hunter_ascend/screens/dungeon/dungeon_play_screen.dart';
 import 'package:hunter_ascend/screens/dungeon/dungeon_session_manager.dart';
@@ -17,11 +16,11 @@ import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 /// Dungeon Lobby and stepping into the dungeon.
 ///
 /// Presentation only: animated gate, name, rank, difficulty, lore, ENTER
-/// DUNGEON and BACK. ENTER DUNGEON routes to the Phase 4 play screen for
-/// the E-Rank gate and to the placeholder for higher gates. Everything a
-/// later phase needs to inject (objectives, AI-generated dungeon, rewards,
-/// daily reset, progress) arrives through the [spec] descriptor — the
-/// screen itself won't need redesigning.
+/// DUNGEON and BACK. ENTER DUNGEON routes to the shared play screen for
+/// EVERY rank (Phase 6 — one engine, rank content comes from
+/// `DungeonTemplates`). Everything a later phase needs to inject arrives
+/// through the [spec] descriptor — the screen itself won't need
+/// redesigning.
 class DungeonGateScreen extends StatefulWidget {
   const DungeonGateScreen({super.key, required this.spec});
 
@@ -146,10 +145,10 @@ class _DungeonGateScreenState extends State<DungeonGateScreen>
 
   // ── Actions ────────────────────────────────────────────────────────────
 
-  /// ENTER DUNGEON → Phase 4 gameplay exists for the E-Rank gate only;
-  /// higher-rank gates keep the Phase 3 placeholder until their phases
-  /// ship. pushReplacement keeps the stack flat (lobby → play), so BACK /
-  /// RETURN on the play screen lands on the Dungeon Lobby.
+  /// ENTER DUNGEON → the shared gameplay engine serves EVERY rank gate
+  /// (Phase 6); only the rank's dungeon content differs. pushReplacement
+  /// keeps the stack flat (lobby → play), so BACK / RETURN on the play
+  /// screen lands on the Dungeon Lobby.
   ///
   /// Session creation is delegated to [DungeonSessionManager]: the AI
   /// dungeon is generated ONLY on this press and only when today's
@@ -157,16 +156,6 @@ class _DungeonGateScreenState extends State<DungeonGateScreen>
   /// snapshots are captured ONCE immediately afterwards and tracking
   /// starts — all outside any widget lifecycle.
   Future<void> _enterDungeon(BuildContext context) async {
-    final isERank = widget.spec.letter == 'E';
-    if (!isERank) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => DungeonComingSoonScreen(spec: widget.spec),
-        ),
-      );
-      return;
-    }
     if (_entering) return;
     _entering = true;
 
@@ -176,9 +165,7 @@ class _DungeonGateScreenState extends State<DungeonGateScreen>
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (_) => DungeonPlayScreen(spec: widget.spec),
-      ),
+      MaterialPageRoute(builder: (_) => DungeonPlayScreen(spec: widget.spec)),
     );
   }
 
@@ -217,12 +204,13 @@ class _DungeonGateScreenState extends State<DungeonGateScreen>
           child: IgnorePointer(
             child: AnimatedBuilder(
               animation: _emberController,
-              builder: (context, _) => CustomPaint(
-                painter: _GateEmberPainter(
-                  progress: _emberController.value,
-                  color: rankColor,
-                ),
-              ),
+              builder:
+                  (context, _) => CustomPaint(
+                    painter: _GateEmberPainter(
+                      progress: _emberController.value,
+                      color: rankColor,
+                    ),
+                  ),
             ),
           ),
         ),
@@ -268,10 +256,7 @@ class _DungeonGateScreenState extends State<DungeonGateScreen>
                     fontSize: 64,
                     fontWeight: FontWeight.w900,
                     shadows: [
-                      Shadow(
-                        color: rankColor.withOpacity(0.6),
-                        blurRadius: 24,
-                      ),
+                      Shadow(color: rankColor.withOpacity(0.6), blurRadius: 24),
                     ],
                   ),
                 ),

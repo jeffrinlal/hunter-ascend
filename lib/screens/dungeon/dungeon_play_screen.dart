@@ -1,15 +1,24 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
+import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
+import 'package:hunter_ascend/screens/dungeon/dungeon_cleared_screen.dart';
 import 'package:hunter_ascend/screens/dungeon/dungeon_gates.dart';
-import 'package:hunter_ascend/screens/dungeon/dungeon_generation.dart';
-import 'package:hunter_ascend/screens/dungeon/dungeon_monsters.dart';
+import 'package:hunter_ascend/screens/dungeon/dungeon_objective.dart';
+import 'package:hunter_ascend/screens/dungeon/dungeon_rewards.dart';
 import 'package:hunter_ascend/screens/dungeon/dungeon_session_manager.dart';
+import 'package:hunter_ascend/screens/dungeon/dungeon_templates.dart';
 import 'package:hunter_ascend/screens/dungeon/widgets/monster_card.dart';
+import 'package:hunter_ascend/services/ads_service.dart';
+import 'package:hunter_ascend/services/milestone_service.dart';
+import 'package:hunter_ascend/services/rank_celebration_service.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:hunter_ascend/widgets/dashboard/entrance_fade_slide.dart';
 import 'package:hunter_ascend/widgets/membership/membership_app_bar.dart';
+import 'package:hunter_ascend/widgets/membership/membership_button.dart';
 import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 import 'package:hunter_ascend/widgets/premium_dialog.dart';
 
@@ -43,6 +52,11 @@ class DungeonPlayScreen extends StatefulWidget {
 class _DungeonPlayScreenState extends State<DungeonPlayScreen> {
   final DungeonSessionManager _manager = DungeonSessionManager.instance;
 
+  /// This gate's rank content template (Phase 6) — monster pool, boss
+  /// identity and the rank-scaled clear reward all come from here.
+  late final DungeonTemplate _template =
+      DungeonTemplates.forGate(widget.spec.letter) ?? DungeonTemplates.eRank;
+
   /// Presentation gates — the cleared dialog fires at most once per
   /// entry and the boss-room transition at most once per entry.
   bool _clearedShown = false;
@@ -53,10 +67,25 @@ class _DungeonPlayScreenState extends State<DungeonPlayScreen> {
   /// their dialogs.
   bool _seenInitial = false;
 
+  /// ONE banner for the whole quest screen — the SAME shared lifecycle
+  /// the Missions screen uses ([MissionBannerAd]): one retry on failure,
+  /// dispose/reload on tier change, created once in [initState] and never
+  /// reloaded by timer ticks. [MissionBannerAd.allTiers] opts out of the
+  /// normal Basic-only rule: the ACTIVE dungeon quest banner is part of
+  /// the quest experience and shows for Basic, Pro AND Max alike
+  /// (presentation only — it never affects gameplay).
+  late final MissionBannerAd _banner = MissionBannerAd(
+    allTiers: true,
+    onChanged: () {
+      if (mounted) setState(() {});
+    },
+  );
+
   @override
   void initState() {
     super.initState();
     _manager.addListener(_onSessionChanged);
+    _banner.load();
     // Defensive restore: the normal path is ENTER DUNGEON on the gate
     // screen, but a direct open (app restart, deep navigation) restores
     // today's session here — same idempotent code path, no regeneration.
@@ -66,6 +95,7 @@ class _DungeonPlayScreenState extends State<DungeonPlayScreen> {
   @override
   void dispose() {
     _manager.removeListener(_onSessionChanged);
+    _banner.dispose();
     super.dispose();
   }
 
@@ -91,7 +121,7 @@ class _DungeonPlayScreenState extends State<DungeonPlayScreen> {
 
     if (_manager.isCleared && !_clearedShown) {
       _clearedShown = true;
-      _showClearedDialog();
+      _showClearedReveal();
     }
   }
 
@@ -100,50 +130,82 @@ class _DungeonPlayScreenState extends State<DungeonPlayScreen> {
   void _showBossRoomTransition() {
     showPremiumDialog(
       context: context,
-      builder: (ctx) => PremiumDialogCard(
-        icon: Icons.warning_amber_rounded,
-        accent: HunterTheme.gold,
-        title: 'THE BOSS ROOM HAS OPENED',
-        message: 'Every monster has fallen.\n'
-            '${DungeonMonsters.boss.emoji} ${DungeonMonsters.boss.name} '
-            'awaits — defeat it to clear the dungeon.',
-        actions: [
-          PremiumDialogButton.primary(
-            'ENTER BOSS ROOM',
-            icon: Icons.play_arrow_rounded,
-            onTap: () => Navigator.of(ctx).pop(),
+      builder:
+          (ctx) => PremiumDialogCard(
+            icon: Icons.warning_amber_rounded,
+            accent: HunterTheme.gold,
+            title: 'THE BOSS ROOM HAS OPENED',
+            message:
+                'Every monster has fallen.\n'
+                '${_template.boss.emoji} ${_template.boss.name} '
+                'awaits — defeat it to clear the dungeon.',
+            actions: [
+              PremiumDialogButton.primary(
+                'ENTER BOSS ROOM',
+                icon: Icons.play_arrow_rounded,
+                onTap: () => Navigator.of(ctx).pop(),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
-  /// DUNGEON CLEARED — rewards stay Phase 4 placeholders (display only,
-  /// nothing awarded or stored yet). RETURN pops back to the Dungeon
-  /// Lobby (the gate screen replaced itself when entering, so one pop
-  /// lands there).
-  void _showClearedDialog() {
-    showPremiumDialog(
-      context: context,
-      builder: (ctx) => PremiumDialogCard(
-        icon: Icons.emoji_events_rounded,
-        accent: HunterTheme.gold,
-        title: 'DUNGEON CLEARED',
-        message: '${widget.spec.name} conquered!\n\n'
-            '+${DungeonGeneration.placeholderXp} XP\n'
-            '+${DungeonGeneration.placeholderCoins} Coins',
-        actions: [
-          PremiumDialogButton.primary(
-            'RETURN',
-            icon: Icons.arrow_back_rounded,
-            onTap: () {
-              Navigator.of(ctx).pop();
-              if (mounted) Navigator.of(context).pop();
-            },
-          ),
-        ],
-      ),
+  /// DUNGEON CLEARED — Phase 7 reveal. The dedicated clear presentation
+  /// runs through the GLOBAL milestone queue, so it never stacks with the
+  /// boss-room transition or with the level-up/rank-up celebrations that
+  /// the claim can trigger afterwards.
+  ///
+  /// Sequence: boss defeated → short transition → DUNGEON CLEARED
+  /// (name / rank / boss DEFEATED) → reward reveal (+XP, +Coins) →
+  /// 🎁 DUNGEON LOOT → RETURN.
+  void _showClearedReveal() {
+    MilestoneService.enqueue(context, _runClearedSequence);
+  }
+
+  /// Shows the cleared reveal once, then celebrates any level-up/rank-up
+  /// the claim triggered — through the SAME shared systems the Missions
+  /// screen uses after awardXp. The grant itself happens INSIDE the
+  /// dialog via [DungeonSessionManager.claimClearReward] (exactly once —
+  /// the manager + daily store enforce it; reopening an already-claimed
+  /// dungeon runs the dialog in review mode and re-presents the
+  /// persisted record without granting anything).
+  Future<void> _runClearedSequence(BuildContext ctx) async {
+    final manager = DungeonSessionManager.instance;
+    final oldLevel = HunterRepository.instance.getCached()?.level ?? 1;
+
+    DungeonClaimResult? claim;
+    await showDungeonClearedDialog(
+      ctx,
+      spec: widget.spec,
+      template: _template,
+      review: manager.rewardClaimed,
+      knownReward: manager.clearReward,
+      onClaim: () async {
+        claim = await manager.claimClearReward();
+        return claim?.reward;
+      },
     );
+    if (!mounted) return;
+    final result = claim;
+    if (result == null) return;
+
+    // Celebrations queue AFTER the reveal closes (same queue).
+    if (result.xpAward.leveledUp) {
+      MilestoneService.celebrateLevelUps(
+        context,
+        oldLevel,
+        result.xpAward.level,
+      );
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        RankCelebrationService.instance.celebrateIfRankUp(
+          context,
+          uid: uid,
+          oldLevel: oldLevel,
+          newLevel: result.xpAward.level,
+        );
+      }
+    }
   }
 
   // ── UI ─────────────────────────────────────────────────────────────────
@@ -167,23 +229,128 @@ class _DungeonPlayScreenState extends State<DungeonPlayScreen> {
     return MembershipScaffold(
       appBar: const MembershipAppBar(),
       body: SafeArea(
-        child: !_manager.hasSession
-            ? _buildLoading()
-            : ListView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-                children: [
-                  _buildHeader(rank),
-                  const SizedBox(height: 22),
-                  _sectionLabel('MONSTERS'),
-                  const SizedBox(height: 12),
-                  for (final monster in _manager.monsters) ...[
-                    MonsterCard(objective: monster),
+        child:
+            !_manager.hasSession
+                ? _buildLoading()
+                : ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                  children: [
+                    _buildHeader(rank),
+                    if (_manager.isCleared) ...[
+                      const SizedBox(height: 18),
+                      _buildClearedBanner(),
+                    ],
+                    const SizedBox(height: 22),
+                    _sectionLabel('MONSTERS'),
                     const SizedBox(height: 12),
+                    for (final monster in _manager.monsters) ...[
+                      MonsterCard(
+                        objective: monster,
+                        template: _template,
+                        // START QUEST → the session manager stamps and
+                        // persists the timer; no AI, no local countdown
+                        // state here.
+                        onStartQuest: () => _manager.startQuest(monster),
+                        // SEQUENTIAL progression — only the manager's
+                        // [nextStartableQuest] offers START QUEST; every
+                        // other pending quest renders locked.
+                        locked:
+                            !identical(monster, _manager.nextStartableQuest),
+                      ),
+                      const SizedBox(height: 12),
+                      // ACTIVE QUEST banner — shown DIRECTLY under the
+                      // active quest card, for EVERY membership tier
+                      // (Basic/Pro/Max). ONE instance, mounted once, never
+                      // covering progress/timer/buttons; it simply leaves
+                      // when the quest clears.
+                      if (monster == _activeQuestMonster &&
+                          _banner.ready &&
+                          _banner.ad != null) ...[
+                        Center(
+                          child: SizedBox(
+                            key: const ValueKey('dungeon_quest_banner'),
+                            width: _banner.ad!.size.width.toDouble(),
+                            height: _banner.ad!.size.height.toDouble(),
+                            child: AdWidget(ad: _banner.ad!),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                    ],
+                    const SizedBox(height: 8),
+                    _buildBossRoom(),
                   ],
-                  const SizedBox(height: 8),
-                  _buildBossRoom(),
-                ],
-              ),
+                ),
+      ),
+    );
+  }
+
+  /// Already-completed state — the dungeon stays cleared for the rest of
+  /// the day and is NEVER regenerated. Claimed → "Completed Today /
+  /// Rewards Already Claimed" with RETURN (the reveal re-presents the
+  /// persisted record in review mode — nothing is granted again).
+  /// Unclaimed (CLAIM LATER or an app restart before claiming) → the
+  /// banner re-opens the reveal, whose claim path grants EXACTLY once.
+  /// Pro/Max only ever change theming, so the reward is identical for
+  /// every tier.
+  Widget _buildClearedBanner() {
+    final claimed = _manager.rewardClaimed;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: HunterTheme.gold.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: HunterTheme.gold.withOpacity(0.45)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            '✔ DUNGEON CLEARED',
+            style: TextStyle(
+              color: HunterTheme.gold,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.6,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Completed Today',
+            style: TextStyle(
+              color: HunterTheme.textPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            claimed
+                ? 'Rewards Already Claimed'
+                : 'Your reward is waiting — claim it now.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: HunterTheme.textSecondary,
+              fontSize: 11.5,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (claimed)
+            MembershipButton.secondary(
+              'RETURN',
+              onTap: () => Navigator.of(context).pop(),
+              expanded: true,
+              icon: Icons.flag_rounded,
+            )
+          else
+            MembershipButton.primary(
+              'CLAIM REWARD',
+              onTap: _showClearedReveal,
+              expanded: true,
+              icon: Icons.card_giftcard_rounded,
+            ),
+        ],
       ),
     );
   }
@@ -206,8 +373,7 @@ class _DungeonPlayScreenState extends State<DungeonPlayScreen> {
         ),
         child: Column(
           children: [
-            Icon(Icons.lock_rounded,
-                color: HunterTheme.textTertiary, size: 26),
+            Icon(Icons.lock_rounded, color: HunterTheme.textTertiary, size: 26),
             const SizedBox(height: 8),
             Text(
               'THE BOSS ROOM IS SEALED',
@@ -221,10 +387,7 @@ class _DungeonPlayScreenState extends State<DungeonPlayScreen> {
             const SizedBox(height: 4),
             Text(
               'Defeat every monster to open it.',
-              style: TextStyle(
-                color: HunterTheme.textTertiary,
-                fontSize: 11.5,
-              ),
+              style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11.5),
             ),
           ],
         ),
@@ -234,7 +397,7 @@ class _DungeonPlayScreenState extends State<DungeonPlayScreen> {
     return EntranceFadeSlide(
       child: Column(
         children: [
-          BossCard(objective: boss),
+          BossCard(objective: boss, template: _template),
           const SizedBox(height: 14),
           Text(
             'Defeat the boss to clear the dungeon.',
@@ -260,6 +423,20 @@ class _DungeonPlayScreenState extends State<DungeonPlayScreen> {
         fontWeight: FontWeight.w800,
       ),
     );
+  }
+
+  /// The FIRST monster whose quest is currently running (started, not
+  /// cleared yet) — the one active-quest card the banner attaches to.
+  /// Only one card hosts the banner so the single [AdWidget] instance is
+  /// never mounted twice; extra simultaneous quests simply queue without
+  /// a second banner.
+  DungeonObjective? get _activeQuestMonster {
+    for (final monster in _manager.monsters) {
+      if (monster.questStartedAt != null && !monster.questCleared) {
+        return monster;
+      }
+    }
+    return null;
   }
 
   Widget _buildLoading() {

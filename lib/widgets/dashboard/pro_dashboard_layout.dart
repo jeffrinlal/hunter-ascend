@@ -10,6 +10,7 @@ import 'package:hunter_ascend/widgets/dashboard/entrance_fade_slide.dart';
 import 'package:hunter_ascend/widgets/dashboard/premium_mission_card.dart';
 import 'package:hunter_ascend/widgets/dashboard/premium_quick_actions.dart';
 import 'package:hunter_ascend/widgets/dashboard/premium_water_card.dart';
+import 'package:hunter_ascend/screens/shop/coin_shop_screen.dart';
 
 // ── Hero layout constants ─────────────────────────────────────────────────
 // Kept in one place so the floating avatar/ring, the hero's reserved bottom
@@ -213,6 +214,23 @@ class _PremiumHero extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
+                  // Coin Shop button
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const CoinShopScreen(),
+                      ),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Text('🪙', style: TextStyle(fontSize: 16)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   GestureDetector(
                     onTap: onNotificationTap,
                     child: Icon(

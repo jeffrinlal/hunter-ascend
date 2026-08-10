@@ -15,7 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// * `completedAt`    — ISO completion time of today's clear.
 /// * `rewardClaimed`  — whether today's clear reward was already claimed
 ///                       (exactly-once gate for the XP award).
-/// * `clearReward`    — today's claimed reward record (XP, coins, loot)
+/// * `clearReward`    — today's claimed reward record (XP, coins)
 ///                       so the cleared screen re-shows the SAME reward.
 /// * `objectivesDate` — calendar day the stored objectives were generated.
 /// * `objectives`     — the day's generated monsters PLUS the boss
@@ -193,9 +193,9 @@ class DungeonDailyStore {
     required bool claimed,
   }) => _update(gateLetter, (entry) => entry['rewardClaimed'] = claimed);
 
-  /// Persists today's clear REWARD RECORD (Phase 7) — XP, coins and the
-  /// picked loot — alongside the claim flag, so reopening the cleared
-  /// dungeon re-shows the SAME rewards without ever granting them again.
+  /// Persists today's clear REWARD RECORD (Phase 7) — XP and coins picked
+  /// at claim time, so the cleared screen re-shows the SAME rewards without
+  /// ever granting them again.
   static Future<void> saveClearReward(
     String gateLetter,
     DungeonClearReward reward,
@@ -288,8 +288,8 @@ class DungeonDailyState {
   /// app restart.
   final bool rewardClaimed;
 
-  /// The stored clear-reward record (Phase 7) — XP, coins and loot picked
-  /// at claim time, so the cleared screen always re-shows the SAME reward.
+  /// The stored clear-reward record (Phase 7) — XP and coins picked at
+  /// claim time, so the cleared screen always re-shows the SAME reward.
   final dynamic clearRewardJson;
 
   /// [clearRewardJson] parsed — only meaningful while today's clear is in

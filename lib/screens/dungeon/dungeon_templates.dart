@@ -1,6 +1,5 @@
 import 'package:hunter_ascend/screens/dungeon/dungeon_monsters.dart';
 import 'package:hunter_ascend/screens/dungeon/dungeon_objective.dart';
-import 'package:hunter_ascend/screens/dungeon/dungeon_rewards.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
 
 /// Hard target bounds for ONE objective type — the monster range and the
@@ -75,7 +74,6 @@ class DungeonTemplate {
     required this.rewardTier,
     required this.coinsMin,
     required this.coinsMax,
-    required this.lootTable,
   });
 
   /// Stable content identifier (e.g. "goblin_cave").
@@ -124,10 +122,6 @@ class DungeonTemplate {
   /// display/future integration (see `DungeonClearReward`).
   final int coinsMin;
   final int coinsMax;
-
-  /// Display-only loot table — one entry is picked at claim time and
-  /// persisted. NO inventory, equipment or item database behind it.
-  final List<DungeonLootSpec> lootTable;
 
   /// Canonical rank for [rankLetter] (letter, label, color, minLevel all
   /// come from the existing ladder — no duplicated rank math).
@@ -217,11 +211,6 @@ class DungeonTemplates {
       rewardTier: 'Basic',
       coinsMin: 10,
       coinsMax: 20,
-      lootTable: [
-        DungeonLootSpec(name: 'Goblin Token', emoji: '🪙'),
-        DungeonLootSpec(name: 'Cave Crystal', emoji: '💎'),
-        DungeonLootSpec(name: "Hunter's Ration", emoji: '🍖'),
-      ],
     ),
 
     // ── D Rank ────────────────────────────────────────────────────────────
@@ -286,11 +275,6 @@ class DungeonTemplates {
       rewardTier: 'Improved',
       coinsMin: 20,
       coinsMax: 35,
-      lootTable: [
-        DungeonLootSpec(name: 'Silk Thread', emoji: '🕸️'),
-        DungeonLootSpec(name: 'Venom Sac', emoji: '🧪'),
-        DungeonLootSpec(name: 'Spider Fang', emoji: '🦷'),
-      ],
     ),
 
     // ── C Rank ────────────────────────────────────────────────────────────
@@ -355,11 +339,6 @@ class DungeonTemplates {
       rewardTier: 'Moderate',
       coinsMin: 35,
       coinsMax: 50,
-      lootTable: [
-        DungeonLootSpec(name: 'Bone Charm', emoji: '🦴'),
-        DungeonLootSpec(name: 'Ancient Coin', emoji: '🪙'),
-        DungeonLootSpec(name: 'Crypt Relic', emoji: '🏺'),
-      ],
     ),
 
     // ── B Rank ────────────────────────────────────────────────────────────
@@ -424,11 +403,6 @@ class DungeonTemplates {
       rewardTier: 'High',
       coinsMin: 50,
       coinsMax: 75,
-      lootTable: [
-        DungeonLootSpec(name: 'Orc Tusk', emoji: '🦷'),
-        DungeonLootSpec(name: 'War Banner', emoji: '🚩'),
-        DungeonLootSpec(name: 'Iron Medal', emoji: '🎖️'),
-      ],
     ),
 
     // ── A Rank ────────────────────────────────────────────────────────────
@@ -493,11 +467,6 @@ class DungeonTemplates {
       rewardTier: 'Very High',
       coinsMin: 75,
       coinsMax: 100,
-      lootTable: [
-        DungeonLootSpec(name: 'Shadow Shard', emoji: '🌑'),
-        DungeonLootSpec(name: 'Cursed Sigil', emoji: '🔮'),
-        DungeonLootSpec(name: 'Dark Essence', emoji: '🖤'),
-      ],
     ),
 
     // ── S Rank ────────────────────────────────────────────────────────────
@@ -562,11 +531,6 @@ class DungeonTemplates {
       rewardTier: 'Highest',
       coinsMin: 100,
       coinsMax: 150,
-      lootTable: [
-        DungeonLootSpec(name: 'Demon Horn', emoji: '😈'),
-        DungeonLootSpec(name: 'Hellfire Core', emoji: '🔥'),
-        DungeonLootSpec(name: "Monarch's Crest", emoji: '👑'),
-      ],
     ),
   ];
 

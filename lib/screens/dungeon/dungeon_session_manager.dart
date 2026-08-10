@@ -56,7 +56,7 @@ class DungeonSession {
   bool rewardClaimed;
 
   /// Today's claimed reward record (Phase 7) — restored from the daily
-  /// store so the cleared screen re-shows the SAME XP/coins/loot without
+  /// store so the cleared screen re-shows the SAME XP/coins without
   /// granting anything again.
   DungeonClearReward? clearReward;
 
@@ -296,10 +296,10 @@ class DungeonSessionManager extends ChangeNotifier {
   // ── Clear reward (Phase 5 — awarded exactly once) ────────────────────
 
   /// Claims today's dungeon-clear reward EXACTLY once (Phase 7 bundle:
-  /// XP + coins + loot). The XP goes through the centralized [XpService]
+  /// XP + coins). The XP goes through the centralized [XpService]
   /// (the same awarding path quests, duels and achievements use —
   /// level-up, daily/weekly XP and leaderboard staleness all come for
-  /// free; no XP logic is duplicated here). Coins and loot have no live
+  /// free; no XP logic is duplicated here). Coins have no live
   /// economy yet — they are recorded with the claim for display and
   /// future integration. All amounts come from the template +
   /// `DungeonRewardBuilder` configuration layer; membership tier never

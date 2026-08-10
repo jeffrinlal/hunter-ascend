@@ -16,9 +16,9 @@ import 'package:hunter_ascend/widgets/dashboard/entrance_fade_slide.dart';
 ///
 /// * CLAIM mode (`review == false`): staged RPG reveal —
 ///   DUNGEON CLEARED (name / rank / boss DEFEATED) → CLAIM REWARD →
-///   +XP & +Coins → 🎁 DUNGEON LOOT → RETURN. Claiming runs through
-///   [onClaim]; a failed claim stays on the header stage so the reward
-///   remains claimable from the play-screen banner.
+///   +XP & +Coins → RETURN. Claiming runs through [onClaim]; a failed
+///   claim stays on the header stage so the reward remains claimable
+///   from the play-screen banner.
 /// * REVIEW mode (`review == true`): the dungeon was already cleared
 ///   today and the reward already claimed — shows "Completed Today /
 ///   Rewards Already Claimed" with the persisted record and RETURN.
@@ -57,7 +57,7 @@ class DungeonClearedDialog extends StatefulWidget {
 }
 
 class _DungeonClearedDialogState extends State<DungeonClearedDialog> {
-  /// 0 = cleared header, 1 = reward reveal, 2 = loot reveal.
+  /// 0 = cleared header, 1 = reward reveal.
   int _stage = 0;
   bool _claiming = false;
   DungeonClearReward? _reward;
@@ -205,7 +205,6 @@ class _DungeonClearedDialogState extends State<DungeonClearedDialog> {
                         ? _buildReview()
                         : switch (_stage) {
                           1 => _buildRewards(),
-                          2 => _buildLoot(),
                           _ => _buildClaimStage(),
                         },
               ),
@@ -283,55 +282,6 @@ class _DungeonClearedDialogState extends State<DungeonClearedDialog> {
           ],
           const SizedBox(height: 20),
           _PrimaryButton(
-            label: 'CONTINUE',
-            icon: Icons.arrow_forward_rounded,
-            onTap: () => _advance(2),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Stage 2 — loot reveal ────────────────────────────────────────────
-
-  Widget _buildLoot() {
-    final reward = _reward;
-    return EntranceFadeSlide(
-      key: const ValueKey('stage-loot'),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _stageLabel('🎁 DUNGEON LOOT'),
-          const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-            decoration: BoxDecoration(
-              color: HunterTheme.gold.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: HunterTheme.gold.withOpacity(0.35)),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  reward?.lootEmoji ?? '🎁',
-                  style: const TextStyle(fontSize: 34),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  reward?.lootName ?? 'Hunter\'s Reward',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: HunterTheme.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          _PrimaryButton(
             label: 'RETURN',
             icon: Icons.flag_rounded,
             onTap: () => Navigator.of(context).pop(),
@@ -379,12 +329,6 @@ class _DungeonClearedDialogState extends State<DungeonClearedDialog> {
               emoji: '🪙',
               label: '+${reward.coins} Coins',
               color: HunterTheme.gold,
-            ),
-            const SizedBox(height: 10),
-            _RewardRow(
-              emoji: reward.lootEmoji,
-              label: reward.lootName,
-              color: HunterTheme.textPrimary,
             ),
           ],
           const SizedBox(height: 20),
@@ -473,7 +417,7 @@ class _Chip extends StatelessWidget {
   }
 }
 
-/// One revealed reward line (+XP / +Coins / loot).
+/// One revealed reward line (+XP / +Coins).
 class _RewardRow extends StatelessWidget {
   const _RewardRow({
     required this.emoji,

@@ -157,7 +157,7 @@ class _DungeonPlayScreenState extends State<DungeonPlayScreen> {
   ///
   /// Sequence: boss defeated → short transition → DUNGEON CLEARED
   /// (name / rank / boss DEFEATED) → reward reveal (+XP, +Coins) →
-  /// 🎁 DUNGEON LOOT → RETURN.
+  /// RETURN.
   void _showClearedReveal() {
     MilestoneService.enqueue(context, _runClearedSequence);
   }

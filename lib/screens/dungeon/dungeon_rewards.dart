@@ -3,20 +3,6 @@ import 'dart:math';
 import 'package:hunter_ascend/screens/dungeon/dungeon_templates.dart';
 import 'package:hunter_ascend/services/xp_service.dart';
 
-/// One loot entry in a template's display-only loot table (Phase 7).
-///
-/// Deliberately lightweight: loot is a VISUAL completion reward — there is
-/// no inventory, no equipment and no item database behind it. The entry
-/// is chosen from the rank template's table at claim time and persisted
-/// with the claim so re-showing the clear screen always presents the same
-/// loot.
-class DungeonLootSpec {
-  const DungeonLootSpec({required this.name, required this.emoji});
-
-  final String name;
-  final String emoji;
-}
-
 /// The persisted record of one dungeon-clear reward (Phase 7).
 ///
 /// Written by [DungeonSessionManager.claimClearReward] EXACTLY once per
@@ -30,20 +16,14 @@ class DungeonClearReward {
   const DungeonClearReward({
     required this.xp,
     required this.coins,
-    required this.lootName,
-    required this.lootEmoji,
   });
 
   final int xp;
   final int coins;
-  final String lootName;
-  final String lootEmoji;
 
   Map<String, dynamic> toJson() => {
     'xp': xp,
     'coins': coins,
-    'loot': lootName,
-    'lootEmoji': lootEmoji,
   };
 
   /// Lenient parse of a stored record — null when unusable.
@@ -51,14 +31,10 @@ class DungeonClearReward {
     if (raw is! Map) return null;
     final xp = int.tryParse('${raw['xp']}');
     final coins = int.tryParse('${raw['coins']}');
-    final loot = (raw['loot'] ?? '').toString().trim();
-    final emoji = (raw['lootEmoji'] ?? '').toString().trim();
-    if (xp == null || coins == null || loot.isEmpty) return null;
+    if (xp == null || coins == null) return null;
     return DungeonClearReward(
       xp: xp,
       coins: coins,
-      lootName: loot,
-      lootEmoji: emoji.isEmpty ? '🎁' : emoji,
     );
   }
 }
@@ -77,14 +53,13 @@ class DungeonClaimResult {
 ///
 /// Rewards are DETERMINISTIC per gate + calendar day: the same seed is
 /// rebuilt on every call, so a claim retry after a failed XP award always
-/// resolves to the IDENTICAL coins + loot, and the persisted record always
+/// resolves to the IDENTICAL coins, and the persisted record always
 /// matches what the hunter saw. No AI is ever involved.
 class DungeonRewardBuilder {
   DungeonRewardBuilder._();
 
   /// Builds today's clear reward for [template] — XP from the template's
-  /// rank-scaled `rewardXp`, coins inside its configured range and one
-  /// loot entry from its loot table.
+  /// rank-scaled `rewardXp` and coins inside its configured range.
   static DungeonClearReward build(
     DungeonTemplate template, {
     required String gateLetter,
@@ -94,12 +69,9 @@ class DungeonRewardBuilder {
     final coins =
         template.coinsMin +
         rng.nextInt(template.coinsMax - template.coinsMin + 1);
-    final loot = template.lootTable[rng.nextInt(template.lootTable.length)];
     return DungeonClearReward(
       xp: template.rewardXp,
       coins: coins,
-      lootName: loot.name,
-      lootEmoji: loot.emoji,
     );
   }
 }

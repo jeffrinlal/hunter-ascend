@@ -10,6 +10,7 @@ import 'package:hunter_ascend/screens/dungeon/dungeon_rewards.dart';
 import 'package:hunter_ascend/screens/dungeon/dungeon_templates.dart';
 import 'package:hunter_ascend/screens/dungeon/dungeon_tracker.dart';
 import 'package:hunter_ascend/services/xp_service.dart';
+import 'package:hunter_ascend/services/coin_service.dart';
 
 /// Lifecycle of today's dungeon session.
 enum DungeonSessionStatus { active, cleared }
@@ -299,15 +300,14 @@ class DungeonSessionManager extends ChangeNotifier {
   /// XP + coins). The XP goes through the centralized [XpService]
   /// (the same awarding path quests, duels and achievements use —
   /// level-up, daily/weekly XP and leaderboard staleness all come for
-  /// free; no XP logic is duplicated here). Coins have no live
-  /// economy yet — they are recorded with the claim for display and
-  /// future integration. All amounts come from the template +
-  /// `DungeonRewardBuilder` configuration layer; membership tier never
-  /// changes them.
+  /// free; no XP logic is duplicated here). Coins go through [CoinService]
+  /// and are added to the persistent coin balance (Phase 8 — Coin Shop).
+  /// All amounts come from the template + `DungeonRewardBuilder`
+  /// configuration layer; membership tier never changes them.
   ///
   /// Exactly-once guarantee: the claim flag AND the reward record are
-  /// persisted FIRST, then the XP is awarded; only a FAILED award rolls
-  /// both back (the duel-XP idempotency pattern). Rewards are
+  /// persisted FIRST, then the XP and coins are awarded; only a FAILED
+  /// award rolls both back (the duel-XP idempotency pattern). Rewards are
   /// deterministic per gate + day, so a retry rebuilds the IDENTICAL
   /// record. Re-entry, rebuilds, app restarts and double taps can
   /// therefore never pay the reward twice.
@@ -341,12 +341,19 @@ class DungeonSessionManager extends ChangeNotifier {
       // claimed DUNGEON CLEARED ever moves the score). The amount reuses
       // the existing rank-scaled clear reward (higher gate = more score);
       // membership never changes it and the score NEVER resets.
-      final result = await XpService.instance.awardXp(
+      final xpResult = await XpService.instance.awardXp(
         amount: reward.xp,
         dungeonScore: reward.xp,
       );
-      if (result == null) {
-        // Award failed (signed out / Firestore error) — roll the claim
+
+      // Award coins to the persistent balance (Phase 8 — Coin Shop).
+      // Independent of XP award — if XP succeeds but coins fail, the
+      // hunter keeps their XP but loses the coins (acceptable for a
+      // cosmetic currency; XP is the primary reward).
+      await CoinService.instance.awardCoins(amount: reward.coins);
+
+      if (xpResult == null) {
+        // XP award failed (signed out / Firestore error) — roll the claim
         // back so the reward stays claimable instead of being lost.
         await DungeonDailyStore.markRewardClaimed(
           session.gateLetter,
@@ -358,7 +365,7 @@ class DungeonSessionManager extends ChangeNotifier {
         notifyListeners();
         return null;
       }
-      return DungeonClaimResult(reward: reward, xpAward: result);
+      return DungeonClaimResult(reward: reward, xpAward: xpResult);
     } finally {
       _claiming = false;
     }

@@ -34,6 +34,7 @@ import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'package:hunter_ascend/widgets/equipped_badge_chip.dart';
+import 'package:hunter_ascend/screens/shop/coin_shop_screen.dart';
 
 
 /// Home dashboard: hunter stats, steps, water, streak, notifications, quick actions.

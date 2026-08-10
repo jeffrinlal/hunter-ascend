@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:hunter_ascend/services/membership_service.dart';
-import 'package:hunter_ascend/data/repositories/calorie_repository.dart';
+import 'package:hunter_ascend/data/repositories/calorie_repository.dart' as repo;
 
 import '../models/report_data.dart';
 import '../utils/report_format.dart';
@@ -36,7 +36,16 @@ class ReportService {
     bool nutritionOk = true;
     try {
       // Get today's cached meals from repository (no Firestore read)
-      final todaysMeals = CalorieRepository.instance.getCached();
+      final todaysCachedMeals = repo.CalorieRepository.instance.getCached();
+      
+      // Convert repository MealEntry to report MealEntry
+      final todaysMeals = todaysCachedMeals.map((repoMeal) => MealEntry(
+        calories: repoMeal.calories,
+        protein: repoMeal.protein,
+        carbs: repoMeal.carbs,
+        fat: repoMeal.fat,
+        time: repoMeal.time,
+      )).toList();
       
       // Query Firestore only for historical data (excluding today)
       final snap = await db
@@ -57,7 +66,7 @@ class ReportService {
         );
       }).toList();
       
-      // Combine today's cached meals with historical Firestore data
+      // Combine today's converted meals with historical Firestore data
       meals = [...todaysMeals, ...historicalMeals];
     } catch (_) {
       nutritionOk = false;

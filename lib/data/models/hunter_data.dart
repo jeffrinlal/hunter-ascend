@@ -114,6 +114,9 @@ class HunterData {
     this.hitNightOwlAction = false,
     // ── Publicly-equipped badge ──
     this.equippedBadgeId,
+    // ── Feature unlocks ──
+    this.nutritionUnlockExpiry,
+    this.mapUnlockExpiry,
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -272,6 +275,16 @@ class HunterData {
   @HiveField(75) final String? equippedBadgeId;
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // FEATURE UNLOCKS (30-day rewarded ad unlocks for Basic users)
+  // ═══════════════════════════════════════════════════════════════════════════
+  //
+  // Basic users can watch a rewarded ad to unlock Nutrition or Map for 30 days.
+  // Pro and Max users always have access (no expiry needed).
+  // Stored as ISO 8601 date strings; null means locked (or never unlocked).
+  @HiveField(76) final String? nutritionUnlockExpiry;
+  @HiveField(77) final String? mapUnlockExpiry;
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // FACTORY: Firestore → Domain
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -370,6 +383,9 @@ class HunterData {
       hitNightOwlAction: data['hitNightOwlAction'] == true,
       // Publicly-equipped badge
       equippedBadgeId: data['equippedBadgeId']?.toString(),
+      // Feature unlocks
+      nutritionUnlockExpiry: data['nutritionUnlockExpiry']?.toString(),
+      mapUnlockExpiry: data['mapUnlockExpiry']?.toString(),
     );
   }
 
@@ -448,6 +464,8 @@ class HunterData {
       'hitEarlyBirdAction': hitEarlyBirdAction,
       'hitNightOwlAction': hitNightOwlAction,
       if (equippedBadgeId != null) 'equippedBadgeId': equippedBadgeId,
+      if (nutritionUnlockExpiry != null) 'nutritionUnlockExpiry': nutritionUnlockExpiry,
+      if (mapUnlockExpiry != null) 'mapUnlockExpiry': mapUnlockExpiry,
     };
   }
 
@@ -532,6 +550,8 @@ class HunterData {
     bool? hitEarlyBirdAction,
     bool? hitNightOwlAction,
     String? equippedBadgeId,
+    String? nutritionUnlockExpiry,
+    String? mapUnlockExpiry,
   }) {
     return HunterData(
       hunterName: hunterName ?? this.hunterName,
@@ -610,6 +630,8 @@ class HunterData {
       hitEarlyBirdAction: hitEarlyBirdAction ?? this.hitEarlyBirdAction,
       hitNightOwlAction: hitNightOwlAction ?? this.hitNightOwlAction,
       equippedBadgeId: equippedBadgeId ?? this.equippedBadgeId,
+      nutritionUnlockExpiry: nutritionUnlockExpiry ?? this.nutritionUnlockExpiry,
+      mapUnlockExpiry: mapUnlockExpiry ?? this.mapUnlockExpiry,
     );
   }
 

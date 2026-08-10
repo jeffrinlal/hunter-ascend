@@ -35,6 +35,7 @@ import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'package:hunter_ascend/widgets/equipped_badge_chip.dart';
 import 'package:hunter_ascend/screens/shop/coin_shop_screen.dart';
+import 'package:hunter_ascend/services/feature_unlock_service.dart';
 
 
 /// Home dashboard: hunter stats, steps, water, streak, notifications, quick actions.
@@ -154,6 +155,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
     loadRewardedAd();
     loadPunishmentAd();
+    
+    // Preload feature unlock ads
+    FeatureUnlockService.instance.loadNutritionAd();
+    FeatureUnlockService.instance.loadMapAd();
+    
     initStepCounter();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -2142,24 +2148,42 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     return Row(
       children: [
         Expanded(
-          child: _quickActionCard(
-            icon: Icons.restaurant_menu,
-            label: 'Nutrition',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const NutritionScreen()),
-            ),
+          child: FutureBuilder<bool>(
+            future: FeatureUnlockService.instance.isNutritionUnlocked(),
+            builder: (context, snapshot) {
+              final isUnlocked = snapshot.data ?? false;
+              return _quickActionCard(
+                icon: Icons.restaurant_menu,
+                label: 'Nutrition',
+                isLocked: !isUnlocked,
+                onTap: isUnlocked
+                    ? () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const NutritionScreen()),
+                        )
+                    : () => _showUnlockDialog('Nutrition'),
+              );
+            },
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: _quickActionCard(
-            icon: Icons.map,
-            label: 'Map',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const MapScreen()),
-            ),
+          child: FutureBuilder<bool>(
+            future: FeatureUnlockService.instance.isMapUnlocked(),
+            builder: (context, snapshot) {
+              final isUnlocked = snapshot.data ?? false;
+              return _quickActionCard(
+                icon: Icons.map,
+                label: 'Map',
+                isLocked: !isUnlocked,
+                onTap: isUnlocked
+                    ? () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MapScreen()),
+                        )
+                    : () => _showUnlockDialog('Map'),
+              );
+            },
           ),
         ),
       ],
@@ -2169,6 +2193,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   Widget _quickActionCard({
     required IconData icon,
     required String label,
+    required bool isLocked,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -2178,30 +2203,185 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         radius: 18,
         child: Column(
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [MembershipTheme.current.accent.withOpacity(0.18), MembershipTheme.current.accent.withOpacity(0.06)],
+            Stack(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: isLocked
+                          ? [
+                              HunterTheme.textTertiary.withOpacity(0.1),
+                              HunterTheme.textTertiary.withOpacity(0.05),
+                            ]
+                          : [
+                              MembershipTheme.current.accent.withOpacity(0.18),
+                              MembershipTheme.current.accent.withOpacity(0.06),
+                            ],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isLocked
+                          ? HunterTheme.border
+                          : MembershipTheme.current.accent.withOpacity(0.25),
+                    ),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isLocked
+                        ? HunterTheme.textTertiary
+                        : MembershipTheme.current.accent,
+                    size: 24,
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.25)),
-              ),
-              child: Icon(icon, color: MembershipTheme.current.accent, size: 24),
+                if (isLocked)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.9),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: HunterTheme.cardColor,
+                          width: 2,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.lock,
+                        color: Colors.white,
+                        size: 12,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 10),
             Text(
               label,
               style: TextStyle(
-                color: HunterTheme.textPrimary,
+                color: isLocked
+                    ? HunterTheme.textTertiary
+                    : HunterTheme.textPrimary,
                 fontSize: 13.5,
                 fontWeight: FontWeight.w800,
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Show unlock dialog for locked features
+  void _showUnlockDialog(String featureName) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: HunterTheme.cardColor,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.orange.withOpacity(0.4), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.orange.withOpacity(0.15),
+                blurRadius: 24,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.orange.withOpacity(0.4),
+                    width: 1.5,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.lock_outline,
+                  color: Colors.orange,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '🔒 $featureName Locked',
+                style: TextStyle(
+                  color: HunterTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Watch 1 rewarded ad to unlock\n$featureName for 30 days',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: HunterTheme.textSecondary,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: () async {
+                  Navigator.pop(context);
+                  if (featureName == 'Nutrition') {
+                    await FeatureUnlockService.instance.showNutritionUnlockFlow(context);
+                  } else {
+                    await FeatureUnlockService.instance.showMapUnlockFlow(context);
+                  }
+                  // Refresh UI after unlock
+                  if (mounted) setState(() {});
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.orange, Colors.orange.shade700],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'WATCH AD TO UNLOCK',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: HunterTheme.textTertiary,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

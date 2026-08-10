@@ -19,6 +19,7 @@ import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/xp_service.dart';
 import 'package:hunter_ascend/services/achievements_service.dart';
+import 'package:hunter_ascend/services/feature_unlock_service.dart';
 import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
@@ -36,6 +37,11 @@ class _MapScreenState extends State<MapScreen> {
   static Color get _card => HunterTheme.cardColor;
   static Color get _blue => MembershipTheme.current.accent;
   static Color get _border => HunterTheme.border;
+  
+  // ── Access check ──────────────────────────────────────────
+  bool _isCheckingAccess = true;
+  bool _isUnlocked = false;
+  
   // ── Map ──────────────────────────────────────────────────
   final MapController _mapController = MapController();
   LatLng? _currentPosition;
@@ -111,6 +117,35 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
+    _checkAccess();
+  }
+
+  Future<void> _checkAccess() async {
+    final unlocked = await FeatureUnlockService.instance.isMapUnlocked();
+    if (!mounted) return;
+
+    if (!unlocked) {
+      // Not unlocked - go back immediately
+      Navigator.of(context).pop();
+      // Show message after navigation completes
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🔒 Map is locked. Watch an ad to unlock!'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      });
+      return;
+    }
+
+    setState(() {
+      _isUnlocked = true;
+      _isCheckingAccess = false;
+    });
+    
     _getCurrentLocation();
     _loadBannerAd();
   }
@@ -947,6 +982,26 @@ class _MapScreenState extends State<MapScreen> {
   // ── Build ────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    // Check access before showing content
+    if (_isCheckingAccess) {
+      return Scaffold(
+        backgroundColor: _bg,
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (!_isUnlocked) {
+      // Safety fallback (shouldn't be reached due to pop in _checkAccess)
+      return Scaffold(
+        backgroundColor: _bg,
+        body: const Center(
+          child: Text('Access Denied'),
+        ),
+      );
+    }
+
     return ListenableBuilder(
       listenable: Listenable.merge([
         themeNotifier,

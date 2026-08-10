@@ -449,6 +449,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
   }
 
   void _showInsufficientCoinsDialog(int requiredPrice) {
+    final theme = MembershipTheme.current;
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -503,7 +504,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
                 child: ElevatedButton(
                   onPressed: () => Navigator.of(context).pop(),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: MembershipTheme.current.accent,
+                    backgroundColor: theme.accent,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -528,6 +529,8 @@ class _CoinShopScreenState extends State<CoinShopScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = MembershipTheme.current; // Get current membership theme
+    
     return Scaffold(
       backgroundColor: HunterTheme.background,
       appBar: AppBar(
@@ -581,7 +584,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
       body: _loading
           ? Center(
               child: CircularProgressIndicator(
-                color: MembershipTheme.current.accent,
+                color: theme.accent,
               ),
             )
           : Column(
@@ -956,6 +959,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
   }
 
   Widget _buildCategoryTab(String label, String emoji, int index) {
+    final theme = MembershipTheme.current;
     final isSelected = _tabController.index == index;
     return GestureDetector(
       onTap: () {
@@ -966,7 +970,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           color: isSelected
-              ? MembershipTheme.current.accent.withOpacity(0.1)
+              ? theme.accent.withOpacity(0.1)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
@@ -979,7 +983,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
               style: TextStyle(
                 color:
                     isSelected
-                        ? MembershipTheme.current.accent
+                        ? theme.accent
                         : HunterTheme.textSecondary,
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
@@ -1039,6 +1043,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
   }
 
   Widget _buildFitnessPlansTab() {
+    final theme = MembershipTheme.current;
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
       return Center(
@@ -1074,7 +1079,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
             child: CircularProgressIndicator(
-                color: MembershipTheme.current.accent),
+                color: theme.accent),
           );
         }
 
@@ -1220,6 +1225,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
   }
 
   Widget _buildItemCard(ShopItem item) {
+    final theme = MembershipTheme.current;
     final isOwned = _ownedItems.contains(item.id);
     final isEquipped = _isEquipped(item);
     final canAfford = _coins >= item.price;
@@ -1320,8 +1326,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
                             : isOwned
                                 ? HunterTheme.success.withOpacity(0.12)
                                 : canAfford
-                                    ? MembershipTheme.current.accent
-                                        .withOpacity(0.15)
+                                    ? theme.accent.withOpacity(0.15)
                                     : HunterTheme.border.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
@@ -1331,7 +1336,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
                               : isOwned
                                   ? HunterTheme.success
                                   : canAfford
-                                      ? MembershipTheme.current.accent
+                                      ? theme.accent
                                       : HunterTheme.border,
                     ),
                   ),
@@ -1351,7 +1356,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
                                 : isOwned
                                     ? HunterTheme.success
                                     : canAfford
-                                        ? MembershipTheme.current.accent
+                                        ? theme.accent
                                         : HunterTheme.textTertiary,
                         fontSize: 11,
                         fontWeight: FontWeight.w900,

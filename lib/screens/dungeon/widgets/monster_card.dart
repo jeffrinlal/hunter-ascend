@@ -162,7 +162,7 @@ class _MonsterCardFrame extends StatelessWidget {
                 curve: Curves.easeOutBack,
                 builder:
                     (context, value, child) => Opacity(
-                      opacity: value,
+                      opacity: value.clamp(0.0, 1.0),
                       child: Transform.scale(
                         scale: 0.6 + 0.4 * value,
                         child: child,

@@ -1,17 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/membership_theme.dart';
+import 'package:hunter_ascend/data/models/hunter_data.dart';
+import 'package:hunter_ascend/data/models/fitness_plan.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'package:hunter_ascend/models/shop_item.dart';
 import 'package:hunter_ascend/services/coin_service.dart';
 import 'package:hunter_ascend/services/shop_service.dart';
+import 'package:hunter_ascend/services/plan_shop_service.dart';
+import 'package:hunter_ascend/services/rewarded_ad_manager.dart';
+import 'package:hunter_ascend/screens/profile/plan_viewer_screen.dart';
 
-/// Coin Shop — Phase 1 Foundation.
+/// Coin Shop — Phase 1 Foundation + Fitness Plans Integration.
 ///
-/// Sells ONLY cosmetic items (avatar frames, titles, effects).
-/// NO gameplay advantages, NO XP, NO dungeon boosts.
+/// Unified shop containing:
+/// - Cosmetics (avatar frames, titles, effects) purchased with coins
+/// - Fitness Plans (PDF plans) unlocked with rewarded ads
 ///
-/// Minimum item price: 400 coins.
+/// The shop displays both types of content in a tabbed interface.
+/// Minimum cosmetic price: 400 coins.
 /// Basic/Pro/Max all use the SAME shop prices and coin economy.
 class CoinShopScreen extends StatefulWidget {
   const CoinShopScreen({super.key});
@@ -20,7 +29,13 @@ class CoinShopScreen extends StatefulWidget {
   State<CoinShopScreen> createState() => _CoinShopScreenState();
 }
 
-class _CoinShopScreenState extends State<CoinShopScreen> {
+/// State of the rewarded ad button (for fitness plans).
+enum _AdButtonState { loading, ready, unavailable }
+
+class _CoinShopScreenState extends State<CoinShopScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
   int _coins = 0;
   Set<String> _ownedItems = {};
   String? _equippedAvatarFrame;
@@ -30,10 +45,29 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
   bool _loading = true;
   ShopItemCategory _selectedCategory = ShopItemCategory.avatarFrame;
 
+  // Fitness Plans ad manager
+  late final RewardedAdManager _adManager;
+  String? _unlockingPlanId;
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 4, vsync: this); // 3 cosmetics + 1 fitness
     _loadShopData();
+
+    _adManager = RewardedAdManager(
+      onAdStatusChanged: () {
+        if (mounted) setState(() {});
+      },
+    );
+    _adManager.loadAd();
+  }
+
+  @override
+  void dispose() {
+    _adManager.dispose();
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadShopData() async {
@@ -63,6 +97,74 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
       });
     }
   }
+
+  // ── Fitness Plan Rewarded Ad ──────────────────────────────────────────
+
+  _AdButtonState _adStateFromManager() {
+    if (_adManager.isReady) return _AdButtonState.ready;
+    if (_adManager.isLoading) return _AdButtonState.loading;
+    return _AdButtonState.unavailable;
+  }
+
+  void _showAdForPlan(FitnessPlan plan) {
+    if (_unlockingPlanId != null) return;
+
+    _adManager.showAd(
+      onRewardEarned: () => _claimPlanUnlock(plan),
+      onAdDismissed: () {
+        if (mounted) setState(() {});
+      },
+      onAdFailed: () {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('❌ Could not show rewarded ad. Please try again.'),
+              backgroundColor: HunterTheme.danger,
+            ),
+          );
+        }
+      },
+    );
+    setState(() {});
+  }
+
+  Future<void> _claimPlanUnlock(FitnessPlan plan) async {
+    if (!mounted) return;
+    setState(() => _unlockingPlanId = plan.id);
+
+    final result = await PlanShopService.instance.claimPlanUnlock(plan);
+
+    if (!mounted) return;
+
+    setState(() => _unlockingPlanId = null);
+
+    if (result.wasUnlocked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ ${plan.title} unlocked for ${plan.durationDays} days!'),
+          backgroundColor: HunterTheme.success,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ ${result.message ?? 'Failed to unlock plan.'}'),
+          backgroundColor: HunterTheme.danger,
+        ),
+      );
+    }
+  }
+
+  void _openPlanViewer(FitnessPlan plan) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PlanViewerScreen(plan: plan),
+      ),
+    );
+  }
+
+  // ── Cosmetic Shop Methods (existing) ──────────────────────────────────
 
   Future<void> _purchaseItem(ShopItem item) async {
     if (_ownedItems.contains(item.id)) return;
@@ -270,7 +372,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
             child: _buildCategoryTab(
               'Avatar Frames',
               '🖼️',
-              ShopItemCategory.avatarFrame,
+              0,
             ),
           ),
           Container(width: 1, height: 40, color: HunterTheme.border),
@@ -278,7 +380,7 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
             child: _buildCategoryTab(
               'Titles',
               '🏷️',
-              ShopItemCategory.hunterTitle,
+              1,
             ),
           ),
           Container(width: 1, height: 40, color: HunterTheme.border),
@@ -286,7 +388,15 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
             child: _buildCategoryTab(
               'Effects',
               '✨',
-              ShopItemCategory.profileEffect,
+              2,
+            ),
+          ),
+          Container(width: 1, height: 40, color: HunterTheme.border),
+          Expanded(
+            child: _buildCategoryTab(
+              'Plans',
+              '📋',
+              3,
             ),
           ),
         ],
@@ -294,14 +404,13 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
     );
   }
 
-  Widget _buildCategoryTab(
-    String label,
-    String emoji,
-    ShopItemCategory category,
-  ) {
-    final isSelected = _selectedCategory == category;
+  Widget _buildCategoryTab(String label, String emoji, int index) {
+    final isSelected = _tabController.index == index;
     return GestureDetector(
-      onTap: () => setState(() => _selectedCategory = category),
+      onTap: () {
+        _tabController.animateTo(index);
+        setState(() {});
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
@@ -333,8 +442,25 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
   }
 
   Widget _buildItemGrid() {
-    final items = ShopCatalog.getItemsByCategory(_selectedCategory, _hunterLevel);
+    return TabBarView(
+      controller: _tabController,
+      children: [
+        // Avatar Frames
+        _buildCosmeticGrid(ShopCatalog.getItemsByCategory(
+            ShopItemCategory.avatarFrame, _hunterLevel)),
+        // Titles
+        _buildCosmeticGrid(ShopCatalog.getItemsByCategory(
+            ShopItemCategory.hunterTitle, _hunterLevel)),
+        // Effects
+        _buildCosmeticGrid(ShopCatalog.getItemsByCategory(
+            ShopItemCategory.profileEffect, _hunterLevel)),
+        // Fitness Plans
+        _buildFitnessPlansTab(),
+      ],
+    );
+  }
 
+  Widget _buildCosmeticGrid(List<ShopItem> items) {
     if (items.isEmpty) {
       return Center(
         child: Text(
@@ -358,6 +484,187 @@ class _CoinShopScreenState extends State<CoinShopScreen> {
       ),
       itemCount: items.length,
       itemBuilder: (context, index) => _buildItemCard(items[index]),
+    );
+  }
+
+  Widget _buildFitnessPlansTab() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lock_outline, size: 48, color: HunterTheme.textFaint),
+              const SizedBox(height: 16),
+              Text(
+                'Sign in to unlock fitness plans',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: HunterTheme.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('hunters')
+          .doc(uid)
+          .collection('planUnlocks')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: CircularProgressIndicator(
+                color: MembershipTheme.current.accent),
+          );
+        }
+
+        final Map<String, PlanUnlockState> unlockMap = {};
+        if (snapshot.hasData) {
+          for (final doc in snapshot.data!.docs) {
+            final state = PlanShopService.stateFromSnapshot(doc);
+            if (state != null) {
+              unlockMap[doc.id] = state;
+            }
+          }
+        }
+
+        return GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 0.85,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: PlanCatalog.all.length,
+          itemBuilder: (context, index) {
+            final plan = PlanCatalog.all[index];
+            final unlock = unlockMap[plan.id];
+            return _buildPlanCard(plan, unlock);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildPlanCard(FitnessPlan plan, PlanUnlockState? unlock) {
+    final accent = plan.goal.accentColor;
+    final isActive = unlock?.isActive ?? false;
+    final isExpired = unlock?.isExpired ?? false;
+
+    return GestureDetector(
+      onTap: isActive ? () => _openPlanViewer(plan) : () => _showAdForPlan(plan),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: HunterTheme.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isActive ? accent.withOpacity(0.5) : HunterTheme.border,
+            width: isActive ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              children: [
+                Icon(plan.goal.icon, size: 40, color: accent.withOpacity(0.8)),
+                const SizedBox(height: 8),
+                Text(
+                  plan.title,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: HunterTheme.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${plan.durationDays} days',
+                  style: TextStyle(
+                    color: HunterTheme.textTertiary,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+            if (isActive)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    '✓ VIEW PLAN',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              )
+            else if (isExpired)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: HunterTheme.border.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: accent.withOpacity(0.3)),
+                ),
+                child: Center(
+                  child: Text(
+                    '🎥 UNLOCK AGAIN',
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    _unlockingPlanId == plan.id ? 'UNLOCKING...' : '🎥 WATCH AD',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 

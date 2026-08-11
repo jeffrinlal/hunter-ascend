@@ -4,41 +4,47 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/skins/dashboard/dashboard_section_contracts.dart';
 import 'package:hunter_ascend/core/skins/dashboard/skin_dashboard_sections.dart';
+import 'package:hunter_ascend/core/skins/dashboard/skin_tone.dart';
 
 /// Shadow Monarch — dark-fantasy / cinematic RPG identity.
 ///
-/// ## Design intent (ground-up redesign)
-/// A Skin is NOT a Premium Theme — Premium Themes already own general app
-/// color/styling, and a Skin and a Premium Theme are mutually exclusive as
-/// the active appearance (see `SkinService.skinAppearanceActiveNotifier`).
-/// Because of that mutual exclusivity, Shadow Monarch owns its own fixed
-/// dark-fantasy palette (near-black backdrop, deep/royal violet, silver
-/// text) below — deliberately independent of `HunterTheme`/
-/// `MembershipTheme` and of the device's light/dark mode toggle, so this
-/// skin always looks like Shadow Monarch, never like "the dashboard with a
-/// purple tint." This is what gives it (and the other 3 skins, redesigned
-/// separately) a genuinely distinct visual identity rather than a recolor
-/// of the same components.
+/// ## Architecture rule this file follows
+/// - **SKIN** owns: UI structure, component design, layout composition,
+///   information hierarchy, animation and decorative language.
+/// - **PREMIUM THEME** owns: colors.
+///
+/// Accordingly, this file contains **no hardcoded color values at all**.
+/// Every color is resolved through the shared [SkinTone] mapping (the same
+/// one used by every other skin), which forwards to the existing
+/// `HunterTheme` tokens and therefore to the active Premium Theme. [SkinTone]
+/// is *not* a second theme system — it introduces no new colors and stores no
+/// state; it only gives the skins' structural roles readable names that point
+/// at existing tokens.
+///
+/// Net effect:
+/// - Shadow Monarch + any Premium Theme → same Shadow Monarch structure,
+///   that theme's colors.
+/// - Classic (no skin active) → completely unaffected; the resolver never
+///   builds this file's widgets (see `skin_dashboard_sections.dart`).
 ///
 /// ## Composition signature (distinct from every tier AND every other skin)
-/// - Hero: asymmetric-cut cinematic banner with ambient violet glow,
-///   a circular avatar medallion with a breathing glow ring, a rank
-///   sigil pill, and a gradient "mana bar" XP presentation with a moving
-///   sheen highlight.
-/// - Quest: a "Trial Ledger" card — big numeral readout + a gradient
-///   progress rail, asymmetric corner cut.
-/// - Stats: a "War Ledger" — a vertical list of sigil-badged rows.
-/// - Water: a "Hydration Sigil" — a vertical vessel gauge beside a
-///   compact readout + rune buttons.
-/// - Quick Actions: two "Command Seal" rows with a tap ripple.
+/// - Hero: asymmetric-cut cinematic banner with ambient animated glow, a
+///   circular avatar medallion with a breathing glow ring, a rank sigil
+///   pill, and a gradient XP rail with a moving sheen highlight.
+/// - Quest: "Trial Ledger" — asymmetric-cut card, large numeral readout,
+///   gradient progress rail, completion badge.
+/// - Stats: "War Ledger" — vertical list of sigil-badged rows.
+/// - Water: "Hydration Sigil" — vertical vessel gauge + compact readout
+///   with rune buttons.
+/// - Quick Actions: two "Command Seal" rows with ink ripple feedback.
 ///
 /// ## Layout safety
-/// Every text element that can vary in length (hunter name, level, rank
-/// title, stat values, step/water counts) is bounded with `Flexible`/
-/// `Expanded`/`FittedBox` + `TextOverflow.ellipsis` — nothing here uses
-/// fixed pixel widths or `Positioned` for dynamic content, so this renders
-/// correctly for any hunter name, any XP/level/stat value, and on both
-/// small and large phone screens without overflow or clipping.
+/// Every variable-length value (hunter name, level, rank title, stat values,
+/// step/water counts) is bounded with `Flexible`/`Expanded`/`FittedBox` plus
+/// `TextOverflow.ellipsis`. No `Positioned` widget carries dynamic content,
+/// no hardcoded text widths, no fixed heights around variable text — so this
+/// renders correctly for any hunter name, any XP/level/stat value, and on
+/// both small and large phone screens without overflow or clipping.
 class ShadowMonarchDashboardSections implements DashboardSkinSections {
   const ShadowMonarchDashboardSections();
 
@@ -65,31 +71,6 @@ class ShadowMonarchDashboardSections implements DashboardSkinSections {
       ],
     );
   }
-}
-
-// ── Shadow Monarch palette ──────────────────────────────────────────────
-//
-// Skin-owned constants, intentionally independent of HunterTheme /
-// MembershipTheme (see class doc above). Not a second theme system — just
-// this one skin's own fixed identity colors, scoped to this file.
-class _Ink {
-  _Ink._();
-
-  static const Color bgTop = Color(0xFF150E22);
-  static const Color bgBottom = Color(0xFF07050C);
-  static const Color panel = Color(0xFF17101F);
-  static const Color panelAlt = Color(0xFF130C1A);
-  static const Color line = Color(0xFF2C2140);
-
-  static const Color violet = Color(0xFF7C4DFF);
-  static const Color violetDeep = Color(0xFF3E2470);
-  static const Color violetGlow = Color(0xFFA57BFF);
-
-  static const Color silver = Color(0xFFEFEAF6);
-  static const Color silverDim = Color(0xFFB3A8CB);
-  static const Color silverFaint = Color(0xFF756A90);
-
-  static const Color gold = Color(0xFFE7C878);
 }
 
 // ── Hero ─────────────────────────────────────────────────────────────────
@@ -131,22 +112,29 @@ class _MonarchHeroState extends State<_MonarchHero> with SingleTickerProviderSta
       ),
       child: Container(
         width: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [_Ink.bgTop, _Ink.bgBottom],
+            colors: [SkinTone.backdropTop, SkinTone.backdropBottom],
           ),
         ),
         child: Stack(
           children: [
-            // Ambient violet glow blobs — purely decorative, drawn behind
-            // the content layer below, never affects layout or overlaps
-            // text (it fills the panel's own bounds only).
+            // Ambient accent glow — purely decorative, painted behind the
+            // content layer and clipped to this panel's own bounds, so it
+            // can never overlap or clip dynamic text.
             Positioned.fill(
               child: AnimatedBuilder(
                 animation: _glow,
-                builder: (context, _) => CustomPaint(painter: _MonarchGlowPainter(t: _glow.value)),
+                builder: (context, _) => CustomPaint(
+                  painter: _MonarchGlowPainter(
+                    t: _glow.value,
+                    accent: SkinTone.accent,
+                    accentBright: SkinTone.accentBright,
+                    glowStrength: SkinTone.glow,
+                  ),
+                ),
               ),
             ),
             Padding(
@@ -167,8 +155,8 @@ class _MonarchHeroState extends State<_MonarchHero> with SingleTickerProviderSta
                           hunter.hunterName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: _Ink.silver,
+                          style: TextStyle(
+                            color: SkinTone.textStrong,
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.2,
@@ -179,9 +167,14 @@ class _MonarchHeroState extends State<_MonarchHero> with SingleTickerProviderSta
                           crossAxisAlignment: CrossAxisAlignment.baseline,
                           textBaseline: TextBaseline.alphabetic,
                           children: [
-                            const Text(
+                            Text(
                               'LV',
-                              style: TextStyle(color: _Ink.silverFaint, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1),
+                              style: TextStyle(
+                                color: SkinTone.textFaint,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1,
+                              ),
                             ),
                             const SizedBox(width: 5),
                             Flexible(
@@ -189,7 +182,11 @@ class _MonarchHeroState extends State<_MonarchHero> with SingleTickerProviderSta
                                 '${hunter.level}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: _Ink.violetGlow, fontSize: 15, fontWeight: FontWeight.w900),
+                                style: TextStyle(
+                                  color: SkinTone.accentBright,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
                             ),
                           ],
@@ -201,7 +198,12 @@ class _MonarchHeroState extends State<_MonarchHero> with SingleTickerProviderSta
                           '${hunter.xp} / 500 XP',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: _Ink.silverFaint, fontSize: 10.5, fontWeight: FontWeight.w600, letterSpacing: 0.3),
+                          style: TextStyle(
+                            color: SkinTone.textFaint,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                          ),
                         ),
                       ],
                     ),
@@ -235,23 +237,27 @@ class _MonarchAvatar extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             boxShadow: [
-              BoxShadow(color: _Ink.violetGlow.withOpacity(0.26 + 0.16 * g), blurRadius: 20, spreadRadius: 1),
+              BoxShadow(
+                color: SkinTone.accentBright.withOpacity((0.26 + 0.16 * g) * SkinTone.glow),
+                blurRadius: 20,
+                spreadRadius: 1,
+              ),
             ],
           ),
           padding: const EdgeInsets.all(2.5),
           child: Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: const LinearGradient(colors: [_Ink.violetDeep, _Ink.violet]),
-              border: Border.all(color: _Ink.violetGlow.withOpacity(0.55), width: 1),
+              gradient: LinearGradient(colors: SkinTone.accentRamp),
+              border: Border.all(color: SkinTone.accentBright.withOpacity(0.55), width: 1),
             ),
             padding: const EdgeInsets.all(2),
             child: ClipOval(
               child: Container(
-                color: _Ink.panel,
+                color: SkinTone.panel,
                 child: avatarBytes != null
                     ? Image.memory(avatarBytes!, fit: BoxFit.cover, width: _size, height: _size)
-                    : const Center(child: Icon(Icons.person_rounded, color: _Ink.silverDim, size: 30)),
+                    : Center(child: Icon(Icons.person_rounded, color: SkinTone.textSoft, size: 30)),
               ),
             ),
           ),
@@ -270,21 +276,26 @@ class _RankSigil extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: _Ink.violetDeep.withOpacity(0.4),
+        color: SkinTone.accent.withOpacity(0.14),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _Ink.violet.withOpacity(0.55)),
+        border: Border.all(color: SkinTone.accent.withOpacity(0.55)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.diamond_rounded, size: 10, color: _Ink.violetGlow),
+          Icon(Icons.diamond_rounded, size: 10, color: SkinTone.accentBright),
           const SizedBox(width: 6),
           Flexible(
             child: Text(
               text.toUpperCase(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: _Ink.silverDim, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.1),
+              style: TextStyle(
+                color: SkinTone.textSoft,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.1,
+              ),
             ),
           ),
         ],
@@ -293,9 +304,9 @@ class _RankSigil extends StatelessWidget {
   }
 }
 
-/// Gradient "mana bar" XP presentation with a soft moving sheen — replaces
-/// the old discrete-block "status window" meter with a smoother, more
-/// premium-feeling continuous bar.
+/// Gradient XP rail with a soft moving sheen — the skin's signature XP
+/// presentation (continuous rail + highlight sweep), colored entirely by the
+/// active Premium Theme's accent ramp.
 class _MonarchXpBar extends StatelessWidget {
   const _MonarchXpBar({required this.progress, required this.sheen});
   final double progress;
@@ -310,7 +321,7 @@ class _MonarchXpBar extends StatelessWidget {
         width: double.infinity,
         child: Stack(
           children: [
-            Container(color: _Ink.line),
+            Container(color: SkinTone.line),
             TweenAnimationBuilder<double>(
               tween: Tween(begin: 0, end: progress),
               duration: const Duration(milliseconds: 700),
@@ -318,15 +329,14 @@ class _MonarchXpBar extends StatelessWidget {
               builder: (context, v, _) => FractionallySizedBox(
                 widthFactor: v,
                 child: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(colors: [_Ink.violetDeep, _Ink.violetGlow]),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: SkinTone.accentRamp),
                   ),
                 ),
               ),
             ),
-            // Sheen highlight — a soft translucent band sweeping left to
-            // right, clipped to the bar's own bounds so it can never
-            // overflow or affect layout.
+            // Sheen highlight — clipped to the rail's own bounds, so it can
+            // never overflow or affect layout.
             AnimatedBuilder(
               animation: sheen,
               builder: (context, _) => Align(
@@ -337,7 +347,11 @@ class _MonarchXpBar extends StatelessWidget {
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Colors.white.withOpacity(0), Colors.white.withOpacity(0.16), Colors.white.withOpacity(0)],
+                        colors: [
+                          SkinTone.textStrong.withOpacity(0),
+                          SkinTone.textStrong.withOpacity(0.16),
+                          SkinTone.textStrong.withOpacity(0),
+                        ],
                       ),
                     ),
                   ),
@@ -351,30 +365,42 @@ class _MonarchXpBar extends StatelessWidget {
   }
 }
 
-/// Soft ambient violet glow blobs behind the hero content. Uses blurred
-/// circles rather than any hard shape — purely atmospheric, never carries
-/// text, so it can never overlap or clip dynamic content.
+/// Soft ambient accent glow behind the hero content. Blurred circles only —
+/// purely atmospheric, carries no text, cannot overlap or clip content.
 class _MonarchGlowPainter extends CustomPainter {
-  _MonarchGlowPainter({required this.t});
+  _MonarchGlowPainter({
+    required this.t,
+    required this.accent,
+    required this.accentBright,
+    required this.glowStrength,
+  });
+
   final double t;
+  final Color accent;
+  final Color accentBright;
+  final double glowStrength;
 
   @override
   void paint(Canvas canvas, Size size) {
     final wave = 0.5 + 0.5 * math.sin(t * 2 * math.pi);
 
     final p1 = Paint()
-      ..color = _Ink.violet.withOpacity(0.14 + 0.08 * wave)
+      ..color = accentBright.withOpacity(((0.14 + 0.08 * wave) * glowStrength).clamp(0.0, 1.0))
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 46);
     canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.1), size.shortestSide * 0.6, p1);
 
     final p2 = Paint()
-      ..color = _Ink.violetDeep.withOpacity(0.14 + 0.06 * (1 - wave))
+      ..color = accent.withOpacity(((0.14 + 0.06 * (1 - wave)) * glowStrength).clamp(0.0, 1.0))
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 52);
     canvas.drawCircle(Offset(size.width * 0.05, size.height * 1.05), size.shortestSide * 0.55, p2);
   }
 
   @override
-  bool shouldRepaint(covariant _MonarchGlowPainter oldDelegate) => oldDelegate.t != t;
+  bool shouldRepaint(covariant _MonarchGlowPainter oldDelegate) =>
+      oldDelegate.t != t ||
+      oldDelegate.accent != accent ||
+      oldDelegate.accentBright != accentBright ||
+      oldDelegate.glowStrength != glowStrength;
 }
 
 // ── Quest ("Trial Ledger") ────────────────────────────────────────────────
@@ -395,25 +421,30 @@ class _MonarchQuestCard extends StatelessWidget {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-        color: _Ink.panel,
+        color: SkinTone.panel,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.auto_stories_rounded, color: _Ink.violetGlow, size: 16),
+                Icon(Icons.auto_stories_rounded, color: SkinTone.accentBright, size: 16),
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
                     'TRIAL LEDGER',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: _Ink.silverDim, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.6),
+                    style: TextStyle(
+                      color: SkinTone.textSoft,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.6,
+                    ),
                   ),
                 ),
                 const Spacer(),
-                if (data.isComplete) _completeBadge(),
+                if (data.isComplete) const _CompleteBadge(),
               ],
             ),
             const SizedBox(height: 14),
@@ -426,7 +457,7 @@ class _MonarchQuestCard extends StatelessWidget {
                     '${data.todaySteps}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: _Ink.silver, fontSize: 24, fontWeight: FontWeight.w900),
+                    style: TextStyle(color: SkinTone.textStrong, fontSize: 24, fontWeight: FontWeight.w900),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -435,7 +466,7 @@ class _MonarchQuestCard extends StatelessWidget {
                     '/ ${data.goal} steps',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: _Ink.silverFaint, fontSize: 12, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: SkinTone.textFaint, fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -448,7 +479,7 @@ class _MonarchQuestCard extends StatelessWidget {
                 width: double.infinity,
                 child: Stack(
                   children: [
-                    Container(color: _Ink.line),
+                    Container(color: SkinTone.line),
                     TweenAnimationBuilder<double>(
                       tween: Tween(begin: 0, end: data.progress),
                       duration: const Duration(milliseconds: 700),
@@ -456,8 +487,8 @@ class _MonarchQuestCard extends StatelessWidget {
                       builder: (context, v, _) => FractionallySizedBox(
                         widthFactor: v,
                         child: Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(colors: [_Ink.violetDeep, _Ink.violetGlow]),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: SkinTone.accentRamp),
                           ),
                         ),
                       ),
@@ -472,7 +503,7 @@ class _MonarchQuestCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: data.isComplete ? _Ink.gold : _Ink.silverFaint,
+                color: data.isComplete ? SkinTone.complete : SkinTone.textFaint,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
               ),
@@ -484,23 +515,36 @@ class _MonarchQuestCard extends StatelessWidget {
   }
 }
 
-Widget _completeBadge() {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-      color: _Ink.gold.withOpacity(0.16),
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: _Ink.gold.withOpacity(0.55)),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.check_rounded, size: 11, color: _Ink.gold),
-        const SizedBox(width: 3),
-        const Text('DONE', style: TextStyle(color: _Ink.gold, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1)),
-      ],
-    ),
-  );
+class _CompleteBadge extends StatelessWidget {
+  const _CompleteBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: SkinTone.complete.withOpacity(0.16),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: SkinTone.complete.withOpacity(0.55)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_rounded, size: 11, color: SkinTone.complete),
+          const SizedBox(width: 3),
+          Text(
+            'DONE',
+            style: TextStyle(
+              color: SkinTone.complete,
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ── Stats ("War Ledger") ───────────────────────────────────────────────────
@@ -514,9 +558,9 @@ class _MonarchStatsList extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: _Ink.panelAlt,
+        color: SkinTone.panelAlt,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _Ink.line),
+        border: Border.all(color: SkinTone.line),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -526,7 +570,7 @@ class _MonarchStatsList extends StatelessWidget {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
             decoration: BoxDecoration(
-              border: Border(bottom: isLast ? BorderSide.none : BorderSide(color: _Ink.line)),
+              border: Border(bottom: isLast ? BorderSide.none : BorderSide(color: SkinTone.line)),
             ),
             child: Row(
               children: [
@@ -535,10 +579,13 @@ class _MonarchStatsList extends StatelessWidget {
                   height: 30,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _Ink.violetDeep.withOpacity(0.4),
-                    border: Border.all(color: _Ink.violet.withOpacity(0.5)),
+                    color: SkinTone.accent.withOpacity(0.14),
+                    border: Border.all(color: SkinTone.accent.withOpacity(0.5)),
                   ),
-                  child: Icon(s.icon, color: _Ink.violetGlow, size: 15),
+                  // Per-stat icon tint still honors the caller-supplied stat
+                  // color when present (an existing theme token passed in by
+                  // the tier layout), else falls back to the theme accent.
+                  child: Icon(s.icon, color: s.color ?? SkinTone.accentBright, size: 15),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -546,7 +593,12 @@ class _MonarchStatsList extends StatelessWidget {
                     s.label.toUpperCase(),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: _Ink.silverDim, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1),
+                    style: TextStyle(
+                      color: SkinTone.textSoft,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -557,7 +609,7 @@ class _MonarchStatsList extends StatelessWidget {
                     child: Text(
                       s.value,
                       maxLines: 1,
-                      style: const TextStyle(color: _Ink.silver, fontSize: 15, fontWeight: FontWeight.w800),
+                      style: TextStyle(color: SkinTone.textStrong, fontSize: 15, fontWeight: FontWeight.w800),
                     ),
                   ),
                 ),
@@ -582,9 +634,9 @@ class _MonarchWaterCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _Ink.panel,
+        color: SkinTone.panel,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _Ink.line),
+        border: Border.all(color: SkinTone.line),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -594,7 +646,7 @@ class _MonarchWaterCard extends StatelessWidget {
             child: Container(
               width: 28,
               height: 84,
-              color: _Ink.line.withOpacity(0.6),
+              color: SkinTone.line.withOpacity(0.6),
               child: Align(
                 alignment: Alignment.bottomCenter,
                 child: TweenAnimationBuilder<double>(
@@ -605,11 +657,11 @@ class _MonarchWaterCard extends StatelessWidget {
                     heightFactor: v,
                     widthFactor: 1,
                     child: Container(
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.bottomCenter,
                           end: Alignment.topCenter,
-                          colors: [_Ink.violetGlow, _Ink.violetDeep],
+                          colors: SkinTone.accentRamp,
                         ),
                       ),
                     ),
@@ -626,14 +678,19 @@ class _MonarchWaterCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.water_drop_rounded, color: _Ink.violetGlow, size: 14),
+                    Icon(Icons.water_drop_rounded, color: SkinTone.accentBright, size: 14),
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
                         'HYDRATION SIGIL',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: _Ink.silverDim, fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 1.3),
+                        style: TextStyle(
+                          color: SkinTone.textSoft,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.3,
+                        ),
                       ),
                     ),
                   ],
@@ -643,7 +700,7 @@ class _MonarchWaterCard extends StatelessWidget {
                   '${data.waterIntakeMl} / ${data.waterGoalMl} ml',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: _Ink.silver, fontSize: 16, fontWeight: FontWeight.w800),
+                  style: TextStyle(color: SkinTone.textStrong, fontSize: 16, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 13),
                 Row(
@@ -655,7 +712,7 @@ class _MonarchWaterCard extends StatelessWidget {
                         '${data.selectedCupSize} ml',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: _Ink.silverDim, fontSize: 12, fontWeight: FontWeight.w600),
+                        style: TextStyle(color: SkinTone.textSoft, fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -663,7 +720,7 @@ class _MonarchWaterCard extends StatelessWidget {
                     const Spacer(),
                     GestureDetector(
                       onTap: data.onEditGoal,
-                      child: const Icon(Icons.tune_rounded, size: 16, color: _Ink.violetGlow),
+                      child: Icon(Icons.tune_rounded, size: 16, color: SkinTone.accentBright),
                     ),
                   ],
                 ),
@@ -690,10 +747,10 @@ class _RuneButton extends StatelessWidget {
         height: 32,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: _Ink.violetDeep.withOpacity(0.4),
-          border: Border.all(color: _Ink.violet.withOpacity(0.5)),
+          color: SkinTone.accent.withOpacity(0.14),
+          border: Border.all(color: SkinTone.accent.withOpacity(0.5)),
         ),
-        child: Icon(icon, size: 16, color: _Ink.violetGlow),
+        child: Icon(icon, size: 16, color: SkinTone.accentBright),
       ),
     );
   }
@@ -708,8 +765,8 @@ class _MonarchCommandRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final locked = item.isLocked;
-    final fg = locked ? _Ink.silverFaint : _Ink.silver;
-    final iconColor = locked ? _Ink.silverFaint : _Ink.violetGlow;
+    final fg = locked ? SkinTone.textFaint : SkinTone.textStrong;
+    final iconColor = locked ? SkinTone.textFaint : SkinTone.accentBright;
 
     return Material(
       color: Colors.transparent,
@@ -720,9 +777,9 @@ class _MonarchCommandRow extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: _Ink.panel,
+            color: SkinTone.panel,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: locked ? _Ink.line : _Ink.violet.withOpacity(0.45)),
+            border: Border.all(color: locked ? SkinTone.line : SkinTone.accent.withOpacity(0.45)),
           ),
           child: Row(
             children: [
@@ -731,7 +788,7 @@ class _MonarchCommandRow extends StatelessWidget {
                 height: 34,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: (locked ? _Ink.line : _Ink.violetDeep).withOpacity(0.55),
+                  color: (locked ? SkinTone.line : SkinTone.accent).withOpacity(0.18),
                 ),
                 child: Icon(item.icon, color: iconColor, size: 17),
               ),

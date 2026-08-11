@@ -1,155 +1,176 @@
 import 'dart:convert';
+import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/skins/dashboard/dashboard_section_contracts.dart';
 import 'package:hunter_ascend/core/skins/dashboard/skin_dashboard_sections.dart';
-import 'package:hunter_ascend/core/skins/skin_aware_surface.dart';
-import 'package:hunter_ascend/core/theme/hunter_theme.dart';
-import 'package:hunter_ascend/core/theme/membership_theme.dart';
+import 'package:hunter_ascend/core/skins/dashboard/skin_tone.dart';
+import 'package:hunter_ascend/widgets/dashboard/dashboard_stats_grid.dart';
 
-/// Cyber Hunter — "HUD Panel" identity.
+/// Cyber Hunter — tactical HUD / futuristic technology identity.
 ///
-/// Structural signature: every card is a bracket-cornered HUD panel
-/// (tick-mark corners, sharp edges) instead of a rounded card; the hero
-/// splits into a LEFT readout column (level/name as monospace-style
-/// stacked labels) + RIGHT square avatar panel — never the floating-avatar-
-/// over-hero pattern Pro/Max use; stats render as a 2-COLUMN GRID of
-/// diagonal-cut tiles (not a horizontal row or vertical list); the quest
-/// card is a horizontal "scan" readout with a percentage counter instead
-/// of a fill bar; quick actions are two side-by-side bracket tiles with a
-/// ">>" affordance instead of icon-over-label squares. Colors always come
-/// from [HeroSectionData.accentColor] / the live `MembershipTheme.current`
-/// token plus existing `HunterTheme` tokens.
+/// ## Architecture
+/// Colors come exclusively from [SkinTone] (→ existing `HunterTheme` tokens →
+/// active Premium Theme). This file has no literal color values. The skin's
+/// identity is carried entirely by structure, shape language, density,
+/// typography and motion.
+///
+/// ## Composition signature (deliberately unlike every other skin)
+/// - **Shape language:** hard 6px radii + machined corner-bracket ticks +
+///   diagonally clipped panels. No soft/rounded surfaces anywhere.
+/// - **Hero:** a telemetry console — blinking `SYS ONLINE` status strip, a
+///   *bracket-clipped square* avatar on the LEFT, and data presented as
+///   `LABEL … VALUE` telemetry rows (not a name/level stack). XP is a
+///   **segmented tick meter** paired with a boxed numeric percentage.
+///   A scanline sweeps continuously down the whole panel.
+/// - **Quest:** a single horizontal **telemetry strip** — bracketed icon,
+///   inline segmented track, and a large right-aligned boxed percentage.
+/// - **Stats:** a **2-column grid of compact HUD modules**, each with a top
+///   accent rule (not a list, not diamonds, not staggered blocks).
+/// - **Water:** a **horizontal segmented tank** with bracket-square
+///   increment controls.
+/// - **Quick Actions:** two side-by-side **bracketed console tiles** with a
+///   `>> ENTER` / `LOCKED` machine caption.
+///
+/// ## Layout safety
+/// Every variable value (name, rank, level, stat values, counts) is bounded
+/// by `Expanded`/`Flexible`/`FittedBox` + `ellipsis`. All meters are built
+/// from `Expanded` segments so they cannot overflow at any width. The stats
+/// grid is composed from explicit 2-up rows wrapped in `IntrinsicHeight`
+/// (equal heights, no fixed heights, no aspect-ratio overflow).
 class CyberHunterDashboardSections implements DashboardSkinSections {
   const CyberHunterDashboardSections();
 
   @override
-  Widget hero(HeroSectionData data) {
-    final hunter = data.hunter;
-    final accent = data.accentColor;
+  Widget hero(HeroSectionData data) => _HudHero(data: data);
+
+  @override
+  Widget quest(QuestSectionData data) => _HudQuestStrip(data: data);
+
+  @override
+  Widget stats(StatsSectionData data) => _HudStatGrid(data: data);
+
+  @override
+  Widget water(WaterSectionData data) => _HudTank(data: data);
+
+  @override
+  Widget quickActions(QuickActionsSectionData data) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: _HudConsoleTile(item: data.nutrition)),
+        const SizedBox(width: 10),
+        Expanded(child: _HudConsoleTile(item: data.map)),
+      ],
+    );
+  }
+}
+
+// ── Hero: telemetry console ───────────────────────────────────────────────
+
+class _HudHero extends StatefulWidget {
+  const _HudHero({required this.data});
+  final HeroSectionData data;
+
+  @override
+  State<_HudHero> createState() => _HudHeroState();
+}
+
+class _HudHeroState extends State<_HudHero> with SingleTickerProviderStateMixin {
+  late final AnimationController _sweep = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2600),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _sweep.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hunter = widget.data.hunter;
     final avatarBytes = (hunter.profilePicture?.isNotEmpty ?? false)
         ? base64Decode(hunter.profilePicture!)
         : null;
     final progress = (hunter.xp / 500).clamp(0.0, 1.0);
 
-    return SkinAwareSurface(
-      borderRadius: 10,
-      child: _HudPanel(
-        accent: accent,
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('IDENTIFIER', style: TextStyle(color: accent, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 2)),
-                  Text(hunter.hunterName,
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: HunterTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 10),
-                  Text('CLEARANCE', style: TextStyle(color: accent, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 2)),
-                  Text(data.rankTitle.toUpperCase(),
-                      style: TextStyle(color: HunterTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 10),
-                  Text('LVL.${hunter.level}  //  ${hunter.xp}/500XP',
-                      style: TextStyle(color: HunterTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
-                  const SizedBox(height: 6),
-                  // Thin bracketed scan-bar (still a "bar", but framed by
-                  // tick marks instead of a rounded gradient track).
-                  Stack(children: [
-                    Container(height: 4, color: HunterTheme.border),
-                    FractionallySizedBox(
-                      widthFactor: progress,
-                      child: Container(height: 4, color: accent),
-                    ),
-                  ]),
-                ],
-              ),
-            ),
-            const SizedBox(width: 14),
-            ClipPath(
-              clipper: _DiagonalCornerClipper(),
-              child: Container(
-                width: 64,
-                height: 64,
-                color: accent.withOpacity(0.16),
-                padding: const EdgeInsets.all(2),
-                child: avatarBytes != null
-                    ? Image.memory(avatarBytes, fit: BoxFit.cover)
-                    : Container(color: HunterTheme.cardColor, child: Icon(Icons.person, color: accent, size: 30)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget quest(QuestSectionData data) {
-    return SkinAwareSurface(
-      borderRadius: 10,
-      child: _HudPanel(
-        accent: _accent,
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(Icons.radar_rounded, color: _accent, size: 22),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('OBJECTIVE SCAN', style: TextStyle(color: _accent, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
-                  const SizedBox(height: 4),
-                  Text('${data.todaySteps} / ${data.goal} STEPS',
-                      style: TextStyle(color: HunterTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w900)),
-                ],
-              ),
-            ),
-            Text('${(data.progress * 100).round()}%',
-                style: TextStyle(color: data.isComplete ? HunterTheme.success : _accent, fontSize: 22, fontWeight: FontWeight.w900)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget stats(StatsSectionData data) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 1.7,
-      children: data.stats.map((s) => _diagonalTile(s.icon, s.value, s.label, s.color ?? _accent)).toList(),
-    );
-  }
-
-  Widget _diagonalTile(IconData icon, String value, String label, Color color) {
-    return ClipPath(
-      clipper: _DiagonalCornerClipper(cut: 10),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
       child: Container(
-        padding: const EdgeInsets.all(12),
-        color: HunterTheme.cardColor,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: SkinTone.panel,
+          border: Border.all(color: SkinTone.line),
+          borderRadius: BorderRadius.circular(6),
+        ),
         child: Stack(
           children: [
-            Positioned(top: 0, left: 0, right: 0, height: 2, child: Container(color: color)),
+            // Scanline + machined corner brackets. Decorative only, clipped
+            // to this panel, never carries or overlaps text.
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _sweep,
+                builder: (context, _) => CustomPaint(
+                  painter: _HudFramePainter(
+                    t: _sweep.value,
+                    accent: SkinTone.accent,
+                    accentBright: SkinTone.accentBright,
+                    glowStrength: SkinTone.glow,
+                  ),
+                ),
+              ),
+            ),
             Padding(
-              padding: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.all(16),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(children: [
-                    Icon(icon, color: color, size: 14),
-                    const SizedBox(width: 6),
-                    Text(label.toUpperCase(), style: TextStyle(color: HunterTheme.textTertiary, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 1)),
-                  ]),
-                  const SizedBox(height: 4),
-                  Text(value, style: TextStyle(color: HunterTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w900)),
+                  _statusStrip(blink: _sweep),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _bracketAvatar(avatarBytes),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _telemetryRow('OPERATOR', hunter.hunterName),
+                            const SizedBox(height: 7),
+                            _telemetryRow('CLEARANCE', widget.data.rankTitle),
+                            const SizedBox(height: 7),
+                            _telemetryRow('LEVEL', '${hunter.level}'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(child: _TickMeter(progress: progress, segments: 14)),
+                      const SizedBox(width: 10),
+                      _boxedValue('${(progress * 100).round()}%'),
+                    ],
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    '${hunter.xp} / 500 XP',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: SkinTone.textFaint,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -159,163 +180,576 @@ class CyberHunterDashboardSections implements DashboardSkinSections {
     );
   }
 
-  @override
-  Widget water(WaterSectionData data) {
-    return _HudPanel(
-      accent: _accent,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Icon(Icons.opacity_rounded, color: _accent, size: 16),
-            const SizedBox(width: 8),
-            Text('COOLANT LEVEL', style: TextStyle(color: _accent, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
-            const Spacer(),
-            Text('${data.waterIntakeMl}/${data.waterGoalMl}ml', style: TextStyle(color: HunterTheme.textSecondary, fontSize: 11)),
-          ]),
-          const SizedBox(height: 10),
-          // Segmented horizontal HUD meter (blocks, not a smooth gradient).
-          Row(
-            children: List.generate(16, (i) {
-              final on = i < (data.progress * 16).round();
-              return Expanded(
-                child: Container(
-                  height: 10,
-                  margin: const EdgeInsets.only(right: 2),
-                  color: on ? _accent : HunterTheme.border,
-                ),
-              );
-            }),
+  Widget _statusStrip({required Animation<double> blink}) {
+    return Row(
+      children: [
+        AnimatedBuilder(
+          animation: blink,
+          builder: (context, _) {
+            final pulse = 0.35 + 0.65 * (0.5 + 0.5 * math.sin(blink.value * 2 * math.pi * 3));
+            return Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: SkinTone.accentBright.withOpacity(pulse.clamp(0.0, 1.0)),
+              ),
+            );
+          },
+        ),
+        const SizedBox(width: 7),
+        Flexible(
+          child: Text(
+            'SYS ONLINE',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: SkinTone.accentBright,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 2,
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            _bracketBtn(Icons.remove, data.onRemove),
-            const SizedBox(width: 20),
-            Text('${data.selectedCupSize}ml', style: TextStyle(color: HunterTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.w800)),
-            const SizedBox(width: 20),
-            _bracketBtn(Icons.add, data.onAdd),
-          ]),
-        ],
-      ),
+        ),
+        const Spacer(),
+        Container(width: 26, height: 1, color: SkinTone.line),
+      ],
     );
   }
 
-  Widget _bracketBtn(IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 30,
-        height: 30,
-        decoration: BoxDecoration(border: Border.all(color: _accent)),
-        child: Icon(icon, size: 16, color: _accent),
-      ),
-    );
-  }
-
-  @override
-  Widget quickActions(QuickActionsSectionData data) {
-    return Row(children: [
-      Expanded(child: _bracketTile(data.nutrition)),
-      const SizedBox(width: 10),
-      Expanded(child: _bracketTile(data.map)),
-    ]);
-  }
-
-  Widget _bracketTile(QuickActionItem item) {
-    final color = item.isLocked ? HunterTheme.textTertiary : _accent;
-    return GestureDetector(
-      onTap: item.onTap,
-      child: _HudPanel(
-        accent: color,
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-        child: Column(
-          children: [
-            Icon(item.icon, color: color, size: 22),
-            const SizedBox(height: 6),
-            Text(item.label.toUpperCase(), style: TextStyle(color: HunterTheme.textPrimary, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1)),
-            const SizedBox(height: 2),
-            Text(item.isLocked ? 'LOCKED' : '>> ENTER', style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w700)),
-          ],
+  Widget _bracketAvatar(Uint8List? bytes) {
+    return SizedBox(
+      width: 62,
+      height: 62,
+      child: CustomPaint(
+        foregroundPainter: _BracketPainter(color: SkinTone.accent),
+        child: ClipPath(
+          clipper: _CutCornerClipper(cut: 10),
+          child: Container(
+            color: SkinTone.panelAlt,
+            child: bytes != null
+                ? Image.memory(bytes, fit: BoxFit.cover, width: 62, height: 62)
+                : Center(child: Icon(Icons.person_outline_rounded, color: SkinTone.textSoft, size: 26)),
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _telemetryRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: SkinTone.textFaint,
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.4,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Container(height: 1, color: SkinTone.line),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          flex: 3,
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: SkinTone.textStrong,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
-/// Bracket-cornered HUD panel: sharp rectangle with short corner ticks
-/// drawn in [accent] — the Cyber Hunter equivalent of a "card."
-class _HudPanel extends StatelessWidget {
-  const _HudPanel({required this.child, required this.accent, this.padding});
-  final Widget child;
-  final Color accent;
-  final EdgeInsetsGeometry? padding;
+Widget _boxedValue(String text) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      border: Border.all(color: SkinTone.accent.withOpacity(0.7)),
+      color: SkinTone.accent.withOpacity(0.10),
+    ),
+    child: Text(
+      text,
+      maxLines: 1,
+      style: TextStyle(
+        color: SkinTone.accentBright,
+        fontSize: 12,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.5,
+      ),
+    ),
+  );
+}
+
+/// Segmented tick meter — the skin's signature progress presentation.
+/// Built from `Expanded` segments so it can never overflow at any width.
+class _TickMeter extends StatelessWidget {
+  const _TickMeter({required this.progress, this.segments = 14, this.height = 12});
+  final double progress;
+  final int segments;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      foregroundPainter: _HudCornerPainter(color: accent),
-      child: Container(
-        width: double.infinity,
-        padding: padding,
-        decoration: BoxDecoration(
-          color: HunterTheme.cardColor,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: accent.withOpacity(0.25)),
-        ),
-        child: child,
-      ),
+    final filled = (progress * segments).round().clamp(0, segments);
+    return Row(
+      children: List.generate(segments, (i) {
+        final on = i < filled;
+        return Expanded(
+          child: Container(
+            height: height,
+            margin: EdgeInsets.only(right: i == segments - 1 ? 0 : 2),
+            color: on ? SkinTone.accent : SkinTone.line,
+          ),
+        );
+      }),
     );
   }
 }
 
-class _HudCornerPainter extends CustomPainter {
-  _HudCornerPainter({required this.color});
-  final Color color;
-  static const double _tick = 14;
+/// Scanline sweep + machined corner brackets for the hero console.
+class _HudFramePainter extends CustomPainter {
+  _HudFramePainter({
+    required this.t,
+    required this.accent,
+    required this.accentBright,
+    required this.glowStrength,
+  });
+
+  final double t;
+  final Color accent;
+  final Color accentBright;
+  final double glowStrength;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
+    // Scanline band travelling top → bottom.
+    final y = size.height * t;
+    final band = Rect.fromLTWH(0, y - 26, size.width, 52);
+    final scan = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          accentBright.withOpacity(0),
+          accentBright.withOpacity((0.14 * glowStrength).clamp(0.0, 1.0)),
+          accentBright.withOpacity(0),
+        ],
+      ).createShader(band);
+    canvas.drawRect(band, scan);
+
+    // Machined corner brackets.
+    final stroke = Paint()
+      ..color = accent.withOpacity(0.75)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    const t2 = 15.0;
+    final r = Rect.fromLTWH(0, 0, size.width, size.height).deflate(1);
+    canvas
+      ..drawLine(Offset(r.left, r.top + t2), Offset(r.left, r.top), stroke)
+      ..drawLine(Offset(r.left, r.top), Offset(r.left + t2, r.top), stroke)
+      ..drawLine(Offset(r.right - t2, r.top), Offset(r.right, r.top), stroke)
+      ..drawLine(Offset(r.right, r.top), Offset(r.right, r.top + t2), stroke)
+      ..drawLine(Offset(r.left, r.bottom - t2), Offset(r.left, r.bottom), stroke)
+      ..drawLine(Offset(r.left, r.bottom), Offset(r.left + t2, r.bottom), stroke)
+      ..drawLine(Offset(r.right - t2, r.bottom), Offset(r.right, r.bottom), stroke)
+      ..drawLine(Offset(r.right, r.bottom - t2), Offset(r.right, r.bottom), stroke);
+  }
+
+  @override
+  bool shouldRepaint(covariant _HudFramePainter old) =>
+      old.t != t || old.accent != accent || old.accentBright != accentBright || old.glowStrength != glowStrength;
+}
+
+/// Corner brackets drawn around the avatar frame.
+class _BracketPainter extends CustomPainter {
+  _BracketPainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
       ..color = color
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
-
-    // Top-left
-    canvas.drawLine(const Offset(0, 0), const Offset(_tick, 0), paint);
-    canvas.drawLine(const Offset(0, 0), const Offset(0, _tick), paint);
-    // Top-right
-    canvas.drawLine(Offset(size.width - _tick, 0), Offset(size.width, 0), paint);
-    canvas.drawLine(Offset(size.width, 0), Offset(size.width, _tick), paint);
-    // Bottom-left
-    canvas.drawLine(Offset(0, size.height - _tick), Offset(0, size.height), paint);
-    canvas.drawLine(Offset(0, size.height), Offset(_tick, size.height), paint);
-    // Bottom-right
-    canvas.drawLine(Offset(size.width - _tick, size.height), Offset(size.width, size.height), paint);
-    canvas.drawLine(Offset(size.width, size.height - _tick), Offset(size.width, size.height), paint);
+    const t = 12.0;
+    canvas
+      ..drawLine(const Offset(0, t), const Offset(0, 0), p)
+      ..drawLine(const Offset(0, 0), const Offset(t, 0), p)
+      ..drawLine(Offset(size.width - t, size.height), Offset(size.width, size.height), p)
+      ..drawLine(Offset(size.width, size.height - t), Offset(size.width, size.height), p);
   }
 
   @override
-  bool shouldRepaint(covariant _HudCornerPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant _BracketPainter old) => old.color != color;
 }
 
-class _DiagonalCornerClipper extends CustomClipper<Path> {
-  _DiagonalCornerClipper({this.cut = 14});
+/// Diagonal top-right corner cut — the Cyber Hunter panel silhouette.
+class _CutCornerClipper extends CustomClipper<Path> {
+  _CutCornerClipper({this.cut = 12});
   final double cut;
 
   @override
-  Path getClip(Size size) {
-    return Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width - cut, 0)
-      ..lineTo(size.width, cut)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-  }
+  Path getClip(Size size) => Path()
+    ..moveTo(0, 0)
+    ..lineTo(size.width - cut, 0)
+    ..lineTo(size.width, cut)
+    ..lineTo(size.width, size.height)
+    ..lineTo(0, size.height)
+    ..close();
 
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
 
-Color get _accent => MembershipTheme.current.accent;
+// ── Quest: telemetry strip ────────────────────────────────────────────────
+
+class _HudQuestStrip extends StatelessWidget {
+  const _HudQuestStrip({required this.data});
+  final QuestSectionData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: SkinTone.panel,
+        border: Border.all(color: SkinTone.line),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          ClipPath(
+            clipper: _CutCornerClipper(cut: 9),
+            child: Container(
+              width: 42,
+              height: 42,
+              color: SkinTone.accent.withOpacity(0.12),
+              child: Icon(Icons.radar_rounded, color: SkinTone.accentBright, size: 20),
+            ),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'OBJECTIVE SCAN',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: SkinTone.textSoft,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.8,
+                        ),
+                      ),
+                    ),
+                    if (data.isComplete) ...[
+                      const SizedBox(width: 8),
+                      Icon(Icons.check_circle_outline_rounded, size: 12, color: SkinTone.complete),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _TickMeter(progress: data.progress, segments: 12, height: 9),
+                const SizedBox(height: 7),
+                Text(
+                  '${data.todaySteps} / ${data.goal} STEPS',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: SkinTone.textStrong,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          _boxedValue('${(data.progress * 100).round()}%'),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Stats: 2-column HUD module grid ───────────────────────────────────────
+
+class _HudStatGrid extends StatelessWidget {
+  const _HudStatGrid({required this.data});
+  final StatsSectionData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[];
+    for (var i = 0; i < data.stats.length; i += 2) {
+      final left = data.stats[i];
+      final right = (i + 1 < data.stats.length) ? data.stats[i + 1] : null;
+      rows.add(
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: _module(left)),
+              const SizedBox(width: 10),
+              Expanded(child: right == null ? const SizedBox.shrink() : _module(right)),
+            ],
+          ),
+        ),
+      );
+      if (i + 2 < data.stats.length) rows.add(const SizedBox(height: 10));
+    }
+    return Column(mainAxisSize: MainAxisSize.min, children: rows);
+  }
+
+  Widget _module(DashboardStat stat) {
+    final Color tint = stat.color ?? SkinTone.accent;
+    return Container(
+      decoration: BoxDecoration(
+        color: SkinTone.panel,
+        border: Border.all(color: SkinTone.line),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(height: 2, color: tint),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(11, 9, 11, 11),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(stat.icon, color: tint, size: 12),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        stat.label.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: SkinTone.textFaint,
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    stat.value,
+                    maxLines: 1,
+                    style: TextStyle(
+                      color: SkinTone.textStrong,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Water: segmented tank ─────────────────────────────────────────────────
+
+class _HudTank extends StatelessWidget {
+  const _HudTank({required this.data});
+  final WaterSectionData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: SkinTone.panel,
+        border: Border.all(color: SkinTone.line),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.opacity_rounded, color: SkinTone.accentBright, size: 14),
+              const SizedBox(width: 7),
+              Flexible(
+                child: Text(
+                  'COOLANT LEVEL',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: SkinTone.textSoft,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.8,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                flex: 2,
+                child: Text(
+                  '${data.waterIntakeMl} / ${data.waterGoalMl} ml',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(color: SkinTone.textStrong, fontSize: 11.5, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _TickMeter(progress: data.progress, segments: 18, height: 14),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _squareBtn(Icons.remove_rounded, data.onRemove),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  '${data.selectedCupSize} ml',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: SkinTone.textSoft, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                ),
+              ),
+              const SizedBox(width: 10),
+              _squareBtn(Icons.add_rounded, data.onAdd),
+              const Spacer(),
+              GestureDetector(
+                onTap: data.onEditGoal,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  decoration: BoxDecoration(border: Border.all(color: SkinTone.line)),
+                  child: Text(
+                    'SET GOAL',
+                    style: TextStyle(
+                      color: SkinTone.textFaint,
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _squareBtn(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          border: Border.all(color: SkinTone.accent.withOpacity(0.75)),
+          color: SkinTone.accent.withOpacity(0.10),
+        ),
+        child: Icon(icon, size: 15, color: SkinTone.accentBright),
+      ),
+    );
+  }
+}
+
+// ── Quick Actions: bracketed console tiles ────────────────────────────────
+
+class _HudConsoleTile extends StatelessWidget {
+  const _HudConsoleTile({required this.item});
+  final QuickActionItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final locked = item.isLocked;
+    final tint = locked ? SkinTone.textFaint : SkinTone.accentBright;
+
+    return GestureDetector(
+      onTap: item.onTap,
+      behavior: HitTestBehavior.opaque,
+      child: CustomPaint(
+        foregroundPainter: _BracketPainter(color: locked ? SkinTone.line : SkinTone.accent),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
+          decoration: BoxDecoration(
+            color: SkinTone.panel,
+            border: Border.all(color: SkinTone.line),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(item.icon, color: tint, size: 21),
+              const SizedBox(height: 8),
+              Text(
+                item.label.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: locked ? SkinTone.textFaint : SkinTone.textStrong,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                locked ? 'LOCKED' : '>> ENTER',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tint,
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

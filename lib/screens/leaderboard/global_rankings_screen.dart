@@ -52,7 +52,18 @@ class GlobalRankingsScreen extends StatefulWidget {
   final ValueListenable<int>? activeIndex;
   final int? tabIndex;
 
-  const GlobalRankingsScreen({super.key, this.activeIndex, this.tabIndex});
+  /// Fires when the Leaderboard bottom-nav item is tapped while the
+  /// Leaderboard is ALREADY the active tab. [activeIndex] cannot carry that
+  /// case (its value does not change), so this second signal covers it. The
+  /// two together mean every nav tap produces exactly one refresh.
+  final ValueListenable<int>? navRetapSignal;
+
+  const GlobalRankingsScreen({
+    super.key,
+    this.activeIndex,
+    this.tabIndex,
+    this.navRetapSignal,
+  });
 
   @override
   State<GlobalRankingsScreen> createState() => _GlobalRankingsScreenState();
@@ -86,11 +97,10 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
   Uint8List _decodedAvatar(String base64Data) =>
       _avatarCache[base64Data] ??= base64Decode(base64Data);
 
-  // Guards against refreshing more than once for the same "visit" (i.e. the
-  // same continuous period during which this tab is the active bottom-nav
-  // tab). Reset to false whenever the user navigates away, so the next time
-  // they return a fresh background refresh runs again.
-  bool _refreshedThisVisit = false;
+  // NOTE: there is deliberately NO "already refreshed this visit" guard, no
+  // stale-time check, no debounce and no cooldown. Every explicit Leaderboard
+  // navigation tap must produce a fresh refresh so a just-equipped Effect
+  // (and every other leaderboard value) shows immediately.
 
   // ── Shared effect glow animation ──
   // A single controller drives ALL effect name glows in the list. Each row
@@ -108,52 +118,70 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     _loadLeaderboard();
     _loadActiveHunterCount();
     widget.activeIndex?.addListener(_onActiveIndexChanged);
+    widget.navRetapSignal?.addListener(_onNavRetap);
     // Handle the case where the Leaderboard is already the active tab when
-    // this State is first created (e.g. it's the initial tab).
+    // this State is first created (e.g. it's the initial tab). When it is NOT
+    // the active tab (the normal case — Home is index 0) this is a no-op, so
+    // startup performs only the single _loadLeaderboard() query above rather
+    // than two concurrent fetches.
     _onActiveIndexChanged();
   }
 
   @override
   void dispose() {
     widget.activeIndex?.removeListener(_onActiveIndexChanged);
+    widget.navRetapSignal?.removeListener(_onNavRetap);
     _tabController.dispose();
     _searchController.dispose();
     _effectGlow.dispose();
     super.dispose();
   }
 
-  // Fires whenever the bottom-nav's active tab index changes. Triggers a
-  // single background refresh the moment the Leaderboard tab becomes
-  // active, and re-arms the guard once the user navigates away so the next
-  // visit refreshes again. This does NOT run on every widget rebuild —
-  // IndexedStack keeps this State alive and it only reacts to genuine
-  // index changes via the ValueListenable.
+  // Fires whenever the bottom-nav's active tab index changes. Forces a fresh
+  // refresh the moment the Leaderboard tab becomes active — EVERY time, with
+  // no "already refreshed" guard, so leaving and returning always re-fetches.
+  // This does NOT run on every widget rebuild: IndexedStack keeps this State
+  // alive and this only reacts to genuine index changes via the
+  // ValueListenable, so one tab change means one refresh.
   void _onActiveIndexChanged() {
     final activeIndex = widget.activeIndex;
     final tabIndex = widget.tabIndex;
     if (activeIndex == null || tabIndex == null) return;
-    final isVisible = activeIndex.value == tabIndex;
-    if (isVisible) {
-      if (!_refreshedThisVisit) {
-        _refreshedThisVisit = true;
-        _refreshInBackground();
-      }
-    } else {
-      // Left the tab — re-arm so the next visit refreshes again.
-      _refreshedThisVisit = false;
+    if (activeIndex.value == tabIndex) {
+      _refreshInBackground();
     }
+    // Navigating AWAY needs no work — there is no guard to re-arm.
   }
 
-  // Background refresh used for the "auto-refresh on visit" behavior.
-  // Cached data (already shown via [_loadLeaderboard]/[getCached]) stays on
-  // screen the whole time; this simply fetches fresh data and swaps it in
-  // once available. No loading indicator is shown, and
-  // [LeaderboardRepository.fetch] already falls back to cached data on
-  // network failure, so failures are silently absorbed here.
+  // Fires when the Leaderboard nav item is tapped while the Leaderboard is
+  // already the active tab. `_setActiveTab` intentionally early-returns for
+  // the current tab (so the page transition does not replay) and therefore
+  // `activeIndex` does not change — this signal is what makes a re-tap still
+  // refresh. Tapping Leaderboard 10 times performs 10 refreshes.
+  void _onNavRetap() => _refreshInBackground();
+
+  // The single navigation/refresh path, shared by:
+  //   * entering the Leaderboard tab   (_onActiveIndexChanged)
+  //   * re-tapping the active tab      (_onNavRetap)
+  // Pull-to-refresh uses the same repository call with the same
+  // `forceRefresh: true`.
+  //
+  // `forceRefresh: true` is REQUIRED and is the actual fix for the reported
+  // bug: LeaderboardRepository.fetch() honours a 5-minute TTL cache, so a
+  // plain fetch() returned the previously cached rows and a just-equipped
+  // Effect did not appear until the user pulled to refresh (which already
+  // forced). Forcing here means the query always runs and the freshly written
+  // `equippedProfileEffect` / `effectExpiry` are loaded with the rest of the
+  // leaderboard data.
+  //
+  // Cached data stays on screen while this runs (no loading indicator, no
+  // flicker), and LeaderboardRepository.fetch falls back to cached data on
+  // network failure, so failures are silently absorbed.
   Future<void> _refreshInBackground() async {
     try {
       final countFuture = UserActivityService.instance.todayActiveCount();
-      final fresh = await LeaderboardRepository.instance.fetch(_activeTab);
+      final fresh = await LeaderboardRepository.instance
+          .fetch(_activeTab, forceRefresh: true);
       final count = await countFuture;
       if (mounted) {
         setState(() {
@@ -164,7 +192,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     } catch (e) {
       // LeaderboardRepository.fetch already catches internally and falls
       // back to cached data; this is a defensive no-op guard only.
-      debugPrint('[Leaderboard] background refresh failed: $e');
+      debugPrint('[Leaderboard] navigation refresh failed: $e');
     }
   }
 

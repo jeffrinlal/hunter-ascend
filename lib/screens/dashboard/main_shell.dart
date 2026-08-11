@@ -54,6 +54,17 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   // state instead of always starting at 0.
   late final ValueNotifier<int> _activeTabIndex = ValueNotifier<int>(_index);
 
+  /// Bottom-nav index of the Leaderboard tab. Declared once so the re-tap
+  /// refresh signal below and the tab list stay in agreement. Tab indexes
+  /// themselves are unchanged.
+  static const int _leaderboardTabIndex = 2;
+
+  /// Incremented on every Leaderboard nav tap that happens while the
+  /// Leaderboard is already the active tab (see [_onNavTap]). The Leaderboard
+  /// listens to this and forces a fresh refresh, so repeat taps are never
+  /// swallowed. Purely a local UI signal — no service, no Firestore.
+  late final ValueNotifier<int> _leaderboardRetapTick = ValueNotifier<int>(0);
+
   // ── Page transition animation ──────────────────────────────────────────
   // Animates the incoming tab with a quick fade + slide. IndexedStack
   // switches the visible child immediately (it cannot show two children
@@ -103,6 +114,7 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   void dispose() {
     _transitionController.dispose();
     _activeTabIndex.dispose();
+    _leaderboardRetapTick.dispose();
     super.dispose();
   }
 
@@ -187,7 +199,11 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
       selfImprovement: widget.selfImprovement,
       bioQuests: widget.bioQuests,
     ),
-    GlobalRankingsScreen(activeIndex: _activeTabIndex, tabIndex: 2),
+    GlobalRankingsScreen(
+      activeIndex: _activeTabIndex,
+      tabIndex: _leaderboardTabIndex,
+      navRetapSignal: _leaderboardRetapTick,
+    ),
     const BattleHubScreen(), // Duels tab → Battle Hub (mode chooser)
     const ProfileScreen(),
   ];
@@ -306,6 +322,16 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
     if (i == 3) {
       _openDuels();
       return;
+    }
+    // Leaderboard re-tap: when the Leaderboard is ALREADY the active tab,
+    // `_setActiveTab` early-returns (so the page transition does not replay)
+    // and `_activeTabIndex` does not change, so the Leaderboard would never
+    // hear about the tap. This tick carries that case, guaranteeing every
+    // explicit Leaderboard nav tap forces a fresh refresh. Entering the tab
+    // from another tab is already covered by `_activeTabIndex` changing, so
+    // this is deliberately NOT incremented then — that would double-refresh.
+    if (i == _leaderboardTabIndex && _index == _leaderboardTabIndex) {
+      _leaderboardRetapTick.value++;
     }
     _setActiveTab(i);
   }

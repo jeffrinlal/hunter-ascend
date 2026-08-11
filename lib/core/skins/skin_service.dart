@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -37,10 +39,10 @@ class SkinPurchaseResult {
 /// skin ([SkinCatalog.all]) grants only *temporary* access via exactly one
 /// of two paths, both defined per-skin in the catalog:
 /// - [purchaseSkinWithCoins]: pay the skin's `coinPrice` in coins, get
-///   `coinUnlockDuration` of access (currently 30 days for every non-default
+///   `coinUnlockDuration` of access (currently 14 days for every non-default
 ///   skin).
 /// - [grantAdUnlock]: watch one rewarded ad, get `adUnlockDuration` of
-///   access (currently 15 days). This method is the integration point for
+///   access (currently 7 days). This method is the integration point for
 ///   a future ad-flow UI — it does NOT show an ad itself. The caller is
 ///   responsible for showing the ad (reusing the app's existing
 ///   [RewardedAdManager]/ad infrastructure) and must only call this method
@@ -70,7 +72,7 @@ class SkinPurchaseResult {
 ///   selected skin, its ownership, or its remaining unlock time.
 /// - Switching back via [resumeSkinAppearance] restores the same skin,
 ///   provided it has not expired in the meantime.
-class SkinService {
+class SkinService with WidgetsBindingObserver {
   SkinService._();
   static final SkinService instance = SkinService._();
 
@@ -108,6 +110,14 @@ class SkinService {
   Future<void> initialize() async {
     if (_initialized) return;
     _initialized = true;
+
+    // Re-check expiry every time the app returns to the foreground, so an
+    // expired skin cannot stay equipped across a backgrounded session.
+    // Registered before the early return below so it is always active,
+    // including when Classic is the saved selection (the user may equip a
+    // skin later in the same session). Mirrors ConnectivityService, which
+    // also registers its own observer from its start method.
+    WidgetsBinding.instance.addObserver(this);
 
     final prefs = await SharedPreferences.getInstance();
     _prefs = prefs;
@@ -287,7 +297,24 @@ class SkinService {
     await _persistAppearanceActive(false);
   }
 
-  /// Re-checks expiry (call on app resume, e.g. from a lifecycle listener).
+  /// Re-checks skin expiry whenever the app returns to the foreground.
+  ///
+  /// This is what makes "an expired skin cannot remain equipped" hold during
+  /// normal use: [initialize] covers the cold-start case, and this covers
+  /// resume-after-background (by far the most common way a multi-day expiry
+  /// is crossed). Costs at most one Firestore read per resume, and only
+  /// while a non-classic skin is actually selected — [checkExpiry] returns
+  /// immediately for Classic without touching Firestore.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(checkExpiry());
+    }
+  }
+
+  /// Re-checks expiry and reverts to [SkinId.classic] if the selected skin's
+  /// unlock window has elapsed. Wired to app-resume via
+  /// [didChangeAppLifecycleState]; also safe to call manually.
   Future<void> checkExpiry() async {
     final current = activeSkinNotifier.value;
     if (current == SkinId.classic) return;
@@ -472,7 +499,7 @@ class SkinService {
   // ── Unlock: rewarded ad ──────────────────────────────────────────────
 
   /// Grants [skin] access for the catalog's `adUnlockDuration` (currently
-  /// 15 days) after a rewarded ad has been successfully watched.
+  /// 7 days) after a rewarded ad has been successfully watched.
   ///
   /// ## Integration contract (Phase 1 — no ad UI is built here)
   /// This method does NOT show an ad and does NOT touch

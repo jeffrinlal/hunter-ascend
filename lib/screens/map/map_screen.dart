@@ -146,8 +146,14 @@ class _MapScreenState extends State<MapScreen> {
       _isCheckingAccess = false;
     });
     
-    _getCurrentLocation();
-    _loadBannerAd();
+    // Defer initialization until after build completes
+    // (MapController needs to be attached to FlutterMap widget)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _getCurrentLocation();
+        _loadBannerAd();
+      }
+    });
   }
 
   @override

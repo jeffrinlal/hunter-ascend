@@ -42,6 +42,31 @@ class _ShopScreenState extends State<ShopScreen>
   /// The plan id currently being unlocked (after ad completion).
   String? _unlockingPlanId;
 
+  // Stable identity for the pre-existing planUnlocks listener.
+  //
+  // The stream used to be constructed inline inside build(), so every rebuild
+  // handed StreamBuilder a NEW Stream object, making it cancel and
+  // re-subscribe (re-priming the whole query). This screen rebuilds on
+  // theme-notifier changes and on setState from its ad manager.
+  //
+  // Memoised per uid — same collection, same query, still exactly ONE
+  // listener; only the object identity is now stable across rebuilds.
+  // Mirrors MainShell's cached-stream approach.
+  String? _planUnlocksUid;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _planUnlocksStream;
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _planUnlocksStreamFor(String uid) {
+    if (_planUnlocksStream == null || _planUnlocksUid != uid) {
+      _planUnlocksUid = uid;
+      _planUnlocksStream = FirebaseFirestore.instance
+          .collection('hunters')
+          .doc(uid)
+          .collection('planUnlocks')
+          .snapshots();
+    }
+    return _planUnlocksStream!;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -271,12 +296,11 @@ class _ShopScreenState extends State<ShopScreen>
       return _buildAuthPrompt();
     }
 
+    // Same single pre-existing snapshot stream on the planUnlocks
+    // subcollection — hoisted so its identity is stable across rebuilds
+    // (see _planUnlocksStreamFor). No additional listener or read is added.
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('hunters')
-          .doc(uid)
-          .collection('planUnlocks')
-          .snapshots(),
+      stream: _planUnlocksStreamFor(uid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(

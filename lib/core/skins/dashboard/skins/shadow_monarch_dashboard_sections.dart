@@ -125,14 +125,22 @@ class _MonarchHeroState extends State<_MonarchHero> with SingleTickerProviderSta
             // content layer and clipped to this panel's own bounds, so it
             // can never overlap or clip dynamic text.
             Positioned.fill(
-              child: AnimatedBuilder(
-                animation: _glow,
-                builder: (context, _) => CustomPaint(
-                  painter: _MonarchGlowPainter(
-                    t: _glow.value,
-                    accent: SkinTone.accent,
-                    accentBright: SkinTone.accentBright,
-                    glowStrength: SkinTone.glow,
+              // Repaint isolation only. This ambient glow repaints on every
+              // `_glow` frame, while the content layer above it changes only
+              // when hunter data does. Without a boundary each tick marks the
+              // whole hero panel's layer dirty. Identical painter, animation,
+              // duration and colours — only the repaint scope changes.
+              // Mirrors widgets/premium_card_decorator.dart.
+              child: RepaintBoundary(
+                child: AnimatedBuilder(
+                  animation: _glow,
+                  builder: (context, _) => CustomPaint(
+                    painter: _MonarchGlowPainter(
+                      t: _glow.value,
+                      accent: SkinTone.accent,
+                      accentBright: SkinTone.accentBright,
+                      glowStrength: SkinTone.glow,
+                    ),
                   ),
                 ),
               ),

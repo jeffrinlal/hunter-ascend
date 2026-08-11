@@ -74,6 +74,32 @@ class _CoinShopScreenState extends State<CoinShopScreen>
   // Firestore read per card.
   Map<SkinId, DateTime> _skinExpiries = {};
 
+  // Stable identity for the pre-existing planUnlocks listener.
+  //
+  // The stream used to be constructed inline inside build(), so every rebuild
+  // handed StreamBuilder a NEW Stream object, which made it cancel and
+  // re-subscribe (re-priming the whole query). This tab sits under an
+  // AnimatedBuilder on _tabController and the screen also calls setState from
+  // three ad-status callbacks, so that churned on every tab-swipe frame.
+  //
+  // Memoised per uid — same collection, same query, still exactly ONE
+  // listener; only the object identity is now stable across rebuilds.
+  // Mirrors MainShell's cached-stream approach.
+  String? _planUnlocksUid;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _planUnlocksStream;
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _planUnlocksStreamFor(String uid) {
+    if (_planUnlocksStream == null || _planUnlocksUid != uid) {
+      _planUnlocksUid = uid;
+      _planUnlocksStream = FirebaseFirestore.instance
+          .collection('hunters')
+          .doc(uid)
+          .collection('planUnlocks')
+          .snapshots();
+    }
+    return _planUnlocksStream!;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1097,13 +1123,11 @@ class _CoinShopScreenState extends State<CoinShopScreen>
     }
 
     // Unchanged: the same single pre-existing snapshot stream on the
-    // planUnlocks subcollection. No additional listener or read is added.
+    // planUnlocks subcollection. No additional listener or read is added —
+    // the stream object is now hoisted so its identity is stable across
+    // rebuilds (see _planUnlocksStreamFor).
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('hunters')
-          .doc(uid)
-          .collection('planUnlocks')
-          .snapshots(),
+      stream: _planUnlocksStreamFor(uid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(

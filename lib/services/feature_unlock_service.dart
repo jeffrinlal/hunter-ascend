@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
+import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'package:hunter_ascend/services/membership_service.dart';
 
 /// Manages 30-day feature unlocks for Nutrition and Map via rewarded ads
@@ -43,13 +44,7 @@ class FeatureUnlockService {
     if (!doc.exists) return false;
 
     final data = doc.data()!;
-    final expiryStr = data['nutritionUnlockExpiry'] as String?;
-    if (expiryStr == null) return false;
-
-    final expiry = DateTime.tryParse(expiryStr);
-    if (expiry == null) return false;
-
-    return DateTime.now().isBefore(expiry);
+    return _isUnlockActive(data['nutritionUnlockExpiry'] as String?);
   }
 
   /// Check if Map is unlocked for the current user.
@@ -73,12 +68,55 @@ class FeatureUnlockService {
     if (!doc.exists) return false;
 
     final data = doc.data()!;
-    final expiryStr = data['mapUnlockExpiry'] as String?;
-    if (expiryStr == null) return false;
+    return _isUnlockActive(data['mapUnlockExpiry'] as String?);
+  }
 
+  // ── Zero-read synchronous variants (UI / build-safe) ────────────────────
+  //
+  // `isNutritionUnlocked()` / `isMapUnlocked()` above are the AUTHORITATIVE
+  // checks: they hit the server and are used by the feature entry points
+  // (NutritionScreen, MapScreen) that actually gate access.
+  //
+  // The two methods below answer the SAME question with ZERO Firestore reads,
+  // for callers that render on every rebuild and therefore must not issue a
+  // read (e.g. the dashboard Quick Action cards). They resolve the expiry from
+  // the hunter document that `HunterRepository` already keeps live-cached, so
+  // they add no read, no query and no listener. They intentionally reuse the
+  // same premium short-circuit and the same `_isUnlockActive` rule as the
+  // async versions, so the two can never disagree.
+  //
+  // Freshness: the value comes from the single app-wide `hunters/{uid}`
+  // snapshot listener, so a granted unlock propagates automatically on the
+  // next emission. Callers rendering inside that stream's `StreamBuilder`
+  // therefore stay in sync with no extra work.
+
+  /// Synchronous, zero-read equivalent of [isNutritionUnlocked].
+  bool isNutritionUnlockedCached() {
+    if (MembershipService.instance.hasPremium) {
+      return true; // Pro and Max always unlocked
+    }
+    final hunter = HunterRepository.instance.getCached();
+    if (hunter == null) return false;
+    return _isUnlockActive(hunter.nutritionUnlockExpiry);
+  }
+
+  /// Synchronous, zero-read equivalent of [isMapUnlocked].
+  bool isMapUnlockedCached() {
+    if (MembershipService.instance.hasPremium) {
+      return true; // Pro and Max always unlocked
+    }
+    final hunter = HunterRepository.instance.getCached();
+    if (hunter == null) return false;
+    return _isUnlockActive(hunter.mapUnlockExpiry);
+  }
+
+  /// The single unlock rule, shared by the async (server) and cached
+  /// (local) checks: a non-null, parseable expiry that is still in the
+  /// future means unlocked. Extracted so both paths stay identical.
+  bool _isUnlockActive(String? expiryStr) {
+    if (expiryStr == null) return false;
     final expiry = DateTime.tryParse(expiryStr);
     if (expiry == null) return false;
-
     return DateTime.now().isBefore(expiry);
   }
 

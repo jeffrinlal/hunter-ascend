@@ -188,14 +188,22 @@ class _EmberHeroState extends State<_EmberHero> with SingleTickerProviderStateMi
           // Ember heat pulse along the slanted bottom edge. Decorative only.
           Positioned.fill(
             child: IgnorePointer(
-              child: AnimatedBuilder(
-                animation: _pulse,
-                builder: (context, _) => CustomPaint(
-                  painter: _EmberHeatPainter(
-                    t: _pulse.value,
-                    accent: SkinTone.accent,
-                    accentBright: SkinTone.accentBright,
-                    glowStrength: SkinTone.glow,
+              // Repaint isolation only. This decorative overlay repaints on
+              // every `_pulse` frame, while the banner content below it
+              // changes only when hunter data does. Without a boundary each
+              // tick marks the whole hero panel's layer dirty. Identical
+              // painter, animation, duration and colours — only the repaint
+              // scope changes. Mirrors widgets/premium_card_decorator.dart.
+              child: RepaintBoundary(
+                child: AnimatedBuilder(
+                  animation: _pulse,
+                  builder: (context, _) => CustomPaint(
+                    painter: _EmberHeatPainter(
+                      t: _pulse.value,
+                      accent: SkinTone.accent,
+                      accentBright: SkinTone.accentBright,
+                      glowStrength: SkinTone.glow,
+                    ),
                   ),
                 ),
               ),

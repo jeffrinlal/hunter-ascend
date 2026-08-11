@@ -120,14 +120,22 @@ class _HudHeroState extends State<_HudHero> with SingleTickerProviderStateMixin 
             // Scanline + machined corner brackets. Decorative only, clipped
             // to this panel, never carries or overlaps text.
             Positioned.fill(
-              child: AnimatedBuilder(
-                animation: _sweep,
-                builder: (context, _) => CustomPaint(
-                  painter: _HudFramePainter(
-                    t: _sweep.value,
-                    accent: SkinTone.accent,
-                    accentBright: SkinTone.accentBright,
-                    glowStrength: SkinTone.glow,
+              // Repaint isolation only. This decorative overlay repaints on
+              // every `_sweep` frame, while the hero content below it changes
+              // only when hunter data does. Without a boundary each tick marks
+              // the whole hero panel's layer dirty. Identical painter,
+              // animation, duration and colours — only the repaint scope
+              // changes. Mirrors widgets/premium_card_decorator.dart.
+              child: RepaintBoundary(
+                child: AnimatedBuilder(
+                  animation: _sweep,
+                  builder: (context, _) => CustomPaint(
+                    painter: _HudFramePainter(
+                      t: _sweep.value,
+                      accent: SkinTone.accent,
+                      accentBright: SkinTone.accentBright,
+                      glowStrength: SkinTone.glow,
+                    ),
                   ),
                 ),
               ),

@@ -2241,55 +2241,54 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
   // ── Quick actions (Nutrition + Map) ──────────────────────
   //
-  // Quick Actions' `isLocked` values come from async FeatureUnlockService
-  // checks, unlike the other 4 sections whose data is already synchronously
-  // available in this build method. To guarantee Classic renders with the
-  // EXACT original two-independent-FutureBuilder structure (each icon can
-  // resolve/pop in independently — no combined-wait behavior change), the
-  // skin-vs-classic decision here is made synchronously FIRST (via the same
-  // two notifiers every other section resolver already reacts to), and only
-  // the skin branch performs the additional Future.wait needed to build a
-  // single QuickActionsSectionData for that skin's widget.
+  // Quick Actions' `isLocked` values are resolved SYNCHRONOUSLY from the
+  // hunter document that HunterRepository already keeps live-cached, exactly
+  // like the other 4 sections whose data is already available in this build
+  // method. Previously these two values came from async FeatureUnlockService
+  // calls wrapped in FutureBuilders, which meant every rebuild of this
+  // section issued two fresh `hunters/{uid}` reads for Basic users — and this
+  // section rebuilds on every theme/skin/tier notifier tick, every setState
+  // and every hunter-doc emission. The cached checks cost ZERO reads, add no
+  // listener, and stay fresh because this whole section is rendered inside
+  // the `StreamBuilder<HunterData?>` on HunterRepository.watch(), so a newly
+  // granted unlock arrives with the next emission.
+  //
+  // Access is still gated server-side: tapping an unlocked card navigates to
+  // NutritionScreen / MapScreen, each of which re-validates with the
+  // authoritative async `isNutritionUnlocked()` / `isMapUnlocked()` check.
+  // Pro/Max keep their existing no-read short-circuit.
   Widget _buildQuickActions() {
+    final nutritionUnlocked =
+        FeatureUnlockService.instance.isNutritionUnlockedCached();
+    final mapUnlocked = FeatureUnlockService.instance.isMapUnlockedCached();
+
     final basicQuickActionsRow = Row(
       children: [
         Expanded(
-          child: FutureBuilder<bool>(
-            future: FeatureUnlockService.instance.isNutritionUnlocked(),
-            builder: (context, snapshot) {
-              final isUnlocked = snapshot.data ?? false;
-              return _quickActionCard(
-                icon: Icons.restaurant_menu,
-                label: 'Nutrition',
-                isLocked: !isUnlocked,
-                onTap: isUnlocked
-                    ? () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const NutritionScreen()),
-                        )
-                    : () => _showUnlockDialog('Nutrition'),
-              );
-            },
+          child: _quickActionCard(
+            icon: Icons.restaurant_menu,
+            label: 'Nutrition',
+            isLocked: !nutritionUnlocked,
+            onTap: nutritionUnlocked
+                ? () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const NutritionScreen()),
+                    )
+                : () => _showUnlockDialog('Nutrition'),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: FutureBuilder<bool>(
-            future: FeatureUnlockService.instance.isMapUnlocked(),
-            builder: (context, snapshot) {
-              final isUnlocked = snapshot.data ?? false;
-              return _quickActionCard(
-                icon: Icons.map,
-                label: 'Map',
-                isLocked: !isUnlocked,
-                onTap: isUnlocked
-                    ? () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const MapScreen()),
-                        )
-                    : () => _showUnlockDialog('Map'),
-              );
-            },
+          child: _quickActionCard(
+            icon: Icons.map,
+            label: 'Map',
+            isLocked: !mapUnlocked,
+            onTap: mapUnlocked
+                ? () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MapScreen()),
+                    )
+                : () => _showUnlockDialog('Map'),
           ),
         ),
       ],
@@ -2304,37 +2303,29 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             final skinActive = appearanceActive && activeSkin != SkinId.classic;
             if (!skinActive) return basicQuickActionsRow;
 
-            // Skin branch only: resolve both unlock checks together, then
-            // hand the skin's own widget a single combined data contract.
-            return FutureBuilder<List<bool>>(
-              future: Future.wait([
-                FeatureUnlockService.instance.isNutritionUnlocked(),
-                FeatureUnlockService.instance.isMapUnlocked(),
-              ]),
-              builder: (context, snap) {
-                final nutritionUnlocked = snap.data != null && snap.data![0];
-                final mapUnlocked = snap.data != null && snap.data![1];
-                final data = QuickActionsSectionData(
-                  nutrition: QuickActionItem(
-                    icon: Icons.restaurant_menu,
-                    label: 'Nutrition',
-                    isLocked: !nutritionUnlocked,
-                    onTap: nutritionUnlocked
-                        ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NutritionScreen()))
-                        : () => _showUnlockDialog('Nutrition'),
-                  ),
-                  map: QuickActionItem(
-                    icon: Icons.map,
-                    label: 'Map',
-                    isLocked: !mapUnlocked,
-                    onTap: mapUnlocked
-                        ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MapScreen()))
-                        : () => _showUnlockDialog('Map'),
-                  ),
-                );
-                return dashboardSkinSectionsFor(activeSkin).quickActions(data);
-              },
+            // Skin branch: same two cached values, handed to the skin's own
+            // widget as a single combined data contract. The Future.wait that
+            // used to sit here is gone along with its two reads — both values
+            // are already resolved synchronously above.
+            final data = QuickActionsSectionData(
+              nutrition: QuickActionItem(
+                icon: Icons.restaurant_menu,
+                label: 'Nutrition',
+                isLocked: !nutritionUnlocked,
+                onTap: nutritionUnlocked
+                    ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NutritionScreen()))
+                    : () => _showUnlockDialog('Nutrition'),
+              ),
+              map: QuickActionItem(
+                icon: Icons.map,
+                label: 'Map',
+                isLocked: !mapUnlocked,
+                onTap: mapUnlocked
+                    ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MapScreen()))
+                    : () => _showUnlockDialog('Map'),
+              ),
             );
+            return dashboardSkinSectionsFor(activeSkin).quickActions(data);
           },
         );
       },

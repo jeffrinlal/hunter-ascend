@@ -6,6 +6,8 @@ import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hunter_ascend/data/models/hunter_data.dart';
+import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'package:hunter_ascend/screens/duel/duel_history_screen.dart';
 import 'package:hunter_ascend/services/connectivity_service.dart';
 import 'package:share_plus/share_plus.dart';
@@ -1106,24 +1108,33 @@ Return ONLY a JSON array, no markdown, no explanation:
                               color: MembershipTheme.current.accent, size: 20),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: FutureBuilder<DocumentSnapshot>(
-                              future: FirebaseFirestore.instance
-                                  .collection('hunters')
-                                  .doc(FirebaseAuth.instance.currentUser!.uid)
-                                  .get(),
+                            // Reads the hunter name from the app-wide
+                            // HunterRepository stream — the SAME single
+                            // hunters/{uid} listener every other screen
+                            // already uses — instead of issuing its own
+                            // document read. This was previously a
+                            // FutureBuilder whose future was constructed
+                            // inline in build(), so every rebuild issued
+                            // another hunters/{uid} read, and this screen
+                            // rebuilds on each opponent-search setState,
+                            // chip tap and AI-generation toggle. No new
+                            // listener and no new read: watch() returns the
+                            // existing shared broadcast stream, seeded from
+                            // the Hive cache so the first frame has data.
+                            child: StreamBuilder<HunterData?>(
+                              stream: HunterRepository.instance.watch(),
+                              initialData: HunterRepository.instance.getCached(),
                               builder: (context, snapshot) {
-                                if (!snapshot.hasData) {
+                                final hunter = snapshot.data;
+                                if (hunter == null) {
                                   return Text(
                                     'Loading...',
                                     style: TextStyle(color: HunterTheme.textTertiary),
                                   );
                                 }
 
-                                final data =
-                                snapshot.data!.data() as Map<String, dynamic>?;
-
                                 return SelectableText(
-                                  data?['hunterName'] ?? 'Unknown Hunter',
+                                  hunter.hunterName,
                                   style: TextStyle(
                                     color: MembershipTheme.current.accent,
                                     fontSize: 12,

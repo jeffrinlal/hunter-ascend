@@ -7,8 +7,29 @@ import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 
 /// Read-only list of the hunter's past duels and their outcomes.
-class DuelHistoryScreen extends StatelessWidget {
+class DuelHistoryScreen extends StatefulWidget {
   const DuelHistoryScreen({super.key});
+
+  @override
+  State<DuelHistoryScreen> createState() => _DuelHistoryScreenState();
+}
+
+class _DuelHistoryScreenState extends State<DuelHistoryScreen> {
+  // Hoisted into State so the identical query runs ONCE per screen open.
+  // It previously lived inline in the FutureBuilder below, which meant every
+  // rebuild built a new Future and re-issued the same 20-document read — and
+  // this screen rebuilds on every theme / active-theme / membership-tier
+  // notifier tick via the ListenableBuilder in build(). Stabilising the
+  // Future's identity is the only change: the collection, filter, ordering
+  // and limit are byte-for-byte the same, and the one-read-per-open behaviour
+  // (including the existing loading and error states) is unchanged.
+  late final Future<QuerySnapshot> _historyFuture = FirebaseFirestore.instance
+      .collection('duels')
+      .where('participants',
+          arrayContains: FirebaseAuth.instance.currentUser?.uid)
+      .orderBy('createdAt', descending: true)
+      .limit(20)
+      .get();
 
   @override
   Widget build(BuildContext context) {
@@ -73,12 +94,7 @@ class DuelHistoryScreen extends StatelessWidget {
         ),
       ),
       body: FutureBuilder<QuerySnapshot>(
-        future: FirebaseFirestore.instance
-            .collection('duels')
-            .where('participants', arrayContains: user?.uid)
-            .orderBy('createdAt', descending: true)
-            .limit(20)
-            .get(),
+        future: _historyFuture,
         builder: (context, snapshot) {
           // ── Error state ──
           if (snapshot.hasError) {

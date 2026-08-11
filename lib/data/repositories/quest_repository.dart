@@ -51,7 +51,12 @@ class QuestRepository {
   /// Safe to call multiple times — returns the same broadcast stream.
   Stream<List<CustomQuest>> watch() {
     _ensureListening();
-    return _cachedStream!;
+    // `_ensureListening()` returns early when there is no authenticated uid,
+    // which leaves `_cachedStream` null. Mirror the CalorieRepository pattern
+    // and hand back an inert empty stream rather than dereferencing null, so
+    // a signed-out caller degrades to "no quests" instead of throwing.
+    // No Firestore listener and no read is created in that case.
+    return _cachedStream ?? Stream.value(const <CustomQuest>[]);
   }
 
   /// Clears the local cache and cancels the Firestore listener.

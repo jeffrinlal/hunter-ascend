@@ -54,13 +54,22 @@ class InfernoDashboardSections implements DashboardSkinSections {
 
   @override
   Widget quickActions(QuickActionsSectionData data) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(child: _EmberTile(item: data.nutrition)),
-        const SizedBox(width: 10),
-        Expanded(child: _EmberTile(item: data.map)),
-      ],
+    // Same constraint fix as Cyber Hunter's quick actions: a stretched Row
+    // needs a bounded height, but the dashboard hosts sections inside a
+    // SingleChildScrollView (unbounded height), which throws
+    // "BoxConstraints forces an infinite height". IntrinsicHeight bounds the
+    // Row to its tallest child, preserving the equal-height slanted-tile
+    // design without hardcoding a height. Same pattern as this file's
+    // objective bar.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: _EmberTile(item: data.nutrition)),
+          const SizedBox(width: 10),
+          Expanded(child: _EmberTile(item: data.map)),
+        ],
+      ),
     );
   }
 }

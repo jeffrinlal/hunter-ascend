@@ -55,13 +55,23 @@ class CyberHunterDashboardSections implements DashboardSkinSections {
 
   @override
   Widget quickActions(QuickActionsSectionData data) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(child: _HudConsoleTile(item: data.nutrition)),
-        const SizedBox(width: 10),
-        Expanded(child: _HudConsoleTile(item: data.map)),
-      ],
+    // `CrossAxisAlignment.stretch` needs a bounded cross-axis (height). The
+    // dashboard hosts these sections inside a SingleChildScrollView, where
+    // the incoming height constraint is unbounded — a bare stretched Row
+    // there throws "BoxConstraints forces an infinite height".
+    // IntrinsicHeight bounds the Row to its tallest child, which preserves
+    // the equal-height tile design exactly without hardcoding a height
+    // (a fixed height would clip at large system text scales). This is the
+    // same pattern already used by this file's stats grid.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: _HudConsoleTile(item: data.nutrition)),
+          const SizedBox(width: 10),
+          Expanded(child: _HudConsoleTile(item: data.map)),
+        ],
+      ),
     );
   }
 }

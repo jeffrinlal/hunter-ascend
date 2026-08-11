@@ -155,9 +155,37 @@ class ShopHeader extends StatelessWidget {
               child: Icon(Icons.arrow_back_ios_new_rounded, size: 15, color: _T.textSoft),
             ),
           ),
-          // Title/subtitle block intentionally removed (UI cleanup) — the
-          // back affordance and coin balance are kept.
-          const Spacer(),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'MARKETPLACE',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _T.textStrong,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Spend your spoils, Hunter',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _T.textFaint,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(width: 12),
           _CoinBalance(coins: coins),
         ],
@@ -568,23 +596,59 @@ class ShopEarnCoinsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Frame (gradient container + gold border) and the "EARN COINS"
-    // title/subtitle were intentionally removed (UI cleanup). Only the
-    // padding needed to keep the controls aligned with the rest of the
-    // shop remains — all earn-coins functionality is unchanged.
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_T.coin.withOpacity(0.13), _T.panel],
+        ),
+        border: Border.all(color: _T.coin.withOpacity(0.35)),
+      ),
       child: adsWatchedInSequence == 1 ? _sequence() : _collapsed(),
     );
   }
 
   Widget _collapsed() {
     final disabled = isEarning || !adReady;
-    // Icon + "EARN COINS" title/subtitle removed (UI cleanup). The reward
-    // buttons keep their original size and right-hand position.
     return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
       children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _T.coin.withOpacity(0.16),
+            border: Border.all(color: _T.coin.withOpacity(0.4)),
+          ),
+          child: Icon(Icons.play_arrow_rounded, size: 19, color: _T.coin),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'EARN COINS',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: _T.coin, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.4),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                adReady ? 'Watch ads for instant coins' : 'Preparing ads…',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: _T.textFaint, fontSize: 10.5, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
         _rewardBtn('+20', disabled ? null : onWatchOne, disabled),
         const SizedBox(width: 7),
         _rewardBtn('+50', disabled ? null : onWatchTwo, disabled),

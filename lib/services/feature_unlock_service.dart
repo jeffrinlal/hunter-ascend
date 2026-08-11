@@ -27,8 +27,7 @@ class FeatureUnlockService {
   /// - User is Pro or Max
   /// - User is Basic with a valid nutritionUnlockExpiry (not expired)
   Future<bool> isNutritionUnlocked() async {
-    final membership = MembershipService.instance.tier;
-    if (membership.isPro || membership == MembershipTier.max) {
+    if (MembershipService.instance.hasPremium) {
       return true; // Pro and Max always unlocked
     }
 
@@ -58,8 +57,7 @@ class FeatureUnlockService {
   /// - User is Pro or Max
   /// - User is Basic with a valid mapUnlockExpiry (not expired)
   Future<bool> isMapUnlocked() async {
-    final membership = MembershipService.instance.tier;
-    if (membership.isPro || membership == MembershipTier.max) {
+    if (MembershipService.instance.hasPremium) {
       return true; // Pro and Max always unlocked
     }
 
@@ -89,8 +87,7 @@ class FeatureUnlockService {
     final unlocked = await isNutritionUnlocked();
     if (!unlocked) return null;
 
-    final membership = MembershipService.instance.tier;
-    if (membership.isPro || membership == MembershipTier.max) {
+    if (MembershipService.instance.hasPremium) {
       return null; // Permanent for premium
     }
 
@@ -120,8 +117,7 @@ class FeatureUnlockService {
     final unlocked = await isMapUnlocked();
     if (!unlocked) return null;
 
-    final membership = MembershipService.instance.tier;
-    if (membership.isPro || membership == MembershipTier.max) {
+    if (MembershipService.instance.hasPremium) {
       return null; // Permanent for premium
     }
 

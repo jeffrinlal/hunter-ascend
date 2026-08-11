@@ -74,6 +74,15 @@ class _CoinShopScreenState extends State<CoinShopScreen>
   // Firestore read per card.
   Map<SkinId, DateTime> _skinExpiries = {};
 
+  // Effect expiry — the single active unlock expiry for the equipped effect.
+  // Loaded once per shop-data load (no per-card read).
+  DateTime? _effectExpiry;
+
+  // Effects ad manager (independent instance — does NOT reuse plan/coin/skin
+  // ad managers so an effect ad in progress never interferes with others).
+  late final RewardedAdManager _effectAdManager;
+  String? _unlockingEffectId;
+
   // Stable identity for the pre-existing planUnlocks listener.
   //
   // The stream used to be constructed inline inside build(), so every rebuild
@@ -133,6 +142,13 @@ class _CoinShopScreenState extends State<CoinShopScreen>
       },
     );
     _skinAdManager.loadAd();
+
+    _effectAdManager = RewardedAdManager(
+      onAdStatusChanged: () {
+        if (mounted) setState(() {});
+      },
+    );
+    _effectAdManager.loadAd();
   }
 
   @override
@@ -140,6 +156,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
     _adManager.dispose();
     _coinAdManager.dispose();
     _skinAdManager.dispose();
+    _effectAdManager.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -151,6 +168,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
     final owned = await ShopService.instance.getOwnedItems();
     final equippedEffect = await ShopService.instance
         .getEquippedItem(ShopItemCategory.profileEffect);
+    final effectExpiry = await ShopService.instance.getEffectExpiry();
 
     final hunter = HunterRepository.instance.getCached();
     final level = hunter?.level ?? 1;
@@ -164,6 +182,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
         _coins = coins;
         _ownedItems = owned;
         _equippedProfileEffect = equippedEffect;
+        _effectExpiry = effectExpiry;
         _hunterLevel = level;
         _skinExpiries = skinExpiries;
         _loading = false;
@@ -767,7 +786,6 @@ class _CoinShopScreenState extends State<CoinShopScreen>
   // ── Cosmetic Shop Methods (existing) ──────────────────────────────────
 
   Future<void> _purchaseItem(ShopItem item) async {
-    if (_ownedItems.contains(item.id)) return;
     if (_coins < item.price) {
       _showInsufficientCoinsDialog(item.price);
       return;
@@ -780,7 +798,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Purchased ${item.name}!'),
+            content: Text('\u2705 Purchased ${item.name}!'),
             backgroundColor: HunterTheme.success,
           ),
         );
@@ -789,11 +807,56 @@ class _CoinShopScreenState extends State<CoinShopScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('❌ Purchase failed. Please try again.'),
+            content: const Text('\u274c Purchase failed. Please try again.'),
             backgroundColor: HunterTheme.danger,
           ),
         );
       }
+    }
+  }
+
+  // Alias for effects — same atomic purchase flow.
+  Future<void> _purchaseEffect(ShopItem item) => _purchaseItem(item);
+
+  void _unlockEffectWithAd(ShopItem item) {
+    if (_unlockingEffectId != null) return;
+
+    _effectAdManager.showAd(
+      // Authoritative: the unlock is written ONLY from the reward callback,
+      // which RewardedAdManager invokes from onUserEarnedReward — never
+      // merely because the ad was opened or dismissed.
+      onRewardEarned: () => _claimEffectAdUnlock(item),
+      onAdDismissed: () {
+        _unlockingEffectId = null;
+        if (mounted) setState(() {});
+      },
+    );
+  }
+
+  Future<void> _claimEffectAdUnlock(ShopItem item) async {
+    _unlockingEffectId = item.id;
+    final success = await ShopService.instance.unlockWithAd(item.id);
+    _unlockingEffectId = null;
+
+    if (!mounted) return;
+    if (success) {
+      await _loadShopData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '\u2705 ${item.name} unlocked for ${item.adDuration.inDays} days!',
+          ),
+          backgroundColor: HunterTheme.success,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('\u274c Unlock failed. Please try again.'),
+          backgroundColor: HunterTheme.danger,
+        ),
+      );
     }
   }
 
@@ -1026,28 +1089,62 @@ class _CoinShopScreenState extends State<CoinShopScreen>
   }
 
   Widget _buildItemCard(ShopItem item) {
-    final isOwned = _ownedItems.contains(item.id);
     final isEquipped = _isEquipped(item);
     final canAfford = _coins >= item.price;
 
-    final VoidCallback? onTap = isOwned
-        ? (isEquipped ? null : () => _equipItem(item))
-        : () => _purchaseItem(item);
+    // Duration-aware state: an effect is "active" only when it is the
+    // equipped effect AND its expiry is still in the future.
+    final bool isActive = isEquipped && _effectExpiry != null && _effectExpiry!.isAfter(DateTime.now());
+    final bool isExpired = isEquipped && (_effectExpiry == null || !_effectExpiry!.isAfter(DateTime.now()));
+
+    // Remaining days label
+    String? durationLabel;
+    if (isActive && _effectExpiry != null) {
+      final days = _effectExpiry!.difference(DateTime.now()).inDays;
+      durationLabel = days > 0 ? '${days}d' : '<1d';
+    } else if (isExpired) {
+      durationLabel = 'EXPIRED';
+    }
 
     return ShopCardShell(
-      onTap: onTap,
-      highlight: isEquipped,
+      onTap: null, // handled by buttons below
+      highlight: isActive,
       highlightColor: HunterTheme.gold,
       child: Column(
         children: [
           Expanded(
             child: ShopPreviewPlate(
-              tint: isEquipped ? HunterTheme.gold : null,
-              child: Text(item.emoji, style: const TextStyle(fontSize: 42)),
+              tint: isActive ? HunterTheme.gold : null,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(item.emoji, style: const TextStyle(fontSize: 38)),
+                  if (durationLabel != null) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? HunterTheme.success.withOpacity(0.15)
+                            : HunterTheme.danger.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        durationLabel,
+                        style: TextStyle(
+                          color: isActive ? HunterTheme.success : HunterTheme.danger,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(11, 10, 11, 11),
+            padding: const EdgeInsets.fromLTRB(11, 8, 11, 11),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1058,50 +1155,53 @@ class _CoinShopScreenState extends State<CoinShopScreen>
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: HunterTheme.textPrimary,
-                    fontSize: 13,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        item.description ?? '',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10),
-                      ),
-                    ),
-                    if (!isOwned) ShopPricePill(price: item.price, dense: true),
-                  ],
+                const SizedBox(height: 2),
+                Text(
+                  item.description ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: HunterTheme.textTertiary, fontSize: 9.5),
                 ),
-                const SizedBox(height: 9),
-                ShopActionButton(
-                  dense: true,
-                  label: isEquipped
-                      ? 'EQUIPPED'
-                      : isOwned
-                          ? 'EQUIP'
-                          : canAfford
-                              ? 'BUY'
-                              : 'LOCKED',
-                  icon: isEquipped
-                      ? Icons.check_rounded
-                      : isOwned
-                          ? Icons.check_circle_outline_rounded
-                          : canAfford
-                              ? Icons.shopping_bag_rounded
-                              : Icons.lock_outline_rounded,
-                  style: isEquipped
-                      ? ShopButtonStyle.success
-                      : isOwned
-                          ? ShopButtonStyle.success
-                          : canAfford
-                              ? ShopButtonStyle.filled
-                              : ShopButtonStyle.muted,
-                  onTap: onTap,
-                ),
+                const SizedBox(height: 8),
+                // Primary action: BUY with coins (7 days)
+                if (!isActive)
+                  ShopActionButton(
+                    dense: true,
+                    label: canAfford ? '${item.price} \u00b7 7d' : 'LOCKED',
+                    icon: canAfford
+                        ? Icons.monetization_on_rounded
+                        : Icons.lock_outline_rounded,
+                    style: canAfford
+                        ? ShopButtonStyle.filled
+                        : ShopButtonStyle.muted,
+                    onTap: canAfford ? () => _purchaseEffect(item) : null,
+                  ),
+                if (isActive)
+                  ShopActionButton(
+                    dense: true,
+                    label: 'ACTIVE',
+                    icon: Icons.check_rounded,
+                    style: ShopButtonStyle.success,
+                    onTap: null,
+                  ),
+                const SizedBox(height: 5),
+                // Secondary action: AD unlock (3 days)
+                if (!isActive)
+                  ShopActionButton(
+                    dense: true,
+                    label: _effectAdManager.isReady ? 'AD \u00b7 3d' : 'AD...',
+                    icon: Icons.play_circle_outline_rounded,
+                    style: _effectAdManager.isReady
+                        ? ShopButtonStyle.outline
+                        : ShopButtonStyle.muted,
+                    onTap: _effectAdManager.isReady
+                        ? () => _unlockEffectWithAd(item)
+                        : null,
+                  ),
               ],
             ),
           ),

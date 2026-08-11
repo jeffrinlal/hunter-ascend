@@ -2,23 +2,23 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hunter_ascend/models/shop_item.dart';
-import 'package:hunter_ascend/services/coin_service.dart';
 
-/// Shop purchase and ownership service.
+/// Shop purchase, ownership and equip service for Leaderboard Effects.
 ///
-/// Handles:
-/// - Checking item ownership
-/// - Purchasing items (deduct coins + mark as owned)
-/// - Equipping items (future phase)
+/// Effects are TEMPORARY: purchased with coins for [ShopItem.coinDuration] or
+/// unlocked via a rewarded ad for [ShopItem.adDuration]. Ownership is tracked
+/// in `hunters/{uid}` as:
 ///
-/// Ownership is stored in `hunters/{uid}` as simple arrays:
-/// - `ownedProfileEffects: List<String>`
+/// - `ownedProfileEffects: List<String>` — all effect IDs ever unlocked
+/// - `equippedProfileEffect: String` — the currently equipped effect ID
+/// - `effectExpiry: String` — ISO 8601 expiry of the currently active unlock
 ///
-/// The Avatar Frame and Hunter Title categories were removed from the shop,
-/// so `ownedAvatarFrames` / `ownedHunterTitles` (and their `equipped*`
-/// counterparts) are no longer read or written. Any values left on existing
-/// hunter documents are simply ignored — no migration is performed and the
-/// Firestore structure is otherwise unchanged.
+/// When an effect expires, it must stop rendering on the leaderboard. The
+/// leaderboard checks expiry from the already-loaded data (no new read).
+/// The shop UI shows remaining days and allows re-unlock.
+///
+/// Purchase transactions remain atomic (coins deducted + expiry set in one
+/// transaction). Rewarded ad unlocks write only after the ad reward callback.
 ///
 /// NO inventory system, NO item stats, NO equipment bonuses — purely cosmetic.
 class ShopService {
@@ -27,30 +27,11 @@ class ShopService {
 
   final _firestore = FirebaseFirestore.instance;
 
-  /// Checks if the user owns a specific item.
-  Future<bool> ownsItem(String itemId) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return false;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // OWNERSHIP
+  // ═══════════════════════════════════════════════════════════════════════════
 
-    final item = ShopCatalog.getItemById(itemId);
-    if (item == null) return false;
-
-    try {
-      final doc = await _firestore.collection('hunters').doc(uid).get();
-      final data = doc.data();
-      if (data == null) return false;
-
-      final fieldName = _getOwnershipFieldName(item.category);
-      final ownedList = List<String>.from(data[fieldName] ?? []);
-
-      return ownedList.contains(itemId);
-    } catch (e) {
-      debugPrint('ShopService.ownsItem: $e');
-      return false;
-    }
-  }
-
-  /// Returns all owned item IDs for the current user across all categories.
+  /// Returns all owned item IDs for the current user.
   Future<Set<String>> getOwnedItems() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return {};
@@ -70,17 +51,55 @@ class ShopService {
     }
   }
 
-  /// Purchases an item.
+  /// Gets the currently equipped effect ID.
+  Future<String?> getEquippedItem(ShopItemCategory category) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return null;
+
+    try {
+      final doc = await _firestore.collection('hunters').doc(uid).get();
+      final data = doc.data();
+      if (data == null) return null;
+
+      return data[_getEquippedFieldName(category)] as String?;
+    } catch (e) {
+      debugPrint('ShopService.getEquippedItem: $e');
+      return null;
+    }
+  }
+
+  /// Gets the effect expiry as a DateTime, or null if not set / expired.
+  Future<DateTime?> getEffectExpiry() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return null;
+
+    try {
+      final doc = await _firestore.collection('hunters').doc(uid).get();
+      final data = doc.data();
+      if (data == null) return null;
+
+      final expiryStr = data['effectExpiry']?.toString();
+      if (expiryStr == null) return null;
+      final expiry = DateTime.tryParse(expiryStr);
+      if (expiry == null || DateTime.now().isAfter(expiry)) return null;
+      return expiry;
+    } catch (e) {
+      debugPrint('ShopService.getEffectExpiry: $e');
+      return null;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // COIN PURCHASE (atomic transaction)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Purchases an effect with coins for [ShopItem.coinDuration].
   ///
-  /// Returns true if successful, false if:
-  /// - User not signed in
-  /// - Item not found
-  /// - Already owned
-  /// - Insufficient coins
-  /// - Transaction fails
+  /// Atomic: coins are deducted, effect is equipped, and expiry is set in a
+  /// single transaction. If insufficient coins or the transaction fails,
+  /// nothing happens.
   ///
-  /// The purchase is atomic: coins are deducted AND item is marked as owned
-  /// in a single transaction. If either fails, neither happens.
+  /// Returns true if successful.
   Future<bool> purchaseItem(String itemId) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return false;
@@ -88,11 +107,7 @@ class ShopService {
     final item = ShopCatalog.getItemById(itemId);
     if (item == null) return false;
 
-    // Check if already owned (prevents duplicate purchases).
-    if (await ownsItem(itemId)) return false;
-
     try {
-      // Atomic transaction: deduct coins AND mark as owned.
       final success = await _firestore.runTransaction<bool>((txn) async {
         final ref = _firestore.collection('hunters').doc(uid);
         final snap = await txn.get(ref);
@@ -105,16 +120,22 @@ class ShopService {
         // Deduct coins.
         currentCoins -= item.price;
 
-        // Add to owned list.
-        final fieldName = _getOwnershipFieldName(item.category);
-        final ownedList = List<String>.from(data[fieldName] ?? []);
-        if (ownedList.contains(itemId)) return false; // Double-check
+        // Add to owned list (idempotent — keeps history of all unlocked effects).
+        final ownedList =
+            List<String>.from(data['ownedProfileEffects'] ?? []);
+        if (!ownedList.contains(itemId)) {
+          ownedList.add(itemId);
+        }
 
-        ownedList.add(itemId);
+        // Compute expiry from NOW + coinDuration.
+        final expiry =
+            DateTime.now().add(item.coinDuration).toIso8601String();
 
         txn.update(ref, {
           'coins': currentCoins,
-          fieldName: ownedList,
+          'ownedProfileEffects': ownedList,
+          'equippedProfileEffect': itemId,
+          'effectExpiry': expiry,
         });
 
         return true;
@@ -127,16 +148,60 @@ class ShopService {
     }
   }
 
-  /// Equips an item (sets it as the active cosmetic).
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AD UNLOCK (rewarded ad callback)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Unlocks an effect via rewarded ad for [ShopItem.adDuration].
   ///
-  /// Phase 1: Only the storage is implemented here. The actual visual
-  /// rendering (avatar frames, titles, effects) will be added in future
-  /// phases.
+  /// MUST only be called after the rewarded ad's onUserEarnedReward callback.
+  /// This is NOT triggered merely by opening/showing the ad.
   ///
-  /// Returns true if successful, false if:
-  /// - User not signed in
-  /// - Item not owned
-  /// - Transaction fails
+  /// Returns true if successful.
+  Future<bool> unlockWithAd(String itemId) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return false;
+
+    final item = ShopCatalog.getItemById(itemId);
+    if (item == null) return false;
+
+    try {
+      final ref = _firestore.collection('hunters').doc(uid);
+      final doc = await ref.get();
+      final data = doc.data() ?? {};
+
+      // Add to owned list (idempotent).
+      final ownedList =
+          List<String>.from(data['ownedProfileEffects'] ?? []);
+      if (!ownedList.contains(itemId)) {
+        ownedList.add(itemId);
+      }
+
+      // Compute expiry from NOW + adDuration.
+      final expiry = DateTime.now().add(item.adDuration).toIso8601String();
+
+      await ref.update({
+        'ownedProfileEffects': ownedList,
+        'equippedProfileEffect': itemId,
+        'effectExpiry': expiry,
+      });
+
+      return true;
+    } catch (e) {
+      debugPrint('ShopService.unlockWithAd: $e');
+      return false;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EQUIP (switch between already-owned effects)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Equips an already-owned effect. The expiry is NOT changed — the hunter
+  /// keeps whatever remaining time they had. If the effect is expired, this
+  /// will NOT re-activate it; the caller must purchase/ad-unlock again.
+  ///
+  /// Returns true if successful.
   Future<bool> equipItem(String itemId) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return false;
@@ -144,13 +209,9 @@ class ShopService {
     final item = ShopCatalog.getItemById(itemId);
     if (item == null) return false;
 
-    // Can only equip owned items.
-    if (!await ownsItem(itemId)) return false;
-
     try {
-      final fieldName = _getEquippedFieldName(item.category);
       await _firestore.collection('hunters').doc(uid).update({
-        fieldName: itemId,
+        'equippedProfileEffect': itemId,
       });
 
       return true;
@@ -160,32 +221,15 @@ class ShopService {
     }
   }
 
-  /// Gets the currently equipped item for a category.
-  Future<String?> getEquippedItem(ShopItemCategory category) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return null;
+  // NOTE: no explicit "unequip" is needed. An expired effect stops rendering
+  // automatically because the leaderboard resolves it through
+  // `LeaderboardEntry.activeEffect`, which returns null once `effectExpiry`
+  // has passed. That check is a pure local DateTime comparison on data the
+  // leaderboard already loaded, so expiry costs no read and no write.
 
-    try {
-      final doc = await _firestore.collection('hunters').doc(uid).get();
-      final data = doc.data();
-      if (data == null) return null;
-
-      final fieldName = _getEquippedFieldName(category);
-      return data[fieldName] as String?;
-    } catch (e) {
-      debugPrint('ShopService.getEquippedItem: $e');
-      return null;
-    }
-  }
-
-  // ── Helpers ────────────────────────────────────────────────────────────
-
-  String _getOwnershipFieldName(ShopItemCategory category) {
-    switch (category) {
-      case ShopItemCategory.profileEffect:
-        return 'ownedProfileEffects';
-    }
-  }
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
 
   String _getEquippedFieldName(ShopItemCategory category) {
     switch (category) {

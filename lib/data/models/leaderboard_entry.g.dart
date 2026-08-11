@@ -24,13 +24,15 @@ class LeaderboardEntryAdapter extends TypeAdapter<LeaderboardEntry> {
       membershipExpiry: fields[8] as String?,
       equippedBadgeId: fields[9] as String?,
       dungeonScore: fields[10] as int? ?? 0,
+      equippedProfileEffect: fields[11] as String?,
+      effectExpiry: fields[12] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, LeaderboardEntry obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.uid)
       ..writeByte(1)
@@ -52,7 +54,11 @@ class LeaderboardEntryAdapter extends TypeAdapter<LeaderboardEntry> {
       ..writeByte(9)
       ..write(obj.equippedBadgeId)
       ..writeByte(10)
-      ..write(obj.dungeonScore);
+      ..write(obj.dungeonScore)
+      ..writeByte(11)
+      ..write(obj.equippedProfileEffect)
+      ..writeByte(12)
+      ..write(obj.effectExpiry);
   }
 
   @override

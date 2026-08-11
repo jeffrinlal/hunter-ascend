@@ -21,6 +21,8 @@ class LeaderboardEntry {
     this.membership,
     this.membershipExpiry,
     this.equippedBadgeId,
+    this.equippedProfileEffect,
+    this.effectExpiry,
   });
 
   @HiveField(0)
@@ -54,6 +56,18 @@ class LeaderboardEntry {
   @HiveField(9)
   final String? equippedBadgeId;
 
+  /// The currently equipped leaderboard effect id (e.g. 'effect_fire_aura'),
+  /// or `null` if no effect is active. Parsed from `equippedProfileEffect`
+  /// on the hunter document — no additional Firestore read is required.
+  @HiveField(11)
+  final String? equippedProfileEffect;
+
+  /// ISO 8601 expiry timestamp of the equipped effect, or `null`. Effects are
+  /// temporary (7 days via coins, 3 days via ad). An expired effect must NOT
+  /// be rendered — the leaderboard checks this before applying the glow.
+  @HiveField(12)
+  final String? effectExpiry;
+
   /// Creates a [LeaderboardEntry] from a Firestore document.
   factory LeaderboardEntry.fromFirestore(
     String docId,
@@ -72,6 +86,8 @@ class LeaderboardEntry {
           data['membershipType']?.toString() ?? data['membership']?.toString(),
       membershipExpiry: _parseExpiryToString(data['membershipExpiry']),
       equippedBadgeId: data['equippedBadgeId']?.toString(),
+      equippedProfileEffect: data['equippedProfileEffect']?.toString(),
+      effectExpiry: _parseExpiryToString(data['effectExpiry']),
     );
   }
 
@@ -84,5 +100,20 @@ class LeaderboardEntry {
     } catch (_) {
       return raw.toString();
     }
+  }
+
+  /// Returns the equipped effect id ONLY if it has not expired. Expired
+  /// effects must not be rendered — they are treated as if no effect is
+  /// equipped. This avoids a per-row Firestore read just to check expiry;
+  /// the data is already loaded in the entry.
+  String? get activeEffect {
+    if (equippedProfileEffect == null || equippedProfileEffect!.isEmpty) {
+      return null;
+    }
+    if (effectExpiry == null) return null;
+    final expiry = DateTime.tryParse(effectExpiry!);
+    if (expiry == null) return null;
+    if (DateTime.now().isAfter(expiry)) return null;
+    return equippedProfileEffect;
   }
 }

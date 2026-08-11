@@ -20,6 +20,7 @@ import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:hunter_ascend/services/user_activity_service.dart';
 import 'package:hunter_ascend/widgets/dashboard/entrance_fade_slide.dart';
 import 'package:hunter_ascend/widgets/equipped_badge_chip.dart';
+import 'package:hunter_ascend/widgets/leaderboard/effect_name_glow.dart';
 import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 
 // ── Leaderboard membership palette ─────────────────────────────────────────
@@ -58,7 +59,7 @@ class GlobalRankingsScreen extends StatefulWidget {
 }
 
 class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   bool _searchMode = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchText = '';
@@ -91,6 +92,15 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
   // they return a fresh background refresh runs again.
   bool _refreshedThisVisit = false;
 
+  // ── Shared effect glow animation ──
+  // A single controller drives ALL effect name glows in the list. Each row
+  // references this animation value (no per-row controller, no per-row
+  // ticker). Disposed with the screen.
+  late final AnimationController _effectGlow = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 5),
+  )..repeat();
+
   @override
   void initState() {
     super.initState();
@@ -108,6 +118,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     widget.activeIndex?.removeListener(_onActiveIndexChanged);
     _tabController.dispose();
     _searchController.dispose();
+    _effectGlow.dispose();
     super.dispose();
   }
 
@@ -565,6 +576,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
           tierColor: _positionColor(i),
           tierLabel: i == 0 ? 'LEGENDARY' : (i == 1 ? 'ELITE' : 'MASTER'),
           equippedBadgeId: entry.equippedBadgeId,
+          activeEffect: entry.activeEffect,
           onTap:
               entry.uid == currentUid
                   ? null
@@ -581,7 +593,7 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     }
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
-      child: _EliteTopThree(hunters: tops),
+      child: _EliteTopThree(hunters: tops, effectGlow: _effectGlow),
     );
   }
 
@@ -780,14 +792,18 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
                     Row(
                       children: [
                         Flexible(
-                          child: Text(
-                            entry.hunterName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: nameColor,
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w700,
+                          child: EffectNameGlow(
+                            effectId: entry.activeEffect,
+                            animation: _effectGlow,
+                            child: Text(
+                              entry.hunterName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: nameColor,
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),
@@ -1244,6 +1260,7 @@ class _TopHunter {
   final Color tierColor;
   final String tierLabel;
   final String? equippedBadgeId;
+  final String? activeEffect;
   final VoidCallback? onTap;
 
   const _TopHunter({
@@ -1259,6 +1276,7 @@ class _TopHunter {
     required this.tierColor,
     required this.tierLabel,
     required this.equippedBadgeId,
+    required this.activeEffect,
     required this.onTap,
   });
 }
@@ -1271,7 +1289,8 @@ class _TopHunter {
 /// static and scrolling stays smooth.
 class _EliteTopThree extends StatefulWidget {
   final List<_TopHunter> hunters;
-  const _EliteTopThree({required this.hunters});
+  final Animation<double> effectGlow;
+  const _EliteTopThree({required this.hunters, required this.effectGlow});
 
   @override
   State<_EliteTopThree> createState() => _EliteTopThreeState();
@@ -1339,17 +1358,21 @@ class _EliteTopThreeState extends State<_EliteTopThree>
                   Row(
                     children: [
                       Flexible(
-                        child: Text(
-                          h.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color:
-                                h.isMe
-                                    ? MembershipTheme.current.accent
-                                    : HunterTheme.textPrimary,
-                            fontSize: 19,
-                            fontWeight: FontWeight.w900,
+                        child: EffectNameGlow(
+                          effectId: h.activeEffect,
+                          animation: widget.effectGlow,
+                          child: Text(
+                            h.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color:
+                                  h.isMe
+                                      ? MembershipTheme.current.accent
+                                      : HunterTheme.textPrimary,
+                              fontSize: 19,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                         ),
                       ),
@@ -1400,18 +1423,22 @@ class _EliteTopThreeState extends State<_EliteTopThree>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Flexible(
-                  child: Text(
-                    h.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color:
-                          h.isMe
-                              ? MembershipTheme.current.accent
-                              : HunterTheme.textPrimary,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
+                  child: EffectNameGlow(
+                    effectId: h.activeEffect,
+                    animation: widget.effectGlow,
+                    child: Text(
+                      h.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color:
+                            h.isMe
+                                ? MembershipTheme.current.accent
+                                : HunterTheme.textPrimary,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ),

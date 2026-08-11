@@ -340,7 +340,10 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
         MembershipNavItem(
           icon: Icons.sports_kabaddi_rounded,
           selectedIcon: Icons.sports_kabaddi_rounded,
-          label: 'Duels',
+          // Display label only — the tab still hosts the unchanged
+          // BattleHubScreen and every duel class, service, route, Firestore
+          // collection and field keeps its original `duel` naming.
+          label: 'Battles',
           badge: _duelRequestBadge(selected: _index == 3),
         ),
         const MembershipNavItem(

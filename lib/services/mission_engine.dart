@@ -110,15 +110,35 @@ class MissionEngine extends ChangeNotifier {
 
   /// Resumes an in-progress run from Firestore (app restart, screen
   /// rebuild, navigating back into the surface).
-  Future<void> restore() async {
+  ///
+  /// [hunterDoc] optionally supplies an ALREADY-FETCHED hunter document, so
+  /// that several engines restoring together share ONE read instead of each
+  /// issuing its own. The Missions screen runs a daily and a weekly engine
+  /// against the same document, which previously cost 2 identical reads per
+  /// screen entry.
+  ///
+  /// This is deliberately still an authoritative server read rather than the
+  /// HunterRepository cache: restore rehydrates [reward], which is the XP
+  /// amount later awarded on completion, so it must not come from a possibly
+  /// lagging cache. Sharing the read changes only how many times the document
+  /// is fetched — never which values are used. Omitting [hunterDoc] keeps the
+  /// original self-fetching behaviour exactly.
+  Future<void> restore({Map<String, dynamic>? hunterDoc}) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    final doc = await FirebaseFirestore.instance
-        .collection('hunters')
-        .doc(user.uid)
-        .get();
-    if (!doc.exists) return;
-    final data = doc.data()!;
+
+    final Map<String, dynamic> data;
+    if (hunterDoc != null) {
+      data = hunterDoc;
+    } else {
+      final doc = await FirebaseFirestore.instance
+          .collection('hunters')
+          .doc(user.uid)
+          .get();
+      if (!doc.exists) return;
+      data = doc.data()!;
+    }
+
     final name = data[titleField];
     if (name == null) return;
     final endTime = (data[endTimeField] as Timestamp?)?.toDate();

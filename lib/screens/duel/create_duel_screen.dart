@@ -297,13 +297,17 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
         return;
       }
 
-      final myHunterDoc = await FirebaseFirestore.instance
-          .collection('hunters')
-          .doc(user.uid)
-          .get();
-
+      // Reuses the hunter document HunterRepository already keeps
+      // live-cached instead of re-reading it. `hunterName` is a HunterData
+      // field and is only ever written at profile creation (main.dart /
+      // login_screen) — the app has no rename flow — so the cached value
+      // cannot be stale here. This is a denormalised DISPLAY copy stored on
+      // the duel_requests document; matching is done via `fromUid`/`toUid`,
+      // so this value carries no authorisation or economy weight. The
+      // 'Unknown' fallback is unchanged and still covers a cold cache
+      // exactly as the missing-document case did before.
       final myHunterName =
-          myHunterDoc.data()?['hunterName'] ?? 'Unknown';
+          HunterRepository.instance.getCached()?.hunterName ?? 'Unknown';
 
       await FirebaseFirestore.instance.collection('duel_requests').add({
         'fromUid': user.uid,
@@ -436,17 +440,21 @@ class _CreateDuelScreenState extends State<CreateDuelScreen> {
     return goals.isEmpty ? 'General Fitness' : goals.join(', ');
   }
 
-  /// Checks whether the current hunter still has today's free AI
-  /// regeneration available, by reading `lastFreeRegenerationDate` off the
-  /// existing hunter document (no new collection created).
-  Future<bool> _isFreeRegenAvailable() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
-    final doc = await FirebaseFirestore.instance
-        .collection('hunters')
-        .doc(user.uid)
-        .get();
-    final data = doc.data() ?? {};
+  /// Whether the current hunter still has today's free AI regeneration
+  /// available, read from `lastFreeRegenerationDate` on the hunter document
+  /// that [_runAiGeneration] has ALREADY fetched moments earlier in the same
+  /// flow — so this no longer costs a second read of the same document.
+  ///
+  /// `lastFreeRegenerationDate` is not modelled on `HunterData`, so it cannot
+  /// come from the repository cache; reusing the in-flight fetch is the safe
+  /// deduplication here.
+  ///
+  /// This is only a PRE-CHECK deciding which button the result dialog offers.
+  /// The authority remains [_tryConsumeFreeRegen], whose transaction re-reads
+  /// and re-checks the same field before stamping it — so even a stale value
+  /// here can never grant a free regeneration; the flow simply falls through
+  /// to the rewarded ad.
+  bool _isFreeRegenAvailableFrom(Map<String, dynamic> data) {
     final today = DateTime.now().toIso8601String().split('T').first;
     return data['lastFreeRegenerationDate'] != today;
   }
@@ -743,7 +751,9 @@ Return ONLY a JSON array, no markdown, no explanation:
       }
 
       _aiGeneratedQuests = quests;
-      final freeAvailable = await _isFreeRegenAvailable();
+      // Derived from `myData`, already fetched above in this same flow —
+      // no second read of the hunter document.
+      final freeAvailable = _isFreeRegenAvailableFrom(myData);
       if (!mounted) return;
       _showResultDialog(freeAvailable);
     } catch (e) {

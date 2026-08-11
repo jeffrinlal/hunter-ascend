@@ -656,13 +656,26 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     }
   }
 
+  // Decides only whether to prompt the first-run discipline-mode dialog.
+  // `disciplineMode` is a HunterData field, so the live-synced cache answers
+  // this without a read. Called unconditionally from loadHunterData(), so the
+  // two together previously cost 2 reads of the same document every launch.
+  // No XP, streak or reward decision is made here — the dialog itself is what
+  // writes, and showDisciplineModeDialog() still reads authoritatively.
   Future<void> checkDisciplineMode() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
-    if (!doc.exists) return;
-    final data = doc.data()!;
-    final mode = data['disciplineMode'];
+
+    String? mode;
+    final cached = HunterRepository.instance.getCached();
+    if (cached != null) {
+      mode = cached.disciplineMode;
+    } else {
+      final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
+      if (!doc.exists) return;
+      mode = doc.data()!['disciplineMode']?.toString();
+    }
+
     if (mode != null && mode.toString().isNotEmpty) return;
     if (!mounted) return;
     Future.delayed(const Duration(seconds: 1), () { if (mounted) showDisciplineModeDialog(); });
@@ -1080,16 +1093,31 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }
 
 
+  // Seeds the local `xp` / `level` display state. Both are HunterData fields
+  // and this screen already renders the same document through the
+  // StreamBuilder on HunterRepository.watch(), so the cache — which that very
+  // listener keeps up to date — is the same value this read would return.
+  // A real read is still performed when the cache is genuinely cold (very
+  // first launch, before the first snapshot lands) so first-run behaviour is
+  // unchanged. No write and no XP logic is involved here.
   Future<void> loadHunterData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
-    if (!doc.exists) return;
-    final data = doc.data()!;
+
+    final cached = HunterRepository.instance.getCached();
+    HunterData hunter;
+    if (cached != null) {
+      hunter = cached;
+    } else {
+      final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
+      if (!doc.exists) return;
+      hunter = HunterData.fromFirestore(doc.data()!);
+    }
+
     if (!mounted) return;
     setState(() {
-      xp = data['xp'] ?? 0;
-      level = data['level'] ?? 1;
+      xp = hunter.xp;
+      level = hunter.level;
     });
     await checkDisciplineMode();
   }
@@ -1101,11 +1129,27 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       if (user == null) return;
       final ref =
           FirebaseFirestore.instance.collection('hunters').doc(user.uid);
-      final doc = await ref.get();
-      if (!doc.exists) return;
-      final data = doc.data()!;
-      final streak = (data['streak'] ?? 0) as int;
-      final alreadyRequested = data['reviewRequested'] == true;
+
+      // `streak` and `reviewRequested` are both HunterData fields, so the
+      // live-synced cache answers this without a read. This gates only the
+      // OS app-review prompt: the follow-up write is idempotent
+      // (`reviewRequested: true`) and the platform itself throttles review
+      // requests, so a cache that momentarily lagged could at worst re-ask
+      // once — it can never affect XP, streaks or rewards. Falls back to a
+      // real read on a cold cache.
+      final int streak;
+      final bool alreadyRequested;
+      final cached = HunterRepository.instance.getCached();
+      if (cached != null) {
+        streak = cached.streak;
+        alreadyRequested = cached.reviewRequested;
+      } else {
+        final doc = await ref.get();
+        if (!doc.exists) return;
+        final data = doc.data()!;
+        streak = (data['streak'] ?? 0) as int;
+        alreadyRequested = data['reviewRequested'] == true;
+      }
       if (streak >= 3 && !alreadyRequested) {
         final inAppReview = InAppReview.instance;
         if (await inAppReview.isAvailable()) {
@@ -1768,13 +1812,26 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     if (user == null) return;
     final docRef =
         FirebaseFirestore.instance.collection('hunters').doc(user.uid);
-    final doc = await docRef.get();
-    if (!doc.exists) return;
-    final data = doc.data() as Map<String, dynamic>;
+
+    // Seeds today's water UI state. waterIntakeDate / selectedCupSize /
+    // waterGoalMl / waterIntakeMl are all HunterData fields kept current by
+    // the app-wide listener, so the cache holds exactly what this read would
+    // return. The daily-reset WRITE below is untouched and still authoritative.
+    // Falls back to a real read on a cold cache.
+    final HunterData hunter;
+    final cached = HunterRepository.instance.getCached();
+    if (cached != null) {
+      hunter = cached;
+    } else {
+      final doc = await docRef.get();
+      if (!doc.exists) return;
+      hunter = HunterData.fromFirestore(doc.data() as Map<String, dynamic>);
+    }
+
     final today = DateTime.now().toString().substring(0, 10);
-    final savedDate = (data['waterIntakeDate'] ?? '').toString();
-    final cup = ((data['selectedCupSize'] ?? 250) as num).toInt();
-    final goal = ((data['waterGoalMl'] ?? 2000) as num).toInt();
+    final savedDate = hunter.waterIntakeDate;
+    final cup = hunter.selectedCupSize;
+    final goal = hunter.waterGoalMl;
 
     if (savedDate != today) {
       await docRef.update({'waterIntakeMl': 0, 'waterIntakeDate': today});
@@ -1786,7 +1843,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         });
       }
     } else {
-      final ml = ((data['waterIntakeMl'] ?? 0) as num).toInt();
+      final ml = hunter.waterIntakeMl;
       if (mounted) {
         setState(() {
           waterIntakeMl = ml;

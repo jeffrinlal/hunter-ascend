@@ -328,9 +328,8 @@ class _MissionsScreenState extends State<MissionsScreen> {
       await _loadAIQuests();
     });
 
-    _dailyEngine.restore();
+    _restoreMissionEngines();
     _loadWeeklyMissions();
-    _weeklyEngine.restore();
 
     // Initialize sleep mission state.
     SleepService.instance.initialize();
@@ -474,18 +473,63 @@ class _MissionsScreenState extends State<MissionsScreen> {
   }
 
 
+  // Seeds the local xp / level / completedQuests display state. All three are
+  // HunterData fields and this screen already renders the same document via
+  // its StreamBuilder on HunterRepository.watch(), so the live-synced cache is
+  // the same value this read would return. Quest completion, streak and reset
+  // logic are untouched — they keep their own authoritative reads and
+  // transactions. Falls back to a real read on a cold cache so first-run
+  // behaviour is unchanged.
   Future<void> loadHunterData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
-    if (!doc.exists) return;
-    final data = doc.data()!;
+
+    final cached = HunterRepository.instance.getCached();
+    HunterData hunter;
+    if (cached != null) {
+      hunter = cached;
+    } else {
+      final doc = await FirebaseFirestore.instance.collection('hunters').doc(user.uid).get();
+      if (!doc.exists) return;
+      hunter = HunterData.fromFirestore(doc.data()!);
+    }
+
     if (!mounted) return;
     setState(() {
-      xp = data['xp'] ?? 0;
-      level = data['level'] ?? 1;
-      completedQuests = List<String>.from(data['completedQuests'] ?? []);
+      xp = hunter.xp;
+      level = hunter.level;
+      completedQuests = List<String>.from(hunter.completedQuests);
     });
+  }
+
+  // Restores both mission engines from ONE shared read of the hunter
+  // document. The daily and weekly engines occupy different field slots on
+  // the SAME document, so they previously issued two identical reads per
+  // Missions screen entry.
+  //
+  // This intentionally keeps a fresh authoritative read rather than using the
+  // HunterRepository cache: engine restore rehydrates the reward (XP) amount
+  // that is later awarded on completion. Only the number of fetches changes —
+  // both engines see exactly the values they saw before. If the shared read
+  // fails, each engine falls back to fetching for itself, preserving the
+  // original behaviour.
+  Future<void> _restoreMissionEngines() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('hunters')
+          .doc(user.uid)
+          .get();
+      if (!doc.exists) return;
+      final data = doc.data()!;
+      await _dailyEngine.restore(hunterDoc: data);
+      await _weeklyEngine.restore(hunterDoc: data);
+    } catch (e) {
+      debugPrint('MissionsScreen._restoreMissionEngines: $e');
+      await _dailyEngine.restore();
+      await _weeklyEngine.restore();
+    }
   }
 
   Future<void> checkDailyReset() async {

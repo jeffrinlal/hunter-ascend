@@ -478,7 +478,29 @@ class _CalorieTrackerCardState extends State<CalorieTrackerCard> {
     );
 
     if (mounted) {
-      await AchievementsService.instance.checkAndCelebrateForCurrentUser(context);
+      // Evaluated against the cached HunterData rather than re-reading the
+      // hunter document, because here the cache is provably the freshest
+      // state:
+      //   * the meal itself was written to `calorie_logs`, NOT to
+      //     `hunters/{uid}`, so no hunter-document field changed;
+      //   * the nutrition counters this evaluation depends on
+      //     (mealsLoggedCount / proteinGoalHitDays / balancedMacroDays and
+      //     their date guards) are local-only and were just applied to the
+      //     Hive cache synchronously by updateNutritionAchievementLocal
+      //     above — they are never written to Firestore at all.
+      // checkAndCelebrateForCurrentUser's read would therefore fetch a
+      // document that cannot have changed, and would then have to merge
+      // these same counters back in from this very cache. Skipping it is
+      // exactly equivalent, with one fewer read per logged meal.
+      final hunter = HunterRepository.instance.getCached();
+      if (hunter != null) {
+        await AchievementsService.instance.checkAndCelebrate(context, hunter);
+      } else {
+        // Cold cache (first launch before the first snapshot) — fall back to
+        // the original fetch-then-evaluate path so behaviour is unchanged.
+        await AchievementsService.instance
+            .checkAndCelebrateForCurrentUser(context);
+      }
     }
   }
 

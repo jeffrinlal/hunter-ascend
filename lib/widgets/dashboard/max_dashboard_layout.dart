@@ -5,6 +5,8 @@ import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/skins/dashboard/dashboard_section_contracts.dart';
 import 'package:hunter_ascend/core/skins/dashboard/skin_dashboard_sections.dart';
+import 'package:hunter_ascend/core/skins/skin_id.dart';
+import 'package:hunter_ascend/core/skins/skin_service.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:hunter_ascend/widgets/dashboard/achievement_highlight.dart';
@@ -104,6 +106,14 @@ class _MaxDashboardLayoutState extends State<MaxDashboardLayout>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Membership identity + Coin Shop entry, OUTSIDE the skinnable hero.
+        //
+        // Renders nothing (zero height) unless a skin owns the hero, so Max's
+        // existing no-skin appearance is completely unchanged — the badge and
+        // Shop pill keep coming from `_EliteHeroBanner` in that case. See
+        // [_MembershipShopStrip].
+        const _MembershipShopStrip(label: 'MAX \u2022 ELITE HUNTER'),
+
         // ── Immersive hero banner (fully rounded, symmetric margins). ──
         SkinHeroSection(
           data: HeroSectionData(
@@ -420,4 +430,127 @@ class _ParticlePainter extends CustomPainter {
 class _Particle {
   const _Particle({required this.x, required this.y, required this.size, required this.speed});
   final double x, y, size, speed;
+}
+
+
+/// Membership identity + Coin Shop entry, rendered ONLY while a skin is the
+/// active appearance.
+///
+/// ── Why this exists ──
+/// Max's `MAX • ELITE HUNTER` badge and its Coin Shop pill live inside
+/// [_EliteHeroBanner]. `SkinHeroSection` replaces that entire fallback widget
+/// when a skin is active, so both used to disappear — a membership CAPABILITY
+/// (reaching the Coin Shop) and the tier's identity were being lost to a
+/// purely PRESENTATIONAL swap. Membership and skins are independent systems,
+/// so a skin must never remove Max functionality.
+///
+/// ── How it behaves ──
+///   * No skin active  → returns `SizedBox.shrink()`. Zero height, zero
+///     spacing, so Max's existing layout is byte-for-byte what it was; the
+///     badge and Shop pill still come from `_EliteHeroBanner` as before.
+///   * Skin active      → the skin owns the hero, and this compact strip
+///     carries the tier identity and the Shop entry instead.
+///
+/// The two states are mutually exclusive, so there is ALWAYS exactly one Shop
+/// button on screen — never two, never zero. No skin file is touched and no
+/// skin has any knowledge of the Shop.
+///
+/// Styling uses the live membership accent rather than the banner's white-on-
+/// gradient treatment, because outside the banner there is no gradient to read
+/// against. That keeps the tier visually distinct from Basic.
+class _MembershipShopStrip extends StatelessWidget {
+  const _MembershipShopStrip({required this.label});
+
+  /// Tier identity text, e.g. `MAX • ELITE HUNTER`.
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    // Same skin-active predicate the rest of the dashboard uses
+    // (`appearanceActive && activeSkin != classic`), read from the existing
+    // public notifiers. No new listener, no Firestore, no service changes.
+    return ValueListenableBuilder<SkinId>(
+      valueListenable: SkinService.instance.activeSkinNotifier,
+      builder: (context, activeSkin, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: SkinService.instance.skinAppearanceActiveNotifier,
+          builder: (context, appearanceActive, __) {
+            final skinActive =
+                appearanceActive && activeSkin != SkinId.classic;
+            if (!skinActive) return const SizedBox.shrink();
+
+            final accent = MembershipTheme.current.accent;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: Row(
+                children: [
+                  // ── Tier identity ──
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accent.withOpacity(0.14),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: accent.withOpacity(0.45)),
+                      ),
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: accent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.4,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // ── Coin Shop entry (same destination as the banner's) ──
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const CoinShopScreen(),
+                      ),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accent.withOpacity(0.14),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: accent.withOpacity(0.45)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('🪙', style: TextStyle(fontSize: 14)),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Shop',
+                            style: TextStyle(
+                              color: accent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 }

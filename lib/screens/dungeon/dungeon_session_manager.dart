@@ -341,9 +341,20 @@ class DungeonSessionManager extends ChangeNotifier {
       // claimed DUNGEON CLEARED ever moves the score). The amount reuses
       // the existing rank-scaled clear reward (higher gate = more score);
       // membership never changes it and the score NEVER resets.
+      // The all-time DUNGEON ACHIEVEMENT counters ride the very same
+      // transaction, for the same reason: they inherit this claim's
+      // exactly-once gate and its rollback below, and cost no extra write.
+      // A clear is only reachable once every monster is defeated AND the boss
+      // is beaten (`bossUnlocked && boss.isComplete`), so this run
+      // contributes exactly its monster count, one boss and one dungeon.
+      // Nothing about how a dungeon is played or cleared is changed here —
+      // this only reports what the session already finished.
       final xpResult = await XpService.instance.awardXp(
         amount: reward.xp,
         dungeonScore: reward.xp,
+        monstersDefeated: session.monsters.length,
+        bossesDefeated: 1,
+        dungeonsCompleted: 1,
       );
 
       // Award coins to the persistent balance (Phase 8 — Coin Shop).

@@ -34,11 +34,20 @@ class XpService {
   /// the score can never be paid twice or drift from the XP award).
   /// Dungeon scores never reset — no period key, no expiry.
   ///
+  /// [monstersDefeated], [bossesDefeated] and [dungeonsCompleted] optionally
+  /// increment the ALL-TIME dungeon counters that drive the Dungeon
+  /// achievements, again in the SAME transaction (also set by the dungeon
+  /// clear claim). Each is skipped when zero, so every existing caller is
+  /// completely unaffected.
+  ///
   /// Returns the resulting XP, level, and whether a level-up occurred.
   /// Returns `null` if no user is signed in or the transaction fails.
   Future<XpAwardResult?> awardXp({
     required int amount,
     int dungeonScore = 0,
+    int monstersDefeated = 0,
+    int bossesDefeated = 0,
+    int dungeonsCompleted = 0,
   }) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return null;
@@ -97,6 +106,21 @@ class XpService {
             // claimed dungeon clear; it has NO reset mechanism by design.
             if (dungeonScore > 0) {
               updates['dungeonScore'] = FieldValue.increment(dungeonScore);
+            }
+            // All-time dungeon counters for the Dungeon achievements. They
+            // ride THIS transaction (same exactly-once gate as the XP and the
+            // leaderboard score), so they cost no additional write. Skipped
+            // entirely when zero, so no non-dungeon caller is affected.
+            if (monstersDefeated > 0) {
+              updates['monstersDefeated'] =
+                  FieldValue.increment(monstersDefeated);
+            }
+            if (bossesDefeated > 0) {
+              updates['bossesDefeated'] = FieldValue.increment(bossesDefeated);
+            }
+            if (dungeonsCompleted > 0) {
+              updates['dungeonsCompleted'] =
+                  FieldValue.increment(dungeonsCompleted);
             }
             txn.update(ref, updates);
 

@@ -111,13 +111,17 @@ class HunterDataAdapter extends TypeAdapter<HunterData> {
       stepsAccumulatedToday: fields[74] as int? ?? 0,
       // Publicly-equipped badge
       equippedBadgeId: fields[75] as String?,
+      // Dungeon lifetime counters (achievement progress)
+      monstersDefeated: fields[78] as int? ?? 0,
+      bossesDefeated: fields[79] as int? ?? 0,
+      dungeonsCompleted: fields[80] as int? ?? 0,
     );
   }
 
   @override
   void write(BinaryWriter writer, HunterData obj) {
     writer
-      ..writeByte(76) // total number of fields
+      ..writeByte(79) // total number of fields
       // Core identity
       ..writeByte(0)..write(obj.hunterName)
       ..writeByte(1)..write(obj.xp)
@@ -211,7 +215,11 @@ class HunterDataAdapter extends TypeAdapter<HunterData> {
       ..writeByte(73)..write(obj.lastBalancedMacroDate)
       ..writeByte(74)..write(obj.stepsAccumulatedToday)
       // Publicly-equipped badge
-      ..writeByte(75)..write(obj.equippedBadgeId);
+      ..writeByte(75)..write(obj.equippedBadgeId)
+      // Dungeon lifetime counters (achievement progress)
+      ..writeByte(78)..write(obj.monstersDefeated)
+      ..writeByte(79)..write(obj.bossesDefeated)
+      ..writeByte(80)..write(obj.dungeonsCompleted);
   }
 
   @override

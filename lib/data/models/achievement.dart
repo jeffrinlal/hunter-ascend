@@ -59,6 +59,7 @@ enum AchievementCategory {
   walking,
   explorer,
   duels,
+  dungeon,
   social,
   body,
   membership,
@@ -87,6 +88,8 @@ extension AchievementCategoryX on AchievementCategory {
         return 'Explorer';
       case AchievementCategory.duels:
         return 'Duels';
+      case AchievementCategory.dungeon:
+        return 'Dungeon';
       case AchievementCategory.social:
         return 'Social';
       case AchievementCategory.body:
@@ -120,6 +123,8 @@ extension AchievementCategoryX on AchievementCategory {
         return Icons.explore_rounded;
       case AchievementCategory.duels:
         return Icons.sports_kabaddi_rounded;
+      case AchievementCategory.dungeon:
+        return Icons.castle_rounded;
       case AchievementCategory.social:
         return Icons.groups_rounded;
       case AchievementCategory.body:

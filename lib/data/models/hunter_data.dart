@@ -117,6 +117,10 @@ class HunterData {
     // ── Feature unlocks ──
     this.nutritionUnlockExpiry,
     this.mapUnlockExpiry,
+    // ── Dungeon lifetime counters ──
+    this.monstersDefeated = 0,
+    this.bossesDefeated = 0,
+    this.dungeonsCompleted = 0,
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -285,6 +289,30 @@ class HunterData {
   @HiveField(77) final String? mapUnlockExpiry;
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // DUNGEON LIFETIME COUNTERS (achievement progress)
+  // ═══════════════════════════════════════════════════════════════════════════
+  //
+  // All-time cumulative dungeon totals, used ONLY to drive the Dungeon
+  // achievements in `kAchievements` (achievements read hunter stats, so a
+  // counter has to live here to be visible to `Achievement.isDone`).
+  //
+  // These never reset. They are incremented exclusively inside the existing
+  // `XpService.awardXp` transaction fired by a claimed DUNGEON CLEARED
+  // (`DungeonSessionManager.claimClearReward`), so they add ZERO extra
+  // Firestore reads or writes and automatically inherit that claim's
+  // exactly-once gate and its rollback-on-failure behaviour.
+  //
+  // Because a clear requires every monster to be defeated AND the boss to be
+  // beaten, one claim contributes: monsters += monsters in the run,
+  // bosses += 1, dungeons += 1. `bossesDefeated` and `dungeonsCompleted`
+  // therefore move together in the current design (boss defeat IS the clear
+  // condition); they are kept as separate fields so boss achievements stay
+  // semantically independent if that ever changes.
+  @HiveField(78) final int monstersDefeated;
+  @HiveField(79) final int bossesDefeated;
+  @HiveField(80) final int dungeonsCompleted;
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // FACTORY: Firestore → Domain
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -386,6 +414,10 @@ class HunterData {
       // Feature unlocks
       nutritionUnlockExpiry: data['nutritionUnlockExpiry']?.toString(),
       mapUnlockExpiry: data['mapUnlockExpiry']?.toString(),
+      // Dungeon lifetime counters (achievement progress)
+      monstersDefeated: ((data['monstersDefeated'] ?? 0) as num).toInt(),
+      bossesDefeated: ((data['bossesDefeated'] ?? 0) as num).toInt(),
+      dungeonsCompleted: ((data['dungeonsCompleted'] ?? 0) as num).toInt(),
     );
   }
 
@@ -466,6 +498,13 @@ class HunterData {
       if (equippedBadgeId != null) 'equippedBadgeId': equippedBadgeId,
       if (nutritionUnlockExpiry != null) 'nutritionUnlockExpiry': nutritionUnlockExpiry,
       if (mapUnlockExpiry != null) 'mapUnlockExpiry': mapUnlockExpiry,
+      // NOTE: monstersDefeated / bossesDefeated / dungeonsCompleted are
+      // deliberately NOT serialized here — exactly like `dungeonScore`.
+      // They are only ever mutated server-side via `FieldValue.increment`
+      // inside the dungeon-clear XP transaction, so echoing a locally-cached
+      // absolute value back into the document could clobber an increment
+      // (last-write-wins). They are read-only on the client: `fromFirestore`
+      // in, never out.
     };
   }
 
@@ -552,6 +591,9 @@ class HunterData {
     String? equippedBadgeId,
     String? nutritionUnlockExpiry,
     String? mapUnlockExpiry,
+    int? monstersDefeated,
+    int? bossesDefeated,
+    int? dungeonsCompleted,
   }) {
     return HunterData(
       hunterName: hunterName ?? this.hunterName,
@@ -632,6 +674,9 @@ class HunterData {
       equippedBadgeId: equippedBadgeId ?? this.equippedBadgeId,
       nutritionUnlockExpiry: nutritionUnlockExpiry ?? this.nutritionUnlockExpiry,
       mapUnlockExpiry: mapUnlockExpiry ?? this.mapUnlockExpiry,
+      monstersDefeated: monstersDefeated ?? this.monstersDefeated,
+      bossesDefeated: bossesDefeated ?? this.bossesDefeated,
+      dungeonsCompleted: dungeonsCompleted ?? this.dungeonsCompleted,
     );
   }
 

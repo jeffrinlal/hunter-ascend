@@ -150,6 +150,33 @@ final List<Achievement> kAchievements = [
     isDone: (h) => h.duelWins >= 10 && h.duelLosses == 0,
   ),
 
+  // ══════════════ DUNGEON ══════════════
+  // Progress comes from the all-time counters on HunterData, incremented only
+  // by a claimed DUNGEON CLEARED (see `HunterData.monstersDefeated`).
+  // Deliberately driven by the MONSTER counter, not the dungeon counter: the
+  // monster counter only ever moves on a claimed clear, so `>= 1` literally
+  // means "you finished a dungeon that had monsters in it". The name states
+  // the behaviour that is actually tracked instead of implying per-monster
+  // detection, which does not exist yet.
+  Achievement(
+    id: 'dungeon_monster_1',
+    name: 'First Dungeon Clear',
+    description: 'Defeat every monster in a dungeon and clear it.',
+    icon: Icons.pest_control_rounded,
+    category: AchievementCategory.dungeon,
+    rarity: AchievementRarity.common,
+    rewardXp: 75,
+    target: 1,
+    currentValue: (h) => h.monstersDefeated.clamp(0, 1),
+    isDone: (h) => h.monstersDefeated >= 1,
+  ),
+  _monsters('dungeon_monster_25', 'Monster Hunter', 25, AchievementRarity.rare, 300),
+  _monsters('dungeon_monster_100', 'Elite Hunter', 100, AchievementRarity.epic, 700),
+  _bosses('dungeon_boss_1', 'First Boss', 1, AchievementRarity.rare, 150),
+  _bosses('dungeon_boss_10', 'Boss Slayer', 10, AchievementRarity.epic, 700, reward: 'Title: Boss Slayer'),
+  _dungeons('dungeon_clear_1', 'Dungeon Awakening', 1, AchievementRarity.common, 100),
+  _dungeons('dungeon_clear_25', 'Dungeon Master', 25, AchievementRarity.legendary, 2000, reward: 'Title: Dungeon Master'),
+
   // ══════════════ BODY ══════════════
   Achievement(
     id: 'body_first_update',
@@ -685,6 +712,52 @@ Achievement _duelWins(String id, String name, int wins, AchievementRarity rarity
       target: wins,
       currentValue: (h) => h.duelWins.clamp(0, wins),
       isDone: (h) => h.duelWins >= wins,
+    );
+
+Achievement _monsters(String id, String name, int count, AchievementRarity rarity, int xp, {String? reward}) => Achievement(
+      id: id,
+      name: name,
+      description: 'Defeat ${_fmt(count)} dungeon monsters.',
+      icon: Icons.pest_control_rounded,
+      category: AchievementCategory.dungeon,
+      rarity: rarity,
+      rewardXp: xp,
+      reward: reward,
+      target: count,
+      currentValue: (h) => h.monstersDefeated.clamp(0, count),
+      isDone: (h) => h.monstersDefeated >= count,
+    );
+
+Achievement _bosses(String id, String name, int count, AchievementRarity rarity, int xp, {String? reward}) => Achievement(
+      id: id,
+      name: name,
+      description: count == 1
+          ? 'Defeat your first dungeon boss.'
+          : 'Defeat ${_fmt(count)} dungeon bosses.',
+      icon: Icons.whatshot_rounded,
+      category: AchievementCategory.dungeon,
+      rarity: rarity,
+      rewardXp: xp,
+      reward: reward,
+      target: count,
+      currentValue: (h) => h.bossesDefeated.clamp(0, count),
+      isDone: (h) => h.bossesDefeated >= count,
+    );
+
+Achievement _dungeons(String id, String name, int count, AchievementRarity rarity, int xp, {String? reward}) => Achievement(
+      id: id,
+      name: name,
+      description: count == 1
+          ? 'Clear your first dungeon.'
+          : 'Clear ${_fmt(count)} dungeons.',
+      icon: Icons.castle_rounded,
+      category: AchievementCategory.dungeon,
+      rarity: rarity,
+      rewardXp: xp,
+      reward: reward,
+      target: count,
+      currentValue: (h) => h.dungeonsCompleted.clamp(0, count),
+      isDone: (h) => h.dungeonsCompleted >= count,
     );
 
 String _fmt(int n) {

@@ -49,12 +49,9 @@ class _CoinShopScreenState extends State<CoinShopScreen>
 
   int _coins = 0;
   Set<String> _ownedItems = {};
-  String? _equippedAvatarFrame;
-  String? _equippedHunterTitle;
   String? _equippedProfileEffect;
   int _hunterLevel = 1;
   bool _loading = true;
-  ShopItemCategory _selectedCategory = ShopItemCategory.avatarFrame;
 
   // Fitness Plans ad manager
   late final RewardedAdManager _adManager;
@@ -80,7 +77,7 @@ class _CoinShopScreenState extends State<CoinShopScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this); // 3 cosmetics + 1 fitness + 1 skins
+    _tabController = TabController(length: 3, vsync: this); // effects + fitness plans + skins
     _loadShopData();
 
     _adManager = RewardedAdManager(
@@ -126,10 +123,6 @@ class _CoinShopScreenState extends State<CoinShopScreen>
 
     final coins = await CoinService.instance.getCurrentBalance();
     final owned = await ShopService.instance.getOwnedItems();
-    final equippedFrame =
-        await ShopService.instance.getEquippedItem(ShopItemCategory.avatarFrame);
-    final equippedTitle =
-        await ShopService.instance.getEquippedItem(ShopItemCategory.hunterTitle);
     final equippedEffect = await ShopService.instance
         .getEquippedItem(ShopItemCategory.profileEffect);
 
@@ -144,8 +137,6 @@ class _CoinShopScreenState extends State<CoinShopScreen>
       setState(() {
         _coins = coins;
         _ownedItems = owned;
-        _equippedAvatarFrame = equippedFrame;
-        _equippedHunterTitle = equippedTitle;
         _equippedProfileEffect = equippedEffect;
         _hunterLevel = level;
         _skinExpiries = skinExpiries;
@@ -786,9 +777,10 @@ class _CoinShopScreenState extends State<CoinShopScreen>
   // the Premium Theme or membership tier recolors the whole shop.
   // ═══════════════════════════════════════════════════════════════════
 
+  // Frames and Titles were removed from the shop entirely, so the shop now
+  // has exactly three categories. Order must stay in sync with the
+  // TabBarView children in [_buildItemGrid].
   static const List<ShopCategory> _categories = [
-    ShopCategory(label: 'Frames', icon: Icons.filter_frames_rounded),
-    ShopCategory(label: 'Titles', icon: Icons.badge_rounded),
     ShopCategory(label: 'Effects', icon: Icons.auto_awesome_rounded),
     ShopCategory(label: 'Plans', icon: Icons.fitness_center_rounded),
     ShopCategory(label: 'Skins', icon: Icons.palette_rounded),
@@ -872,10 +864,6 @@ class _CoinShopScreenState extends State<CoinShopScreen>
     return TabBarView(
       controller: _tabController,
       children: [
-        _buildCosmeticGrid(
-            ShopCatalog.getItemsByCategory(ShopItemCategory.avatarFrame, _hunterLevel)),
-        _buildCosmeticGrid(
-            ShopCatalog.getItemsByCategory(ShopItemCategory.hunterTitle, _hunterLevel)),
         _buildCosmeticGrid(
             ShopCatalog.getItemsByCategory(ShopItemCategory.profileEffect, _hunterLevel)),
         _buildFitnessPlansTab(),
@@ -1323,10 +1311,6 @@ class _CoinShopScreenState extends State<CoinShopScreen>
 
   bool _isEquipped(ShopItem item) {
     switch (item.category) {
-      case ShopItemCategory.avatarFrame:
-        return _equippedAvatarFrame == item.id;
-      case ShopItemCategory.hunterTitle:
-        return _equippedHunterTitle == item.id;
       case ShopItemCategory.profileEffect:
         return _equippedProfileEffect == item.id;
     }

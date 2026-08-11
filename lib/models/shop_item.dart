@@ -1,7 +1,10 @@
 /// Category of cosmetic shop items.
+///
+/// The `avatarFrame` and `hunterTitle` categories were removed from the shop
+/// along with all of their items, leaving Profile Effects as the only
+/// coin-purchased cosmetic category. (Fitness Plans and Skins are separate
+/// systems with their own models and are unaffected.)
 enum ShopItemCategory {
-  avatarFrame,
-  hunterTitle,
   profileEffect,
 }
 
@@ -51,63 +54,9 @@ class ShopCatalog {
   ShopCatalog._();
 
   static const List<ShopItem> allItems = [
-    // ── Avatar Frames ──────────────────────────────────────────────────
-    ShopItem(
-      id: 'frame_bronze_shield',
-      name: 'Bronze Shield',
-      emoji: '🛡️',
-      category: ShopItemCategory.avatarFrame,
-      price: 400,
-      description: 'A sturdy bronze frame for dedicated hunters.',
-    ),
-    ShopItem(
-      id: 'frame_silver_star',
-      name: 'Silver Star',
-      emoji: '⭐',
-      category: ShopItemCategory.avatarFrame,
-      price: 750,
-      description: 'A shining silver star frame.',
-      minLevel: 10,
-    ),
-    ShopItem(
-      id: 'frame_gold_crown',
-      name: 'Golden Crown',
-      emoji: '👑',
-      category: ShopItemCategory.avatarFrame,
-      price: 1200,
-      description: 'The mark of true royalty.',
-      minLevel: 20,
-    ),
-
-    // ── Hunter Titles ──────────────────────────────────────────────────
-    ShopItem(
-      id: 'title_iron_fist',
-      name: 'Iron Fist',
-      emoji: '✊',
-      category: ShopItemCategory.hunterTitle,
-      price: 500,
-      description: 'Earned through unwavering determination.',
-    ),
-    ShopItem(
-      id: 'title_storm_bringer',
-      name: 'Storm Bringer',
-      emoji: '⚡',
-      category: ShopItemCategory.hunterTitle,
-      price: 900,
-      description: 'Those who master the elements.',
-      minLevel: 15,
-    ),
-    ShopItem(
-      id: 'title_shadow_walker',
-      name: 'Shadow Walker',
-      emoji: '🌑',
-      category: ShopItemCategory.hunterTitle,
-      price: 2000,
-      description: 'Move unseen, strike unheard.',
-      minLevel: 35,
-    ),
-
     // ── Profile Effects ────────────────────────────────────────────────
+    // (Avatar Frame and Hunter Title items were removed along with their
+    // categories — Profile Effects is now the only cosmetic category.)
     ShopItem(
       id: 'effect_fire_aura',
       name: 'Fire Aura',

@@ -12,9 +12,13 @@ import 'package:hunter_ascend/services/coin_service.dart';
 /// - Equipping items (future phase)
 ///
 /// Ownership is stored in `hunters/{uid}` as simple arrays:
-/// - `ownedAvatarFrames: List<String>`
-/// - `ownedHunterTitles: List<String>`
 /// - `ownedProfileEffects: List<String>`
+///
+/// The Avatar Frame and Hunter Title categories were removed from the shop,
+/// so `ownedAvatarFrames` / `ownedHunterTitles` (and their `equipped*`
+/// counterparts) are no longer read or written. Any values left on existing
+/// hunter documents are simply ignored — no migration is performed and the
+/// Firestore structure is otherwise unchanged.
 ///
 /// NO inventory system, NO item stats, NO equipment bonuses — purely cosmetic.
 class ShopService {
@@ -57,8 +61,6 @@ class ShopService {
       if (data == null) return {};
 
       final owned = <String>{};
-      owned.addAll(List<String>.from(data['ownedAvatarFrames'] ?? []));
-      owned.addAll(List<String>.from(data['ownedHunterTitles'] ?? []));
       owned.addAll(List<String>.from(data['ownedProfileEffects'] ?? []));
 
       return owned;
@@ -180,10 +182,6 @@ class ShopService {
 
   String _getOwnershipFieldName(ShopItemCategory category) {
     switch (category) {
-      case ShopItemCategory.avatarFrame:
-        return 'ownedAvatarFrames';
-      case ShopItemCategory.hunterTitle:
-        return 'ownedHunterTitles';
       case ShopItemCategory.profileEffect:
         return 'ownedProfileEffects';
     }
@@ -191,10 +189,6 @@ class ShopService {
 
   String _getEquippedFieldName(ShopItemCategory category) {
     switch (category) {
-      case ShopItemCategory.avatarFrame:
-        return 'equippedAvatarFrame';
-      case ShopItemCategory.hunterTitle:
-        return 'equippedHunterTitle';
       case ShopItemCategory.profileEffect:
         return 'equippedProfileEffect';
     }

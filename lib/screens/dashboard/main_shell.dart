@@ -8,8 +8,9 @@ import 'package:hunter_ascend/screens/dashboard/missions_screen.dart';
 import 'package:hunter_ascend/screens/leaderboard/global_rankings_screen.dart';
 import 'package:hunter_ascend/screens/profile/profile_screen.dart';
 import 'package:hunter_ascend/screens/battle/battle_hub_screen.dart';
-import 'package:hunter_ascend/screens/duel/duel_screen.dart';
-import 'package:hunter_ascend/screens/duel/duel_request_screen.dart';
+// NOTE: duel_screen.dart / duel_request_screen.dart are intentionally no
+// longer imported here. Navigating to a duel is now the Battle Hub's job
+// (see BattleHubScreen), not the shell's.
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/screens/profile/membership_screen.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
@@ -43,7 +44,6 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> with SingleTickerProviderStateMixin {
   int _index = 0;
-  bool _isOpeningDuels = false;
 
   // Notifies child tabs (currently just the Leaderboard) of the active
   // bottom-nav index so they can react to becoming visible — e.g. to run a
@@ -58,6 +58,10 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   /// refresh signal below and the tab list stay in agreement. Tab indexes
   /// themselves are unchanged.
   static const int _leaderboardTabIndex = 2;
+
+  /// Bottom-nav index of the Battles tab (Battle Hub). Named for the same
+  /// reason as [_leaderboardTabIndex]; the value is unchanged.
+  static const int _battlesTabIndex = 3;
 
   /// Incremented on every Leaderboard nav tap that happens while the
   /// Leaderboard is already the active tab (see [_onNavTap]). The Leaderboard
@@ -204,82 +208,25 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
       tabIndex: _leaderboardTabIndex,
       navRetapSignal: _leaderboardRetapTick,
     ),
-    const BattleHubScreen(), // Duels tab → Battle Hub (mode chooser)
+    // Battles tab → Battle Hub (mode chooser). The hub is handed the EXISTING
+    // duel-request badge stream so its Fitness Duels card can show an incoming
+    // challenge without creating a second listener, plus the active-tab signal
+    // so it can refresh its active-duel state when the tab becomes visible.
+    BattleHubScreen(
+      duelRequestStream: _duelRequestBadgeStream,
+      activeIndex: _activeTabIndex,
+      tabIndex: _battlesTabIndex,
+    ),
     const ProfileScreen(),
   ];
 
-  // Checks for active duel or pending request. If found, pushes on top.
-  // Otherwise just switches to the Duels tab (Battle Hub).
-  Future<void> _openDuels() async {
-    if (_isOpeningDuels) return;
-    _isOpeningDuels = true;
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) { _isOpeningDuels = false; return; }
-    try {
-      bool hasActiveDuel = false;
-      String? duelId;
-
-      // 1) Look for a currently active duel first.
-      final activeSnapshot = await FirebaseFirestore.instance
-          .collection('duels')
-          .where('participants', arrayContains: user.uid)
-          .where('status', isEqualTo: 'active')
-          .limit(1)
-          .get();
-
-      if (activeSnapshot.docs.isNotEmpty) {
-        hasActiveDuel = true;
-        duelId = activeSnapshot.docs.first.id;
-      } else {
-        // 2) No active duel — check for a completed duel this user hasn't
-        //    viewed the result of yet.
-        final completedSnapshot = await FirebaseFirestore.instance
-            .collection('duels')
-            .where('participants', arrayContains: user.uid)
-            .where('status', isEqualTo: 'completed')
-            .limit(10)
-            .get();
-
-        for (final doc in completedSnapshot.docs) {
-          final data = doc.data();
-          final bool isPlayer1 = data['player1'] == user.uid;
-          final bool shouldShowResult = isPlayer1
-              ? data['player1ViewedResult'] == false
-              : data['player2ViewedResult'] == false;
-          if (shouldShowResult) {
-            hasActiveDuel = true;
-            duelId = doc.id;
-            break;
-          }
-        }
-      }
-
-      if (!mounted) return;
-      if (hasActiveDuel) {
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => DuelScreen(duelId: duelId!)));
-        return;
-      }
-      final pendingRequest = await FirebaseFirestore.instance
-          .collection('duel_requests')
-          .where('toUid', isEqualTo: user.uid)
-          .where('status', isEqualTo: 'pending')
-          .limit(1)
-          .get();
-      if (!mounted) return;
-      if (pendingRequest.docs.isNotEmpty) {
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const DuelRequestScreen()));
-        return;
-      }
-      // No active duel or pending request — switch to the Duels tab.
-      _setActiveTab(3);
-    } catch (e) {
-      debugPrint("openDuels: $e");
-    } finally {
-      _isOpeningDuels = false;
-    }
-  }
+  // `_openDuels()` used to live here. It ran up to three Firestore queries on
+  // every Battles tap and then pushed DuelScreen / DuelRequestScreen over the
+  // hub, only falling through to the hub when nothing was in flight. Now that
+  // Battles is a hub of several modes, that behaviour actively blocked access
+  // to the hub (and to Dungeons). The duel state it resolved is now rendered
+  // by BattleHubScreen's Fitness Duels card instead, which reuses this
+  // shell's existing duel-request listener and performs FEWER reads.
 
   @override
   Widget build(BuildContext context) {
@@ -319,10 +266,13 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   // NavigationBar.onDestinationSelected, moved into a named method so the new
   // presentation layer can call it.
   void _onNavTap(int i) {
-    if (i == 3) {
-      _openDuels();
-      return;
-    }
+    // NOTE: Battles is deliberately NOT special-cased any more. It used to
+    // call `_openDuels()`, which queried Firestore on every tap and pushed
+    // DuelScreen / DuelRequestScreen OVER the hub — so a user with an active
+    // duel or a pending challenge could never actually reach the Battle Hub,
+    // and therefore could never reach Dungeons. Battles is now a hub of
+    // several modes, so every tab (including Battles) simply activates its
+    // tab; the hub itself surfaces the duel state and decides what to open.
     // Leaderboard re-tap: when the Leaderboard is ALREADY the active tab,
     // `_setActiveTab` early-returns (so the page transition does not replay)
     // and `_activeTabIndex` does not change, so the Leaderboard would never

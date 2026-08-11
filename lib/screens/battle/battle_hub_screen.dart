@@ -1,26 +1,194 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/screens/battle/widgets/battle_mode_card.dart';
 import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
+import 'package:hunter_ascend/screens/duel/duel_request_screen.dart';
+import 'package:hunter_ascend/screens/duel/duel_screen.dart';
 import 'package:hunter_ascend/screens/dungeon/dungeon_lobby_screen.dart';
 import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 
+/// The duel state the Fitness Duels card currently represents.
+///
+/// This is NOT a new state system — it is exactly the state machine
+/// `MainShell._openDuels()` already evaluated before this change (active duel
+/// → unviewed completed result → pending incoming request → nothing). The only
+/// difference is that the state is now RENDERED on the hub's card instead of
+/// being used to silently navigate away from the hub.
+enum _DuelCardState {
+  /// Another hunter has challenged this user and the request is pending.
+  incomingRequest,
+
+  /// This user is currently in an active duel.
+  activeDuel,
+
+  /// A duel finished but this user has not seen the result yet.
+  unviewedResult,
+
+  /// Nothing in flight — the normal "start a duel" entry point.
+  none,
+}
+
 /// Battle Hub — the entry point for all battle modes, hosted behind the
-/// Duels bottom-nav tab.
+/// Battles bottom-nav tab.
 ///
-/// Phase 2 is UI + navigation only:
+/// ── Navigation contract ──
+/// The Battles bottom-nav item ALWAYS opens this hub. It never jumps straight
+/// to a duel, a duel request or a dungeon. Before Dungeons existed, "Battles"
+/// effectively meant "Duels", so `MainShell._openDuels()` queried Firestore on
+/// every tap and pushed `DuelScreen` / `DuelRequestScreen` over the hub —
+/// which meant a user with an active duel could never reach the hub at all,
+/// and therefore could never reach Dungeons. Battles is now a hub of several
+/// modes, so that special-casing has been removed; the hub itself surfaces the
+/// duel state and decides what to open.
 ///
-/// * FITNESS DUELS (PvP) → pushes the existing [CreateDuelScreen] untouched.
-/// * DUNGEONS (PvE)      → pushes [DungeonLobbyScreen] (gate selection).
+/// * FITNESS DUELS (PvP) → state-aware, see [_DuelCardState].
+/// * DUNGEONS (PvE)      → pushes [DungeonLobbyScreen], unchanged.
 /// * Weekly Raids / Guild Battles / World Boss → disabled teaser cards.
-///
-/// The mode list is intentionally declarative (see [_themedBuild]) so future
-/// phases only add/flip cards — no restructuring needed. No backend logic,
-/// Firestore changes or new services belong here.
-class BattleHubScreen extends StatelessWidget {
-  const BattleHubScreen({super.key});
+class BattleHubScreen extends StatefulWidget {
+  const BattleHubScreen({
+    super.key,
+    this.duelRequestStream,
+    this.activeIndex,
+    this.tabIndex,
+  });
+
+  /// The EXISTING duel-request snapshot stream already owned by `MainShell`
+  /// for the nav badge (`duel_requests where toUid == uid && status ==
+  /// 'pending' limit 1`). It is passed in and shared rather than re-created,
+  /// so the incoming-challenge state costs **no additional Firestore
+  /// listener and no additional read** — the badge and this card are driven
+  /// by one and the same subscription.
+  final Stream<QuerySnapshot>? duelRequestStream;
+
+  /// Bottom-nav active tab index + this screen's own index. Used only to know
+  /// when the hub becomes visible so the active-duel state can be re-read
+  /// (IndexedStack keeps this State alive, so `initState` alone would go
+  /// stale). Same mechanism the Leaderboard tab already uses.
+  final ValueListenable<int>? activeIndex;
+  final int? tabIndex;
+
+  @override
+  State<BattleHubScreen> createState() => _BattleHubScreenState();
+}
+
+class _BattleHubScreenState extends State<BattleHubScreen> {
+  /// Resolved active / unviewed-result duel, or null when there is none.
+  String? _duelId;
+
+  /// True when [_duelId] refers to a finished duel whose result this user has
+  /// not viewed yet (as opposed to a live one).
+  bool _isUnviewedResult = false;
+
+  /// Guards against overlapping reads (e.g. rapid tab switching).
+  bool _loadingDuelState = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDuelState();
+    widget.activeIndex?.addListener(_onActiveIndexChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.activeIndex?.removeListener(_onActiveIndexChanged);
+    super.dispose();
+  }
+
+  /// Re-reads the duel state whenever the Battles tab becomes visible, so a
+  /// duel accepted/finished elsewhere is reflected on return.
+  void _onActiveIndexChanged() {
+    final activeIndex = widget.activeIndex;
+    final tabIndex = widget.tabIndex;
+    if (activeIndex == null || tabIndex == null) return;
+    if (activeIndex.value == tabIndex) _loadDuelState();
+  }
+
+  // ── Duel state resolution ──────────────────────────────────────────────
+  //
+  // These are the SAME two queries `MainShell._openDuels()` already ran on
+  // every Battles tap — relocated, not added. The third query it ran (for
+  // pending duel requests) is gone entirely: that state now comes from the
+  // existing badge listener passed in via `widget.duelRequestStream`. So this
+  // change performs strictly FEWER Firestore operations per Battles entry
+  // than before, and adds no listener.
+  //
+  // A live listener is deliberately NOT used here: an active duel changes
+  // only when this user accepts/creates/finishes one, all of which route back
+  // through this screen, so a read on entry is sufficient and far cheaper
+  // than a permanent subscription.
+  Future<void> _loadDuelState() async {
+    if (_loadingDuelState) return;
+    _loadingDuelState = true;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _loadingDuelState = false;
+      return;
+    }
+    try {
+      String? duelId;
+      bool unviewedResult = false;
+
+      // 1) A currently active duel wins.
+      final active = await FirebaseFirestore.instance
+          .collection('duels')
+          .where('participants', arrayContains: user.uid)
+          .where('status', isEqualTo: 'active')
+          .limit(1)
+          .get();
+
+      if (active.docs.isNotEmpty) {
+        duelId = active.docs.first.id;
+      } else {
+        // 2) Otherwise a completed duel whose result this user hasn't seen.
+        final completed = await FirebaseFirestore.instance
+            .collection('duels')
+            .where('participants', arrayContains: user.uid)
+            .where('status', isEqualTo: 'completed')
+            .limit(10)
+            .get();
+
+        for (final doc in completed.docs) {
+          final data = doc.data();
+          final isPlayer1 = data['player1'] == user.uid;
+          final shouldShowResult = isPlayer1
+              ? data['player1ViewedResult'] == false
+              : data['player2ViewedResult'] == false;
+          if (shouldShowResult) {
+            duelId = doc.id;
+            unviewedResult = true;
+            break;
+          }
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _duelId = duelId;
+        _isUnviewedResult = unviewedResult;
+      });
+    } catch (e) {
+      debugPrint('BattleHub._loadDuelState: $e');
+    } finally {
+      _loadingDuelState = false;
+    }
+  }
+
+  /// State priority: incoming request → active duel → unviewed result → none.
+  _DuelCardState _resolveState({required bool hasPendingRequest}) {
+    if (hasPendingRequest) return _DuelCardState.incomingRequest;
+    if (_duelId != null) {
+      return _isUnviewedResult
+          ? _DuelCardState.unviewedResult
+          : _DuelCardState.activeDuel;
+    }
+    return _DuelCardState.none;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,14 +213,7 @@ class BattleHubScreen extends StatelessWidget {
             const SizedBox(height: 26),
 
             // ── Active modes ─────────────────────────────────────────────
-            BattleModeCard(
-              emoji: '⚔️',
-              title: 'FITNESS DUELS',
-              description:
-                  'Challenge real hunters in competitive fitness battles.',
-              tag: 'PvP',
-              onEnter: () => _openFitnessDuels(context),
-            ),
+            _buildFitnessDuelsCard(),
             const SizedBox(height: 14),
             BattleModeCard(
               emoji: '🕳',
@@ -78,19 +239,84 @@ class BattleHubScreen extends StatelessWidget {
     );
   }
 
-  // ── Actions ────────────────────────────────────────────────────────────
-
-  /// ENTER on the Fitness Duels card → the existing duel feature, reused
-  /// as-is in its standalone (pushed) presentation.
-  void _openFitnessDuels(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const CreateDuelScreen(pushed: true)),
+  /// The Fitness Duels card, reflecting the user's current duel state.
+  ///
+  /// Wrapped in a `StreamBuilder` on the SHARED duel-request stream so an
+  /// incoming challenge appears live — the same subscription that drives the
+  /// nav badge, so the two can never disagree and no extra listener exists.
+  Widget _buildFitnessDuelsCard() {
+    final stream = widget.duelRequestStream;
+    if (stream == null) {
+      // Standalone construction (e.g. tests) — no request stream available,
+      // so fall back to the read-driven states only.
+      return _fitnessDuelsCardFor(_resolveState(hasPendingRequest: false));
+    }
+    return StreamBuilder<QuerySnapshot>(
+      stream: stream,
+      builder: (context, snap) {
+        final hasPending = snap.hasData && snap.data!.docs.isNotEmpty;
+        return _fitnessDuelsCardFor(
+          _resolveState(hasPendingRequest: hasPending),
+        );
+      },
     );
   }
 
+  Widget _fitnessDuelsCardFor(_DuelCardState state) {
+    switch (state) {
+      case _DuelCardState.incomingRequest:
+        return BattleModeCard(
+          emoji: '⚔️',
+          title: 'INCOMING CHALLENGE',
+          description:
+              'A hunter has challenged you to a duel. Accept or decline.',
+          tag: 'PvP',
+          onEnter: () => _openAndRefresh(const DuelRequestScreen()),
+        );
+      case _DuelCardState.activeDuel:
+        return BattleModeCard(
+          emoji: '⚔️',
+          title: 'ACTIVE BATTLE',
+          description: 'You are in an active duel. Continue your battle.',
+          tag: 'PvP',
+          onEnter: () => _openAndRefresh(DuelScreen(duelId: _duelId!)),
+        );
+      case _DuelCardState.unviewedResult:
+        return BattleModeCard(
+          emoji: '⚔️',
+          title: 'BATTLE RESULT',
+          description: 'Your duel has finished. View the result.',
+          tag: 'PvP',
+          onEnter: () => _openAndRefresh(DuelScreen(duelId: _duelId!)),
+        );
+      case _DuelCardState.none:
+        return BattleModeCard(
+          emoji: '⚔️',
+          title: 'FITNESS DUELS',
+          description:
+              'Challenge real hunters in competitive fitness battles.',
+          tag: 'PvP',
+          onEnter: () => _openAndRefresh(const CreateDuelScreen(pushed: true)),
+        );
+    }
+  }
+
+  // ── Actions ────────────────────────────────────────────────────────────
+
+  /// Pushes a duel destination and re-reads the duel state on return, so the
+  /// card reflects what just happened (accepted a request, viewed a result,
+  /// created a duel) without the user having to leave and re-enter the tab.
+  Future<void> _openAndRefresh(Widget destination) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => destination),
+    );
+    if (!mounted) return;
+    await _loadDuelState();
+  }
+
   /// ENTER on the Dungeons card → the Dungeon Lobby (Gate Selection
-  /// Center). Dungeon gameplay itself lands in Phase 3.
+  /// Center). Unchanged.
   void _openDungeons(BuildContext context) {
     Navigator.push(
       context,

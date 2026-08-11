@@ -308,16 +308,24 @@ class _MapScreenState extends State<MapScreen> {
       }
     });
 
-    // GPS Stream — REGRESSION EXPERIMENT: temporarily reverted to the exact
-    // LocationSettings from commit 92d30bf (last known working
-    // implementation). The platform-tuned AndroidSettings/AppleSettings block
-    // was removed to isolate whether the stream configuration is the break
-    // point. Nothing else (accuracy gate, distance math, route/save logic)
-    // was touched. Revert back once the experiment concludes.
-    const locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 5,
-    );
+    // GPS Stream — Android requires AndroidSettings with intervalDuration
+    // for reliable position updates. The generic LocationSettings doesn't
+    // work properly on Android for continuous tracking.
+    final LocationSettings locationSettings;
+    if (Platform.isAndroid) {
+      locationSettings = AndroidSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+        intervalDuration: const Duration(seconds: 3),
+        // Note: foregroundNotificationConfig removed as this app doesn't
+        // use background location tracking (tracking stops when screen closes)
+      );
+    } else {
+      locationSettings = const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+      );
+    }
 
     debugPrint('[RunTrack] STAGE 2: Subscribing to position stream. settings=$locationSettings');
 

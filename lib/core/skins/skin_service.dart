@@ -511,6 +511,10 @@ class SkinService {
     final now = DateTime.now();
     final expiresAt = now.add(duration);
 
+    // The reward grant itself: this write is the ONLY thing that determines
+    // whether the ad unlock succeeded or failed. It must be isolated in its
+    // own try/catch so that nothing which happens afterward can ever
+    // overwrite a grant that has already durably succeeded.
     try {
       await _firestore
           .collection(_huntersCollection)
@@ -523,10 +527,6 @@ class SkinService {
         'unlockedAt': Timestamp.fromDate(now),
         'expiresAt': Timestamp.fromDate(expiresAt),
       });
-
-      await activateSkin(skin);
-
-      return SkinPurchaseResult(success: true, skinId: skin, expiresAt: expiresAt);
     } catch (e) {
       debugPrint('SkinService.grantAdUnlock: $e');
       return const SkinPurchaseResult(
@@ -535,6 +535,26 @@ class SkinService {
         message: 'Could not unlock this skin. Please try again.',
       );
     }
+
+    // The reward has been granted successfully at this point — everything
+    // below is a best-effort UI convenience (auto-activating the skin as
+    // the current appearance), NOT part of the reward itself.
+    //
+    // Root-cause note: activateSkin() re-verifies access via a fresh
+    // hasAccess() Firestore read of the doc that was just written above. If
+    // that immediate re-read ever hiccups (transient latency/cache timing),
+    // it must NOT be reported back to the caller as "the reward failed" —
+    // the unlock document already exists and is valid regardless. The user
+    // can still equip the skin manually from the Shop if auto-activation
+    // silently fails here.
+    try {
+      await activateSkin(skin);
+    } catch (e) {
+      debugPrint('SkinService.grantAdUnlock: auto-activation after a successful '
+          'grant failed (non-fatal, reward already persisted): $e');
+    }
+
+    return SkinPurchaseResult(success: true, skinId: skin, expiresAt: expiresAt);
   }
 
   // ── Private persistence helpers (device-local) ──────────────────────

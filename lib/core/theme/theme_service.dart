@@ -87,6 +87,15 @@ class ThemeService {
   /// Whether [theme] is the one currently applied.
   bool isActive(AppTheme theme) => activeThemeNotifier.value == theme;
 
+  /// Whether a *premium* theme (i.e. anything other than the default
+  /// [AppTheme.dark]) is currently applied.
+  ///
+  /// Single source of truth for the Skin/Premium-Theme appearance conflict:
+  /// callers that need to know "is a Premium Theme the active appearance"
+  /// ask this instead of re-implementing the `!= AppTheme.dark` comparison.
+  /// Read-only — changes no theme behavior.
+  bool get isPremiumThemeActive => activeThemeNotifier.value != AppTheme.dark;
+
   // ── Private ──────────────────────────────────────────────────────────────
 
   void _applyWithoutPersist(AppTheme theme) {

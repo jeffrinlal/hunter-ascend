@@ -258,7 +258,7 @@ class _ThemeGalleryScreenState extends State<ThemeGalleryScreen> {
               Icon(Icons.auto_awesome_rounded, color: MembershipTheme.current.accent, size: 32),
               const SizedBox(height: 14),
               Text(
-                'Choose Your Appearance',
+                'Change Appearance?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: HunterTheme.textPrimary,
@@ -269,7 +269,8 @@ class _ThemeGalleryScreenState extends State<ThemeGalleryScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Your Skin and Premium Theme cannot be used together.',
+                'Skins and Premium Themes cannot be used together. '
+                'Which appearance do you want to continue with?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: HunterTheme.textSecondary,

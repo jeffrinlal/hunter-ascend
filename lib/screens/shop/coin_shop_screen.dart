@@ -319,7 +319,21 @@ class _CoinShopScreenState extends State<CoinShopScreen>
     }
   }
 
+  /// Equips a non-classic skin.
+  ///
+  /// Skin and Premium Theme are mutually exclusive as the *active
+  /// appearance*, so if a Premium Theme is currently applied the user is
+  /// asked to confirm first. Choosing "Keep Premium Theme" aborts without
+  /// touching anything; choosing "Use Skin" activates the skin, which
+  /// suppresses the theme's appearance while leaving the theme *selection*
+  /// saved in [ThemeService] (nothing is deleted, no ownership is lost).
+  /// The skin's unlock and remaining duration are never modified here.
   Future<void> _equipSkin(SkinData skin) async {
+    if (ThemeService.instance.isPremiumThemeActive) {
+      final useSkin = await _showAppearanceSwitchDialog();
+      if (useSkin != true || !mounted) return; // "Keep Premium Theme" → no-op
+    }
+
     final success = await SkinService.instance.activateSkin(skin.id);
     if (!mounted) return;
 
@@ -342,9 +356,98 @@ class _CoinShopScreenState extends State<CoinShopScreen>
     }
   }
 
+  /// Confirmation shown when equipping a skin would replace an active
+  /// Premium Theme as the visual appearance.
+  ///
+  /// Returns `true` for "Use Skin", `false`/`null` for "Keep Premium Theme"
+  /// (including a barrier dismiss), so the caller can safely abort.
+  Future<bool?> _showAppearanceSwitchDialog() {
+    final theme = MembershipTheme.current;
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: HunterTheme.cardColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: HunterTheme.border),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.auto_awesome_rounded, color: theme.accent, size: 36),
+              const SizedBox(height: 16),
+              Text(
+                'Switch to Skin appearance?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: HunterTheme.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.4,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Skins and Premium Themes cannot be used together. '
+                'Your Premium Theme stays saved and you can switch back at any time.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.accent,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+                  ),
+                  child: Text(
+                    'Use Skin',
+                    style: TextStyle(
+                      color: MembershipTheme.isMax ? Colors.white : Colors.black,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: HunterTheme.textPrimary,
+                    side: BorderSide(color: HunterTheme.border),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+                  ),
+                  child: const Text(
+                    'Keep Premium Theme',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Switches the active skin back to Classic. Per spec: does NOT touch any
   /// other skin's ownership/expiry — [SkinService.activateSkin] for
   /// [SkinId.classic] only changes which skin is selected/active.
+  ///
+  /// No conflict dialog here: Classic is always available and is explicitly
+  /// allowed to coexist with a Premium Theme, so selecting Classic simply
+  /// hands the appearance back to the theme system.
   Future<void> _useClassicSkin() async {
     await SkinService.instance.activateSkin(SkinId.classic);
     if (mounted) setState(() {});
@@ -1159,7 +1262,17 @@ class _CoinShopScreenState extends State<CoinShopScreen>
 
   Widget _buildSkinCard(SkinData skin) {
     final activeSkin = SkinService.instance.getCurrentActiveSkin();
-    final isEquipped = activeSkin == skin.id;
+    // Equipped state differs by skin kind:
+    // - Classic has no distinct appearance of its own (activateSkin
+    //   deliberately leaves the appearance flag false for it), so it counts
+    //   as equipped purely by being the selected skin.
+    // - A custom skin counts as equipped only when it is BOTH selected AND
+    //   the active appearance. If the user chose "Use Premium Theme" the skin
+    //   stays selected but suppressed, so the card must offer EQUIP again
+    //   (letting them return to it) instead of falsely claiming it is active.
+    final isEquipped = skin.isDefault
+        ? activeSkin == SkinId.classic
+        : (activeSkin == skin.id && SkinService.instance.isSkinAppearanceActive);
     final hasAccess = _skinHasAccess(skin.id);
     final isExpired = _skinIsExpired(skin.id);
     final isUnlocking = _unlockingSkinId == skin.id;

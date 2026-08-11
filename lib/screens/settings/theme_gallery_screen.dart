@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hunter_ascend/core/skins/skin_service.dart';
 import 'package:hunter_ascend/core/theme/app_theme_data.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/membership_theme.dart';
@@ -206,7 +207,24 @@ class _ThemeGalleryScreenState extends State<ThemeGalleryScreen> {
 
   // ── Tap handling ───────────────────────────────────────────────────────
 
-  void _onThemeTap(AppThemeData t) {
+  Future<void> _onThemeTap(AppThemeData t) async {
+    // Skin vs Premium Theme mutual exclusivity: if a Skin is currently the
+    // active appearance, selecting ANY Premium Theme — even one that is
+    // already stored as the underlying active theme — means the user wants
+    // to switch away from the Skin, and that must be confirmed first. This
+    // re-validates the skin's expiry as a side effect, so an already-expired
+    // skin never triggers the dialog (nothing to switch away from).
+    final skinActive = await SkinService.instance.isSkinAppearanceActiveNow();
+    if (!mounted) return;
+    if (skinActive) {
+      _showSkinThemeConflictDialog(t);
+      return;
+    }
+
+    _continueThemeTap(t);
+  }
+
+  void _continueThemeTap(AppThemeData t) {
     // Point 6: the currently active theme never re-prompts.
     if (ThemeService.instance.isActive(t.theme)) return;
 
@@ -217,6 +235,98 @@ class _ThemeGalleryScreenState extends State<ThemeGalleryScreen> {
     }
 
     _showApplyDialog(t);
+  }
+
+  // ── Skin vs Premium Theme conflict dialog ────────────────────────────────
+
+  void _showSkinThemeConflictDialog(AppThemeData t) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        backgroundColor: HunterTheme.cardColor,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: HunterTheme.border, width: 1),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.auto_awesome_rounded, color: MembershipTheme.current.accent, size: 32),
+              const SizedBox(height: 14),
+              Text(
+                'Choose Your Appearance',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: HunterTheme.textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Your Skin and Premium Theme cannot be used together.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: HunterTheme.textSecondary,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: HunterTheme.textPrimary,
+                    side: BorderSide(color: HunterTheme.border, width: 1),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text(
+                    'Continue with Skin',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, letterSpacing: 0.3),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    // Deactivate the Skin visually only — its selection and
+                    // remaining unlock time are left completely untouched.
+                    await SkinService.instance.suppressForTheme();
+                    if (!mounted) return;
+                    // Proceed exactly as a normal (no-skin) theme tap would:
+                    // free themes apply instantly, ad-gated themes still
+                    // require watching the ad as usual.
+                    _continueThemeTap(t);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: MembershipTheme.current.accent,
+                    foregroundColor: MembershipTheme.isMax ? Colors.white : Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text(
+                    'Use Premium Theme',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, letterSpacing: 0.3),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _applyTheme(AppThemeData t) async {

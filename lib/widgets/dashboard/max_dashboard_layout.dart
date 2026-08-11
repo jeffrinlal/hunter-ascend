@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
+import 'package:hunter_ascend/core/skins/dashboard/dashboard_section_contracts.dart';
+import 'package:hunter_ascend/core/skins/dashboard/skin_dashboard_sections.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:hunter_ascend/widgets/dashboard/achievement_highlight.dart';
@@ -90,16 +93,32 @@ class _MaxDashboardLayoutState extends State<MaxDashboardLayout>
     final hunter = widget.hunter;
     final accent = HunterTheme.purple;
 
+    // Phase 3 (revised): each section is wrapped in its Skin*Section
+    // resolver, passing Max's own existing widget as `fallback`. When no
+    // skin is active (the default), every resolver renders `fallback`
+    // completely unmodified — byte-for-byte identical to Max's UI before
+    // this change. Only when a non-classic skin is the active appearance
+    // does a genuinely different, skin-specific widget replace it — and it
+    // is IDENTICAL to the widget a Basic or Pro user with the same skin
+    // would see, since skin identity is resolved independently of tier.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── Immersive hero banner (fully rounded, symmetric margins). ──
-        _EliteHeroBanner(
-          hunter: hunter,
-          accent: accent,
-          rankTitle: _rankTitle(hunter.level),
-          particleController: _particleController,
-          onNotificationTap: widget.onNotificationTap,
+        SkinHeroSection(
+          data: HeroSectionData(
+            hunter: hunter,
+            rankTitle: _rankTitle(hunter.level),
+            accentColor: MembershipTheme.current.accent,
+            onNotificationTap: widget.onNotificationTap,
+          ),
+          fallback: _EliteHeroBanner(
+            hunter: hunter,
+            accent: accent,
+            rankTitle: _rankTitle(hunter.level),
+            particleController: _particleController,
+            onNotificationTap: widget.onNotificationTap,
+          ),
         ),
         const SizedBox(height: 22),
 
@@ -114,7 +133,13 @@ class _MaxDashboardLayoutState extends State<MaxDashboardLayout>
 
         EntranceFadeSlide(
           delay: const Duration(milliseconds: 80),
-          child: EliteQuickActions(onNutritionTap: widget.onNutritionTap, onMapTap: widget.onMapTap),
+          child: SkinQuickActionsSection(
+            data: QuickActionsSectionData(
+              nutrition: QuickActionItem(icon: Icons.restaurant_menu_rounded, label: 'Nutrition', onTap: widget.onNutritionTap),
+              map: QuickActionItem(icon: Icons.map_rounded, label: 'Map', onTap: widget.onMapTap),
+            ),
+            fallback: EliteQuickActions(onNutritionTap: widget.onNutritionTap, onMapTap: widget.onMapTap),
+          ),
         ),
         const SizedBox(height: 22),
 
@@ -134,21 +159,29 @@ class _MaxDashboardLayoutState extends State<MaxDashboardLayout>
         const SizedBox(height: 16),
         EntranceFadeSlide(
           delay: const Duration(milliseconds: 150),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
-              color: HunterTheme.cardColor,
-              border: Border.all(color: accent.withOpacity(0.25)),
-            ),
-            child: DailyOverviewTimeline(
-              stats: [
-                DashboardStat(label: "Today's XP", value: '${hunter.dailyXp}', icon: Icons.bolt_rounded, color: HunterTheme.gold),
-                DashboardStat(label: 'Steps', value: '${widget.todaySteps}', icon: Icons.directions_walk_rounded, color: HunterTheme.primary),
-                DashboardStat(label: 'Active Streak', value: '${hunter.streak} days', icon: Icons.local_fire_department_rounded, color: Colors.orange),
-                DashboardStat(label: 'Water', value: '${(widget.waterIntakeMl / 1000).toStringAsFixed(1)}L', icon: Icons.water_drop_rounded, color: HunterTheme.purpleLight),
-              ],
+          child: SkinStatsSection(
+            data: StatsSectionData(stats: [
+              DashboardStat(label: "Today's XP", value: '${hunter.dailyXp}', icon: Icons.bolt_rounded, color: HunterTheme.gold),
+              DashboardStat(label: 'Steps', value: '${widget.todaySteps}', icon: Icons.directions_walk_rounded, color: HunterTheme.primary),
+              DashboardStat(label: 'Active Streak', value: '${hunter.streak} days', icon: Icons.local_fire_department_rounded, color: Colors.orange),
+              DashboardStat(label: 'Water', value: '${(widget.waterIntakeMl / 1000).toStringAsFixed(1)}L', icon: Icons.water_drop_rounded, color: HunterTheme.purpleLight),
+            ]),
+            fallback: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                color: HunterTheme.cardColor,
+                border: Border.all(color: accent.withOpacity(0.25)),
+              ),
+              child: DailyOverviewTimeline(
+                stats: [
+                  DashboardStat(label: "Today's XP", value: '${hunter.dailyXp}', icon: Icons.bolt_rounded, color: HunterTheme.gold),
+                  DashboardStat(label: 'Steps', value: '${widget.todaySteps}', icon: Icons.directions_walk_rounded, color: HunterTheme.primary),
+                  DashboardStat(label: 'Active Streak', value: '${hunter.streak} days', icon: Icons.local_fire_department_rounded, color: Colors.orange),
+                  DashboardStat(label: 'Water', value: '${(widget.waterIntakeMl / 1000).toStringAsFixed(1)}L', icon: Icons.water_drop_rounded, color: HunterTheme.purpleLight),
+                ],
+              ),
             ),
           ),
         ),
@@ -156,20 +189,34 @@ class _MaxDashboardLayoutState extends State<MaxDashboardLayout>
 
         EntranceFadeSlide(
           delay: const Duration(milliseconds: 190),
-          child: EliteMissionCard(steps: widget.todaySteps),
+          child: SkinQuestSection(
+            data: QuestSectionData(todaySteps: widget.todaySteps),
+            fallback: EliteMissionCard(steps: widget.todaySteps),
+          ),
         ),
         const SizedBox(height: 16),
 
         EntranceFadeSlide(
           delay: const Duration(milliseconds: 230),
-          child: EliteWaterCard(
-            waterIntakeMl: widget.waterIntakeMl,
-            waterGoalMl: widget.waterGoalMl,
-            selectedCupSize: widget.selectedCupSize,
-            onAdd: widget.onAddWater,
-            onRemove: widget.onRemoveWater,
-            onSetCupSize: widget.onSetCupSize,
-            onEditGoal: widget.onEditWaterGoal,
+          child: SkinWaterSection(
+            data: WaterSectionData(
+              waterIntakeMl: widget.waterIntakeMl,
+              waterGoalMl: widget.waterGoalMl,
+              selectedCupSize: widget.selectedCupSize,
+              onAdd: widget.onAddWater,
+              onRemove: widget.onRemoveWater,
+              onSetCupSize: widget.onSetCupSize,
+              onEditGoal: widget.onEditWaterGoal,
+            ),
+            fallback: EliteWaterCard(
+              waterIntakeMl: widget.waterIntakeMl,
+              waterGoalMl: widget.waterGoalMl,
+              selectedCupSize: widget.selectedCupSize,
+              onAdd: widget.onAddWater,
+              onRemove: widget.onRemoveWater,
+              onSetCupSize: widget.onSetCupSize,
+              onEditGoal: widget.onEditWaterGoal,
+            ),
           ),
         ),
       ],

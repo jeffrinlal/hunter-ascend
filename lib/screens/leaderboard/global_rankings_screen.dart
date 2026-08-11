@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
+import 'package:hunter_ascend/core/skins/skin_service.dart';
+import 'package:hunter_ascend/core/skins/skin_aware_surface.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hunter_ascend/screens/profile/public_hunter_profile_screen.dart';
@@ -267,6 +269,8 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
         themeNotifier,
         ThemeService.instance.activeThemeNotifier,
         MembershipTheme.tierNotifier,
+        SkinService.instance.activeSkinNotifier,
+        SkinService.instance.skinAppearanceActiveNotifier,
       ]),
       builder: (context, _) => _themedBuild(context),
     );
@@ -1174,41 +1178,51 @@ class _LeaderboardHeroState extends State<_LeaderboardHero>
       children: [topRow, const SizedBox(height: 14), lowerSection],
     );
 
-    return AnimatedBuilder(
-      animation: _glow,
-      child: content,
-      builder: (context, child) {
-        final g = _glow.value;
-        return Container(
-          width: double.infinity,
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                accent.withOpacity(0.20),
-                accent.withOpacity(0.05),
-                HunterTheme.cardColor,
-              ],
-            ),
-            border: Border.all(
-              color: accent.withOpacity(0.30 + g * 0.20),
-              width: 1.4,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: accent.withOpacity(0.10 + g * 0.12),
-                blurRadius: 22,
-                spreadRadius: 1,
+    // Phase 3: wrapped in SkinAwareSurface, a no-op for Classic/Premium-
+    // Theme users (see that widget's doc comment) — does not touch the
+    // existing `_glow` AnimationController or its border/gradient logic.
+    // The horizontal margin is kept OUTSIDE the wrap so the decoration
+    // overlay aligns exactly with the visible card, not the margin gap.
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: SkinAwareSurface(
+        borderRadius: 24,
+        child: AnimatedBuilder(
+          animation: _glow,
+          child: content,
+          builder: (context, child) {
+            final g = _glow.value;
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    accent.withOpacity(0.20),
+                    accent.withOpacity(0.05),
+                    HunterTheme.cardColor,
+                  ],
+                ),
+                border: Border.all(
+                  color: accent.withOpacity(0.30 + g * 0.20),
+                  width: 1.4,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent.withOpacity(0.10 + g * 0.12),
+                    blurRadius: 22,
+                    spreadRadius: 1,
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: child,
-        );
-      },
+              child: child,
+            );
+          },
+        ),
+      ),
     );
   }
 }

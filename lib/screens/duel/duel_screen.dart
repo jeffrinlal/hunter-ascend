@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
+import 'package:hunter_ascend/core/skins/skin_service.dart';
+import 'package:hunter_ascend/core/skins/skin_aware_surface.dart';
 import 'package:hunter_ascend/core/utils/hunter_calculations.dart';
 import 'package:hunter_ascend/services/ads_service.dart';
 import 'package:hunter_ascend/core/constants/app_constants.dart';
@@ -823,6 +825,8 @@ class _DuelScreenState extends State<DuelScreen> {
         themeNotifier,
         ThemeService.instance.activeThemeNotifier,
         MembershipTheme.tierNotifier,
+        SkinService.instance.activeSkinNotifier,
+        SkinService.instance.skinAppearanceActiveNotifier,
       ]),
       builder: (context, _) => _themedBuild(context),
     );
@@ -1095,64 +1099,70 @@ class _DuelScreenState extends State<DuelScreen> {
                   ),
 
                 // ── Day progress card ──
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [HunterTheme.gold.withValues(alpha: 0.10), _card],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: HunterTheme.gold.withValues(alpha: 0.28), width: 1.4),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: HunterTheme.isDark ? 0.18 : 0.04), blurRadius: 14, offset: const Offset(0, 5)),
-                    ],
-                  ),
-                  child: Column(children: [
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text("CURRENT DAY", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11, letterSpacing: 1, fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 4),
-                        Text("DAY $currentDay", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 28, fontWeight: FontWeight.w900)),
-                      ]),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: HunterTheme.gold.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: HunterTheme.gold.withValues(alpha: 0.4)),
-                        ),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(Icons.timer_outlined, color: HunterTheme.gold, size: 16),
-                          const SizedBox(width: 6),
-                          Text("$daysRemaining DAYS LEFT", style: TextStyle(color: HunterTheme.gold, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1)),
-                        ]),
+                // Phase 3: wrapped in SkinAwareSurface, a no-op for
+                // Classic/Premium-Theme users (see that widget's doc
+                // comment) — all duel/day/score data below is unchanged.
+                SkinAwareSurface(
+                  borderRadius: 20,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [HunterTheme.gold.withValues(alpha: 0.10), _card],
                       ),
-                    ]),
-                    const SizedBox(height: 14),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Stack(children: [
-                        Container(height: 8, color: _blueDim),
-                        FractionallySizedBox(
-                          widthFactor: (currentDay / duel['durationDays']).clamp(0.0, 1.0).toDouble(),
-                          child: Container(
-                            height: 8,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(colors: [HunterTheme.gold, HunterTheme.goldBright]),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: HunterTheme.gold.withValues(alpha: 0.28), width: 1.4),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: HunterTheme.isDark ? 0.18 : 0.04), blurRadius: 14, offset: const Offset(0, 5)),
+                      ],
+                    ),
+                    child: Column(children: [
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text("CURRENT DAY", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11, letterSpacing: 1, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 4),
+                          Text("DAY $currentDay", style: TextStyle(color: HunterTheme.textPrimary, fontSize: 28, fontWeight: FontWeight.w900)),
+                        ]),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: HunterTheme.gold.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: HunterTheme.gold.withValues(alpha: 0.4)),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.timer_outlined, color: HunterTheme.gold, size: 16),
+                            const SizedBox(width: 6),
+                            Text("$daysRemaining DAYS LEFT", style: TextStyle(color: HunterTheme.gold, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                          ]),
+                        ),
+                      ]),
+                      const SizedBox(height: 14),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Stack(children: [
+                          Container(height: 8, color: _blueDim),
+                          FractionallySizedBox(
+                            widthFactor: (currentDay / duel['durationDays']).clamp(0.0, 1.0).toDouble(),
+                            child: Container(
+                              height: 8,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(colors: [HunterTheme.gold, HunterTheme.goldBright]),
+                              ),
                             ),
                           ),
-                        ),
-                      ]),
-                    ),
-                    const SizedBox(height: 6),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Text("$currentDay / ${duel['durationDays']} days", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11, fontWeight: FontWeight.w500)),
-                    ),
-                  ]),
+                        ]),
+                      ),
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text("$currentDay / ${duel['durationDays']} days", style: TextStyle(color: HunterTheme.textTertiary, fontSize: 11, fontWeight: FontWeight.w500)),
+                      ),
+                    ]),
+                  ),
                 ),
 
                 const SizedBox(height: 14),

@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
+import 'package:hunter_ascend/core/theme/membership_theme.dart';
+import 'package:hunter_ascend/core/skins/dashboard/dashboard_section_contracts.dart';
+import 'package:hunter_ascend/core/skins/dashboard/skin_dashboard_sections.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/services/rank_service.dart';
 import 'package:hunter_ascend/widgets/dashboard/animated_xp_ring.dart';
@@ -11,6 +14,8 @@ import 'package:hunter_ascend/widgets/dashboard/premium_mission_card.dart';
 import 'package:hunter_ascend/widgets/dashboard/premium_quick_actions.dart';
 import 'package:hunter_ascend/widgets/dashboard/premium_water_card.dart';
 import 'package:hunter_ascend/screens/shop/coin_shop_screen.dart';
+import 'package:hunter_ascend/screens/nutrition/nutrition_screen.dart';
+import 'package:hunter_ascend/screens/map/map_screen.dart';
 
 // ── Hero layout constants ─────────────────────────────────────────────────
 // Kept in one place so the floating avatar/ring, the hero's reserved bottom
@@ -75,15 +80,31 @@ class ProDashboardLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = HunterTheme.gold;
 
+    // Phase 3 (revised): each section is wrapped in its Skin*Section
+    // resolver, passing Pro's own existing widget as `fallback`. When no
+    // skin is active (the default), every resolver renders `fallback`
+    // completely unmodified — byte-for-byte identical to Pro's UI before
+    // this change. Only when a non-classic skin is the active appearance
+    // does a genuinely different, skin-specific widget replace it — and it
+    // is IDENTICAL to the widget a Basic or Max user with the same skin
+    // would see, since skin identity is resolved independently of tier.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         EntranceFadeSlide(
-          child: _PremiumHero(
-            hunter: hunter,
-            accent: accent,
-            rankTitle: _rankTitle(hunter.level),
-            onNotificationTap: onNotificationTap,
+          child: SkinHeroSection(
+            data: HeroSectionData(
+              hunter: hunter,
+              rankTitle: _rankTitle(hunter.level),
+              accentColor: MembershipTheme.current.accent,
+              onNotificationTap: onNotificationTap,
+            ),
+            fallback: _PremiumHero(
+              hunter: hunter,
+              accent: accent,
+              rankTitle: _rankTitle(hunter.level),
+              onNotificationTap: onNotificationTap,
+            ),
           ),
         ),
         // Clears the ring that overhangs the hero's bottom edge.
@@ -91,7 +112,13 @@ class ProDashboardLayout extends StatelessWidget {
 
         EntranceFadeSlide(
           delay: const Duration(milliseconds: 90),
-          child: PremiumQuickActions(onNutritionTap: onNutritionTap, onMapTap: onMapTap),
+          child: SkinQuickActionsSection(
+            data: QuickActionsSectionData(
+              nutrition: QuickActionItem(icon: Icons.restaurant_menu_rounded, label: 'Nutrition', onTap: onNutritionTap),
+              map: QuickActionItem(icon: Icons.map_rounded, label: 'Map', onTap: onMapTap),
+            ),
+            fallback: PremiumQuickActions(onNutritionTap: onNutritionTap, onMapTap: onMapTap),
+          ),
         ),
         const SizedBox(height: 20),
 
@@ -105,33 +132,55 @@ class ProDashboardLayout extends StatelessWidget {
         const SizedBox(height: 12),
         EntranceFadeSlide(
           delay: const Duration(milliseconds: 160),
-          child: DashboardStatChipRow(
-            stats: [
+          child: SkinStatsSection(
+            data: StatsSectionData(stats: [
               DashboardStat(label: 'Steps', value: '$todaySteps', icon: Icons.directions_walk_rounded, color: HunterTheme.primary),
               DashboardStat(label: 'Streak', value: '${hunter.streak}d', icon: Icons.local_fire_department_rounded, color: Colors.orange),
               DashboardStat(label: 'Daily XP', value: '${hunter.dailyXp}', icon: Icons.bolt_rounded, color: HunterTheme.gold),
               DashboardStat(label: 'Water', value: '${(waterIntakeMl / 1000).toStringAsFixed(1)}L', icon: Icons.water_drop_rounded, color: Colors.cyan),
-            ],
+            ]),
+            fallback: DashboardStatChipRow(
+              stats: [
+                DashboardStat(label: 'Steps', value: '$todaySteps', icon: Icons.directions_walk_rounded, color: HunterTheme.primary),
+                DashboardStat(label: 'Streak', value: '${hunter.streak}d', icon: Icons.local_fire_department_rounded, color: Colors.orange),
+                DashboardStat(label: 'Daily XP', value: '${hunter.dailyXp}', icon: Icons.bolt_rounded, color: HunterTheme.gold),
+                DashboardStat(label: 'Water', value: '${(waterIntakeMl / 1000).toStringAsFixed(1)}L', icon: Icons.water_drop_rounded, color: Colors.cyan),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 20),
 
         EntranceFadeSlide(
           delay: const Duration(milliseconds: 200),
-          child: PremiumMissionCard(steps: todaySteps),
+          child: SkinQuestSection(
+            data: QuestSectionData(todaySteps: todaySteps),
+            fallback: PremiumMissionCard(steps: todaySteps),
+          ),
         ),
         const SizedBox(height: 16),
 
         EntranceFadeSlide(
           delay: const Duration(milliseconds: 240),
-          child: PremiumWaterCard(
-            waterIntakeMl: waterIntakeMl,
-            waterGoalMl: waterGoalMl,
-            selectedCupSize: selectedCupSize,
-            onAdd: onAddWater,
-            onRemove: onRemoveWater,
-            onSetCupSize: onSetCupSize,
-            onEditGoal: onEditWaterGoal,
+          child: SkinWaterSection(
+            data: WaterSectionData(
+              waterIntakeMl: waterIntakeMl,
+              waterGoalMl: waterGoalMl,
+              selectedCupSize: selectedCupSize,
+              onAdd: onAddWater,
+              onRemove: onRemoveWater,
+              onSetCupSize: onSetCupSize,
+              onEditGoal: onEditWaterGoal,
+            ),
+            fallback: PremiumWaterCard(
+              waterIntakeMl: waterIntakeMl,
+              waterGoalMl: waterGoalMl,
+              selectedCupSize: selectedCupSize,
+              onAdd: onAddWater,
+              onRemove: onRemoveWater,
+              onSetCupSize: onSetCupSize,
+              onEditGoal: onEditWaterGoal,
+            ),
           ),
         ),
       ],

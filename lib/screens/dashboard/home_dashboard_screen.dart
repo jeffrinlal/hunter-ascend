@@ -28,8 +28,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:hunter_ascend/screens/dashboard/dashboard_screen.dart';
 import 'package:hunter_ascend/screens/dashboard/missions_screen.dart';
 import 'package:hunter_ascend/widgets/glass/glass_background.dart';
-import 'package:hunter_ascend/core/skins/skin_id.dart';
 import 'package:hunter_ascend/core/skins/skin_service.dart';
+import 'package:hunter_ascend/core/skins/dashboard/dashboard_section_contracts.dart';
+import 'package:hunter_ascend/core/skins/dashboard/skin_dashboard_sections.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
@@ -1152,7 +1153,13 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeNotifier, ThemeService.instance.activeThemeNotifier, SkinService.instance.activeSkinNotifier, MembershipTheme.tierNotifier]),
+      listenable: Listenable.merge([
+        themeNotifier,
+        ThemeService.instance.activeThemeNotifier,
+        SkinService.instance.activeSkinNotifier,
+        SkinService.instance.skinAppearanceActiveNotifier,
+        MembershipTheme.tierNotifier,
+      ]),
       builder: (context, _) => _themedBuild(context),
     );
   }
@@ -1178,14 +1185,28 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                     final hunter = snap.data;
                     if (hunter == null) return buildDashboardSkeleton();
 
-                    // ── Skin-based layout selection (checked first) ──
-                    final activeSkin = SkinService.instance.activeSkinNotifier.value;
-                    if (activeSkin != SkinId.classic) {
-                      // TODO: return SkinDashboardLayout(skin: activeSkin, hunter: hunter, ...)
-                      // once a non-classic dashboard layout exists.
-                    }
+                    // ── Skin visual identity (Phase 3, revised) ──
+                    //
+                    // Architecture: skins do NOT swap in an entirely separate
+                    // dashboard layout (that would mean maintaining
+                    // ShadowDashboard.dart/CyberDashboard.dart/etc. forever)
+                    // and do NOT rely solely on a decorative overlay either.
+                    // Instead, each of the 5 dashboard sections (Hero, Quest,
+                    // Stats, Water, Quick Actions) is wrapped in a
+                    // `Skin*Section` resolver (see
+                    // lib/core/skins/dashboard/skin_dashboard_sections.dart),
+                    // passing this tier's own existing widget as `fallback`.
+                    // The resolver renders that fallback completely
+                    // unmodified for Classic (or when the skin is suppressed
+                    // in favor of a Premium Theme), and swaps in a genuinely
+                    // different, skin-specific widget for that section
+                    // otherwise — same tier-based layout below either way.
 
-                    // ── Tier-based layout selection (classic skin only) ──
+                    // ── Tier-based layout selection ──
+                    // Each tier (Basic here, plus Pro/Max below) independently
+                    // wraps its own Hero/Quest/Stats/Water/QuickActions call
+                    // sites in the skin-section resolvers, so a skin applies
+                    // identically regardless of membership tier.
                     final membership = MembershipService.instance;
                     if (membership.isMax) {
                       return MaxDashboardLayout(
@@ -1240,6 +1261,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         const SizedBox(height: 18),
                         _buildHunterCard(hunter),
                         const SizedBox(height: 14),
+                        _buildSkinStatsIfActive(hunter),
                         _buildStepsCard(),
                         const SizedBox(height: 14),
                         _buildQuickActions(),
@@ -1432,6 +1454,44 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     return _cachedProfileBytes!;
   }
 
+  // ── Skin-only stats section ───────────────────────────────
+  //
+  // Basic's stat summary (Steps/Water/Streak) has always lived INSIDE the
+  // hunter hero card (the mini-stat row), unlike Pro/Max which already have
+  // a separate, independent stats section. To keep Classic's hero card
+  // exactly as it always was (mini-stat row included, per the "Classic must
+  // preserve the existing UI exactly" requirement), this method is a true
+  // no-op — renders nothing, takes zero layout space — whenever no skin is
+  // active. Only when a non-classic skin IS the active appearance does it
+  // render that skin's own dedicated Stats widget, built from the exact
+  // same values (todaySteps, waterIntakeMl, hunter.streak) Basic's hero
+  // mini-stat row already uses.
+  Widget _buildSkinStatsIfActive(HunterData hunter) {
+    return ValueListenableBuilder<SkinId>(
+      valueListenable: SkinService.instance.activeSkinNotifier,
+      builder: (context, activeSkin, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: SkinService.instance.skinAppearanceActiveNotifier,
+          builder: (context, appearanceActive, __) {
+            final skinActive = appearanceActive && activeSkin != SkinId.classic;
+            if (!skinActive) return const SizedBox.shrink();
+
+            final data = StatsSectionData(stats: [
+              DashboardStat(label: 'Steps', value: '$todaySteps', icon: Icons.directions_walk_rounded, color: _blue),
+              DashboardStat(label: 'Water', value: '${(waterIntakeMl / 1000).toStringAsFixed(1)}L', icon: Icons.water_drop_rounded, color: Colors.cyan),
+              DashboardStat(label: 'Streak', value: '${hunter.streak}', icon: Icons.local_fire_department_rounded, color: Colors.orange),
+            ]);
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: dashboardSkinSectionsFor(activeSkin).stats(data),
+            );
+          },
+        );
+      },
+    );
+  }
+
   // ── Hunter Card (premium hero) ───────────────────────────
   Widget _buildHunterCard(HunterData hunter) {
     final pic = hunter.profilePicture;
@@ -1440,7 +1500,13 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     final liveLevel = hunter.level;
     final xpProgress = (liveXp / 500).clamp(0.0, 1.0);
 
-    return _basicCard(
+    // Phase 3 (revised): the Classic-tier hero card is passed as `fallback`
+    // to SkinHeroSection, which renders it completely unmodified unless a
+    // non-classic skin is the active appearance — in which case that
+    // skin's own hero widget (a genuinely different structure, not a
+    // decorative overlay) is rendered instead. See
+    // lib/core/skins/dashboard/skin_dashboard_sections.dart.
+    final basicHeroCard = _basicCard(
       child: Column(
         children: [
           Row(
@@ -1578,6 +1644,15 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         ],
       ),
     );
+
+    return SkinHeroSection(
+      data: HeroSectionData(
+        hunter: hunter,
+        rankTitle: hunterRank,
+        accentColor: MembershipTheme.current.accent,
+      ),
+      fallback: basicHeroCard,
+    );
   }
 
   // ── Steps card (premium step counter) ────────────────────
@@ -1587,7 +1662,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     final reached = todaySteps >= goal;
     final remaining = (goal - todaySteps).clamp(0, goal);
 
-    return _basicCard(
+    final basicStepsCard = _basicCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1675,6 +1750,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
           ),
         ],
       ),
+    );
+
+    // Phase 3 (revised): Steps is Basic's quest/mission-equivalent section.
+    return SkinQuestSection(
+      data: QuestSectionData(todaySteps: todaySteps, goal: goal),
+      fallback: basicStepsCard,
     );
   }
 
@@ -2019,7 +2100,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     final filledDrops =
         (waterIntakeMl / selectedCupSize).floor().clamp(0, dropCount).toInt();
 
-    return _basicCard(
+    final basicWaterCard = _basicCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2140,12 +2221,35 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         ],
       ),
     );
+
+    return SkinWaterSection(
+      data: WaterSectionData(
+        waterIntakeMl: waterIntakeMl,
+        waterGoalMl: waterGoalMl,
+        selectedCupSize: selectedCupSize,
+        onAdd: _addWater,
+        onRemove: _removeWater,
+        onSetCupSize: _setCupSize,
+        onEditGoal: _showWaterGoalSheet,
+      ),
+      fallback: basicWaterCard,
+    );
   }
 
 
   // ── Quick actions (Nutrition + Map) ──────────────────────
+  //
+  // Quick Actions' `isLocked` values come from async FeatureUnlockService
+  // checks, unlike the other 4 sections whose data is already synchronously
+  // available in this build method. To guarantee Classic renders with the
+  // EXACT original two-independent-FutureBuilder structure (each icon can
+  // resolve/pop in independently — no combined-wait behavior change), the
+  // skin-vs-classic decision here is made synchronously FIRST (via the same
+  // two notifiers every other section resolver already reacts to), and only
+  // the skin branch performs the additional Future.wait needed to build a
+  // single QuickActionsSectionData for that skin's widget.
   Widget _buildQuickActions() {
-    return Row(
+    final basicQuickActionsRow = Row(
       children: [
         Expanded(
           child: FutureBuilder<bool>(
@@ -2187,6 +2291,51 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
           ),
         ),
       ],
+    );
+
+    return ValueListenableBuilder<SkinId>(
+      valueListenable: SkinService.instance.activeSkinNotifier,
+      builder: (context, activeSkin, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: SkinService.instance.skinAppearanceActiveNotifier,
+          builder: (context, appearanceActive, __) {
+            final skinActive = appearanceActive && activeSkin != SkinId.classic;
+            if (!skinActive) return basicQuickActionsRow;
+
+            // Skin branch only: resolve both unlock checks together, then
+            // hand the skin's own widget a single combined data contract.
+            return FutureBuilder<List<bool>>(
+              future: Future.wait([
+                FeatureUnlockService.instance.isNutritionUnlocked(),
+                FeatureUnlockService.instance.isMapUnlocked(),
+              ]),
+              builder: (context, snap) {
+                final nutritionUnlocked = snap.data != null && snap.data![0];
+                final mapUnlocked = snap.data != null && snap.data![1];
+                final data = QuickActionsSectionData(
+                  nutrition: QuickActionItem(
+                    icon: Icons.restaurant_menu,
+                    label: 'Nutrition',
+                    isLocked: !nutritionUnlocked,
+                    onTap: nutritionUnlocked
+                        ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NutritionScreen()))
+                        : () => _showUnlockDialog('Nutrition'),
+                  ),
+                  map: QuickActionItem(
+                    icon: Icons.map,
+                    label: 'Map',
+                    isLocked: !mapUnlocked,
+                    onTap: mapUnlocked
+                        ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MapScreen()))
+                        : () => _showUnlockDialog('Map'),
+                  ),
+                );
+                return dashboardSkinSectionsFor(activeSkin).quickActions(data);
+              },
+            );
+          },
+        );
+      },
     );
   }
 

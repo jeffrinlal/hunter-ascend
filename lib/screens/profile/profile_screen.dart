@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
+import 'package:hunter_ascend/core/skins/skin_service.dart';
+import 'package:hunter_ascend/core/skins/skin_aware_surface.dart';
 import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hunter_ascend/screens/settings/settings_screen.dart';
@@ -98,6 +100,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         themeNotifier,
         ThemeService.instance.activeThemeNotifier,
         MembershipService.instance.tierNotifier,
+        SkinService.instance.activeSkinNotifier,
+        SkinService.instance.skinAppearanceActiveNotifier,
       ]),
       builder: (context, _) => _themedBuild(context),
     );
@@ -676,27 +680,32 @@ class _ProfileScreenState extends State<ProfileScreen>
                             const SizedBox(height: 22),
 
                             // Level / Missions / Duels / Streak — premium stats bar.
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
-                              decoration: BoxDecoration(
-                                color: HunterTheme.cardColor,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(color: HunterTheme.border),
-                                boxShadow: [
-                                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  Expanded(child: _statPill('$level', 'LEVEL', Icons.military_tech_rounded, MembershipTheme.current.accent)),
-                                  _vDivider(),
-                                  Expanded(child: _statPill('$questsDone', 'MISSIONS', Icons.checklist_rounded, HunterTheme.purple)),
-                                  _vDivider(),
-                                  Expanded(child: _statPill('$duelWins', 'DUELS', Icons.sports_kabaddi_rounded, HunterTheme.gold)),
-                                  _vDivider(),
-                                  Expanded(child: _statPill('$streak', 'STREAK', Icons.local_fire_department_rounded, Colors.orange)),
-                                ],
+                            // Phase 3: wrapped in SkinAwareSurface (no-op for
+                            // Classic/Premium-Theme users — see that widget's
+                            // doc comment).
+                            SkinAwareSurface(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
+                                decoration: BoxDecoration(
+                                  color: HunterTheme.cardColor,
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(color: HunterTheme.border),
+                                  boxShadow: [
+                                    BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    Expanded(child: _statPill('$level', 'LEVEL', Icons.military_tech_rounded, MembershipTheme.current.accent)),
+                                    _vDivider(),
+                                    Expanded(child: _statPill('$questsDone', 'MISSIONS', Icons.checklist_rounded, HunterTheme.purple)),
+                                    _vDivider(),
+                                    Expanded(child: _statPill('$duelWins', 'DUELS', Icons.sports_kabaddi_rounded, HunterTheme.gold)),
+                                    _vDivider(),
+                                    Expanded(child: _statPill('$streak', 'STREAK', Icons.local_fire_department_rounded, Colors.orange)),
+                                  ],
+                                ),
                               ),
                             ),
                             const SizedBox(height: 8),

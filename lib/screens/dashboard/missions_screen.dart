@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/membership_theme.dart';
+import 'package:hunter_ascend/core/skins/skin_service.dart';
+import 'package:hunter_ascend/core/skins/skin_aware_surface.dart';
 import 'package:hunter_ascend/services/ads_service.dart';
 import 'package:hunter_ascend/core/utils/hunter_calculations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -873,6 +875,8 @@ class _MissionsScreenState extends State<MissionsScreen> {
         themeNotifier,
         ThemeService.instance.activeThemeNotifier,
         MembershipTheme.tierNotifier,
+        SkinService.instance.activeSkinNotifier,
+        SkinService.instance.skinAppearanceActiveNotifier,
       ]),
       builder: (context, _) => _themedBuild(context),
     );
@@ -1471,27 +1475,33 @@ class _MissionHeroState extends State<_MissionHero> with SingleTickerProviderSta
       ],
     );
 
-    return AnimatedBuilder(
-      animation: _glow,
-      child: content,
-      builder: (context, child) {
-        final g = _glow.value;
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [accent.withOpacity(0.22), accent.withOpacity(0.06), HunterTheme.cardColor],
+    // Phase 3: wrapped in SkinAwareSurface, which is a no-op for
+    // Classic/Premium-Theme users (see that widget's doc comment). This
+    // wraps the OUTER animated card without touching the existing `_glow`
+    // AnimationController or its own border/gradient logic at all.
+    return SkinAwareSurface(
+      child: AnimatedBuilder(
+        animation: _glow,
+        child: content,
+        builder: (context, child) {
+          final g = _glow.value;
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(26),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [accent.withOpacity(0.22), accent.withOpacity(0.06), HunterTheme.cardColor],
+              ),
+              border: Border.all(color: accent.withOpacity(0.32 + g * 0.22), width: 1.4),
+              boxShadow: [BoxShadow(color: accent.withOpacity(0.10 + g * 0.14), blurRadius: 24, spreadRadius: 1)],
             ),
-            border: Border.all(color: accent.withOpacity(0.32 + g * 0.22), width: 1.4),
-            boxShadow: [BoxShadow(color: accent.withOpacity(0.10 + g * 0.14), blurRadius: 24, spreadRadius: 1)],
-          ),
-          child: child,
-        );
-      },
+            child: child,
+          );
+        },
+      ),
     );
   }
 }

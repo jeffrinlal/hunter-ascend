@@ -12,16 +12,25 @@ import 'package:hunter_ascend/services/shop_service.dart';
 import 'package:hunter_ascend/services/plan_shop_service.dart';
 import 'package:hunter_ascend/services/rewarded_ad_manager.dart';
 import 'package:hunter_ascend/screens/profile/plan_viewer_screen.dart';
+import 'package:hunter_ascend/core/skins/skin_id.dart';
+import 'package:hunter_ascend/core/skins/skin_data.dart';
+import 'package:hunter_ascend/core/skins/skin_service.dart';
 
-/// Coin Shop — Phase 1 Foundation + Fitness Plans Integration.
+/// Coin Shop — Phase 1 Foundation + Fitness Plans + Skins Integration.
 ///
 /// Unified shop containing:
 /// - Cosmetics (avatar frames, titles, effects) purchased with coins
 /// - Fitness Plans (PDF plans) unlocked with rewarded ads
+/// - Skins (temporary UI unlocks) purchased with coins OR a rewarded ad
 ///
-/// The shop displays both types of content in a tabbed interface.
+/// The shop displays all content types in a tabbed interface.
 /// Minimum cosmetic price: 400 coins.
-/// Basic/Pro/Max all use the SAME shop prices and coin economy.
+/// Basic/Pro/Max all use the SAME shop prices and coin economy — including
+/// skins, which are not membership-gated (Phase 2 scope).
+///
+/// Phase 2 note: this screen only wires Shop -> Preview -> Unlock -> Equip
+/// for skins. No actual skin visual transformation is rendered anywhere —
+/// that remains a later phase (`SkinDashboardLayout` etc. are still TODO).
 class CoinShopScreen extends StatefulWidget {
   const CoinShopScreen({super.key});
 
@@ -55,10 +64,21 @@ class _CoinShopScreenState extends State<CoinShopScreen>
   int _adsWatchedInSequence = 0; // 0, 1, or 2 for the 2-ad flow
   bool _isLoadingSecondAd = false;
 
+  // Skins ad manager (independent instance — mirrors _adManager/_coinAdManager,
+  // does NOT reuse either so a skin ad in progress never interferes with a
+  // plan ad or a coin-earning ad in progress).
+  late final RewardedAdManager _skinAdManager;
+  SkinId? _unlockingSkinId;
+
+  // Skin unlock expiries, batch-loaded once per shop-data load (see
+  // SkinService.getAllUnlockExpiries) so the Skins grid never issues one
+  // Firestore read per card.
+  Map<SkinId, DateTime> _skinExpiries = {};
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this); // 3 cosmetics + 1 fitness
+    _tabController = TabController(length: 5, vsync: this); // 3 cosmetics + 1 fitness + 1 skins
     _loadShopData();
 
     _adManager = RewardedAdManager(
@@ -81,12 +101,20 @@ class _CoinShopScreenState extends State<CoinShopScreen>
       },
     );
     _coinAdManager.loadAd();
+
+    _skinAdManager = RewardedAdManager(
+      onAdStatusChanged: () {
+        if (mounted) setState(() {});
+      },
+    );
+    _skinAdManager.loadAd();
   }
 
   @override
   void dispose() {
     _adManager.dispose();
     _coinAdManager.dispose();
+    _skinAdManager.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -106,6 +134,10 @@ class _CoinShopScreenState extends State<CoinShopScreen>
     final hunter = HunterRepository.instance.getCached();
     final level = hunter?.level ?? 1;
 
+    // One batched read for every skin's expiry, instead of one read per
+    // skin card (see SkinService.getAllUnlockExpiries doc comment).
+    final skinExpiries = await SkinService.instance.getAllUnlockExpiries();
+
     if (mounted) {
       setState(() {
         _coins = coins;
@@ -114,9 +146,215 @@ class _CoinShopScreenState extends State<CoinShopScreen>
         _equippedHunterTitle = equippedTitle;
         _equippedProfileEffect = equippedEffect;
         _hunterLevel = level;
+        _skinExpiries = skinExpiries;
         _loading = false;
       });
     }
+  }
+
+  // ── Skins ──────────────────────────────────────────────────────────────
+
+  /// Whether [skin] currently has unexpired access, based on the batched
+  /// [_skinExpiries] map loaded in [_loadShopData] — no per-card Firestore
+  /// read. [SkinId.classic] is always considered accessible.
+  bool _skinHasAccess(SkinId skin) {
+    if (skin == SkinId.classic) return true;
+    final expiry = _skinExpiries[skin];
+    return expiry != null && expiry.isAfter(DateTime.now());
+  }
+
+  /// Whether [skin] was unlocked before but has since expired (distinct
+  /// from "never unlocked") — drives the "Expired / Unlock Again" card
+  /// state.
+  bool _skinIsExpired(SkinId skin) {
+    if (skin == SkinId.classic) return false;
+    final expiry = _skinExpiries[skin];
+    return expiry != null && !expiry.isAfter(DateTime.now());
+  }
+
+  Future<void> _showSkinPurchaseConfirm(SkinData skin) async {
+    final theme = MembershipTheme.current;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: HunterTheme.cardColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: HunterTheme.border),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.auto_awesome_rounded, color: theme.accent, size: 40),
+              const SizedBox(height: 16),
+              Text(
+                'UNLOCK ${skin.name.toUpperCase()}',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: HunterTheme.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Unlock ${skin.name} for ${skin.coinUnlockDuration.inDays} days using ${skin.coinPrice} coins?',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: HunterTheme.textPrimary,
+                        side: BorderSide(color: HunterTheme.border),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('CANCEL', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.accent,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text('CONFIRM',
+                          style: TextStyle(color: HunterTheme.textPrimary, fontWeight: FontWeight.w800, fontSize: 12)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    await _purchaseSkin(skin);
+  }
+
+  Future<void> _purchaseSkin(SkinData skin) async {
+    if (_coins < skin.coinPrice) {
+      _showInsufficientCoinsDialog(skin.coinPrice);
+      return;
+    }
+
+    final result = await SkinService.instance.purchaseSkinWithCoins(skin.id);
+
+    if (!mounted) return;
+
+    if (result.success) {
+      await _loadShopData();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ ${skin.name} unlocked for ${skin.coinUnlockDuration.inDays} days!'),
+          backgroundColor: HunterTheme.success,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ ${result.message ?? 'Purchase failed. Please try again.'}'),
+          backgroundColor: HunterTheme.danger,
+        ),
+      );
+    }
+  }
+
+  void _showAdForSkin(SkinData skin) {
+    if (_unlockingSkinId != null) return;
+
+    _skinAdManager.showAd(
+      onRewardEarned: () => _claimSkinAdUnlock(skin),
+      onAdDismissed: () {
+        if (mounted) setState(() {});
+      },
+      onAdFailed: () {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('❌ Could not show rewarded ad. Please try again.'),
+              backgroundColor: HunterTheme.danger,
+            ),
+          );
+        }
+      },
+    );
+    setState(() {});
+  }
+
+  Future<void> _claimSkinAdUnlock(SkinData skin) async {
+    if (!mounted) return;
+    setState(() => _unlockingSkinId = skin.id);
+
+    // Only reached from a genuine onRewardEarned callback above — no grant
+    // path exists for a failed/dismissed/incomplete ad.
+    final result = await SkinService.instance.grantAdUnlock(skin.id);
+
+    if (!mounted) return;
+    setState(() => _unlockingSkinId = null);
+
+    if (result.success) {
+      await _loadShopData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ ${skin.name} unlocked for ${skin.adUnlockDuration.inDays} days!'),
+          backgroundColor: HunterTheme.success,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ ${result.message ?? 'Failed to unlock skin.'}'),
+          backgroundColor: HunterTheme.danger,
+        ),
+      );
+    }
+  }
+
+  Future<void> _equipSkin(SkinData skin) async {
+    final success = await SkinService.instance.activateSkin(skin.id);
+    if (!mounted) return;
+
+    if (success) {
+      setState(() {}); // activeSkinNotifier already drives the equipped chip
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ ${skin.name} equipped!'),
+          backgroundColor: HunterTheme.success,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('❌ This skin is no longer unlocked. Unlock it again first.'),
+          backgroundColor: HunterTheme.danger,
+        ),
+      );
+      await _loadShopData(); // refresh — it likely just expired
+    }
+  }
+
+  /// Switches the active skin back to Classic. Per spec: does NOT touch any
+  /// other skin's ownership/expiry — [SkinService.activateSkin] for
+  /// [SkinId.classic] only changes which skin is selected/active.
+  Future<void> _useClassicSkin() async {
+    await SkinService.instance.activateSkin(SkinId.classic);
+    if (mounted) setState(() {});
   }
 
   // ── Fitness Plan Rewarded Ad ──────────────────────────────────────────
@@ -958,6 +1196,14 @@ class _CoinShopScreenState extends State<CoinShopScreen>
               3,
             ),
           ),
+          Container(width: 1, height: 40, color: HunterTheme.border),
+          Expanded(
+            child: _buildCategoryTab(
+              'Skins',
+              '🎭',
+              4,
+            ),
+          ),
         ],
       ),
     );
@@ -1016,6 +1262,8 @@ class _CoinShopScreenState extends State<CoinShopScreen>
             ShopItemCategory.profileEffect, _hunterLevel)),
         // Fitness Plans
         _buildFitnessPlansTab(),
+        // Skins
+        _buildSkinsTab(),
       ],
     );
   }
@@ -1224,6 +1472,178 @@ class _CoinShopScreenState extends State<CoinShopScreen>
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ── Skins tab ──────────────────────────────────────────────────────────
+
+  Widget _buildSkinsTab() {
+    final skins = SkinService.instance.getAvailableSkins();
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.72,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemCount: skins.length,
+      itemBuilder: (context, index) => _buildSkinCard(skins[index]),
+    );
+  }
+
+  Widget _buildSkinCard(SkinData skin) {
+    final theme = MembershipTheme.current;
+    final activeSkin = SkinService.instance.getCurrentActiveSkin();
+    final isEquipped = activeSkin == skin.id;
+    final hasAccess = _skinHasAccess(skin.id);
+    final isExpired = _skinIsExpired(skin.id);
+    final canAfford = _coins >= skin.coinPrice;
+    final isUnlocking = _unlockingSkinId == skin.id;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: HunterTheme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isEquipped
+              ? HunterTheme.gold
+              : hasAccess
+                  ? HunterTheme.success.withOpacity(0.4)
+                  : HunterTheme.border,
+          width: isEquipped ? 2 : 1,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            children: [
+              // Preview placeholder — real skin art comes in a later phase.
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: theme.accent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: theme.accent.withOpacity(0.3)),
+                ),
+                child: Icon(Icons.auto_awesome_rounded, color: theme.accent, size: 28),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                skin.name,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: HunterTheme.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                skin.description,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: HunterTheme.textTertiary, fontSize: 10),
+              ),
+              if (!skin.isDefault) ...[
+                const SizedBox(height: 4),
+                Text(
+                  hasAccess
+                      ? '${skin.coinUnlockDuration.inDays}-day access'
+                      : '${skin.coinUnlockDuration.inDays}d coins · ${skin.adUnlockDuration.inDays}d ad',
+                  style: TextStyle(color: HunterTheme.textFaint, fontSize: 9),
+                ),
+              ],
+            ],
+          ),
+          Column(
+            children: [
+              if (isEquipped)
+                _skinActionPill('✓ EQUIPPED', HunterTheme.gold, HunterTheme.gold.withOpacity(0.15), null)
+              else if (skin.isDefault)
+                _skinActionPill('EQUIP', theme.accent, theme.accent.withOpacity(0.15), _useClassicSkin)
+              else if (isUnlocking)
+                _skinActionPill('UNLOCKING...', HunterTheme.textTertiary, HunterTheme.border.withOpacity(0.5), null)
+              else if (hasAccess)
+                _skinActionPill('EQUIP', HunterTheme.success, HunterTheme.success.withOpacity(0.12), () => _equipSkin(skin))
+              else ...[
+                // Locked / expired — offer BOTH unlock paths, exactly per
+                // spec ("Buy again OR Watch Ad again").
+                if (isExpired) ...[
+                  Text('Expired',
+                      style: TextStyle(color: HunterTheme.danger, fontSize: 10, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 6),
+                ],
+                Row(
+                  children: [
+                    Expanded(
+                      child: _skinActionPill(
+                        '🪙 ${skin.coinPrice}',
+                        canAfford ? theme.accent : HunterTheme.textTertiary,
+                        canAfford ? theme.accent.withOpacity(0.15) : HunterTheme.border.withOpacity(0.5),
+                        () => _showSkinPurchaseConfirm(skin),
+                        dense: true,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: _skinActionPill(
+                        '📺 Ad',
+                        HunterTheme.gold,
+                        HunterTheme.gold.withOpacity(0.12),
+                        () => _showAdForSkin(skin),
+                        dense: true,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Small full-width action pill shared by every skin-card state
+  /// (equipped/equip/locked/ad) — mirrors the existing item/plan card pill
+  /// styling in this screen. `onTap == null` renders it inert (e.g. the
+  /// already-equipped state).
+  Widget _skinActionPill(
+    String label,
+    Color fg,
+    Color bg,
+    VoidCallback? onTap, {
+    bool dense = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(vertical: dense ? 8 : 10),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: fg.withOpacity(0.6)),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: fg,
+              fontSize: dense ? 10 : 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+            ),
+          ),
         ),
       ),
     );

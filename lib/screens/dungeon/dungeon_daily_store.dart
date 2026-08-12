@@ -60,12 +60,16 @@ class DungeonDailyStore {
 
   static Future<DungeonDailyState> load(String gateLetter) async {
     final all = await _readAll();
+    if (all['_corrupted'] == true) {
+      return const DungeonDailyState(isCorrupted: true);
+    }
     return _stateFrom(all[gateLetter]);
   }
 
   /// Every gate's daily state in ONE local read (used by the lobby).
   static Future<Map<String, DungeonDailyState>> loadAll() async {
     final all = await _readAll();
+    if (all['_corrupted'] == true) return {};
     return {
       for (final entry in all.entries) entry.key: _stateFrom(entry.value),
     };
@@ -216,8 +220,8 @@ class DungeonDailyStore {
       final decoded = jsonDecode(raw);
       return decoded is Map<String, dynamic> ? decoded : {};
     } catch (e) {
-      debugPrint('[DungeonDaily] read error: $e');
-      return {};
+      debugPrint('[DungeonDaily] read error (corruption): $e');
+      return {'_corrupted': true};
     }
   }
 
@@ -237,6 +241,10 @@ class DungeonDailyStore {
   ) async {
     try {
       final all = await _readAll();
+      if (all['_corrupted'] == true) {
+        debugPrint('[DungeonDaily] Write aborted to protect corrupted local data.');
+        return;
+      }
       final existing = all[gateLetter];
       final entry =
           existing is Map<String, dynamic> ? existing : <String, dynamic>{};
@@ -262,7 +270,10 @@ class DungeonDailyState {
     this.completedAt,
     this.rewardClaimed = false,
     this.clearRewardJson,
+    this.isCorrupted = false,
   });
+
+  final bool isCorrupted;
 
   final String? lastPlayedDate;
   final String? completedDate;

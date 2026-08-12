@@ -193,6 +193,11 @@ class DungeonSessionManager extends ChangeNotifier {
     await DungeonDailyStore.markPlayed(letter);
 
     final state = await DungeonDailyStore.load(letter);
+    
+    if (state.isCorrupted) {
+      debugPrint('Dungeon data is corrupted. Generating temporary in-memory fallback.');
+    }
+    
     final template = DungeonTemplates.forGate(letter) ?? DungeonTemplates.eRank;
     var monsters = state.objectivesForToday();
     var boss = state.bossForToday();
@@ -202,7 +207,9 @@ class DungeonSessionManager extends ChangeNotifier {
       // Defensive only (e.g. cleared app data) — the local fallback costs
       // NO AI request and is saved so today reuses it like any dungeon.
       final fallback = DungeonGeneration.fallbackDungeon(template);
-      await DungeonDailyStore.saveObjectives(letter, fallback);
+      if (!state.isCorrupted) {
+        await DungeonDailyStore.saveObjectives(letter, fallback);
+      }
       monsters = fallback.monsters;
       boss ??= fallback.boss;
       story = fallback.story;

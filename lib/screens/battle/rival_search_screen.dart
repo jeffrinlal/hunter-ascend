@@ -162,7 +162,15 @@ class _RivalSearchScreenState extends State<RivalSearchScreen> {
           ],
         ),
       ),
-      body: Padding(
+      // Scrollable so the content cannot overflow when the keyboard opens.
+      // This screen always has focus in the search field, and
+      // MembershipScaffold uses resizeToAvoidBottomInset: true, so the body
+      // shrinks by the keyboard height. The Column below is fixed-height with
+      // nothing to absorb that shrink, and the tappable result card is its
+      // LAST child — so it was being clipped off-screen and could not be
+      // tapped to select a rival. Matches CreateDuelScreen, which already
+      // wraps the same hunter-search layout in a scroll view.
+      body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -6,11 +6,14 @@ import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/screens/battle/widgets/battle_mode_card.dart';
+import 'package:hunter_ascend/screens/battle/rival_search_screen.dart';
 import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
 import 'package:hunter_ascend/screens/duel/duel_request_screen.dart';
 import 'package:hunter_ascend/screens/duel/duel_screen.dart';
 import 'package:hunter_ascend/screens/dungeon/dungeon_lobby_screen.dart';
+import 'package:hunter_ascend/screens/profile/public_hunter_profile_screen.dart';
 import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// The duel state the Fitness Duels card currently represents.
 ///
@@ -223,6 +226,8 @@ class _BattleHubScreenState extends State<BattleHubScreen> {
               tag: 'PvE',
               onEnter: () => _openDungeons(context),
             ),
+            const SizedBox(height: 14),
+            _buildRivalsCard(),
 
             // ── Upcoming modes (Phase 1: presentation only) ─────────────
             const SizedBox(height: 32),
@@ -321,6 +326,48 @@ class _BattleHubScreenState extends State<BattleHubScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const DungeonLobbyScreen()),
+    );
+  }
+
+  // ── Rivals ─────────────────────────────────────────────────────────────
+
+  /// Reads the locally persisted rival UID and routes accordingly.
+  ///
+  /// * No rival stored → push [RivalSearchScreen].
+  /// * Rival stored    → push [PublicHunterProfileScreen] in rival mode.
+  ///
+  /// Cost: one synchronous SharedPreferences read. No Firestore operations
+  /// happen here — the profile screen opens the existing live snapshot only
+  /// when it is actually displayed.
+  Future<void> _openRivals() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rivalUid = prefs.getString('rival_uid');
+    if (!mounted) return;
+    if (rivalUid == null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const RivalSearchScreen()),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PublicHunterProfileScreen(
+            hunterUid: rivalUid,
+            isRivalMode: true,
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildRivalsCard() {
+    return BattleModeCard(
+      emoji: '👤',
+      title: 'RIVALS',
+      description: 'Track a rival Hunter, compare stats and issue a direct challenge.',
+      tag: 'Social',
+      onEnter: _openRivals,
     );
   }
 

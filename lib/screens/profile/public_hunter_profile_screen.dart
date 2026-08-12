@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:hunter_ascend/core/theme/hunter_theme.dart';
@@ -13,14 +12,17 @@ import 'package:hunter_ascend/widgets/equipped_badge_chip.dart';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
 import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 import 'package:hunter_ascend/widgets/premium_avatar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Read-only profile of another hunter (viewed from rankings/duels).
 class PublicHunterProfileScreen extends StatelessWidget {
   final String hunterUid;
+  final bool isRivalMode;
 
   const PublicHunterProfileScreen({
     super.key,
     required this.hunterUid,
+    this.isRivalMode = false,
   });
 
   /// Resolves the effective membership string for a hunter document.
@@ -90,6 +92,63 @@ class PublicHunterProfileScreen extends StatelessWidget {
                   Text('Loading hunter...',
                       style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
                 ],
+              ),
+            );
+          }
+
+          // Guard: document no longer exists (e.g. rival account deleted).
+          if (!snapshot.data!.exists) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.person_off_rounded, color: HunterTheme.textTertiary, size: 56),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Hunter no longer exists',
+                      style: TextStyle(
+                        color: HunterTheme.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'This account has been removed.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13),
+                    ),
+                    if (isRivalMode) ...
+                      [
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: HunterTheme.danger.withOpacity(0.15),
+                            foregroundColor: HunterTheme.danger,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: BorderSide(color: HunterTheme.danger.withOpacity(0.4)),
+                            ),
+                          ),
+                          onPressed: () async {
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.remove('rival_uid');
+                            if (context.mounted) Navigator.pop(context);
+                          },
+                          icon: const Icon(Icons.remove_circle_outline, size: 18),
+                          label: const Text('REMOVE FROM RIVALS'),
+                        ),
+                      ],
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('Go Back', style: TextStyle(color: HunterTheme.textSecondary)),
+                    ),
+                  ],
+                ),
               ),
             );
           }
@@ -181,6 +240,30 @@ class PublicHunterProfileScreen extends StatelessWidget {
                                 ),
                               ],
                             ),
+
+                            // If in Rival Mode, add a "Remove Rival" option
+                            if (isRivalMode)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: InkWell(
+                                  onTap: () async {
+                                    final prefs = await SharedPreferences.getInstance();
+                                    await prefs.remove('rival_uid');
+                                    if (context.mounted) {
+                                      Navigator.pop(context);
+                                    }
+                                  },
+                                  child: Text(
+                                    'Remove as Rival',
+                                    style: TextStyle(
+                                      color: HunterTheme.danger,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
+                              ),
 
                             const SizedBox(height: 8),
 

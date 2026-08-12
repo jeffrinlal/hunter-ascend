@@ -5,11 +5,18 @@ import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:hunter_ascend/screens/profile/public_hunter_profile_screen.dart';
+import 'package:hunter_ascend/services/connectivity_service.dart';
+import 'package:hunter_ascend/services/rivalry_service.dart';
 import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 
-/// Screen to search for a Hunter by exact name and set them as a Rival.
+/// Screen to search for a Hunter by exact name and challenge them to a
+/// time-limited Rivalry.
+///
+/// The search itself (debounce, exact-name query, self-guard, status
+/// indicators) is unchanged. What changed is the outcome: selecting a Hunter
+/// no longer stores a rival locally — it reveals a duration picker and sends a
+/// Rivalry REQUEST that the other Hunter must accept, because the relationship
+/// is shared between two users and therefore has to be persisted remotely.
 class RivalSearchScreen extends StatefulWidget {
   const RivalSearchScreen({super.key});
 
@@ -26,6 +33,16 @@ class _RivalSearchScreenState extends State<RivalSearchScreen> {
   bool _isSelf = false;
   String? _foundHunterUid;
   Map<String, dynamic>? _foundHunterData;
+
+  /// The Hunter the user has tapped to challenge. Selecting reveals the
+  /// duration picker instead of navigating away.
+  String? _selectedHunterUid;
+
+  /// Chosen rivalry duration in days. Mirrors the duel screen's duration
+  /// setting; the allowed values come from [RivalryService.allowedDurations].
+  int _selectedDuration = RivalryService.allowedDurations.first;
+
+  bool _isSending = false;
 
   @override
   void initState() {
@@ -50,6 +67,7 @@ class _RivalSearchScreenState extends State<RivalSearchScreen> {
         _searchError = false;
         _foundHunterUid = null;
         _foundHunterData = null;
+        _selectedHunterUid = null;
       });
       return;
     }
@@ -60,6 +78,7 @@ class _RivalSearchScreenState extends State<RivalSearchScreen> {
       _isSelf = false;
       _foundHunterUid = null;
       _foundHunterData = null;
+      _selectedHunterUid = null;
     });
 
     _searchTimer = Timer(const Duration(milliseconds: 400), () async {
@@ -105,23 +124,45 @@ class _RivalSearchScreenState extends State<RivalSearchScreen> {
     });
   }
 
-  Future<void> _setRivalAndContinue() async {
-    if (_foundHunterUid == null) return;
-    
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('rival_uid', _foundHunterUid!);
-    
+  /// Sends the Rivalry request. All Firestore work — the one-active-rivalry
+  /// pre-checks on both hunters and the create itself — lives in
+  /// [RivalryService]; this method only handles connectivity, re-entry and
+  /// presentation.
+  Future<void> _sendRivalRequest() async {
+    if (_isSending) return;
+    final targetUid = _selectedHunterUid;
+    if (targetUid == null) return;
+
+    if (!await ConnectivityService.isOnline()) {
+      if (!mounted) return;
+      _snack('Internet connection required.');
+      return;
+    }
+
+    setState(() => _isSending = true);
+
+    final result = await RivalryService.instance.sendRequest(
+      targetUid: targetUid,
+      targetHunterName:
+          (_foundHunterData?['hunterName'] as String?) ?? 'Unknown',
+      durationDays: _selectedDuration,
+    );
+
     if (!mounted) return;
-    
-    // Replace the search screen with the newly established Rival profile
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PublicHunterProfileScreen(
-          hunterUid: _foundHunterUid!,
-          isRivalMode: true,
-        ),
-      ),
+    setState(() => _isSending = false);
+
+    if (!result.ok) {
+      _snack(result.message ?? 'Could not send the rivalry request.');
+      return;
+    }
+
+    _snack('Rivalry request sent — $_selectedDuration day challenge.');
+    Navigator.pop(context);
+  }
+
+  void _snack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -177,7 +218,7 @@ class _RivalSearchScreenState extends State<RivalSearchScreen> {
           children: [
             const SizedBox(height: 20),
             Text(
-              'CHOOSE YOUR RIVAL',
+              'CHALLENGE A RIVAL',
               style: TextStyle(
                 color: HunterTheme.textTertiary,
                 fontSize: 11,
@@ -187,7 +228,9 @@ class _RivalSearchScreenState extends State<RivalSearchScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Enter the exact Hunter Name of the person you want to rival. You can only have one Rival at a time.',
+              'Enter the exact Hunter Name of the person you want to rival, '
+              'then choose how long the Rivalry runs. They must accept before '
+              'the timer starts. You can only have one Rival at a time.',
               style: TextStyle(
                 color: HunterTheme.textSecondary,
                 fontSize: 13,
@@ -199,7 +242,7 @@ class _RivalSearchScreenState extends State<RivalSearchScreen> {
               decoration: BoxDecoration(
                 color: HunterTheme.cardColor,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.2)),
+                border: Border.all(color: MembershipTheme.current.accent.withValues(alpha: 0.2)),
               ),
               child: TextField(
                 controller: _searchController,
@@ -213,9 +256,9 @@ class _RivalSearchScreenState extends State<RivalSearchScreen> {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Search Status indicator
             if (_isSearching)
               Row(
@@ -252,81 +295,246 @@ class _RivalSearchScreenState extends State<RivalSearchScreen> {
                   Text('Hunter not found.', style: TextStyle(color: HunterTheme.danger, fontSize: 13)),
                 ],
               ),
-              
+
             const SizedBox(height: 24),
-            
+
             // Result Card
             if (_foundHunterUid != null && _foundHunterData != null)
-              AnimatedOpacity(
-                opacity: 1.0,
-                duration: const Duration(milliseconds: 300),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: HunterTheme.background,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.4), width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: MembershipTheme.current.accent.withOpacity(0.1),
-                        blurRadius: 20,
-                        spreadRadius: 2,
-                      ),
-                    ],
+              _buildResultCard(),
+
+            // Duration picker + send, revealed once a Hunter is selected.
+            if (_selectedHunterUid != null) ...[
+              const SizedBox(height: 28),
+              _buildDurationPicker(),
+              const SizedBox(height: 24),
+              _buildSendButton(),
+            ],
+
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResultCard() {
+    final accent = MembershipTheme.current.accent;
+    final isSelected = _selectedHunterUid == _foundHunterUid;
+    return AnimatedOpacity(
+      opacity: 1.0,
+      duration: const Duration(milliseconds: 300),
+      child: Container(
+        decoration: BoxDecoration(
+          color: HunterTheme.background,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: accent.withValues(alpha: isSelected ? 0.85 : 0.4),
+            width: isSelected ? 2 : 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: accent.withValues(alpha: isSelected ? 0.2 : 0.1),
+              blurRadius: 20,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => setState(() => _selectedHunterUid = _foundHunterUid),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  // Simple Avatar placeholder, full PremiumAvatar requires more imports
+                  // but this is enough to show the selection.
+                  Container(
+                    width: 50, height: 50,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: HunterTheme.cardColor,
+                      border: Border.all(color: accent.withValues(alpha: 0.3)),
+                    ),
+                    child: const Icon(Icons.person, color: Colors.grey),
                   ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _setRivalAndContinue,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            // Simple Avatar placeholder, full PremiumAvatar requires more imports 
-                            // but this is enough to show the selection.
-                            Container(
-                              width: 50, height: 50,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: HunterTheme.cardColor,
-                                border: Border.all(color: MembershipTheme.current.accent.withOpacity(0.3)),
-                              ),
-                              child: const Icon(Icons.person, color: Colors.grey),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _foundHunterData!['hunterName'] ?? 'Unknown',
-                                    style: TextStyle(
-                                      color: HunterTheme.textPrimary,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Level ${_foundHunterData!['level'] ?? 1}',
-                                    style: TextStyle(
-                                      color: MembershipTheme.current.accent,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(Icons.arrow_forward_ios, color: MembershipTheme.current.accent, size: 16),
-                          ],
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          (_foundHunterData!['hunterName'] as String?) ?? 'Unknown',
+                          style: TextStyle(
+                            color: HunterTheme.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Level ${_foundHunterData!['level'] ?? 1}',
+                          style: TextStyle(
+                            color: accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  Icon(
+                    isSelected
+                        ? Icons.check_circle_rounded
+                        : Icons.arrow_forward_ios,
+                    color: accent,
+                    size: isSelected ? 22 : 16,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDurationPicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'RIVALRY DURATION',
+          style: TextStyle(
+            color: HunterTheme.textTertiary,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            for (final days in RivalryService.allowedDurations) ...[
+              Expanded(child: _durationChip(days)),
+              if (days != RivalryService.allowedDurations.last)
+                const SizedBox(width: 10),
+            ],
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'The timer starts only when your Rival accepts. Whoever gains the '
+          'most XP during the Rivalry wins.',
+          style: TextStyle(
+            color: HunterTheme.textTertiary,
+            fontSize: 12,
+            height: 1.4,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _durationChip(int days) {
+    final accent = MembershipTheme.current.accent;
+    final selected = _selectedDuration == days;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedDuration = days),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: selected
+              ? accent.withValues(alpha: 0.14)
+              : HunterTheme.cardColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? accent : HunterTheme.border,
+            width: selected ? 1.6 : 1.2,
+          ),
+        ),
+        child: Column(
+          children: [
+            Text(
+              '$days',
+              style: TextStyle(
+                color: selected ? accent : HunterTheme.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'DAYS',
+              style: TextStyle(
+                color: selected ? accent : HunterTheme.textTertiary,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSendButton() {
+    final tokens = MembershipTheme.current;
+    return GestureDetector(
+      onTap: _isSending ? null : _sendRivalRequest,
+      child: Opacity(
+        opacity: _isSending ? 0.6 : 1,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: tokens.gradient,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: tokens.accent
+                    .withValues(alpha: 0.4 * HunterTheme.glowStrength),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_isSending)
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: MembershipTheme.isMax ? Colors.white : Colors.black,
+                  ),
+                )
+              else
+                Icon(
+                  Icons.send_rounded,
+                  color: MembershipTheme.isMax ? Colors.white : Colors.black,
+                  size: 18,
+                ),
+              const SizedBox(width: 10),
+              Text(
+                _isSending ? 'SENDING...' : 'SEND RIVAL REQUEST',
+                style: TextStyle(
+                  color: MembershipTheme.isMax ? Colors.white : Colors.black,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.4,
+                  fontSize: 14,
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );

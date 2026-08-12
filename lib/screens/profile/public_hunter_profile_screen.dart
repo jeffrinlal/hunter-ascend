@@ -12,17 +12,20 @@ import 'package:hunter_ascend/widgets/equipped_badge_chip.dart';
 import 'package:hunter_ascend/widgets/membership_badge.dart';
 import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 import 'package:hunter_ascend/widgets/premium_avatar.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 /// Read-only profile of another hunter (viewed from rankings/duels).
+///
+/// The former `isRivalMode` flag has been removed. It existed only to render
+/// "remove rival" actions that cleared a locally stored `rival_uid`, which was
+/// never a valid source of truth for a relationship shared between two users.
+/// Rivalries now live in `rivalries/{pairId}` and are presented by their own
+/// dedicated screens, so this is once again a pure public-profile viewer.
 class PublicHunterProfileScreen extends StatelessWidget {
   final String hunterUid;
-  final bool isRivalMode;
 
   const PublicHunterProfileScreen({
     super.key,
     required this.hunterUid,
-    this.isRivalMode = false,
   });
 
   /// Resolves the effective membership string for a hunter document.
@@ -120,28 +123,6 @@ class PublicHunterProfileScreen extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: TextStyle(color: HunterTheme.textSecondary, fontSize: 13),
                     ),
-                    if (isRivalMode) ...
-                      [
-                        const SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: HunterTheme.danger.withOpacity(0.15),
-                            foregroundColor: HunterTheme.danger,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              side: BorderSide(color: HunterTheme.danger.withOpacity(0.4)),
-                            ),
-                          ),
-                          onPressed: () async {
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.remove('rival_uid');
-                            if (context.mounted) Navigator.pop(context);
-                          },
-                          icon: const Icon(Icons.remove_circle_outline, size: 18),
-                          label: const Text('REMOVE FROM RIVALS'),
-                        ),
-                      ],
                     const SizedBox(height: 16),
                     TextButton(
                       onPressed: () => Navigator.pop(context),
@@ -240,30 +221,6 @@ class PublicHunterProfileScreen extends StatelessWidget {
                                 ),
                               ],
                             ),
-
-                            // If in Rival Mode, add a "Remove Rival" option
-                            if (isRivalMode)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 12),
-                                child: InkWell(
-                                  onTap: () async {
-                                    final prefs = await SharedPreferences.getInstance();
-                                    await prefs.remove('rival_uid');
-                                    if (context.mounted) {
-                                      Navigator.pop(context);
-                                    }
-                                  },
-                                  child: Text(
-                                    'Remove as Rival',
-                                    style: TextStyle(
-                                      color: HunterTheme.danger,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      decoration: TextDecoration.underline,
-                                    ),
-                                  ),
-                                ),
-                              ),
 
                             const SizedBox(height: 8),
 

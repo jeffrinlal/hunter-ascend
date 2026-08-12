@@ -6,14 +6,16 @@ import 'package:hunter_ascend/core/theme/hunter_theme.dart';
 import 'package:hunter_ascend/core/theme/membership_theme.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/screens/battle/widgets/battle_mode_card.dart';
+import 'package:hunter_ascend/screens/battle/rival_request_screen.dart';
 import 'package:hunter_ascend/screens/battle/rival_search_screen.dart';
+import 'package:hunter_ascend/screens/battle/rivalry_comparison_screen.dart';
+import 'package:hunter_ascend/screens/battle/rivalry_result_screen.dart';
 import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
 import 'package:hunter_ascend/screens/duel/duel_request_screen.dart';
 import 'package:hunter_ascend/screens/duel/duel_screen.dart';
 import 'package:hunter_ascend/screens/dungeon/dungeon_lobby_screen.dart';
-import 'package:hunter_ascend/screens/profile/public_hunter_profile_screen.dart';
+import 'package:hunter_ascend/services/rivalry_service.dart';
 import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 /// The duel state the Fitness Duels card currently represents.
 ///
@@ -56,6 +58,7 @@ class BattleHubScreen extends StatefulWidget {
   const BattleHubScreen({
     super.key,
     this.duelRequestStream,
+    this.rivalRequestStream,
     this.activeIndex,
     this.tabIndex,
   });
@@ -67,6 +70,13 @@ class BattleHubScreen extends StatefulWidget {
   /// listener and no additional read** — the badge and this card are driven
   /// by one and the same subscription.
   final Stream<QuerySnapshot>? duelRequestStream;
+
+  /// The EXISTING rival-request snapshot stream already owned by `MainShell`
+  /// for the nav badge (`rivalries where toUid == uid && status == 'pending'
+  /// limit 1`). Shared for the same reason as [duelRequestStream]: the Rivals
+  /// card's incoming-request state costs **no additional Firestore listener
+  /// and no additional read**, and the card can never disagree with the dot.
+  final Stream<QuerySnapshot<Map<String, dynamic>>>? rivalRequestStream;
 
   /// Bottom-nav active tab index + this screen's own index. Used only to know
   /// when the hub becomes visible so the active-duel state can be re-read
@@ -90,10 +100,17 @@ class _BattleHubScreenState extends State<BattleHubScreen> {
   /// Guards against overlapping reads (e.g. rapid tab switching).
   bool _loadingDuelState = false;
 
+  /// The single rivalry that currently concerns this user — pending in either
+  /// direction, active, or completed and not yet finished with. Null when the
+  /// user is free to start a new one.
+  RivalryData? _rivalry;
+
+  bool _loadingRivalryState = false;
+
   @override
   void initState() {
     super.initState();
-    _loadDuelState();
+    _loadHubState();
     widget.activeIndex?.addListener(_onActiveIndexChanged);
   }
 
@@ -109,7 +126,46 @@ class _BattleHubScreenState extends State<BattleHubScreen> {
     final activeIndex = widget.activeIndex;
     final tabIndex = widget.tabIndex;
     if (activeIndex == null || tabIndex == null) return;
-    if (activeIndex.value == tabIndex) _loadDuelState();
+    if (activeIndex.value == tabIndex) _loadHubState();
+  }
+
+  /// Re-reads both mode states in parallel.
+  Future<void> _loadHubState() async {
+    await Future.wait<void>(<Future<void>>[
+      _loadDuelState(),
+      _loadRivalryState(),
+    ]);
+  }
+
+  /// Resolves the user's current rivalry with ONE index-free query:
+  /// `rivalries where unsettledFor array-contains uid limit 1`.
+  ///
+  /// A single bare `array-contains` needs no composite index, and because each
+  /// participant removes their own uid once they are done, the query returns
+  /// exactly the document that still matters to this user and never has to sift
+  /// through old completed rivalries.
+  ///
+  /// Like the duel state, this is a read on entry rather than a live listener:
+  /// a rivalry only changes when this user sends, accepts, declines or settles
+  /// one, and every one of those paths routes back through this screen.
+  Future<void> _loadRivalryState() async {
+    if (_loadingRivalryState) return;
+    _loadingRivalryState = true;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _loadingRivalryState = false;
+      return;
+    }
+    try {
+      final rivalry =
+          await RivalryService.instance.fetchCurrentRivalry(user.uid);
+      if (!mounted) return;
+      setState(() => _rivalry = rivalry);
+    } catch (e) {
+      debugPrint('BattleHub._loadRivalryState: $e');
+    } finally {
+      _loadingRivalryState = false;
+    }
   }
 
   // ── Duel state resolution ──────────────────────────────────────────────
@@ -317,7 +373,7 @@ class _BattleHubScreenState extends State<BattleHubScreen> {
       MaterialPageRoute(builder: (_) => destination),
     );
     if (!mounted) return;
-    await _loadDuelState();
+    await _loadHubState();
   }
 
   /// ENTER on the Dungeons card → the Dungeon Lobby (Gate Selection
@@ -330,45 +386,118 @@ class _BattleHubScreenState extends State<BattleHubScreen> {
   }
 
   // ── Rivals ─────────────────────────────────────────────────────────────
+  //
+  // A Rivalry is a time-limited competitive relationship between TWO hunters,
+  // so it is persisted remotely in `rivalries/{pairId}` and never locally. The
+  // previous SharedPreferences `rival_uid` approach is gone entirely: a locally
+  // chosen rival cannot be agreed on by both users, cannot produce a single
+  // shared result, and cannot survive a reinstall or a device change.
 
-  /// Reads the locally persisted rival UID and routes accordingly.
+  /// The Rivals card, reflecting this user's current rivalry state.
   ///
-  /// * No rival stored → push [RivalSearchScreen].
-  /// * Rival stored    → push [PublicHunterProfileScreen] in rival mode.
-  ///
-  /// Cost: one synchronous SharedPreferences read. No Firestore operations
-  /// happen here — the profile screen opens the existing live snapshot only
-  /// when it is actually displayed.
-  Future<void> _openRivals() async {
-    final prefs = await SharedPreferences.getInstance();
-    final rivalUid = prefs.getString('rival_uid');
-    if (!mounted) return;
-    if (rivalUid == null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const RivalSearchScreen()),
-      );
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => PublicHunterProfileScreen(
-            hunterUid: rivalUid,
-            isRivalMode: true,
-          ),
-        ),
-      );
+  /// Wrapped in a `StreamBuilder` on the SHARED rival-request stream so an
+  /// incoming request appears live — the same subscription that drives the nav
+  /// badge, so the two can never disagree and no extra listener exists. The
+  /// stream document is preferred when present because it is live; everything
+  /// else comes from the state read on entry.
+  Widget _buildRivalsCard() {
+    final stream = widget.rivalRequestStream;
+    if (stream == null) {
+      // Standalone construction (e.g. tests) — no request stream available, so
+      // fall back to the read-driven state only.
+      return _rivalsCardFor(_rivalry);
     }
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: stream,
+      builder: (context, snap) {
+        final incoming = RivalryService.liveIncomingRequest(snap.data);
+        return _rivalsCardFor(incoming ?? _rivalry);
+      },
+    );
   }
 
-  Widget _buildRivalsCard() {
-    return BattleModeCard(
-      emoji: '👤',
-      title: 'RIVALS',
-      description: 'Track a rival Hunter, compare stats and issue a direct challenge.',
-      tag: 'Social',
-      onEnter: _openRivals,
-    );
+  Widget _rivalsCardFor(RivalryData? rivalry) {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final state = RivalryService.cardStateFor(rivalry, uid);
+
+    // `cardStateFor` already returns `none` for a null or non-participant
+    // document, so this branch also promotes `rivalry` to non-null below.
+    if (rivalry == null || state == RivalCardState.none) {
+      return BattleModeCard(
+        emoji: '👤',
+        title: 'RIVALS',
+        description:
+            'Challenge a Hunter to a time-limited Rivalry and out-train them.',
+        tag: 'Social',
+        onEnter: () => _openAndRefresh(const RivalSearchScreen()),
+      );
+    }
+
+    switch (state) {
+      case RivalCardState.incomingRequest:
+        return BattleModeCard(
+          emoji: '🔥',
+          title: 'INCOMING RIVAL REQUEST',
+          description:
+              '${rivalry.hunterNameFor(rivalry.fromUid)} wants to become your '
+              'Rival for ${rivalry.durationDays} days. Accept or decline.',
+          tag: 'Social',
+          onEnter: () => _openAndRefresh(RivalRequestScreen(rivalry: rivalry)),
+        );
+      case RivalCardState.requestSent:
+        return BattleModeCard(
+          emoji: '🔥',
+          title: 'RIVAL REQUEST SENT',
+          description:
+              'Waiting for ${rivalry.hunterNameFor(rivalry.toUid)} to accept '
+              'your ${rivalry.durationDays}-day Rivalry.',
+          tag: 'Social',
+          onEnter: () => _openAndRefresh(RivalRequestScreen(rivalry: rivalry)),
+        );
+      case RivalCardState.active:
+        return BattleModeCard(
+          emoji: '🔥',
+          title: 'ACTIVE RIVALRY',
+          description:
+              'Your Rivalry is running. Compare progress and stay ahead.',
+          tag: 'Social',
+          onEnter: () => _openAndRefresh(
+            RivalryComparisonScreen(rivalryId: rivalry.id),
+          ),
+        );
+      case RivalCardState.resultAvailable:
+        return BattleModeCard(
+          emoji: '🏆',
+          title: 'RIVALRY RESULT',
+          description: 'Your Rivalry has ended. View the result.',
+          tag: 'Social',
+          onEnter: () => _openAndRefresh(
+            RivalryResultScreen(rivalryId: rivalry.id),
+          ),
+        );
+      case RivalCardState.rivalLeft:
+        return BattleModeCard(
+          emoji: '👤',
+          title: 'YOUR RIVAL LEFT',
+          description:
+              'This Hunter is no longer available. Close the Rivalry to find '
+              'someone new.',
+          tag: 'Social',
+          onEnter: () => _openAndRefresh(
+            RivalryResultScreen(rivalryId: rivalry.id),
+          ),
+        );
+      case RivalCardState.none:
+        // Unreachable: handled above. Kept so the switch stays exhaustive.
+        return BattleModeCard(
+          emoji: '👤',
+          title: 'RIVALS',
+          description:
+              'Challenge a Hunter to a time-limited Rivalry and out-train them.',
+          tag: 'Social',
+          onEnter: () => _openAndRefresh(const RivalSearchScreen()),
+        );
+    }
   }
 
   // ── Presentation helpers ───────────────────────────────────────────────

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:hunter_ascend/services/rivalry_service.dart';
 
 /// Raised when account cleanup cannot safely continue on the client.
 class AccountDeletionException implements Exception {
@@ -35,6 +36,9 @@ class AccountDeletionResult {
 /// explicit, and update this service when new user-owned paths are added.
 /// Shared duel history is intentionally not changed here: it belongs to both
 /// participants. Deletion is blocked while the caller has an active duel.
+/// Shared rivalry documents are likewise never deleted for the other
+/// participant — see [_releaseRivalries], which releases the caller's side
+/// without blocking deletion.
 class AccountDeletionService {
   AccountDeletionService._({
     FirebaseFirestore? firestore,
@@ -95,6 +99,8 @@ class AccountDeletionService {
       _firestore.collection('duel_requests').where('toUid', isEqualTo: uid),
     );
 
+    await _releaseRivalries(uid);
+
     // Firestore parent deletion does not cascade. These known child
     // collections must be cleared before deleting hunters/{uid}.
     await _deleteQuery(hunter.collection('rankRewards'));
@@ -114,6 +120,52 @@ class AccountDeletionService {
     return AccountDeletionResult(
       retainedAwardedAchievements: retainedAwardedAchievements,
     );
+  }
+
+  /// Releases every rivalry still unsettled for [uid].
+  ///
+  /// A rivalry document is SHARED by two hunters, so — exactly like duel
+  /// history — it is never deleted out from under the other participant. Unlike
+  /// duels, deletion is deliberately NOT blocked on an active rivalry: duels
+  /// have a cancel flow, rivalries do not, so blocking would trap a departing
+  /// user for up to 14 days with no way out.
+  ///
+  /// * `pending`   — deleted outright; either party may withdraw a request,
+  ///                 the same policy applied to `duel_requests` above.
+  /// * `active`    — marked `abandoned` and this uid removed. No result is
+  ///                 fabricated and no XP is awarded; the remaining hunter is
+  ///                 unblocked immediately and simply sees that their Rival
+  ///                 left.
+  /// * otherwise   — this uid removed only, preserving the stored result so the
+  ///                 other participant can still view it.
+  ///
+  /// One `array-contains` query, no composite index. Best-effort per document:
+  /// a single stuck rivalry must never block account deletion.
+  Future<void> _releaseRivalries(String uid) async {
+    final snapshot = await _firestore
+        .collection('rivalries')
+        .where('unsettledFor', arrayContains: uid)
+        .get();
+
+    for (final document in snapshot.docs) {
+      final status = document.data()['status'] as String?;
+      try {
+        if (status == RivalryStatus.pending) {
+          await document.reference.delete();
+        } else if (status == RivalryStatus.active) {
+          await document.reference.update(<String, dynamic>{
+            'status': RivalryStatus.abandoned,
+            'unsettledFor': FieldValue.arrayRemove(<String>[uid]),
+          });
+        } else {
+          await document.reference.update(<String, dynamic>{
+            'unsettledFor': FieldValue.arrayRemove(<String>[uid]),
+          });
+        }
+      } catch (error) {
+        debugPrint('Account deletion rivalry cleanup ${document.id}: $error');
+      }
+    }
   }
 
   Future<void> _ensureNoActiveDuels(String uid) async {

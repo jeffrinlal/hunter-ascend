@@ -12,6 +12,7 @@ import 'package:hunter_ascend/screens/battle/battle_hub_screen.dart';
 // longer imported here. Navigating to a duel is now the Battle Hub's job
 // (see BattleHubScreen), not the shell's.
 import 'package:hunter_ascend/services/membership_service.dart';
+import 'package:hunter_ascend/services/rivalry_service.dart';
 import 'package:hunter_ascend/screens/profile/membership_screen.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/widgets/daily_motivation_dialog.dart';
@@ -102,6 +103,25 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
       .where('status', isEqualTo: 'pending')
       .limit(1)
       .snapshots();
+
+  // Cached stream for incoming RIVALRY requests, feeding the SAME red dot as
+  // duel requests (stable identity, exactly like the stream above).
+  //
+  // A second subscription is unavoidable: Firestore has no cross-collection OR,
+  // and rival requests cannot live in `duel_requests` without breaking duels —
+  // `DuelRequestScreen` reads `duelQuests` as a non-null List and would crash
+  // on a rival document, and `CreateDuelScreen`'s pending-challenge guard would
+  // refuse duel challenges to anyone holding a pending rival request. Existing
+  // documents also carry no `type` field, and Firestore cannot query for a
+  // missing field, so no filter could hide rival requests from the duel screens
+  // without hiding in-flight duel requests too.
+  //
+  // Cost is one document at most: two equality filters plus `limit(1)`, the
+  // same index-free shape the duel-request stream already uses.
+  late final Stream<QuerySnapshot<Map<String, dynamic>>>
+      _rivalRequestBadgeStream = RivalryService.instance.incomingRequestStream(
+    FirebaseAuth.instance.currentUser?.uid ?? '',
+  );
 
   @override
   void initState() {
@@ -209,11 +229,13 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
       navRetapSignal: _leaderboardRetapTick,
     ),
     // Battles tab → Battle Hub (mode chooser). The hub is handed the EXISTING
-    // duel-request badge stream so its Fitness Duels card can show an incoming
-    // challenge without creating a second listener, plus the active-tab signal
-    // so it can refresh its active-duel state when the tab becomes visible.
+    // duel-request and rival-request badge streams so its Fitness Duels and
+    // Rivals cards can show an incoming challenge without creating any further
+    // listener, plus the active-tab signal so it can refresh its active-duel
+    // and rivalry state when the tab becomes visible.
     BattleHubScreen(
       duelRequestStream: _duelRequestBadgeStream,
+      rivalRequestStream: _rivalRequestBadgeStream,
       activeIndex: _activeTabIndex,
       tabIndex: _battlesTabIndex,
     ),
@@ -331,26 +353,42 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
     );
   }
 
-  /// The unchanged duel-request badge overlay for the Duels tab: a small
-  /// danger dot shown while a pending duel request exists.
+  /// The battle-request badge overlay for the Battles tab: a small danger dot
+  /// shown while a pending incoming DUEL request **or** a pending incoming
+  /// RIVALRY request exists.
+  ///
+  /// One dot, never two — the two streams are combined into a single boolean, so
+  /// having both kinds of request pending looks identical to having one. The dot
+  /// itself is visually unchanged.
   Widget _duelRequestBadge({required bool selected}) {
     final accent = MembershipTheme.current.accent;
     return StreamBuilder<QuerySnapshot>(
       stream: _duelRequestBadgeStream,
-      builder: (context, snap) {
-        final hasPending = snap.hasData && snap.data!.docs.isNotEmpty;
-        if (!hasPending) return const SizedBox.shrink();
-        return Container(
-          width: 9,
-          height: 9,
-          decoration: BoxDecoration(
-            color: HunterTheme.danger,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: selected ? accent : HunterTheme.cardColor,
-              width: 1.4,
-            ),
-          ),
+      builder: (context, duelSnap) {
+        final hasDuelRequest = duelSnap.hasData && duelSnap.data!.docs.isNotEmpty;
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: _rivalRequestBadgeStream,
+          builder: (context, rivalSnap) {
+            // Aged-out rival requests are filtered out, so an abandoned
+            // request can never leave a red dot on the tab forever.
+            final hasRivalRequest =
+                RivalryService.hasLiveIncomingRequest(rivalSnap.data);
+            if (!hasDuelRequest && !hasRivalRequest) {
+              return const SizedBox.shrink();
+            }
+            return Container(
+              width: 9,
+              height: 9,
+              decoration: BoxDecoration(
+                color: HunterTheme.danger,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected ? accent : HunterTheme.cardColor,
+                  width: 1.4,
+                ),
+              ),
+            );
+          },
         );
       },
     );

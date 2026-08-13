@@ -552,7 +552,10 @@ class StepClashService {
 
   /// Marks this participant as forfeited.
   ///
-  /// If only one non-forfeited participant remains, auto-finalizes.
+  /// If only one non-forfeited participant remains after the forfeit,
+  /// the battle is immediately finalized with that player as the winner —
+  /// all within a SINGLE Firestore transaction to prevent any window where
+  /// the forfeit lands but the finalization doesn't.
   Future<StepClashActionResult> forfeit(StepClashData clash) async {
     final uid = _uid;
     if (uid == null) {
@@ -566,20 +569,46 @@ class StepClashService {
     }
 
     try {
-      await _clashes.doc(clash.id).update({
-        'forfeited': FieldValue.arrayUnion([uid]),
-      });
+      final ref = _clashes.doc(clash.id);
 
-      // Check if only one player left → auto-finalize.
-      final refreshed = await fetchById(clash.id);
-      if (refreshed != null && refreshed.status == StepClashStatus.active) {
-        final remaining = refreshed.participants
-            .where((p) => !refreshed.forfeited.contains(p))
+      await FirebaseFirestore.instance.runTransaction((txn) async {
+        final snap = await txn.get(ref);
+        if (!snap.exists) return;
+        final current = StepClashData.fromSnapshot(snap);
+        if (current.status != StepClashStatus.active) return;
+        if (current.isForfeited(uid)) return; // already forfeited
+
+        // Add this user to the forfeited list.
+        final updatedForfeited = [...current.forfeited, uid];
+
+        // Calculate remaining active participants.
+        final remaining = current.participants
+            .where((p) => !updatedForfeited.contains(p))
             .toList();
-        if (remaining.length <= 1) {
-          await finalize(refreshed);
+
+        if (remaining.length <= 1 && remaining.isNotEmpty) {
+          // Only one player left — they win immediately.
+          txn.update(ref, {
+            'forfeited': updatedForfeited,
+            'status': StepClashStatus.completed,
+            'winner': remaining.first,
+            'completedAt': FieldValue.serverTimestamp(),
+          });
+        } else if (remaining.isEmpty) {
+          // Everyone forfeited — draw.
+          txn.update(ref, {
+            'forfeited': updatedForfeited,
+            'status': StepClashStatus.completed,
+            'winner': '',
+            'completedAt': FieldValue.serverTimestamp(),
+          });
+        } else {
+          // Multiple players still active — just record the forfeit.
+          txn.update(ref, {
+            'forfeited': updatedForfeited,
+          });
         }
-      }
+      });
 
       return StepClashActionResult.success(await fetchById(clash.id));
     } catch (e) {

@@ -15,9 +15,11 @@ class AIQuestService {
   // Prevents infinite retry loops when validating duplicate quest titles.
   static bool _isRetrying = false;
 
-  /// Generates and persists the 6 daily AI missions for the current hunter.
+  /// Generates and persists daily AI missions for the current hunter.
   ///
-  /// Tailors difficulty to the user's BMI/goals. Persisted to Firestore by the
+  /// Generates exactly [count] quests (default 5). Tailors difficulty to the
+  /// user's BMI/goals. Includes [excludeTitles] in the prompt so the AI avoids
+  /// generating duplicates of retained missions. Persisted to Firestore by the
   /// caller's flow; returns the parsed quest list (or `[]` if generation fails).
   static Future<List<dynamic>> generateQuests({
     required int level,
@@ -25,11 +27,18 @@ class AIQuestService {
     required double weight,
     required double height,
     required String goals,
+    int count = 5,
+    List<String> excludeTitles = const [],
   }) async {
-    debugPrint("⚡ Generating AI Quests...");
+    debugPrint("Generating $count AI Quests...");
     final bmi = weight / ((height / 100) * (height / 100));
     final String userId =
         FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+
+    final excludeClause = excludeTitles.isNotEmpty
+        ? '\n\nDo NOT generate any of these titles (they are already active):\n${excludeTitles.map((t) => '- $t').join('\n')}\n'
+        : '';
+
     try {
       final response = await http.post(
         Uri.parse(
@@ -45,7 +54,7 @@ class AIQuestService {
             {
               "role": "user",
               "content": """
-Generate exactly 6 daily quests.
+Generate exactly $count daily quests.
 
 Hunter Information:
 
@@ -106,8 +115,8 @@ Level 31+:
 - Include fitness, nutrition and discipline tasks
 - No dangerous activities
 - No medical advice
-- All 6 quest titles MUST be unique — never generate duplicate titles
-
+- All $count quest titles MUST be unique — never generate duplicate titles
+$excludeClause
 Return JSON only.
 """
             }
@@ -138,18 +147,30 @@ Return JSON only.
       if (quests is List && quests.length > 1) {
         final titles = quests.map((q) => q['title']?.toString() ?? '').toSet();
         if (titles.length < quests.length) {
-          debugPrint("⚠️ Duplicate quest titles detected — retrying generation");
+          debugPrint("Duplicate quest titles detected — retrying generation");
           // Retry once. If the retry also has duplicates, accept them rather
           // than looping forever (prompt enforcement handles >99% of cases).
           if (!_isRetrying) {
             _isRetrying = true;
             final retryResult = await generateQuests(
-              level: level, streak: streak, weight: weight, height: height, goals: goals,
+              level: level, streak: streak, weight: weight, height: height,
+              goals: goals, count: count, excludeTitles: excludeTitles,
             );
             _isRetrying = false;
             return retryResult;
           }
           _isRetrying = false;
+        }
+      }
+
+      // Stamp each quest with a createdAt date so the caller can track age
+      // for the 30-day expiry policy. This field is stored alongside the
+      // quest in the aiQuests array and has no impact on anything that reads
+      // quests purely for display (title/xp/category).
+      final today = DateTime.now().toIso8601String().split('T').first;
+      if (quests is List) {
+        for (final q in quests) {
+          if (q is Map) q['createdAt'] = today;
         }
       }
 
@@ -159,14 +180,11 @@ Return JSON only.
           .collection('hunters')
           .doc(uid)
           .update({
-        'aiQuestDate': DateTime.now()
-            .toIso8601String()
-            .split('T')
-            .first,
+        'aiQuestDate': today,
         'aiQuests': quests,
       });
 
-      debugPrint("✅ AI Quests Saved");
+      debugPrint("AI Quests Saved");
 
       return quests;
 
@@ -179,17 +197,26 @@ Return JSON only.
   }
 
   // ── Weekly missions (harder, 7-day goals) ──────────────────────────────
-  /// Generates the 3 harder weekly missions (reset every Monday).
+  /// Generates 1 harder weekly mission (reset every Monday).
   ///
   /// Separate from [generateQuests] because weekly goals use a different prompt
-  /// (longer, tougher targets) and a 3× reward scale. Returns `[]` on failure.
+  /// (longer, tougher targets) and a 3x reward scale. Returns `[]` on failure.
+  /// Includes [excludeTitles] so retained incomplete missions are not
+  /// duplicated.
   static Future<List<dynamic>> generateWeeklyQuests({
     required String goals,
     required int level,
+    int count = 1,
+    List<String> excludeTitles = const [],
   }) async {
-    debugPrint("⚡ Generating AI Weekly Missions...");
+    debugPrint("Generating $count AI Weekly Mission(s)...");
     final String userId =
         FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+
+    final excludeClause = excludeTitles.isNotEmpty
+        ? '\n\nDo NOT generate any of these titles (they are already active):\n${excludeTitles.map((t) => '- $t').join('\n')}\n'
+        : '';
+
     try {
       final response = await http.post(
         Uri.parse('https://hunter-ascend-ai.jefferinlal.workers.dev/mistral'),
@@ -203,7 +230,7 @@ Return JSON only.
             {
               "role": "user",
               "content": """
-Generate 3 challenging weekly fitness missions for someone focused on $goals. These should be harder goals achievable over 7 days. Keep each mission under 10 words.
+Generate $count challenging weekly fitness mission${count == 1 ? '' : 's'} for someone focused on $goals. These should be harder goals achievable over 7 days. Keep each mission under 10 words.
 
 Hunter level: $level
 
@@ -217,7 +244,8 @@ Rules:
 - No dangerous activities
 - No medical advice
 - Each mission is a 7-day goal (harder than a daily task)
-"""
+- All $count mission title(s) MUST be unique
+$excludeClause"""
             }
           ]
         }),
@@ -229,6 +257,15 @@ Rules:
           content.replaceAll('```json', '').replaceAll('```', '').trim();
       final missions = jsonDecode(content);
       debugPrint("AI WEEKLY MISSIONS: $missions");
+
+      // Stamp createdAt for age-tracking / expiry policy.
+      final today = DateTime.now().toIso8601String().split('T').first;
+      if (missions is List) {
+        for (final m in missions) {
+          if (m is Map) m['createdAt'] = today;
+        }
+      }
+
       return missions is List ? missions : [];
     } catch (e) {
       debugPrint("WEEKLY ERROR: $e");

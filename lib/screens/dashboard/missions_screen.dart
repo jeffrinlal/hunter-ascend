@@ -58,6 +58,16 @@ class MissionsScreen extends StatefulWidget {
 
   /// Runs the daily rollover before discipline evaluates yesterday's counts.
   /// A transaction keeps simultaneous startup calls from resetting twice.
+  ///
+  /// ## Optimized reset (completed-only regeneration)
+  /// Instead of clearing all `completedQuests` and regenerating all missions,
+  /// this now:
+  /// 1. Records yesterday's completion/total counts (unchanged).
+  /// 2. Removes ONLY the names of completed missions from `completedQuests`.
+  /// 3. Marks `lastQuestResetDate = today` to prevent re-triggering.
+  ///
+  /// The actual replacement of completed missions happens in `_loadAIQuests()`,
+  /// which inspects each mission's completion state and age.
   static Future<bool> resetDailyQuestsIfNeeded() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
@@ -82,12 +92,16 @@ class MissionsScreen extends StatefulWidget {
       final data = snap.data()!;
       if ((data['lastQuestResetDate'] ?? '') == today) return;
 
-      final completed = List.from(data['completedQuests'] ?? []);
+      final completed = List<String>.from(data['completedQuests'] ?? []);
       final aiQuests = List.from(data['aiQuests'] ?? []);
       txn.update(ref, {
         'yesterdayCompletedCount': completed.length,
         'yesterdayTotalQuests': aiQuests.length + customCount,
-        'completedQuests': [],
+        // Only clear the names of missions that were completed yesterday.
+        // Retained (incomplete) missions keep their name in completedQuests=[]
+        // since they weren't completed — their absence from the list already
+        // means "incomplete", so the cleared list is correct.
+        'completedQuests': <String>[],
         'lastQuestResetDate': today,
       });
       reset = true;
@@ -161,6 +175,13 @@ class _MissionsScreenState extends State<MissionsScreen> {
   static const Duration _aiLockTimeout = Duration(minutes: 5);
 
 
+  /// Maximum number of daily AI missions.
+  static const int _dailyMissionCount = 5;
+
+  /// Missions older than this are expired and replaced regardless of
+  /// completion state.
+  static const int _missionExpiryDays = 30;
+
   Future<void> _loadAIQuests() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
@@ -174,21 +195,56 @@ class _MissionsScreenState extends State<MissionsScreen> {
     final today = DateTime.now().toIso8601String().split('T').first;
     final savedDate = data['aiQuestDate'] ?? '';
 
+    // If quests were already generated/refreshed TODAY, just load them.
     if (savedDate == today) {
-      final quests = List<Map<String, dynamic>>.from(data['aiQuests'] ?? []);
+      _applyQuestsFromFirestore(data);
+      return;
+    }
+
+    // ── Determine which missions need replacement ──
+    final existingQuests =
+        List<Map<String, dynamic>>.from(data['aiQuests'] ?? []);
+    final completedNames =
+        List<String>.from(data['completedQuests'] ?? []);
+
+    final retained = <Map<String, dynamic>>[];
+    final retainedTitles = <String>[];
+
+    for (final q in existingQuests) {
+      final title = (q['title'] ?? '').toString();
+      final isCompleted = completedNames.contains(title);
+      final isExpired = _isMissionExpired(q, savedDate);
+
+      if (!isCompleted && !isExpired) {
+        retained.add(q);
+        retainedTitles.add(title);
+      }
+    }
+
+    // Cap retained missions at the target count (handles migration from 6→5).
+    while (retained.length > _dailyMissionCount) {
+      retained.removeLast();
+      retainedTitles.removeLast();
+    }
+
+    final replacementCount = _dailyMissionCount - retained.length;
+
+    // If nothing needs replacing, just stamp today's date and persist the
+    // retained set (possibly trimmed from 6→5 on first post-update run).
+    if (replacementCount <= 0) {
+      final updatedQuests = retained.take(_dailyMissionCount).toList();
+      await ref.update({
+        'aiQuestDate': today,
+        'aiQuests': updatedQuests,
+      });
+      if (!mounted) return;
       setState(() {
-        generatedQuests = quests.map<Map<String, dynamic>>((q) {
-          return {
-            "name": q["title"],
-            "xp": q["xp"],
-            "icon": Icons.auto_awesome,
-          };
-        }).toList();
+        generatedQuests = _questsToDisplayList(updatedQuests);
       });
       return;
     }
 
-    // Atomically acquire a timestamp-based generation lock.
+    // ── Acquire generation lock (prevents concurrent AI calls) ──
     bool claimed = false;
     await FirebaseFirestore.instance.runTransaction((txn) async {
       final snap = await txn.get(ref);
@@ -218,36 +274,19 @@ class _MissionsScreenState extends State<MissionsScreen> {
 
     if (!mounted) return;
 
-
     if (!claimed) {
+      // Another instance is generating. Wait briefly, then load whatever
+      // it produces.
       await Future.delayed(const Duration(seconds: 3));
       if (!mounted) return;
       final refreshed = await ref.get();
       if (!mounted) return;
-      final refreshedData = refreshed.data() ?? {};
-
-      if ((refreshedData['aiQuestDate'] ?? '') != today) return;
-
-      final quests = List<Map<String, dynamic>>.from(
-        refreshedData['aiQuests'] ?? [],
-      );
-      setState(() {
-        generatedQuests = quests.map<Map<String, dynamic>>((q) {
-          return {
-            "name": q["title"],
-            "xp": q["xp"],
-            "icon": Icons.auto_awesome,
-          };
-        }).toList();
-      });
+      _applyQuestsFromFirestore(refreshed.data() ?? {});
       return;
     }
 
-    // We hold the lock. Call the AI.
+    // ── We hold the lock. Generate only the replacements. ──
     try {
-      // Reuses `data` (already safely defaulted to {} above from the same
-      // `doc`) instead of re-asserting `doc.data()!`, which could throw if
-      // the document didn't exist at read time.
       final hunter = data;
 
       List<String> goals = [];
@@ -258,32 +297,44 @@ class _MissionsScreenState extends State<MissionsScreen> {
 
       final goalString = goals.join(', ');
 
-      final quests = await AIQuestService.generateQuests(
+      final newQuests = await AIQuestService.generateQuests(
         level: hunter['level'] ?? 1,
         streak: hunter['streak'] ?? 0,
         weight: (hunter['weight'] ?? 85).toDouble(),
         height: (hunter['height'] ?? 167).toDouble(),
         goals: goalString,
+        count: replacementCount,
+        excludeTitles: retainedTitles,
       );
 
       if (!mounted) return;
 
-      if (quests.isEmpty) {
+      if (newQuests.isEmpty) {
         await ref.update({'aiQuestGeneratingAt': FieldValue.delete()});
         return;
       }
 
-      setState(() {
-        generatedQuests = quests.map<Map<String, dynamic>>((q) {
-          return {
-            "name": q["title"],
-            "xp": q["xp"],
-            "icon": Icons.auto_awesome,
-          };
-        }).toList();
+      // `generateQuests` already persisted the NEW quests to Firestore, but it
+      // wrote them as the ENTIRE aiQuests array (which is just the new ones).
+      // We need to merge retained + new and re-persist the combined set.
+      final combined = <Map<String, dynamic>>[
+        ...retained,
+        ...newQuests.whereType<Map>().map((q) => Map<String, dynamic>.from(q)),
+      ];
+
+      // Trim to target count in case AI returned extras.
+      final finalQuests = combined.take(_dailyMissionCount).toList();
+
+      await ref.update({
+        'aiQuestDate': today,
+        'aiQuests': finalQuests,
+        'aiQuestGeneratingAt': FieldValue.delete(),
       });
 
-      await ref.update({'aiQuestGeneratingAt': FieldValue.delete()});
+      if (!mounted) return;
+      setState(() {
+        generatedQuests = _questsToDisplayList(finalQuests);
+      });
 
       if (savedDate.toString().isEmpty && data['disciplineStartDate'] == null) {
         await ref.update({
@@ -296,6 +347,41 @@ class _MissionsScreenState extends State<MissionsScreen> {
         await ref.update({'aiQuestGeneratingAt': FieldValue.delete()});
       } catch (_) {}
     }
+  }
+
+  /// Checks if a mission is older than [_missionExpiryDays].
+  ///
+  /// Uses the per-mission `createdAt` field if present; falls back to the
+  /// batch-level `aiQuestDate` for missions created before this optimization
+  /// was deployed (graceful migration — no data loss).
+  static bool _isMissionExpired(Map<String, dynamic> quest, String batchDate) {
+    final createdStr =
+        (quest['createdAt'] ?? batchDate).toString();
+    if (createdStr.isEmpty) return false;
+    final created = DateTime.tryParse(createdStr);
+    if (created == null) return false;
+    return DateTime.now().difference(created).inDays >= _missionExpiryDays;
+  }
+
+  /// Converts raw Firestore quest maps to the display-format used by the UI.
+  static List<Map<String, dynamic>> _questsToDisplayList(
+    List<Map<String, dynamic>> quests,
+  ) {
+    return quests.map<Map<String, dynamic>>((q) {
+      return {
+        "name": q["title"],
+        "xp": q["xp"],
+        "icon": Icons.auto_awesome,
+      };
+    }).toList();
+  }
+
+  /// Applies already-persisted quests from a Firestore document to local state.
+  void _applyQuestsFromFirestore(Map<String, dynamic> data) {
+    final quests = List<Map<String, dynamic>>.from(data['aiQuests'] ?? []);
+    setState(() {
+      generatedQuests = _questsToDisplayList(quests);
+    });
   }
 
 
@@ -582,10 +668,62 @@ class _MissionsScreenState extends State<MissionsScreen> {
     }
   }
 
+  /// Maximum number of weekly missions.
+  static const int _weeklyMissionCount = 1;
+
   Future<void> _generateWeeklyMissions(
       Map<String, dynamic> data, String currentWeek) async {
     if (mounted) setState(() => _weeklyLoading = true);
 
+    // ── Determine which existing weekly missions to retain ──
+    final existing = (data['weeklyMissions'] as List?)
+            ?.map((e) => Map<String, dynamic>.from(e as Map))
+            .toList() ??
+        <Map<String, dynamic>>[];
+
+    final retained = <Map<String, dynamic>>[];
+    final retainedTitles = <String>[];
+
+    for (final m in existing) {
+      final isCompleted = m['completed'] == true;
+      final isExpired = _isWeeklyMissionExpired(m, data);
+      if (!isCompleted && !isExpired) {
+        retained.add(m);
+        retainedTitles.add((m['title'] ?? '').toString());
+      }
+    }
+
+    // Cap at target count (handles migration from 3→1).
+    while (retained.length > _weeklyMissionCount) {
+      retained.removeLast();
+      retainedTitles.removeLast();
+    }
+
+    final replacementCount = _weeklyMissionCount - retained.length;
+
+    // Nothing to replace — just update the week marker and keep existing.
+    if (replacementCount <= 0) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('hunters')
+            .doc(user.uid)
+            .update({
+          'weeklyMissions': retained.take(_weeklyMissionCount).toList(),
+          'weeklyMissionsDate': currentWeek,
+          'weeklyMissionsGenerated': true,
+        });
+      }
+      if (mounted) {
+        setState(() {
+          weeklyMissions = retained.take(_weeklyMissionCount).toList();
+          _weeklyLoading = false;
+        });
+      }
+      return;
+    }
+
+    // ── Generate only the replacements ──
     final paths = <String>[];
     if (data['fatLoss'] == true || widget.fatLoss) paths.add('fat loss');
     if (data['muscleGain'] == true || widget.muscleGain) {
@@ -600,24 +738,37 @@ class _MissionsScreenState extends State<MissionsScreen> {
     final goals = paths.isEmpty ? 'general fitness' : paths.join(', ');
     final lvl = ((data['level'] ?? 1) as num).toInt();
 
-    final raw =
-        await AIQuestService.generateWeeklyQuests(goals: goals, level: lvl);
-    var missions = raw.take(3).map<Map<String, dynamic>>((q) {
+    final raw = await AIQuestService.generateWeeklyQuests(
+      goals: goals,
+      level: lvl,
+      count: replacementCount,
+      excludeTitles: retainedTitles,
+    );
+
+    final today = DateTime.now().toIso8601String().split('T').first;
+    var newMissions = raw.take(replacementCount).map<Map<String, dynamic>>((q) {
       final m = q as Map;
       return {
         'title': (m['title'] ?? 'Weekly Mission').toString(),
         'completed': false,
         'xpReward': ((m['xp'] ?? 150) as num).toInt() * 3,
+        'createdAt': (m['createdAt'] ?? today).toString(),
       };
     }).toList();
 
-    if (missions.isEmpty) {
-      missions = [
-        {'title': 'Walk 25,000 steps this week', 'completed': false, 'xpReward': 450},
-        {'title': 'Complete 4 workout sessions', 'completed': false, 'xpReward': 450},
-        {'title': 'Sleep 7+ hours for 5 days', 'completed': false, 'xpReward': 450},
+    if (newMissions.isEmpty) {
+      newMissions = [
+        {
+          'title': 'Walk 25,000 steps this week',
+          'completed': false,
+          'xpReward': 450,
+          'createdAt': today,
+        },
       ];
     }
+
+    final combined = <Map<String, dynamic>>[...retained, ...newMissions];
+    final finalMissions = combined.take(_weeklyMissionCount).toList();
 
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -625,17 +776,46 @@ class _MissionsScreenState extends State<MissionsScreen> {
           .collection('hunters')
           .doc(user.uid)
           .update({
-        'weeklyMissions': missions,
+        'weeklyMissions': finalMissions,
         'weeklyMissionsDate': currentWeek,
         'weeklyMissionsGenerated': true,
       });
     }
     if (mounted) {
       setState(() {
-        weeklyMissions = missions;
+        weeklyMissions = finalMissions;
         _weeklyLoading = false;
       });
     }
+  }
+
+  /// Checks if a weekly mission has been incomplete for >= 30 days.
+  /// Falls back to `weeklyMissionsDate` batch identifier for missions without
+  /// a per-mission `createdAt` (graceful migration).
+  static bool _isWeeklyMissionExpired(
+    Map<String, dynamic> mission,
+    Map<String, dynamic> hunterData,
+  ) {
+    final createdStr = (mission['createdAt'] ??
+            hunterData['weeklyMissionsDate'] ??
+            '')
+        .toString();
+    if (createdStr.isEmpty) return false;
+    // Weekly date may be in "YYYY-Www" format — parse only ISO dates.
+    final created = DateTime.tryParse(createdStr);
+    if (created == null) {
+      // If it's a week-ID string (e.g. "2024-W29"), compute age from the
+      // week number. For simplicity: if the week ID is from > 4 weeks ago,
+      // treat as expired.
+      final match = RegExp(r'(\d{4})-W(\d{2})').firstMatch(createdStr);
+      if (match == null) return false;
+      final year = int.tryParse(match.group(1)!) ?? 0;
+      final week = int.tryParse(match.group(2)!) ?? 0;
+      final missionDate =
+          DateTime(year, 1, 1).add(Duration(days: (week - 1) * 7));
+      return DateTime.now().difference(missionDate).inDays >= 30;
+    }
+    return DateTime.now().difference(created).inDays >= 30;
   }
 
 

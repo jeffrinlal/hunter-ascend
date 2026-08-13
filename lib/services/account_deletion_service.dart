@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hunter_ascend/services/rivalry_service.dart';
+import 'package:hunter_ascend/services/step_clash_service.dart';
 
 /// Raised when account cleanup cannot safely continue on the client.
 class AccountDeletionException implements Exception {
@@ -100,6 +101,9 @@ class AccountDeletionService {
     );
 
     await _releaseRivalries(uid);
+
+    // Step Clashes: cancel waiting ones, forfeit active ones (best-effort).
+    await StepClashService.instance.releaseForDeletion(uid);
 
     // Firestore parent deletion does not cascade. These known child
     // collections must be cleared before deleting hunters/{uid}.

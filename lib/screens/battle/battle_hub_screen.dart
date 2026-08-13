@@ -10,11 +10,15 @@ import 'package:hunter_ascend/screens/battle/rival_request_screen.dart';
 import 'package:hunter_ascend/screens/battle/rival_search_screen.dart';
 import 'package:hunter_ascend/screens/battle/rivalry_comparison_screen.dart';
 import 'package:hunter_ascend/screens/battle/rivalry_result_screen.dart';
+import 'package:hunter_ascend/screens/battle/step_clash_create_screen.dart';
+import 'package:hunter_ascend/screens/battle/step_clash_screen.dart';
+import 'package:hunter_ascend/screens/battle/step_clash_result_screen.dart';
 import 'package:hunter_ascend/screens/duel/create_duel_screen.dart';
 import 'package:hunter_ascend/screens/duel/duel_request_screen.dart';
 import 'package:hunter_ascend/screens/duel/duel_screen.dart';
 import 'package:hunter_ascend/screens/dungeon/dungeon_lobby_screen.dart';
 import 'package:hunter_ascend/services/rivalry_service.dart';
+import 'package:hunter_ascend/services/step_clash_service.dart';
 import 'package:hunter_ascend/widgets/membership/membership_scaffold.dart';
 
 /// The duel state the Fitness Duels card currently represents.
@@ -107,6 +111,10 @@ class _BattleHubScreenState extends State<BattleHubScreen> {
 
   bool _loadingRivalryState = false;
 
+  /// Active or waiting Step Clash involving this user.
+  StepClashData? _stepClash;
+  bool _loadingStepClashState = false;
+
   @override
   void initState() {
     super.initState();
@@ -134,6 +142,7 @@ class _BattleHubScreenState extends State<BattleHubScreen> {
     await Future.wait<void>(<Future<void>>[
       _loadDuelState(),
       _loadRivalryState(),
+      _loadStepClashState(),
     ]);
   }
 
@@ -165,6 +174,27 @@ class _BattleHubScreenState extends State<BattleHubScreen> {
       debugPrint('BattleHub._loadRivalryState: $e');
     } finally {
       _loadingRivalryState = false;
+    }
+  }
+
+  /// Resolves the user's current Step Clash state.
+  Future<void> _loadStepClashState() async {
+    if (_loadingStepClashState) return;
+    _loadingStepClashState = true;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _loadingStepClashState = false;
+      return;
+    }
+    try {
+      final clash =
+          await StepClashService.instance.fetchActive(user.uid);
+      if (!mounted) return;
+      setState(() => _stepClash = clash);
+    } catch (e) {
+      debugPrint('BattleHub._loadStepClashState: $e');
+    } finally {
+      _loadingStepClashState = false;
     }
   }
 
@@ -284,6 +314,8 @@ class _BattleHubScreenState extends State<BattleHubScreen> {
             ),
             const SizedBox(height: 14),
             _buildRivalsCard(),
+            const SizedBox(height: 14),
+            _buildStepClashCard(),
 
             // ── Upcoming modes (Phase 1: presentation only) ─────────────
             const SizedBox(height: 32),
@@ -383,6 +415,68 @@ class _BattleHubScreenState extends State<BattleHubScreen> {
       context,
       MaterialPageRoute(builder: (_) => const DungeonLobbyScreen()),
     );
+  }
+
+  // ── Step Clash ───────────────────────────────────────────────────────────
+
+  Widget _buildStepClashCard() {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final state =
+        StepClashService.cardStateFor(_stepClash, uid);
+
+    switch (state) {
+      case StepClashCardState.incoming:
+        return BattleModeCard(
+          emoji: '👣',
+          title: 'INCOMING STEP CLASH',
+          description:
+              'A Hunter has challenged you to a step competition. Accept or decline.',
+          tag: 'PvP',
+          onEnter: () => _openAndRefresh(
+            StepClashScreen(battleId: _stepClash!.id),
+          ),
+        );
+      case StepClashCardState.waiting:
+        return BattleModeCard(
+          emoji: '👣',
+          title: 'STEP CLASH WAITING',
+          description: 'Waiting for all players to accept.',
+          tag: 'PvP',
+          onEnter: () => _openAndRefresh(
+            StepClashScreen(battleId: _stepClash!.id),
+          ),
+        );
+      case StepClashCardState.active:
+        return BattleModeCard(
+          emoji: '👣',
+          title: 'ACTIVE STEP CLASH',
+          description: 'Your step battle is live. Keep moving!',
+          tag: 'PvP',
+          onEnter: () => _openAndRefresh(
+            StepClashScreen(battleId: _stepClash!.id),
+          ),
+        );
+      case StepClashCardState.resultAvailable:
+        return BattleModeCard(
+          emoji: '👣',
+          title: 'STEP CLASH RESULT',
+          description: 'Your step battle has ended. View the result.',
+          tag: 'PvP',
+          onEnter: () => _openAndRefresh(
+            StepClashResultScreen(battleId: _stepClash!.id),
+          ),
+        );
+      case StepClashCardState.none:
+        return BattleModeCard(
+          emoji: '👣',
+          title: 'STEP CLASH',
+          description:
+              'Challenge Hunters to competitive step battles. First to the goal wins.',
+          tag: 'PvP',
+          onEnter: () =>
+              _openAndRefresh(const StepClashCreateScreen()),
+        );
+    }
   }
 
   // ── Rivals ─────────────────────────────────────────────────────────────

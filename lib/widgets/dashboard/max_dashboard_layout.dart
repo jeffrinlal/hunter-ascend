@@ -17,7 +17,7 @@ import 'package:hunter_ascend/widgets/dashboard/elite_mission_card.dart';
 import 'package:hunter_ascend/widgets/dashboard/elite_quick_actions.dart';
 import 'package:hunter_ascend/widgets/dashboard/elite_water_card.dart';
 import 'package:hunter_ascend/widgets/dashboard/entrance_fade_slide.dart';
-import 'package:hunter_ascend/screens/shop/coin_shop_screen.dart';
+import 'package:hunter_ascend/widgets/dashboard/shop_highlight_button.dart';
 
 /// Elite Dashboard layout for Max members.
 ///
@@ -511,38 +511,14 @@ class _MembershipShopStrip extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   // ── Coin Shop entry (same destination as the banner's) ──
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const CoinShopScreen(),
-                      ),
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: accent.withOpacity(0.14),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: accent.withOpacity(0.45)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('🪙', style: TextStyle(fontSize: 14)),
-                          const SizedBox(width: 5),
-                          Text(
-                            'Shop',
-                            style: TextStyle(
-                              color: accent,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
-                      ),
+                  ShopHighlightButton(
+                    accentColor: accent,
+                    emojiSize: 14,
+                    textSize: 12,
+                    borderRadius: 16,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
                     ),
                   ),
                 ],

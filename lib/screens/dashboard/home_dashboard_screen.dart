@@ -33,6 +33,7 @@ import 'package:hunter_ascend/core/skins/skin_service.dart';
 import 'package:hunter_ascend/core/skins/dashboard/dashboard_section_contracts.dart';
 import 'package:hunter_ascend/core/skins/dashboard/skin_dashboard_sections.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
+import 'package:hunter_ascend/widgets/dashboard/shop_highlight_button.dart';
 import 'package:hunter_ascend/widgets/dashboard/dashboard_stats_grid.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
@@ -1399,45 +1400,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
     return Row(
       children: [
-        // Coin Shop button
-        GestureDetector(
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const CoinShopScreen(),
-            ),
-          ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: HunterTheme.cardColor,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: HunterTheme.gold.withOpacity(0.4)),
-              boxShadow: [
-                BoxShadow(
-                  color: HunterTheme.gold.withOpacity(0.15),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('🪙', style: TextStyle(fontSize: 16)),
-                const SizedBox(width: 6),
-                Text(
-                  'Shop',
-                  style: TextStyle(
-                    color: HunterTheme.gold,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        // Coin Shop button — with version-gated highlight animation.
+        ShopHighlightButton(accentColor: HunterTheme.gold),
         const Spacer(),
         RichText(
           text: TextSpan(children: [

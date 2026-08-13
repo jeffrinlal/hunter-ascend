@@ -38,7 +38,6 @@ import 'package:hunter_ascend/widgets/dashboard/dashboard_stats_grid.dart';
 import 'package:hunter_ascend/data/models/hunter_data.dart';
 import 'package:hunter_ascend/data/repositories/hunter_repository.dart';
 import 'package:hunter_ascend/widgets/equipped_badge_chip.dart';
-import 'package:hunter_ascend/screens/shop/coin_shop_screen.dart';
 import 'package:hunter_ascend/services/feature_unlock_service.dart';
 
 

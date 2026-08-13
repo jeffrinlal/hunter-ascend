@@ -18,6 +18,7 @@ import 'package:hunter_ascend/widgets/dashboard/elite_quick_actions.dart';
 import 'package:hunter_ascend/widgets/dashboard/elite_water_card.dart';
 import 'package:hunter_ascend/widgets/dashboard/entrance_fade_slide.dart';
 import 'package:hunter_ascend/widgets/dashboard/shop_highlight_button.dart';
+import 'package:hunter_ascend/screens/shop/coin_shop_screen.dart';
 
 /// Elite Dashboard layout for Max members.
 ///

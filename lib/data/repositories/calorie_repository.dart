@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:hive/hive.dart';
+import 'package:hunter_ascend/data/cache_constants.dart';
 
 /// A single logged food entry (one meal/snack item) for the calorie tracker.
 ///
-/// Backed by the `calorie_logs` Firestore collection. Immutable.
+/// Previously backed by the `calorie_logs` Firestore collection; now persisted
+/// locally via Hive for today only. The data model is unchanged so all UI code
+/// continues to work without modification.
 class MealEntry {
   final String? id;
   final String name;
@@ -52,209 +55,228 @@ class MealEntry {
     fat: fat,
     time: time,
   );
+
+  /// Serializes to a plain JSON-compatible map for Hive storage (no Firestore
+  /// Timestamp — uses millisecondsSinceEpoch instead).
+  Map<String, dynamic> _toHiveMap() => {
+    'id': id,
+    'name': name,
+    'calories': calories,
+    'protein': protein,
+    'carbs': carbs,
+    'fat': fat,
+    'timeMs': time.millisecondsSinceEpoch,
+  };
+
+  /// Deserializes from the Hive-stored plain map.
+  factory MealEntry._fromHiveMap(Map m) => MealEntry(
+    id: m['id'] as String?,
+    name: (m['name'] ?? '') as String,
+    calories: (m['calories'] ?? 0) as int,
+    protein: ((m['protein'] ?? 0) as num).toDouble(),
+    carbs: ((m['carbs'] ?? 0) as num).toDouble(),
+    fat: ((m['fat'] ?? 0) as num).toDouble(),
+    time: DateTime.fromMillisecondsSinceEpoch((m['timeMs'] ?? 0) as int),
+  );
 }
 
-/// Cache-first repository for calorie logs (`calorie_logs` collection).
+/// Local-only repository for calorie logs — persisted via Hive for today only.
 ///
-/// ## Responsibilities
-/// - Owns a single Firestore `.snapshots()` subscription on today's calorie_logs.
-/// - Caches today's entries in memory for instant UI updates.
-/// - Exposes `Stream<List<MealEntry>>` via `watch()`.
-/// - Provides `getCached()` for synchronous first-frame data.
-/// - Handles midnight date transitions by clearing cache and reloading.
+/// ## Design
+/// Today's meals survive app kills, background cleanup, and phone restarts
+/// (Hive writes to disk immediately). Previous days' data is auto-cleared on
+/// first access after midnight — no permanent history is retained.
 ///
-/// ## Guarantees
-/// - At most ONE Firestore listener exists at any time (de-duplicated).
-/// - Calling `watch()` multiple times returns the SAME broadcast stream.
-/// - Add/delete operations update the cache immediately for instant UI.
-/// - Firestore remains the single source of truth.
-/// - Multi-device changes are synced via the Firestore listener.
+/// ## What was removed vs Firestore
+/// - 1 permanent Firestore listener (−1, total now 21)
+/// - 1 write per meal logged
+/// - 1 delete per meal removed
+/// - 1 historical query in ReportService
+/// - 1 batch-delete in AccountDeletionService
+///
+/// ## API contract (unchanged)
+/// - `watch()` → `Stream<List<MealEntry>>` (broadcast)
+/// - `getCached()` → today's meals synchronously
+/// - `addMeal()` → returns generated ID
+/// - `deleteMeal()` → removes by ID
+/// - `clearCache()` → resets on sign-out
 class CalorieRepository {
   CalorieRepository._();
 
   static final CalorieRepository instance = CalorieRepository._();
 
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _firestoreSub;
-  String? _listeningUid;
-  String? _listeningDate;
+  static const String _keyMeals = 'meals_today';
+  static const String _keyDate = 'meals_date';
+
   StreamController<List<MealEntry>>? _controller;
   Stream<List<MealEntry>>? _cachedStream;
   List<MealEntry> _cached = [];
   Timer? _midnightTimer;
+  int _nextId = 1;
 
   // ── Public API ───────────────────────────────────────────────────────────
 
   /// Returns cached meal entries for today synchronously.
-  /// Returns empty list if no cache exists or user not signed in.
-  List<MealEntry> getCached() => List.unmodifiable(_cached);
+  List<MealEntry> getCached() {
+    _loadFromHiveIfNeeded();
+    return List.unmodifiable(_cached);
+  }
 
   /// Stream of today's meal updates. Sorted by time descending.
   /// Safe to call multiple times — returns the same broadcast stream.
-  /// Automatically handles midnight transitions by clearing cache.
   Stream<List<MealEntry>> watch() {
-    _ensureListening();
+    _ensureReady();
     return _cachedStream ?? Stream.value([]);
   }
 
-  /// Adds a meal to today's logs.
-  /// Updates cache immediately, then writes to Firestore asynchronously.
-  /// Returns the document ID after successful write.
+  /// Adds a meal to today's logs. Persisted to Hive immediately.
   Future<String?> addMeal(MealEntry meal) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return null;
+    _ensureReady();
 
-    final today = _today();
-    
-    try {
-      // Write to Firestore first to get doc ID
-      final docRef = await FirebaseFirestore.instance
-          .collection('calorie_logs')
-          .add({
-        ...meal.toMap(),
-        'uid': user.uid,
-        'date': today,
-      });
+    final id = 'local_${_nextId++}';
+    final mealWithId = meal.copyWith(id: id);
+    _cached = [mealWithId, ..._cached];
+    _persistToHive();
+    _emit();
 
-      // Update cache immediately with the new doc ID
-      final mealWithId = meal.copyWith(id: docRef.id);
-      _cached = [mealWithId, ..._cached];
-      _emitCached();
-
-      debugPrint('[CalorieRepository] Meal added: ${meal.name} (${docRef.id})');
-      return docRef.id;
-    } catch (e) {
-      debugPrint('[CalorieRepository] addMeal ERROR: $e');
-      return null;
-    }
+    debugPrint('[CalorieRepository] Meal added: ${meal.name} ($id)');
+    return id;
   }
 
-  /// Deletes a meal from today's logs.
-  /// Updates cache immediately, then deletes from Firestore asynchronously.
+  /// Deletes a meal from today's logs. Persisted to Hive immediately.
   Future<bool> deleteMeal(String docId) async {
-    try {
-      // Update cache immediately
-      _cached = _cached.where((m) => m.id != docId).toList();
-      _emitCached();
-
-      // Delete from Firestore
-      await FirebaseFirestore.instance
-          .collection('calorie_logs')
-          .doc(docId)
-          .delete();
-
+    final before = _cached.length;
+    _cached = _cached.where((m) => m.id != docId).toList();
+    if (_cached.length < before) {
+      _persistToHive();
+      _emit();
       debugPrint('[CalorieRepository] Meal deleted: $docId');
       return true;
-    } catch (e) {
-      debugPrint('[CalorieRepository] deleteMeal ERROR: $e');
-      return false;
     }
+    return false;
   }
 
-  /// Clears the cache and cancels the Firestore listener.
-  /// Used on sign-out or when switching users.
+  /// Clears the cache. Used on sign-out or user switch.
   Future<void> clearCache() async {
     debugPrint('[CalorieRepository] Clearing cache');
-    _stopListening();
     _cached = [];
+    _nextId = 1;
+    try {
+      final box = Hive.box(CacheConstants.calorieBox);
+      await box.clear();
+    } catch (e) {
+      debugPrint('[CalorieRepository] clearCache Hive: $e');
+    }
+    _controller?.close();
+    _controller = null;
+    _cachedStream = null;
+    _midnightTimer?.cancel();
+    _midnightTimer = null;
   }
 
   void dispose() {
-    debugPrint('[CalorieRepository] Disposing');
-    _stopListening();
+    clearCache();
   }
 
   // ── Private ──────────────────────────────────────────────────────────────
 
-  String _today() => DateTime.now().toString().substring(0, 10);
+  static String _today() => DateTime.now().toString().substring(0, 10);
 
-  void _ensureListening() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+  bool _loaded = false;
 
-    final today = _today();
+  void _loadFromHiveIfNeeded() {
+    if (_loaded) return;
+    _loaded = true;
+    try {
+      final box = Hive.box(CacheConstants.calorieBox);
+      final storedDate = box.get(_keyDate) as String?;
+      final today = _today();
 
-    // Reuse existing listener if same user and same date
-    if (_firestoreSub != null && 
-        _listeningUid == uid && 
-        _listeningDate == today && 
-        _controller != null) {
-      debugPrint('[CalorieRepository] Reusing existing listener');
-      return;
-    }
+      if (storedDate != today) {
+        // Previous day's data — discard silently.
+        box.clear();
+        _cached = [];
+        _nextId = 1;
+        return;
+      }
 
-    // Date changed or first load - reset
-    if (_listeningDate != null && _listeningDate != today) {
-      debugPrint('[CalorieRepository] Date changed, clearing cache');
+      final stored = box.get(_keyMeals);
+      if (stored is List) {
+        _cached = stored
+            .whereType<Map>()
+            .map((m) => MealEntry._fromHiveMap(m))
+            .toList();
+        // Restore next ID counter past all existing IDs.
+        for (final meal in _cached) {
+          final idStr = meal.id ?? '';
+          if (idStr.startsWith('local_')) {
+            final num = int.tryParse(idStr.substring(6)) ?? 0;
+            if (num >= _nextId) _nextId = num + 1;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[CalorieRepository] _loadFromHiveIfNeeded: $e');
       _cached = [];
     }
+  }
 
-    _stopListening();
-    _listeningUid = uid;
-    _listeningDate = today;
+  void _ensureReady() {
+    _loadFromHiveIfNeeded();
 
-    _controller = StreamController<List<MealEntry>>.broadcast();
-    _cachedStream = _controller!.stream;
+    // Check if date rolled over since last access.
+    final today = _today();
+    try {
+      final box = Hive.box(CacheConstants.calorieBox);
+      final storedDate = box.get(_keyDate) as String?;
+      if (storedDate != null && storedDate != today) {
+        debugPrint('[CalorieRepository] New day detected, clearing');
+        box.clear();
+        _cached = [];
+        _nextId = 1;
+      }
+    } catch (_) {}
 
-    debugPrint('[CalorieRepository] Creating Firestore listener for $today');
-
-    _firestoreSub = FirebaseFirestore.instance
-        .collection('calorie_logs')
-        .where('uid', isEqualTo: uid)
-        .where('date', isEqualTo: today)
-        .orderBy('time', descending: true)
-        .snapshots()
-        .listen(
-      (snapshot) => _onSnapshot(snapshot),
-      onError: (e) {
-        debugPrint('[CalorieRepository] Firestore error: $e');
-      },
-    );
+    if (_controller == null || _controller!.isClosed) {
+      _controller = StreamController<List<MealEntry>>.broadcast();
+      _cachedStream = _controller!.stream;
+    }
 
     _scheduleMidnightRefresh();
   }
 
-  void _onSnapshot(QuerySnapshot<Map<String, dynamic>> snapshot) {
-    _cached = snapshot.docs.map((doc) {
-      final meal = MealEntry.fromMap(doc.data());
-      return meal.copyWith(id: doc.id);
-    }).toList();
-
-    debugPrint('[CalorieRepository] Snapshot received: ${_cached.length} meals');
-    _emitCached();
+  void _persistToHive() {
+    try {
+      final box = Hive.box(CacheConstants.calorieBox);
+      box.put(_keyDate, _today());
+      box.put(_keyMeals, _cached.map((m) => m._toHiveMap()).toList());
+    } catch (e) {
+      debugPrint('[CalorieRepository] _persistToHive: $e');
+    }
   }
 
-  void _emitCached() {
+  void _emit() {
     if (_controller != null && !_controller!.isClosed) {
       _controller!.add(List.unmodifiable(_cached));
     }
   }
 
   void _scheduleMidnightRefresh() {
-    _midnightTimer?.cancel();
+    if (_midnightTimer != null) return;
     final now = DateTime.now();
     final nextMidnight = DateTime(now.year, now.month, now.day + 1);
     final delay = nextMidnight.difference(now);
 
-    debugPrint('[CalorieRepository] Scheduling midnight refresh in ${delay.inHours}h');
-
     _midnightTimer = Timer(delay, () {
-      debugPrint('[CalorieRepository] Midnight! Refreshing for new day');
+      debugPrint('[CalorieRepository] Midnight — clearing for new day');
       _cached = [];
-      _listeningDate = null;
-      _stopListening();
-      _ensureListening();
+      _nextId = 1;
+      _loaded = false;
+      _midnightTimer = null;
+      try {
+        Hive.box(CacheConstants.calorieBox).clear();
+      } catch (_) {}
+      _emit();
     });
-  }
-
-  void _stopListening() {
-    _firestoreSub?.cancel();
-    _firestoreSub = null;
-    _listeningUid = null;
-    _listeningDate = null;
-    _controller?.close();
-    _controller = null;
-    _cachedStream = null;
-    _midnightTimer?.cancel();
-    _midnightTimer = null;
   }
 }

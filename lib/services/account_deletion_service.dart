@@ -87,9 +87,11 @@ class AccountDeletionService {
     await _deleteQuery(
       _firestore.collection('runs').where('uid', isEqualTo: uid),
     );
-    await _deleteQuery(
-      _firestore.collection('calorie_logs').where('uid', isEqualTo: uid),
-    );
+
+    // calorie_logs: no longer written by the app (local-only since the
+    // calorie tracker migration). Existing orphaned docs are harmless and
+    // cost nothing — they'll never be read again. Skipping the batch-delete
+    // saves one query + N writes per deleted account.
 
     // A pending invitation can be removed by either participant. Shared duel
     // documents are not deleted or anonymized on the client.

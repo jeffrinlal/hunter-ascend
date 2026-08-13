@@ -50,6 +50,7 @@ class HiveInit {
     await Hive.openBox<List>(CacheConstants.weightBox);
     await Hive.openBox<List>(CacheConstants.questBox);
     await Hive.openBox(CacheConstants.leaderboardBox);
+    await Hive.openBox(CacheConstants.calorieBox);
 
     // Update last sync timestamp.
     await meta.put(
@@ -69,6 +70,9 @@ class HiveInit {
 
     final questBox = Hive.box<List>(CacheConstants.questBox);
     await questBox.clear();
+
+    final calorieBox = Hive.box(CacheConstants.calorieBox);
+    await calorieBox.clear();
 
     final meta = Hive.box(CacheConstants.metadataBox);
     await meta.delete(CacheConstants.keyCachedUid);

@@ -30,44 +30,20 @@ class ReportService {
     final db = FirebaseFirestore.instance;
 
     // ── Nutrition (calorie_logs) ──
-    // For today's data: use CalorieRepository cache to avoid duplicate reads
-    // For historical data: query Firestore directly
+    // Calorie data is now local-only (in-memory for the current session).
+    // Reports show only today's cached meals — no historical Firestore query.
     List<MealEntry> meals = [];
     bool nutritionOk = true;
     try {
-      // Get today's cached meals from repository (no Firestore read)
       final todaysCachedMeals = repo.CalorieRepository.instance.getCached();
       
-      // Convert repository MealEntry to report MealEntry
-      final todaysMeals = todaysCachedMeals.map((repoMeal) => MealEntry(
+      meals = todaysCachedMeals.map((repoMeal) => MealEntry(
         calories: repoMeal.calories,
         protein: repoMeal.protein,
         carbs: repoMeal.carbs,
         fat: repoMeal.fat,
         time: repoMeal.time,
       )).toList();
-      
-      // Query Firestore only for historical data (excluding today)
-      final snap = await db
-          .collection('calorie_logs')
-          .where('uid', isEqualTo: uid)
-          .where('date', isGreaterThanOrEqualTo: cutoffStr)
-          .where('date', isLessThan: today)
-          .get();
-      
-      final historicalMeals = snap.docs.map((d) {
-        final m = d.data();
-        return MealEntry(
-          calories: _asInt(m['calories']),
-          protein: _asDouble(m['protein']),
-          carbs: _asDouble(m['carbs']),
-          fat: _asDouble(m['fat']),
-          time: (m['time'] as Timestamp?)?.toDate() ?? now,
-        );
-      }).toList();
-      
-      // Combine today's converted meals with historical Firestore data
-      meals = [...todaysMeals, ...historicalMeals];
     } catch (_) {
       nutritionOk = false;
     }

@@ -43,6 +43,8 @@ class _StepClashScreenState extends State<StepClashScreen> {
   // Guards.
   bool _finalizing = false;
   bool _forfeiting = false;
+  bool _accepting = false;
+  bool _declining = false;
 
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
@@ -289,6 +291,14 @@ class _StepClashScreenState extends State<StepClashScreen> {
 
   Widget _waitingBody(StepClashData clash) {
     final accent = MembershipTheme.current.accent;
+    final isPendingForMe = clash.pendingInvitees.contains(_uid);
+
+    // If this user is an invitee who hasn't accepted yet, show the invite
+    // with Accept/Decline buttons instead of the generic waiting state.
+    if (isPendingForMe) {
+      return _inviteBody(clash, accent);
+    }
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -344,6 +354,223 @@ class _StepClashScreenState extends State<StepClashScreen> {
         ),
       ),
     );
+  }
+
+  /// Invite screen shown to an invitee who hasn't accepted yet.
+  Widget _inviteBody(StepClashData clash, Color accent) {
+    final creatorName = clash.nameFor(clash.creatorUid);
+    final goal = clash.goalSteps;
+    final duration = clash.durationMinutes;
+    final playerCount = clash.participants.length;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+      child: Column(
+        children: [
+          // ── Hero ──
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [accent.withValues(alpha: 0.14), HunterTheme.cardColor],
+              ),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: accent.withValues(alpha: 0.4), width: 1.5),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: accent.withValues(alpha: 0.12),
+                    border: Border.all(color: accent.withValues(alpha: 0.45)),
+                  ),
+                  child: const Text('👣', style: TextStyle(fontSize: 36)),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'STEP CLASH INVITATION',
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 2,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '$creatorName wants to battle!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: HunterTheme.textSecondary,
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // ── Details ──
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: HunterTheme.cardColor,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: HunterTheme.border),
+            ),
+            child: Column(
+              children: [
+                _detailRow(Icons.flag_rounded, 'Goal', '${_fmtSteps(goal)} steps'),
+                const SizedBox(height: 12),
+                _detailRow(Icons.timer_outlined, 'Duration',
+                    duration >= 60 ? '${duration ~/ 60} hour${duration > 60 ? "s" : ""}' : '$duration min'),
+                const SizedBox(height: 12),
+                _detailRow(Icons.people_rounded, 'Players', '$playerCount'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+
+          // ── Accept / Decline ──
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: _declining ? null : _handleDecline,
+                  child: Opacity(
+                    opacity: _declining ? 0.6 : 1,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      decoration: BoxDecoration(
+                        color: HunterTheme.danger.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                            color: HunterTheme.danger.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.close_rounded,
+                              color: HunterTheme.danger, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            'DECLINE',
+                            style: TextStyle(
+                              color: HunterTheme.danger,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.5,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: GestureDetector(
+                  onTap: _accepting ? null : _handleAccept,
+                  child: Opacity(
+                    opacity: _accepting ? 0.6 : 1,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: MembershipTheme.current.gradient,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.check_rounded,
+                              color: MembershipTheme.isMax
+                                  ? Colors.white
+                                  : Colors.black,
+                              size: 19),
+                          const SizedBox(width: 8),
+                          Text(
+                            'ACCEPT',
+                            style: TextStyle(
+                              color: MembershipTheme.isMax
+                                  ? Colors.white
+                                  : Colors.black,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.5,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, color: MembershipTheme.current.accent, size: 18),
+        const SizedBox(width: 12),
+        Text(label,
+            style: TextStyle(
+                color: HunterTheme.textSecondary, fontSize: 13)),
+        const Spacer(),
+        Text(value,
+            style: TextStyle(
+                color: HunterTheme.textPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 13)),
+      ],
+    );
+  }
+
+  Future<void> _handleAccept() async {
+    if (_accepting) return;
+    setState(() => _accepting = true);
+    final clash = _clash;
+    if (clash == null) return;
+    final result = await StepClashService.instance.accept(clash);
+    if (!mounted) return;
+    setState(() => _accepting = false);
+    if (!result.ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message ?? 'Could not accept.')),
+      );
+      return;
+    }
+    // Reload — may now be active.
+    final refreshed = await StepClashService.instance.fetchById(widget.battleId);
+    if (!mounted || refreshed == null) return;
+    setState(() => _clash = refreshed);
+    if (refreshed.status == StepClashStatus.active) {
+      _startBattle(refreshed);
+    }
+  }
+
+  Future<void> _handleDecline() async {
+    if (_declining) return;
+    setState(() => _declining = true);
+    final clash = _clash;
+    if (clash == null) return;
+    await StepClashService.instance.decline(clash);
+    if (!mounted) return;
+    Navigator.pop(context);
   }
 
   Widget _activeBattleBody(StepClashData clash) {

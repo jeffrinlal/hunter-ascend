@@ -13,6 +13,7 @@ import 'package:hunter_ascend/screens/battle/battle_hub_screen.dart';
 // (see BattleHubScreen), not the shell's.
 import 'package:hunter_ascend/services/membership_service.dart';
 import 'package:hunter_ascend/services/rivalry_service.dart';
+import 'package:hunter_ascend/services/step_clash_service.dart';
 import 'package:hunter_ascend/screens/profile/membership_screen.dart';
 import 'package:hunter_ascend/core/theme/theme_service.dart';
 import 'package:hunter_ascend/widgets/daily_motivation_dialog.dart';
@@ -120,6 +121,15 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   // same index-free shape the duel-request stream already uses.
   late final Stream<QuerySnapshot<Map<String, dynamic>>>
       _rivalRequestBadgeStream = RivalryService.instance.incomingRequestStream(
+    FirebaseAuth.instance.currentUser?.uid ?? '',
+  );
+
+  // Cached stream for incoming STEP CLASH invites, feeding the same red dot.
+  // Uses the pendingInvitees array-contains query — same index-free shape as
+  // the duel/rival badge streams. One additional listener (total now: duel +
+  // rival + step clash → 3 nested StreamBuilders producing one dot).
+  late final Stream<QuerySnapshot<Map<String, dynamic>>>
+      _stepClashBadgeStream = StepClashService.instance.incomingInviteStream(
     FirebaseAuth.instance.currentUser?.uid ?? '',
   );
 
@@ -369,24 +379,29 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: _rivalRequestBadgeStream,
           builder: (context, rivalSnap) {
-            // Aged-out rival requests are filtered out, so an abandoned
-            // request can never leave a red dot on the tab forever.
             final hasRivalRequest =
                 RivalryService.hasLiveIncomingRequest(rivalSnap.data);
-            if (!hasDuelRequest && !hasRivalRequest) {
-              return const SizedBox.shrink();
-            }
-            return Container(
-              width: 9,
-              height: 9,
-              decoration: BoxDecoration(
-                color: HunterTheme.danger,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: selected ? accent : HunterTheme.cardColor,
-                  width: 1.4,
-                ),
-              ),
+            return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _stepClashBadgeStream,
+              builder: (context, stepClashSnap) {
+                final hasStepClashInvite =
+                    stepClashSnap.hasData && stepClashSnap.data!.docs.isNotEmpty;
+                if (!hasDuelRequest && !hasRivalRequest && !hasStepClashInvite) {
+                  return const SizedBox.shrink();
+                }
+                return Container(
+                  width: 9,
+                  height: 9,
+                  decoration: BoxDecoration(
+                    color: HunterTheme.danger,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: selected ? accent : HunterTheme.cardColor,
+                      width: 1.4,
+                    ),
+                  ),
+                );
+              },
             );
           },
         );

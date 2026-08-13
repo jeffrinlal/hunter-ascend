@@ -421,8 +421,12 @@ class _BattleHubScreenState extends State<BattleHubScreen> {
 
   Widget _buildStepClashCard() {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    // Check if the user has a pending invite (they're in pendingInvitees).
+    final hasPendingInvite = _stepClash != null &&
+        _stepClash!.pendingInvitees.contains(uid);
     final state =
-        StepClashService.cardStateFor(_stepClash, uid);
+        StepClashService.cardStateFor(_stepClash, uid,
+            hasIncomingInvite: hasPendingInvite);
 
     switch (state) {
       case StepClashCardState.incoming:

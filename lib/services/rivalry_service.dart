@@ -437,12 +437,17 @@ class RivalryService {
   ///
   /// A non-empty result is also the one-active-rivalry check.
   Future<RivalryData?> fetchCurrentRivalry(String uid) async {
-    final snap = await _rivalries
-        .where('unsettledFor', arrayContains: uid)
-        .limit(1)
-        .get();
-    if (snap.docs.isEmpty) return null;
-    return RivalryData.fromSnapshot(snap.docs.first);
+    try {
+      final snap = await _rivalries
+          .where('unsettledFor', arrayContains: uid)
+          .limit(1)
+          .get();
+      if (snap.docs.isEmpty) return null;
+      return RivalryData.fromSnapshot(snap.docs.first);
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') return null;
+      rethrow;
+    }
   }
 
   /// The current rivalry of the OTHER hunter, used only for the "is this

@@ -650,6 +650,190 @@ service cloud.firestore {
 
 
     // ══════════════════════════════════════════════════════════════════════
+    // STEP CLASHES
+    // ══════════════════════════════════════════════════════════════════════
+    match /step_clashes/{battleId} {
+
+      function isSignedIn()      { return request.auth != null; }
+      function me()              { return request.auth.uid; }
+      function existing()        { return resource.data; }
+      function incoming()        { return request.resource.data; }
+      function isParticipant()   { return me() in existing().participants; }
+      function touchesOnly(keys) {
+        return incoming().diff(existing()).affectedKeys().hasOnly(keys);
+      }
+      function identityUnchanged() {
+        return incoming().participants == existing().participants
+            && incoming().creatorUid   == existing().creatorUid
+            && incoming().goalSteps    == existing().goalSteps
+            && incoming().durationMinutes == existing().durationMinutes
+            && incoming().createdAt    == existing().createdAt;
+      }
+
+      // ── READ ────────────────────────────────────────────────────────
+      allow read: if isSignedIn()
+                  && (me() in resource.data.participants
+                      || me() in resource.data.pendingInvitees);
+
+      // ── CREATE ──────────────────────────────────────────────────────
+      allow create: if isSignedIn()
+        && incoming().creatorUid == me()
+        && me() in incoming().participants
+        && incoming().status == 'waiting'
+        && incoming().goalSteps in [10000, 25000, 50000, 100000]
+        && incoming().durationMinutes in [30, 60, 120]
+        && incoming().participants.size() >= 2
+        && incoming().participants.size() <= 5
+        && incoming().pendingInvitees.size() >= 1
+        && incoming().pendingInvitees.size() <= 4
+        && !(me() in incoming().pendingInvitees)
+        && incoming().participants.hasAll(incoming().pendingInvitees)
+        && incoming().winner == null
+        && incoming().completedAt == null
+        && incoming().startAt == null
+        && incoming().forfeited.size() == 0
+        && incoming().progress.size() == 0
+        && incoming().startSnapshot.size() == 0
+        && incoming().xpAwarded.size() == incoming().participants.size()
+        && incoming().createdAt == request.time;
+
+      // ── UPDATE 1 — ACCEPT ──────────────────────────────────────────
+      allow update: if isSignedIn()
+        && isParticipant()
+        && me() in existing().pendingInvitees
+        && !(me() in incoming().pendingInvitees)
+        && identityUnchanged()
+        && (
+          (incoming().status == 'waiting'
+           && touchesOnly(['pendingInvitees']))
+          ||
+          (existing().status == 'waiting'
+           && incoming().status == 'active'
+           && incoming().pendingInvitees.size() == 0
+           && incoming().startAt == request.time
+           && touchesOnly(['pendingInvitees', 'status', 'startAt']))
+        );
+
+      // ── UPDATE 2 — DECLINE ─────────────────────────────────────────
+      allow update: if isSignedIn()
+        && me() in existing().participants
+        && existing().status == 'waiting'
+        && (
+          (incoming().status == 'cancelled'
+           && touchesOnly(['status']))
+          ||
+          (incoming().status == 'waiting'
+           && !(me() in incoming().participants)
+           && !(me() in incoming().pendingInvitees)
+           && touchesOnly(['participants', 'pendingInvitees']))
+        );
+
+      // ── UPDATE 3 — PROGRESS SYNC (own entry only) ──────────────────
+      allow update: if isSignedIn()
+        && isParticipant()
+        && existing().status == 'active'
+        && !(me() in existing().forfeited)
+        && identityUnchanged()
+        && incoming().status == existing().status
+        && incoming().winner == existing().winner
+        && incoming().completedAt == existing().completedAt
+        && incoming().forfeited == existing().forfeited
+        && incoming().xpAwarded == existing().xpAwarded
+        && incoming().pendingInvitees == existing().pendingInvitees
+        && touchesOnly(['progress', 'startSnapshot'])
+        && incoming().progress[me()] >= 0
+        && incoming().progress[me()] <= existing().goalSteps
+        && (!(me() in existing().startSnapshot.keys())
+            || incoming().startSnapshot[me()] == existing().startSnapshot[me()])
+        && incoming().progress.diff(existing().progress)
+             .affectedKeys().hasOnly([me()])
+        && incoming().startSnapshot.diff(existing().startSnapshot)
+             .affectedKeys().hasOnly([me()]);
+
+      // ── UPDATE 4 — FINALIZE (goal reached or timer expired) ────────
+      allow update: if isSignedIn()
+        && isParticipant()
+        && existing().status == 'active'
+        && existing().winner == null
+        && incoming().status == 'completed'
+        && incoming().completedAt == request.time
+        && (incoming().winner == '' || incoming().winner in existing().participants)
+        && touchesOnly(['status', 'winner', 'completedAt'])
+        && identityUnchanged()
+        && (
+          request.time >= existing().startAt
+            + duration.value(existing().durationMinutes, 'm')
+          ||
+          existing().progress[incoming().winner] >= existing().goalSteps
+        );
+
+      // ── UPDATE 5 — FORFEIT (self only, no auto-complete) ───────────
+      // Used when multiple players remain — only adds self to forfeited.
+      allow update: if isSignedIn()
+        && isParticipant()
+        && existing().status == 'active'
+        && !(me() in existing().forfeited)
+        && incoming().forfeited.hasAll(existing().forfeited)
+        && incoming().forfeited.hasAll([me()])
+        && incoming().forfeited.size() == existing().forfeited.size() + 1
+        && touchesOnly(['forfeited'])
+        && identityUnchanged();
+
+      // ── UPDATE 6 — FORFEIT + AUTO-WIN (1v1 or last player) ─────────
+      // When forfeiting leaves exactly 1 non-forfeited participant, the
+      // transaction atomically sets forfeited + status + winner + completedAt.
+      allow update: if isSignedIn()
+        && isParticipant()
+        && existing().status == 'active'
+        && !(me() in existing().forfeited)
+        && incoming().forfeited.hasAll(existing().forfeited)
+        && incoming().forfeited.hasAll([me()])
+        && incoming().forfeited.size() == existing().forfeited.size() + 1
+        && incoming().status == 'completed'
+        && incoming().completedAt == request.time
+        && (incoming().winner == '' || incoming().winner in existing().participants)
+        && !(incoming().winner == me())
+        && touchesOnly(['forfeited', 'status', 'winner', 'completedAt'])
+        && identityUnchanged();
+
+      // ── UPDATE 7 — XP CLAIM (winner only, write-once) ─────────────
+      allow update: if isSignedIn()
+        && isParticipant()
+        && existing().status == 'completed'
+        && me() == existing().winner
+        && existing().xpAwarded[me()] == false
+        && incoming().xpAwarded[me()] == true
+        && incoming().xpAwarded.diff(existing().xpAwarded)
+             .affectedKeys().hasOnly([me()])
+        && touchesOnly(['xpAwarded'])
+        && identityUnchanged();
+
+      // ── UPDATE 8 — ACKNOWLEDGE (non-winners dismiss result) ────────
+      allow update: if isSignedIn()
+        && isParticipant()
+        && existing().status == 'completed'
+        && me() != existing().winner
+        && existing().xpAwarded[me()] == false
+        && incoming().xpAwarded[me()] == true
+        && incoming().xpAwarded.diff(existing().xpAwarded)
+             .affectedKeys().hasOnly([me()])
+        && touchesOnly(['xpAwarded'])
+        && identityUnchanged();
+
+      // ── UPDATE 9 — CANCEL (creator, while waiting) ─────────────────
+      allow update: if isSignedIn()
+        && me() == existing().creatorUid
+        && existing().status == 'waiting'
+        && incoming().status == 'cancelled'
+        && touchesOnly(['status']);
+
+      // ── DELETE ──────────────────────────────────────────────────────
+      allow delete: if isSignedIn()
+        && me() == existing().creatorUid
+        && existing().status == 'waiting';
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // DEFAULT: deny everything else
     // ══════════════════════════════════════════════════════════════════════
     match /{document=**} {

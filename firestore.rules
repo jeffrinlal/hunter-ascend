@@ -5,70 +5,223 @@ service cloud.firestore {
     // ══════════════════════════════════════════════════════════════════════
     // HUNTERS COLLECTION
     // ══════════════════════════════════════════════════════════════════════
-    match /hunters/{userId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null
-                    && request.auth.uid == userId;
-      allow update: if request.auth != null
-                    && request.auth.uid == userId;
-      // Required by anonymous logout: the guest user deletes their own
-      // hunter document before deleting the auth account.
-      allow delete: if request.auth != null
-                    && request.auth.uid == userId;
+    //
+    // Each hunter document is at: hunters/{uid}
+    //
+    // SECURITY PRINCIPLE:
+    // - Any signed-in user can READ any hunter document — required for
+    //   the leaderboard (queries across all hunters), duel opponent
+    //   search/lookup, and the compare-hunters screen. Hunter docs only
+    //   contain gameplay/profile data, never auth credentials.
+    // - Only the owner can write their own document.
+    // - Updates are restricted: each write may only touch fields relevant
+    //   to that operation.
+    // - Membership fields are writable by the owner ONLY via a dedicated
+    //   rule that limits affected keys to membership-related fields.
+    // - Gameplay fields are writable by the owner but CANNOT touch
+    //   membership fields in the same write.
+    // - Cross-user duel stat writes are temporarily allowed (deferred item).
+    // - Delete is allowed ONLY for the document owner — required by the
+    //   anonymous/guest logout flow, which deletes hunters/{uid} before
+    //   deleting the Firebase Auth account itself.
+    // ══════════════════════════════════════════════════════════════════════
 
-      // ── Rank Rewards (permanent, one-time-only grants) ──
-      // create-only: a second create for the same rewardId is structurally
-      // rejected (doc already exists → evaluated as update → denied).
+    match /hunters/{hunterId} {
+
+      // ── Read: any signed-in user ──
+      // Needed for leaderboard queries, duel opponent search, and
+      // compare-hunters — all of which read OTHER users' hunter docs.
+      allow read: if request.auth != null;
+
+      // ── Create: only the document owner ──
+      allow create: if request.auth != null
+                    && request.auth.uid == hunterId;
+
+      // ── Update: restricted by field sets ──
+      allow update: if request.auth != null
+                    && (
+                      // ── Own document: gameplay fields ──
+                      // Allows updating any field EXCEPT membership fields.
+                      (request.auth.uid == hunterId
+                       && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                         'membershipType',
+                         'membershipExpiry',
+                         'pendingMaxRewardAds',
+                         'pendingMaxRewardStartedAt',
+                         'lastRewardClaim'
+                       ]))
+                      ||
+                      // ── Own document: membership reward claim ──
+                      // Allows updating ONLY membership-related fields.
+                      (request.auth.uid == hunterId
+                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                         'membershipType',
+                         'membershipExpiry',
+                         'pendingMaxRewardAds',
+                         'pendingMaxRewardStartedAt',
+                         'lastRewardClaim'
+                       ]))
+                      ||
+                      // ── Cross-user: duel stats only (temporary) ──
+                      (request.auth.uid != hunterId
+                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                         'duelWins', 'duelLosses'
+                       ]))
+                    );
+
+      // ── Delete: only the document owner ──
+      // Required by anonymous/guest logout: the guest deletes their own
+      // hunter document before deleting their Firebase Auth account.
+      allow delete: if request.auth != null && request.auth.uid == hunterId;
+
+      // ════════════════════════════════════════════════════════════════════
+      // RANK REWARDS SUBCOLLECTION (hunters/{hunterId}/rankRewards/{rewardId})
+      // ════════════════════════════════════════════════════════════════════
+      //
+      // Permanent, one-time-only reward grants for reaching a Hunter Rank.
+      // Stored separately from XP/level so progression fields are never
+      // overloaded with reward data.
+      //
+      // - create: the owner may grant themselves a reward ONLY ONCE — since
+      //   `create` only succeeds while the document does not yet exist, this
+      //   makes duplicate grants structurally impossible (a second attempt
+      //   for the same rewardId is evaluated as an `update`, which is denied
+      //   below), even across multiple devices/sessions racing each other.
+      // - update: never allowed — a granted reward can never be silently
+      //   revoked or altered.
+      // - delete: only the document owner may delete — normal gameplay never
+      //   deletes a reward (it stays permanent while the account is active),
+      //   but AccountDeletionService must be able to erase it when the owner
+      //   deletes their account.
       match /rankRewards/{rewardId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.uid == hunterId;
+        allow create: if request.auth != null && request.auth.uid == hunterId;
         allow update: if false;
-        // Cosmetic rewards contain no XP grant. Owner-only deletes support
-        // client-side account cleanup.
-        allow delete: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == hunterId;
       }
 
-      // ── Unlocked Achievements (permanent claims + XP-award flag) ──
-      // create: claim an achievement once.
-      // update: ONLY flip xpAwarded false→true (crash recovery).
-      // delete: ONLY while xpAwarded is still false (rollback on XP failure).
+      // ════════════════════════════════════════════════════════════════════
+      // UNLOCKED ACHIEVEMENTS SUBCOLLECTION
+      // (hunters/{hunterId}/unlockedAchievements/{achievementId})
+      // ════════════════════════════════════════════════════════════════════
+      //
+      // Permanent record that an achievement's condition was met, plus a
+      // one-time XP-award flag — the same permanence pattern as
+      // `rankRewards`, but with one extra allowed transition to support a
+      // safe two-step claim (unlock, then award XP):
+      //
+      // - create: the owner may claim an achievement ONLY ONCE (the doc ID
+      //   is the achievement ID, so a second attempt is an `update`, denied
+      //   below except for the one narrow xpAwarded transition). Structurally
+      //   duplicate-proof across devices/sessions, exactly like `rankRewards`.
+      // - update: allowed ONLY to flip `xpAwarded` from false to true, and
+      //   ONLY that single field — this lets the client recover from a crash
+      //   or network failure between "claim recorded" and "XP granted"
+      //   without ever allowing the flag to be unset again or any other
+      //   field to change after creation.
+      // - delete: allowed ONLY while `xpAwarded` is still false — this is a
+      //   compensating rollback for the rare case where the XP transaction
+      //   itself fails after the claim was written, mirroring the existing
+      //   duel-XP flag rollback pattern (`duel_screen.dart`). Once XP has
+      //   been awarded, the record becomes fully permanent (no delete).
       match /unlockedAchievements/{achievementId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.uid == hunterId;
+        allow create: if request.auth != null && request.auth.uid == hunterId;
         allow update: if request.auth != null
-                      && request.auth.uid == userId
+                      && request.auth.uid == hunterId
                       && resource.data.xpAwarded == false
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['xpAwarded'])
                       && request.resource.data.xpAwarded == true;
         allow delete: if request.auth != null
-                      && request.auth.uid == userId
+                      && request.auth.uid == hunterId
                       && resource.data.xpAwarded == false;
       }
 
-      // ── Equipped Rewards (mutable cosmetic selection) ──
+      // ════════════════════════════════════════════════════════════════════
+      // EQUIPPED REWARDS SUBCOLLECTION (hunters/{hunterId}/equippedRewards/current)
+      // ════════════════════════════════════════════════════════════════════
+      //
+      // The player's CURRENTLY SELECTED cosmetic per reward type (title,
+      // badge, border, aura, dashboard theme, report style, profile effect).
+      // This is deliberately a SEPARATE subcollection from `rankRewards`:
+      //
+      // - `rankRewards` = permanent ownership ledger. create-only, never
+      //   updated or deleted — a historical record of what was unlocked.
+      // - `equippedRewards` = mutable "currently active" selection. The owner
+      //   may freely update it any number of times as they switch cosmetics.
+      //
+      // Equipping/unequipping NEVER writes to `rankRewards`, so ownership
+      // records are never touched by a cosmetic switch. Ownership validation
+      // for what may be equipped is enforced client-side by
+      // EquippedRewardsService (checked against RankRewardService before any
+      // write); Firestore rules here only guard document ownership.
+      //
+      // - delete: only the document owner may delete — normal gameplay
+      //   models unequip as an update, not a delete, but
+      //   AccountDeletionService must be able to erase this when the owner
+      //   deletes their account.
       match /equippedRewards/{docId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null && request.auth.uid == userId;
-        allow update: if request.auth != null && request.auth.uid == userId;
-        allow delete: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.uid == hunterId;
+        allow create: if request.auth != null && request.auth.uid == hunterId;
+        allow update: if request.auth != null && request.auth.uid == hunterId;
+        allow delete: if request.auth != null && request.auth.uid == hunterId;
       }
 
-      // ── Plan Unlocks (rewarded-ad PDF plan unlocks, time-limited) ──
-      // Each document represents a single plan unlock with unlockedAt and
-      // expiresAt timestamps. Owner-only, fully mutable so the client can
-      // re-unlock (overwrite) after watching another rewarded ad.
+      // ════════════════════════════════════════════════════════════════════
+      // PLAN UNLOCKS SUBCOLLECTION (hunters/{hunterId}/planUnlocks/{planId})
+      // ════════════════════════════════════════════════════════════════════
+      //
+      // Rewarded-ad PDF fitness plan unlocks, time-limited. Each document
+      // represents a single plan unlock with unlockedAt and expiresAt
+      // timestamps. Owner-only, fully mutable so the client can re-unlock
+      // (overwrite) after watching another rewarded ad.
       match /planUnlocks/{planId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null && request.auth.uid == userId;
-        allow update: if request.auth != null && request.auth.uid == userId;
-        allow delete: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.uid == hunterId;
+        allow create: if request.auth != null && request.auth.uid == hunterId;
+        allow update: if request.auth != null && request.auth.uid == hunterId;
+        allow delete: if request.auth != null && request.auth.uid == hunterId;
       }
+      // ════════════════════════════════════════════════════════════════════
+		// SKIN UNLOCKS SUBCOLLECTION
+		// hunters/{hunterId}/skinUnlocks/{skinId}
+		// ════════════════════════════════════════════════════════════════════
+
+		match /skinUnlocks/{skinId} {
+  	allow read: if request.auth != null
+              && request.auth.uid == hunterId;
+
+  		allow create: if request.auth != null
+                && request.auth.uid == hunterId;
+
+  		allow update: if request.auth != null
+                && request.auth.uid == hunterId;
+
+  		allow delete: if request.auth != null
+                && request.auth.uid == hunterId;
+		}
     }
 
+
     // ══════════════════════════════════════════════════════════════════════
-    // HUNTER NAMES
+    // HUNTER NAMES COLLECTION (hunterNames/{nameKey})
     // ══════════════════════════════════════════════════════════════════════
-    match /hunterNames/{name} {
+    //
+    // Case-insensitive uniqueness reservation for hunter names. Doc ID is
+    // the lowercased name itself, so only one create can ever succeed for a
+    // given name — this is what makes name uniqueness race-free.
+    //
+    // - read: any authenticated user, so the assessment flow can determine
+    //   whether a name is available/owned BEFORE attempting to claim it
+    //   (including re-checking their OWN prior reservation after being
+    //   bounced back from Path Selection to correct other assessment data —
+    //   see AssessmentScreen's uid-ownership check).
+    // - create: only as your own reservation (uid must match the caller).
+    // - update: never allowed — once claimed, a name reservation's owner
+    //   can never change.
+    // - delete: only the reservation's own owner — required by the account
+    //   deletion flow, which releases the claimed name when the account
+    //   (and its hunter document) is permanently removed.
+    match /hunterNames/{nameKey} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
                     && request.resource.data.uid == request.auth.uid;
@@ -78,7 +231,25 @@ service cloud.firestore {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // DUEL REQUESTS
+    // SUBSCRIPTIONS COLLECTION (legacy — locked)
+    // ══════════════════════════════════════════════════════════════════════
+    match /subscriptions/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // DUELS COLLECTION
+    // ══════════════════════════════════════════════════════════════════════
+    match /duels/{duelId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if false;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // DUEL REQUESTS COLLECTION
     // ══════════════════════════════════════════════════════════════════════
     match /duel_requests/{requestId} {
       allow read: if request.auth != null;
@@ -86,83 +257,58 @@ service cloud.firestore {
                     && request.resource.data.fromUid == request.auth.uid;
       allow update: if request.auth != null
                     && resource.data.toUid == request.auth.uid;
+      // Delete: either participant may delete — normal gameplay doesn't
+      // delete requests, but AccountDeletionService must be able to erase
+      // both sent and received requests when either side deletes their
+      // account.
       allow delete: if request.auth != null
                     && (resource.data.fromUid == request.auth.uid
                         || resource.data.toUid == request.auth.uid);
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // DUELS
+    // CUSTOM QUESTS COLLECTION
     // ══════════════════════════════════════════════════════════════════════
-    // Existing duel mutation behavior is retained to avoid changing game
-    // flows. It is intentionally not used for account cleanup; hardening it
-    // requires a dedicated participant-only mutation schema.
-    match /duels/{duelId} {
+    match /custom_quests/{questId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null
+                    && resource.data.uid == request.auth.uid;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // WEIGHT HISTORY COLLECTION
+    // ══════════════════════════════════════════════════════════════════════
+    match /weight_history/{historyId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if false;
+      // Delete: only the entry's own owner — normal gameplay never deletes
+      // a weight entry, but AccountDeletionService must be able to erase
+      // it when the owner deletes their account.
+      allow delete: if request.auth != null
+                    && resource.data.uid == request.auth.uid;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // RUNS COLLECTION
+    // ══════════════════════════════════════════════════════════════════════
+    match /runs/{runId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null
+                    && resource.data.uid == request.auth.uid;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // CALORIE LOGS COLLECTION
+    // ══════════════════════════════════════════════════════════════════════
+    match /calorie_logs/{logId} {
       allow read, write: if request.auth != null;
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // CUSTOM QUESTS
-    // ══════════════════════════════════════════════════════════════════════
-    match /custom_quests/{questId} {
-      allow read: if request.auth != null
-                  && resource.data.uid == request.auth.uid;
-      allow create: if request.auth != null
-                    && request.resource.data.uid == request.auth.uid;
-      allow update: if request.auth != null
-                    && resource.data.uid == request.auth.uid
-                    && request.resource.data.uid == request.auth.uid;
-      allow delete: if request.auth != null
-                    && resource.data.uid == request.auth.uid;
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // WEIGHT HISTORY
-    // ══════════════════════════════════════════════════════════════════════
-    match /weight_history/{historyId} {
-      allow read: if request.auth != null
-                  && resource.data.uid == request.auth.uid;
-      allow create: if request.auth != null
-                    && request.resource.data.uid == request.auth.uid;
-      allow update: if request.auth != null
-                    && resource.data.uid == request.auth.uid
-                    && request.resource.data.uid == request.auth.uid;
-      allow delete: if request.auth != null
-                    && resource.data.uid == request.auth.uid;
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // RUNS
-    // ══════════════════════════════════════════════════════════════════════
-    match /runs/{runId} {
-      allow read: if request.auth != null
-                  && resource.data.uid == request.auth.uid;
-      allow create: if request.auth != null
-                    && request.resource.data.uid == request.auth.uid;
-      allow update: if request.auth != null
-                    && resource.data.uid == request.auth.uid
-                    && request.resource.data.uid == request.auth.uid;
-      allow delete: if request.auth != null
-                    && resource.data.uid == request.auth.uid;
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // CALORIE LOGS
-    // ══════════════════════════════════════════════════════════════════════
-    match /calorie_logs/{logId} {
-      allow read: if request.auth != null
-                  && resource.data.uid == request.auth.uid;
-      allow create: if request.auth != null
-                    && request.resource.data.uid == request.auth.uid;
-      allow update: if request.auth != null
-                    && resource.data.uid == request.auth.uid
-                    && request.resource.data.uid == request.auth.uid;
-      allow delete: if request.auth != null
-                    && resource.data.uid == request.auth.uid;
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // APP CONFIG (read-only)
+    // APP CONFIG COLLECTION (server-managed — read-only to clients)
     // ══════════════════════════════════════════════════════════════════════
     match /app_config/{docId} {
       allow read: if request.auth != null;
@@ -170,12 +316,338 @@ service cloud.firestore {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // SETTINGS (read-only)
+    // SETTINGS COLLECTION (server-managed — read-only to clients)
     // ══════════════════════════════════════════════════════════════════════
     match /settings/{document} {
       allow read: if request.auth != null;
       allow write: if false;
     }
+
+      // ══════════════════════════════════════════════════════════════════════
+    // USER ACTIVITY — TODAY'S ACTIVE HUNTERS
+    // ══════════════════════════════════════════════════════════════════════
+    match /user_activity/{userId} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+                    && request.auth.uid == userId;
+
+      allow update: if request.auth != null
+                    && request.auth.uid == userId;
+
+      allow delete: if request.auth != null
+                    && request.auth.uid == userId;
+    }
+    // ══════════════════════════════════════════════════════════════════════
+		// RIVALRIES  —  rivalries/{pairId},  pairId = sorted uids joined by '_'
+		// ══════════════════════════════════════════════════════════════════════
+		match /rivalries/{pairId} {
+
+  	function isSignedIn()      { return request.auth != null; }
+  	function me()              { return request.auth.uid; }
+  	function existing()        { return resource.data; }
+  	function incoming()        { return request.resource.data; }
+  	function isParticipant()   { return me() in existing().participants; }
+  	function touchesOnly(keys) {
+    return incoming().diff(existing()).affectedKeys().hasOnly(keys);
+  }
+ 		 // The other participant, for the "remove only yourself" check.
+  	function otherUid() {
+    return existing().participants[0] == me()
+      ? existing().participants[1]
+      : existing().participants[0];
+  }
+  	// Immutable identity fields can never move in ANY update.
+ 		 function identityUnchanged() {
+    	return incoming().participants == existing().participants
+        && incoming().fromUid      == existing().fromUid
+        && incoming().toUid        == existing().toUid
+        && incoming().durationDays == existing().durationDays
+        && incoming().createdAt    == existing().createdAt;
+  }
+
+  // ── READ ────────────────────────────────────────────────────────────
+  // Each branch mirrors the exact field a real query filters on, so
+  // Firestore can statically validate list queries (it checks a query's
+  // structure against the rule, not the live data) — a rule referencing
+  // only `participants` fails EVERY unsettledFor/toUid query outright,
+  // regardless of what's actually in the documents.
+  allow read: if isSignedIn() && (
+    resource == null                    // lets a pre-create existence check pass
+    || me() in existing().participants
+    || me() in existing().unsettledFor  // matches fetchCurrentRivalry's own-uid query
+    || me() == existing().toUid         // matches incomingRequestStream's query
+    || me() == existing().fromUid
+  );
+
+  // ── CREATE — send a request. Sender only. ───────────────────────────
+  allow create: if isSignedIn()
+    && incoming().fromUid == me()
+    && incoming().toUid   != me()
+    && incoming().participants.size() == 2
+    && incoming().participants.hasOnly([incoming().fromUid, incoming().toUid])
+    && incoming().unsettledFor.hasOnly(incoming().participants)
+    && incoming().unsettledFor.size() == 2
+    && incoming().status == 'pending'
+    && incoming().durationDays in [3, 7, 14]
+    && incoming().xpAwarded == false
+    && incoming().createdAt == request.time            // server time, unforgeable
+    // No outcome field may be seeded at creation.
+    && !incoming().keys().hasAny(
+         ['startAt','startScore','endScore','winner','completedAt'])
+    && incoming().keys().hasOnly([
+         'participants','unsettledFor','fromUid','toUid',
+         'fromHunterName','toHunterName','durationDays',
+         'status','xpAwarded','createdAt']);
+
+  // ── UPDATE 1 — ACCEPT.  Receiver only.  status + startAt + startScore ──
+  allow update: if isSignedIn()
+    && me() == existing().toUid
+    && existing().status == 'pending'
+    && incoming().status == 'active'
+    && touchesOnly(['status','startAt','startScore'])
+    && identityUnchanged()
+    && incoming().startAt == request.time              // timer starts NOW, server-side
+    && incoming().startScore.keys().hasOnly(existing().participants)
+    && incoming().startScore.keys().size() == 2;
+
+  // ── UPDATE 2 — DECLINE.  Receiver only.  status + unsettledFor ────────
+  allow update: if isSignedIn()
+    && me() == existing().toUid
+    && existing().status == 'pending'
+    && incoming().status == 'declined'
+    && touchesOnly(['status','unsettledFor'])
+    && identityUnchanged()
+    && incoming().unsettledFor.size() == 0;
+
+  // ── UPDATE 3 — FINALIZE.  Either participant, ONLY after real expiry. ──
+  //   status + winner + endScore + completedAt
+  allow update: if isSignedIn()
+    && isParticipant()
+    && existing().status == 'active'
+    && incoming().status == 'completed'
+    && touchesOnly(['status','winner','endScore','completedAt'])
+    && identityUnchanged()
+    && incoming().completedAt == request.time
+    // THE anti-cheat clause: server time, not the device clock. A tampered
+    // clock cannot finalize a rivalry early.
+    && request.time >= existing().startAt
+         + duration.value(existing().durationDays, 'd')
+    // '' means DRAW; otherwise the winner must be a participant.
+    && (incoming().winner == ''
+        || incoming().winner in existing().participants)
+    && incoming().endScore.keys().hasOnly(existing().participants)
+    && incoming().endScore.keys().size() == 2
+    && incoming().startScore == existing().startScore;  // baseline is frozen
+
+  // ── UPDATE 4 — CLAIM WINNER XP.  Winner only.  WRITE-ONCE. ────────────
+  allow update: if isSignedIn()
+    && existing().status == 'completed'
+    && me() == existing().winner
+    && existing().xpAwarded == false
+    && incoming().xpAwarded == true                    // false -> true ONLY
+    && touchesOnly(['xpAwarded'])
+    && identityUnchanged();
+
+  // ── UPDATE 5 — SETTLE MY SIDE.  Remove ONLY your own uid. ─────────────
+  allow update: if isSignedIn()
+    && isParticipant()
+    && existing().status in ['completed','abandoned']
+    && touchesOnly(['unsettledFor'])
+    && identityUnchanged()
+    && !(me() in incoming().unsettledFor)              // I removed myself
+    && incoming().unsettledFor.hasOnly(existing().unsettledFor)  // no additions
+    // ...and I did NOT remove the other participant.
+    && ((otherUid() in existing().unsettledFor)
+         == (otherUid() in incoming().unsettledFor));
+
+  // ── UPDATE 6 — ABANDON (account deletion).  status + unsettledFor ─────
+  allow update: if isSignedIn()
+    && isParticipant()
+    && existing().status == 'active'
+    && incoming().status == 'abandoned'
+    && touchesOnly(['status','unsettledFor'])
+    && identityUnchanged()
+    && !(me() in incoming().unsettledFor)
+    && incoming().unsettledFor.hasOnly(existing().unsettledFor)
+    && ((otherUid() in existing().unsettledFor)
+         == (otherUid() in incoming().unsettledFor));
+
+  // ── DELETE — withdraw a pending request, or clear a fully settled one ──
+  allow delete: if isSignedIn()
+    && isParticipant()
+    && (existing().status == 'pending'
+        || existing().unsettledFor.size() == 0);
+}
+
+    // ══════════════════════════════════════════════════════════════════════
+    // STEP CLASHES
+    // ══════════════════════════════════════════════════════════════════════
+    match /step_clashes/{battleId} {
+
+      function isSignedIn()      { return request.auth != null; }
+      function me()              { return request.auth.uid; }
+      function existing()        { return resource.data; }
+      function incoming()        { return request.resource.data; }
+      function isParticipant()   { return me() in existing().participants; }
+      function touchesOnly(keys) {
+        return incoming().diff(existing()).affectedKeys().hasOnly(keys);
+      }
+      function identityUnchanged() {
+        return incoming().participants == existing().participants
+            && incoming().creatorUid   == existing().creatorUid
+            && incoming().goalSteps    == existing().goalSteps
+            && incoming().durationMinutes == existing().durationMinutes
+            && incoming().createdAt    == existing().createdAt;
+      }
+
+      // ── READ ────────────────────────────────────────────────────────
+      allow read: if isSignedIn()
+                  && (me() in resource.data.participants
+                      || me() in resource.data.pendingInvitees);
+
+      // ── CREATE ──────────────────────────────────────────────────────
+      allow create: if isSignedIn()
+        && incoming().creatorUid == me()
+        && me() in incoming().participants
+        && incoming().status == 'waiting'
+        && incoming().goalSteps in [10000, 25000, 50000, 100000]
+        && incoming().durationMinutes in [30, 60, 120]
+        && incoming().participants.size() >= 2
+        && incoming().participants.size() <= 5
+        && incoming().pendingInvitees.size() >= 1
+        && incoming().pendingInvitees.size() <= 4
+        && !(me() in incoming().pendingInvitees)
+        && incoming().participants.hasAll(incoming().pendingInvitees)
+        && incoming().winner == null
+        && incoming().completedAt == null
+        && incoming().startAt == null
+        && incoming().forfeited.size() == 0
+        && incoming().progress.size() == 0
+        && incoming().startSnapshot.size() == 0
+        && incoming().xpAwarded.size() == incoming().participants.size()
+        && incoming().createdAt == request.time;
+
+      // ── UPDATE 1 — ACCEPT ──────────────────────────────────────────
+      allow update: if isSignedIn()
+        && isParticipant()
+        && me() in existing().pendingInvitees
+        && !(me() in incoming().pendingInvitees)
+        && identityUnchanged()
+        && (
+          (incoming().status == 'waiting'
+           && touchesOnly(['pendingInvitees']))
+          ||
+          (existing().status == 'waiting'
+           && incoming().status == 'active'
+           && incoming().pendingInvitees.size() == 0
+           && incoming().startAt == request.time
+           && touchesOnly(['pendingInvitees', 'status', 'startAt']))
+        );
+
+      // ── UPDATE 2 — DECLINE ─────────────────────────────────────────
+      allow update: if isSignedIn()
+        && me() in existing().participants
+        && existing().status == 'waiting'
+        && (
+          (incoming().status == 'cancelled'
+           && touchesOnly(['status']))
+          ||
+          (incoming().status == 'waiting'
+           && !(me() in incoming().participants)
+           && !(me() in incoming().pendingInvitees)
+           && touchesOnly(['participants', 'pendingInvitees']))
+        );
+
+      // ── UPDATE 3 — PROGRESS SYNC (own entry only) ──────────────────
+      allow update: if isSignedIn()
+        && isParticipant()
+        && existing().status == 'active'
+        && !(me() in existing().forfeited)
+        && identityUnchanged()
+        && incoming().status == existing().status
+        && incoming().winner == existing().winner
+        && incoming().completedAt == existing().completedAt
+        && incoming().forfeited == existing().forfeited
+        && incoming().xpAwarded == existing().xpAwarded
+        && incoming().pendingInvitees == existing().pendingInvitees
+        && touchesOnly(['progress', 'startSnapshot'])
+        && incoming().progress[me()] >= 0
+        && incoming().progress[me()] <= existing().goalSteps
+        && (!(me() in existing().startSnapshot.keys())
+            || incoming().startSnapshot[me()] == existing().startSnapshot[me()])
+        && incoming().progress.diff(existing().progress)
+             .affectedKeys().hasOnly([me()])
+        && incoming().startSnapshot.diff(existing().startSnapshot)
+             .affectedKeys().hasOnly([me()]);
+
+      // ── UPDATE 4 — FINALIZE (anti-cheat: requires real expiry or goal reached) ──
+      allow update: if isSignedIn()
+        && isParticipant()
+        && existing().status == 'active'
+        && existing().winner == null
+        && incoming().status == 'completed'
+        && incoming().completedAt == request.time
+        && (incoming().winner == '' || incoming().winner in existing().participants)
+        && touchesOnly(['status', 'winner', 'completedAt'])
+        && identityUnchanged()
+        && (
+          request.time >= existing().startAt
+            + duration.value(existing().durationMinutes, 'm')
+          ||
+          existing().progress[incoming().winner] >= existing().goalSteps
+        );
+
+      // ── UPDATE 5 — FORFEIT (self only) ─────────────────────────────
+      allow update: if isSignedIn()
+        && isParticipant()
+        && existing().status == 'active'
+        && !(me() in existing().forfeited)
+        && incoming().forfeited.hasAll(existing().forfeited)
+        && incoming().forfeited.hasAll([me()])
+        && incoming().forfeited.size() == existing().forfeited.size() + 1
+        && touchesOnly(['forfeited'])
+        && identityUnchanged();
+
+      // ── UPDATE 6 — XP CLAIM (winner only, write-once) ─────────────
+      allow update: if isSignedIn()
+        && isParticipant()
+        && existing().status == 'completed'
+        && me() == existing().winner
+        && existing().xpAwarded[me()] == false
+        && incoming().xpAwarded[me()] == true
+        && incoming().xpAwarded.diff(existing().xpAwarded)
+             .affectedKeys().hasOnly([me()])
+        && touchesOnly(['xpAwarded'])
+        && identityUnchanged();
+
+      // ── UPDATE 7 — ACKNOWLEDGE (non-winners dismiss result) ────────
+      allow update: if isSignedIn()
+        && isParticipant()
+        && existing().status == 'completed'
+        && me() != existing().winner
+        && existing().xpAwarded[me()] == false
+        && incoming().xpAwarded[me()] == true
+        && incoming().xpAwarded.diff(existing().xpAwarded)
+             .affectedKeys().hasOnly([me()])
+        && touchesOnly(['xpAwarded'])
+        && identityUnchanged();
+
+      // ── UPDATE 8 — CANCEL (creator, while waiting) ─────────────────
+      allow update: if isSignedIn()
+        && me() == existing().creatorUid
+        && existing().status == 'waiting'
+        && incoming().status == 'cancelled'
+        && touchesOnly(['status']);
+
+      // ── DELETE ──────────────────────────────────────────────────────
+      allow delete: if isSignedIn()
+        && me() == existing().creatorUid
+        && existing().status == 'waiting';
+    }
+
+
+
 
     // ══════════════════════════════════════════════════════════════════════
     // DEFAULT: deny everything else

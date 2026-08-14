@@ -148,7 +148,11 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
     final tabIndex = widget.tabIndex;
     if (activeIndex == null || tabIndex == null) return;
     if (activeIndex.value == tabIndex) {
-      _refreshInBackground();
+      // Passive navigation: respect the 5-minute TTL cache. The user simply
+      // switched to the Leaderboard tab — if cached data is still fresh,
+      // serve it with zero Firestore reads. Pull-to-refresh and re-tap are
+      // still available for an explicit forced refresh.
+      _refreshInBackground(forceRefresh: false);
     }
     // Navigating AWAY needs no work — there is no guard to re-arm.
   }
@@ -158,30 +162,27 @@ class _GlobalRankingsScreenState extends State<GlobalRankingsScreen>
   // the current tab (so the page transition does not replay) and therefore
   // `activeIndex` does not change — this signal is what makes a re-tap still
   // refresh. Tapping Leaderboard 10 times performs 10 refreshes.
-  void _onNavRetap() => _refreshInBackground();
+  void _onNavRetap() => _refreshInBackground(forceRefresh: true);
 
   // The single navigation/refresh path, shared by:
-  //   * entering the Leaderboard tab   (_onActiveIndexChanged)
-  //   * re-tapping the active tab      (_onNavRetap)
+  //   * entering the Leaderboard tab   (_onActiveIndexChanged, cache-aware)
+  //   * re-tapping the active tab      (_onNavRetap, always fresh)
   // Pull-to-refresh uses the same repository call with the same
   // `forceRefresh: true`.
   //
-  // `forceRefresh: true` is REQUIRED and is the actual fix for the reported
-  // bug: LeaderboardRepository.fetch() honours a 5-minute TTL cache, so a
-  // plain fetch() returned the previously cached rows and a just-equipped
-  // Effect did not appear until the user pulled to refresh (which already
-  // forced). Forcing here means the query always runs and the freshly written
-  // `equippedProfileEffect` / `effectExpiry` are loaded with the rest of the
-  // leaderboard data.
+  // When [forceRefresh] is false, the repository's 5-minute TTL cache is
+  // respected — if cached data is still fresh, zero Firestore reads occur.
+  // When true, the query always runs (used for explicit user actions like
+  // pull-to-refresh and re-tap, and after cosmetic equips via markStale).
   //
   // Cached data stays on screen while this runs (no loading indicator, no
   // flicker), and LeaderboardRepository.fetch falls back to cached data on
   // network failure, so failures are silently absorbed.
-  Future<void> _refreshInBackground() async {
+  Future<void> _refreshInBackground({bool forceRefresh = true}) async {
     try {
       final countFuture = UserActivityService.instance.todayActiveCount();
       final fresh = await LeaderboardRepository.instance
-          .fetch(_activeTab, forceRefresh: true);
+          .fetch(_activeTab, forceRefresh: forceRefresh);
       final count = await countFuture;
       if (mounted) {
         setState(() {

@@ -198,8 +198,15 @@ class _StepClashScreenState extends State<StepClashScreen> {
     await _sync(); // sync final progress before forfeiting
     final clash = _clash;
     if (clash == null) return;
-    await StepClashService.instance.forfeit(clash);
+    final result = await StepClashService.instance.forfeit(clash);
     if (!mounted) return;
+    if (!result.ok) {
+      setState(() => _forfeiting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message ?? 'Could not give up.')),
+      );
+      return;
+    }
     Navigator.pop(context);
   }
 

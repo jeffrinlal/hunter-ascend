@@ -364,6 +364,7 @@ class _BattleHubScreenState extends State<BattleHubScreen> {
           description:
               'A hunter has challenged you to a duel. Accept or decline.',
           tag: 'PvP',
+          incoming: true,
           onEnter: () => _openAndRefresh(const DuelRequestScreen()),
         );
       case _DuelCardState.activeDuel:
@@ -436,6 +437,7 @@ class _BattleHubScreenState extends State<BattleHubScreen> {
           description:
               'A Hunter has challenged you to a step competition. Accept or decline.',
           tag: 'PvP',
+          incoming: true,
           onEnter: () => _openAndRefresh(
             StepClashScreen(battleId: _stepClash!.id),
           ),
@@ -540,6 +542,7 @@ class _BattleHubScreenState extends State<BattleHubScreen> {
               '${rivalry.hunterNameFor(rivalry.fromUid)} wants to become your '
               'Rival for ${rivalry.durationDays} days. Accept or decline.',
           tag: 'Social',
+          incoming: true,
           onEnter: () => _openAndRefresh(RivalRequestScreen(rivalry: rivalry)),
         );
       case RivalCardState.requestSent:

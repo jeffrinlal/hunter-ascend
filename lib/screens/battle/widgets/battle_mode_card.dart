@@ -24,6 +24,7 @@ class BattleModeCard extends StatelessWidget {
     required this.tag,
     required this.onEnter,
     this.comingSoon = false,
+    this.incoming = false,
   });
 
   final String emoji;
@@ -35,15 +36,63 @@ class BattleModeCard extends StatelessWidget {
   final VoidCallback onEnter;
   final bool comingSoon;
 
+  /// When true, the card renders with a danger-accent highlight (red border,
+  /// subtle glow, "NEW" chip) indicating an incoming request/challenge the
+  /// user should act on. Used for incoming Duel, Rival, and Step Clash cards.
+  final bool incoming;
+
   @override
   Widget build(BuildContext context) {
     final accent = MembershipTheme.current.accent;
 
     return MembershipCard(
       padding: const EdgeInsets.all(20),
+      borderColor: incoming ? HunterTheme.danger : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Incoming highlight glow bar ──
+          if (incoming)
+            Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: HunterTheme.danger.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: HunterTheme.danger.withValues(alpha: 0.4),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: HunterTheme.danger,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: HunterTheme.danger.withValues(alpha: 0.6),
+                          blurRadius: 6,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'NEW CHALLENGE',
+                    style: TextStyle(
+                      color: HunterTheme.danger,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -112,12 +161,14 @@ class BattleModeCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           MembershipButton.primary(
-            'ENTER',
+            incoming ? 'VIEW REQUEST' : 'ENTER',
             onTap: onEnter,
             expanded: true,
             icon: comingSoon
                 ? Icons.hourglass_top_rounded
-                : Icons.arrow_forward_rounded,
+                : incoming
+                    ? Icons.notifications_active_rounded
+                    : Icons.arrow_forward_rounded,
           ),
         ],
       ),

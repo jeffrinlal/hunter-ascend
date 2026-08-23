@@ -416,7 +416,6 @@ class _MembershipScreenState extends State<MembershipScreen>
                             'Weekly missions',
                             'Run tracking & XP',
                             'Calorie tracking',
-                            'Default avatar frame',
                             'Banner ads',
                             'Rewarded ads',
                           ],
@@ -439,10 +438,11 @@ class _MembershipScreenState extends State<MembershipScreen>
                           features: const [
                             'Remove banner ads',
                             '1 Premium Report Generation',
-                            'Unlimited profile changes',
+                            'Access Map and Calorie tracker',
                             'Gold badge on leaderboard',
                             'Gold avatar frame',
                             'Gold avatar glow',
+                            'Leaderboard cosmetics',
                           ],
                           adButton: _RewardedAdButton(
                             state: _isClaiming ? _AdButtonState.loading : adState,
@@ -474,6 +474,7 @@ class _MembershipScreenState extends State<MembershipScreen>
                             'Animated avatar glow',
                             'Monthly rewarded ad skips',
                             'Unlimited profile changes',
+                            'Leaderboard cosmetics',
                           ],
                           adButton: _RewardedAdButton(
                             state: _isClaiming ? _AdButtonState.loading : adState,
